@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="genius-old.jpeg" alt="iGeniusAI Logo" width="120" />
+  <img src="genius.jpeg" alt="iGeniusAI Logo" width="120" />
   <h1>iGeniusAI 🎵🤖</h1>
   <p><b>Bring the power of modern Artificial Intelligence to your legacy macOS and iTunes!</b></p>
 </div>
