@@ -5,7 +5,7 @@
   <p><b>The ultimate power-tool for legacy iTunes libraries on OS X 10.9 – 10.13.</b></p>
 </div>
 
-iGeniusAI is a unified native application that brings modern LLM capabilities and advanced library restoration tools to vintage Macs. It combines the AI playlist generation power of **iGeniusAI** with the library organization excellence of **iTunesMediaInfoFix**.
+iGeniusAI is a unified desktop application that brings modern LLM capabilities and advanced library restoration tools to vintage Macs. It combines the AI playlist generation power of **iGeniusAI** with the library organization excellence of **iTunesMediaInfoFix**.
 
 ---
 
@@ -14,7 +14,7 @@ iGeniusAI is a unified native application that brings modern LLM capabilities an
 ### 1. 🧠 AI Genius (Tab 1)
 - **AI-Powered Playlists:** Generate perfect playlists based on moods, themes, or events (e.g., *"90s Underground Techno"* or *"Relaxing evening by the fireplace"*).
 - **Multi-Provider Support:** Integration with Google Gemini, Groq, and OpenRouter (perfect for bypassing geo-blocks).
-- **Native Integration:** Direct injection of generated tracks into your iTunes library via AppleScript.
+- **Deep Integration:** Direct injection of generated tracks into your iTunes library.
 
 ### 2. 🛠 Media Fixer (Tab 2)
 - **Smart Album Merge:** Automatically unifies split albums (e.g., *"Artist - Hits"* and *"Artist: Hits"*) into a single clean entity by normalizing metadata.
@@ -23,7 +23,7 @@ iGeniusAI is a unified native application that brings modern LLM capabilities an
 - **Legacy Integration:** This feature is powered by the logic from the [iTunesMediaInfoFix](https://github.com/MiChiRose/iTunesMediaInfoFix) project, now fully integrated and improved for iGeniusAI.
 
 ### 3. 🌍 General Features
-- **🍎 100% Native Feel:** Built with the classic OS X Aqua aesthetic. No modern bloated frameworks, just a lightweight and fast interface.
+- **🍎 Classic Aqua Aesthetic:** Designed to feel right at home on OS X. No heavy modern web frameworks (like Electron), just a lightweight, fast, and familiar interface that seamlessly blends with your system.
 - **⚡️ Lightning Fast Library Caching:** Reads your iTunes library once and caches it for instant subsequent generations.
 - **🛡️ Resilient SSL:** Integrated workaround for outdated system OpenSSL 0.9.8, ensuring stable cloud connections on Mavericks/Yosemite.
 - **🌐 10+ Languages:** Fully localized for English, Russian, Belarusian, Korean, Japanese, Chinese, German, Polish, Estonian, and Spanish.
@@ -101,12 +101,11 @@ The **Media Fixer** tab helps keep your library organized:
 
 ---
 
-## 🛠 Technical Details
+## 🛠 Under the Hood
 
-*   **Language:** Python 2.7 (optimized for legacy environments).
-*   **GUI:** Native Tkinter/ttk with a modular architecture.
-*   **Connectivity:** Shared SSL/TLS workaround layer for `urllib2` and `curl`.
-*   **Automation:** Extensive use of AppleScript (osascript) for deep iTunes integration.
+*   **Deep System Integration:** Utilizes advanced AppleScript automation to seamlessly read your library and inject generated playlists directly into iTunes.
+*   **Legacy Connectivity:** Features a custom, highly resilient network layer designed to bypass expired SSL certificates on older systems, ensuring uninterrupted connections to modern AI APIs.
+*   **Lightweight Footprint:** Carefully optimized to run smoothly on vintage hardware without draining system resources or relying on bloated modern dependencies.
 
 ---
 
