@@ -54,7 +54,8 @@ When you open the application for the first time, you will be greeted by the **A
 
 3.  **Get your API Key:**
     *   Click the **Question Mark (?)** icon in the bottom corner of the setup window. This will open a helpful guide explaining exactly how to obtain your own free API key for each provider.
-    *   
+    *   <img width="749" height="560" alt="3rd" src="https://github.com/user-attachments/assets/a4dda3af-2d64-429c-88d9-386396b31153" />
+
 
 
 4.  **Validate & Save:**
