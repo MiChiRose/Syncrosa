@@ -30,8 +30,6 @@ iGeniusAI is a unified native application that brings modern LLM capabilities an
 
 ---
 
----
-
 ## 📖 User Guide
 
 Below is a detailed guide on how to set up and use iGeniusAI. 
