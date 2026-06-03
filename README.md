@@ -1,7 +1,7 @@
 # iGeniusAI 🎵🤖 (AI + Media Fixer)
 
 <div align="center">
-  <img src="genius_icon.icns" alt="iGeniusAI Logo" width="120" />
+  <img src="genius.jpeg" alt="iGeniusAI Logo" width="120" />
   <p><b>The ultimate power-tool for legacy iTunes libraries on OS X 10.9 – 10.13.</b></p>
 </div>
 
