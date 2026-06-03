@@ -5,7 +5,7 @@
   <p><b>The ultimate power-tool for legacy iTunes libraries on OS X 10.9 – 10.13.</b></p>
 </div>
 
-iGeniusAI PRO is a unified native application that brings modern LLM capabilities and advanced library restoration tools to vintage Macs. It combines the AI playlist generation power of **iGeniusAI** with the library organization excellence of **iTunesMediaInfoFix**.
+iGeniusAI is a unified native application that brings modern LLM capabilities and advanced library restoration tools to vintage Macs. It combines the AI playlist generation power of **iGeniusAI** with the library organization excellence of **iTunesMediaInfoFix**.
 
 ---
 
