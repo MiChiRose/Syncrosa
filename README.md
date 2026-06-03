@@ -1,4 +1,4 @@
-# iGeniusAI PRO 🎵🤖 (AI + Media Fixer)
+# iGeniusAI 🎵🤖 (AI + Media Fixer)
 
 <div align="center">
   <img src="genius_icon.icns" alt="iGeniusAI Logo" width="120" />
@@ -34,7 +34,7 @@ iGeniusAI PRO is a unified native application that brings modern LLM capabilitie
 
 ## 📖 User Guide
 
-Below is a detailed guide on how to set up and use iGeniusAI PRO. 
+Below is a detailed guide on how to set up and use iGeniusAI. 
 
 <details>
 <summary><b>1. Initial Setup & AI Configuration (First Launch)</b></summary>
