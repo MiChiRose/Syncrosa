@@ -1,0 +1,367 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		D3E1A2B3C4D5E6F700000001 /* iGenius_ARMApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000101 /* iGenius_ARMApp.swift */; };
+		D3E1A2B3C4D5E6F700000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000102 /* ContentView.swift */; };
+		D3E1A2B3C4D5E6F700000003 /* PlaylistGeneratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */; };
+		D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */; };
+		D3E1A2B3C4D5E6F700000005 /* FileMediaFixerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */; };
+		D3E1A2B3C4D5E6F700000006 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000106 /* SettingsView.swift */; };
+		D3E1A2B3C4D5E6F700000007 /* NotificationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000107 /* NotificationOverlay.swift */; };
+		D3E1A2B3C4D5E6F700000008 /* MusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000108 /* MusicService.swift */; };
+		D3E1A2B3C4D5E6F700000009 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000109 /* AIService.swift */; };
+		D3E1A2B3C4D5E6F70000000A /* MetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */; };
+		D3E1A2B3C4D5E6F70000000B /* LocalizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */; };
+		D3E1A2B3C4D5E6F70000000C /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */; };
+		D3E1A2B3C4D5E6F70000000D /* genius_atom.icns in Resources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		D3E1A2B3C4D5E6F700000101 /* iGenius_ARMApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iGenius_ARMApp.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistGeneratorView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFixerView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMediaFixerView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000106 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000107 /* NotificationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationOverlay.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000108 /* MusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000109 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = genius_atom.icns; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000201 /* iGenius_ARM.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iGenius_ARM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D3E1A2B3C4D5E6F700000301 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D3E1A2B3C4D5E6F700000401 /* iGenius_ARM */ = {
+			isa = PBXGroup;
+			children = (
+				D3E1A2B3C4D5E6F700000101 /* iGenius_ARMApp.swift */,
+				D3E1A2B3C4D5E6F700000102 /* ContentView.swift */,
+				D3E1A2B3C4D5E6F700000402 /* Views */,
+				D3E1A2B3C4D5E6F700000403 /* Services */,
+				D3E1A2B3C4D5E6F700000404 /* Products */,
+				D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */,
+				);
+				sourceTree = "<group>";
+
+		};
+		D3E1A2B3C4D5E6F700000402 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */,
+				D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */,
+				D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */,
+				D3E1A2B3C4D5E6F700000106 /* SettingsView.swift */,
+				D3E1A2B3C4D5E6F700000107 /* NotificationOverlay.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D3E1A2B3C4D5E6F700000403 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				D3E1A2B3C4D5E6F700000108 /* MusicService.swift */,
+				D3E1A2B3C4D5E6F700000109 /* AIService.swift */,
+				D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */,
+				D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */,
+				D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		D3E1A2B3C4D5E6F700000404 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D3E1A2B3C4D5E6F700000201 /* iGenius_ARM.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D3E1A2B3C4D5E6F700000501 /* iGenius_ARM */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D3E1A2B3C4D5E6F700000601 /* Build configuration list for PBXNativeTarget "iGenius_ARM" */;
+			buildPhases = (
+				D3E1A2B3C4D5E6F700000701 /* Sources */,
+				D3E1A2B3C4D5E6F700000301 /* Frameworks */,
+				D3E1A2B3C4D5E6F700000801 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = iGenius_ARM;
+			productName = iGenius_ARM;
+			productReference = D3E1A2B3C4D5E6F700000201 /* iGenius_ARM.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D3E1A2B3C4D5E6F700000901 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1300;
+				LastUpgradeCheck = 1300;
+				TargetAttributes = {
+					D3E1A2B3C4D5E6F700000501 = {
+						CreatedOnToolsVersion = 13.0;
+					};
+				};
+			};
+			buildConfigurationList = D3E1A2B3C4D5E6F700000902 /* Build configuration list for PBXProject "iGenius_ARM" */;
+			compatibilityVersion = "Xcode 13.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D3E1A2B3C4D5E6F700000401 /* iGenius_ARM */;
+			productRefGroup = D3E1A2B3C4D5E6F700000404 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D3E1A2B3C4D5E6F700000501 /* iGenius_ARM */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D3E1A2B3C4D5E6F700000801 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D3E1A2B3C4D5E6F70000000D /* genius_atom.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D3E1A2B3C4D5E6F700000701 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D3E1A2B3C4D5E6F700000001 /* iGenius_ARMApp.swift in Sources */,
+				D3E1A2B3C4D5E6F700000002 /* ContentView.swift in Sources */,
+				D3E1A2B3C4D5E6F700000003 /* PlaylistGeneratorView.swift in Sources */,
+				D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */,
+				D3E1A2B3C4D5E6F700000005 /* FileMediaFixerView.swift in Sources */,
+				D3E1A2B3C4D5E6F700000006 /* SettingsView.swift in Sources */,
+				D3E1A2B3C4D5E6F700000007 /* NotificationOverlay.swift in Sources */,
+				D3E1A2B3C4D5E6F700000008 /* MusicService.swift in Sources */,
+				D3E1A2B3C4D5E6F700000009 /* AIService.swift in Sources */,
+				D3E1A2B3C4D5E6F70000000A /* MetadataService.swift in Sources */,
+				D3E1A2B3C4D5E6F70000000B /* LocalizationService.swift in Sources */,
+				D3E1A2B3C4D5E6F70000000C /* KeychainHelper.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		D3E1A2B3C4D5E6F700000A01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		D3E1A2B3C4D5E6F700000A02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		D3E1A2B3C4D5E6F700000B01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_CFBundleIconFile = "genius_atom.icns";
+				INFOPLIST_KEY_NSMainStoryboardFile = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.iGeniusAI-M";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				ENABLE_DEBUG_DYLIB = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Info.plist";
+				ENABLE_HARDENED_RUNTIME = YES;
+			};
+			name = Debug;
+		};
+		D3E1A2B3C4D5E6F700000B02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_CFBundleIconFile = "genius_atom.icns";
+				INFOPLIST_KEY_NSMainStoryboardFile = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.iGeniusAI-M";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				ENABLE_DEBUG_DYLIB = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Info.plist";
+				ENABLE_HARDENED_RUNTIME = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D3E1A2B3C4D5E6F700000601 /* Build configuration list for PBXNativeTarget "iGenius_ARM" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D3E1A2B3C4D5E6F700000B01 /* Debug */,
+				D3E1A2B3C4D5E6F700000B02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D3E1A2B3C4D5E6F700000902 /* Build configuration list for PBXProject "iGenius_ARM" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D3E1A2B3C4D5E6F700000A01 /* Debug */,
+				D3E1A2B3C4D5E6F700000A02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D3E1A2B3C4D5E6F700000901 /* Project object */;
+}
