@@ -50,21 +50,41 @@ def make_request(url, headers_dict, payload_dict=None, timeout_sec=90):
             return False, "Curl Exception: " + str(ce)
 
     try:
+        # --- MATCHING WORKING DIAGNOSTIC TEST ---
         try:
+            # First, try modern context with our bundle if it exists
             ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            ca_path = os.path.join(base_dir, "cacert.pem")
+            
+            if os.path.exists(ca_path):
+                ctx.load_verify_locations(ca_path)
+            else:
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+            
             response = urllib2.urlopen(req, data=data, context=ctx, timeout=timeout_sec)
-        except AttributeError:
-            response = urllib2.urlopen(req, data=data, timeout=timeout_sec)
+        except (AttributeError, TypeError, ssl.SSLError):
+            # Fallback to exact Method 2 from diag_network.py
+            try:
+                # Some Python versions support context but fail with our bundle
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                response = urllib2.urlopen(req, data=data, context=ctx, timeout=timeout_sec)
+            except:
+                # Final fallback: legacy urllib2
+                response = urllib2.urlopen(req, data=data, timeout=timeout_sec)
+                
         return True, response.read()
     except urllib2.HTTPError as e:
         if e.code in [401, 403]: 
             return True, e.read()
         return False, "HTTP Error: {} - {}".format(e.code, e.read()[:100])
     except Exception as e:
+        # Only fallback to curl if it's an SSL/Protocol error
         err_str = str(e).lower()
-        if "ssl" in err_str or "handshake" in err_str or "errno 1" in err_str or "socket error" in err_str or "eof" in err_str:
+        if any(kw in err_str for kw in ["ssl", "handshake", "errno 1", "socket error", "eof", "failed"]):
             return do_curl()
         return False, "Network Error: " + str(e)
 

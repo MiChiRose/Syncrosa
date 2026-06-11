@@ -40,30 +40,20 @@ cat << 'EOF' > "$APP_PATH/Contents/Info.plist"
 EOF
 
 # 4. СОЗДАЕМ ИСПОЛНЯЕМЫЙ ФАЙЛ (МАГИЯ ПИТОНА)
-# Мы добавляем папку Resources в PYTHONPATH, чтобы модули core, ui и features были доступны
 cat << 'EOF' > "$APP_PATH/Contents/MacOS/$APP_NAME"
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-import os, sys
+#!/bin/bash
+# Find the best python version available
+if [ -x "/usr/local/bin/python2.7" ]; then
+    PYTHON_EXE="/usr/local/bin/python2.7"
+else
+    PYTHON_EXE="/usr/bin/python"
+fi
 
-# Исправляем проблему с кодировкой в старых системах
-reload(sys)
-sys.setdefaultencoding('utf-8')
+BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+RESOURCES_DIR="$BASE_DIR/../Resources"
+export PYTHONPATH="$RESOURCES_DIR:$PYTHONPATH"
 
-base_path = os.path.dirname(os.path.abspath(__file__))
-resources_path = os.path.join(base_path, '../Resources')
-script_path = os.path.join(resources_path, 'main.py')
-
-# Добавляем Resources в системный путь для импорта модулей
-if resources_path not in sys.path:
-    sys.path.insert(0, resources_path)
-
-if os.path.exists(script_path):
-    # Передаем управление основному скрипту
-    namespace = {'__file__': script_path, '__name__': '__main__'}
-    exec(open(script_path).read(), namespace)
-else:
-    print("Error: main.py not found at " + script_path)
+exec "$PYTHON_EXE" "$RESOURCES_DIR/main.py"
 EOF
 
 chmod +x "$APP_PATH/Contents/MacOS/$APP_NAME"
