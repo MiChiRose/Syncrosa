@@ -57,7 +57,11 @@ LANGUAGES = {
         "err_parse": "Error: The AI returned an invalid format instead of a playlist.",
         "err_unexp": "An unexpected error occurred during generation.",
         "msg_success": "Playlist '{}' has been created with {} tracks!",
-        "ask_success_log": "Would you like to save the process logs (including the AI's raw response) to your Desktop for analysis?"
+        "ask_success_log": "Would you like to save the process logs (including the AI's raw response) to your Desktop for analysis?",
+        "genius_lib_info": "Library: {} tracks",
+        "ask_sync_startup": "Do you want to update iTunes library data now?",
+        "max_available": "Max available: {}",
+        "prog_heartbeat": "AI is still processing... [{:02d}:{:02d}]"
     },
     "ru": {
         "ssl_update_msg": u"Ваш Mac использует устаревшие сертификаты безопасности (OpenSSL 0.9.8).\n\nДля стабильной и быстрой работы с ИИ мы настоятельно рекомендуем установить официальное обновление Python 2.7.18 для macOS 10.9+.\n\nХотите скачать его сейчас?",
@@ -113,7 +117,11 @@ LANGUAGES = {
         "err_parse": u"Ошибка: ИИ вернул неверный формат ответа вместо плейлиста.",
         "err_unexp": u"Произошла непредвиденная ошибка во время генерации.",
         "msg_success": u"Плейлист '{}' был успешно создан! Добавлено треков: {}",
-        "ask_success_log": u"Хотите сохранить логи процесса (включая сырой ответ ИИ) на Рабочий стол для анализа?"
+        "ask_success_log": u"Хотите сохранить логи процесса (включая сырой ответ ИИ) на Рабочий стол для анализа?",
+        "genius_lib_info": u"Медиатека: {} треков",
+        "ask_sync_startup": u"Вы хотите обновить данные о медиатеке iTunes сейчас?",
+        "max_available": u"Доступно максимум: {}",
+        "prog_heartbeat": u"ИИ всё ещё думает... [{:02d}:{:02d}]"
     },
     "be": {
         "ssl_update_msg": u"Ваш Mac выкарыстоўвае састарэлыя сертыфікаты бяспекі (OpenSSL 0.9.8).\n\nДля стабільнай і хуткай працы з ШІ мы настойліва рэкамендуем усталяваць афіцыйнае абнаўленне Python 2.7.18 для macOS 10.9+.\n\nХочаце спампаваць яго зараз?",

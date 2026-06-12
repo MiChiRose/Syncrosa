@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import threading
 
 # --- EMERGENCY PATH FIX FOR LEGACY MAC BUNDLES ---
 res_path = os.path.dirname(os.path.abspath(__file__))
@@ -39,14 +40,8 @@ class App(tk.Tk):
         sh = self.winfo_screenheight()
         self.geometry("{}x{}+{}+{}".format(w, h, int(sw/2 - w/2), int(sh/2 - h/2)))
         
-        try:
-            is_running = run_as('tell application "System Events" to (name of processes) contains "iTunes"')
-            if is_running.lower() == "true":
-                self.total_tracks = int(run_as('tell application "iTunes" to count every track'))
-            else:
-                self.total_tracks = "?"
-        except:
-            self.total_tracks = "?"
+        self.total_tracks = "..." # Placeholder for manual load
+        self.cached_library = None
 
         self.build_menu()
 
@@ -62,7 +57,6 @@ class App(tk.Tk):
         self.notebook.add(self.tab_genius, text="Genius")
         self.notebook.add(self.tab_fixer, text="Media Fixer")
         
-        self.cached_library = None
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         # GLOBAL SHORTCUTS
@@ -83,9 +77,50 @@ class App(tk.Tk):
                 
         if not CONFIG_DATA.get("api_key"):
             SetupWindow(self, self.deiconify)
+            self.after(1000, self._ask_sync_at_startup)
         else:
             self.deiconify()
+            self.after(1000, self._ask_sync_at_startup)
+
+    def _ask_sync_at_startup(self):
+        if tkMessageBox.askyesno("Sync", _(u"ask_sync_startup")):
+            # Reuse the sync logic from SetupWindow conceptually
+            from ui.components import ProgressWindow
+            from core.itunes_bridge import get_library
             
+            self.prog_win = ProgressWindow(self)
+            self.after(0, self.prog_win.start_timer)
+            
+            def task():
+                try:
+                    def update_progress(curr, total):
+                        self.after(0, lambda: self.prog_win.progress.config(value=curr, maximum=total))
+                        self.after(0, lambda: self.prog_win.lbl.config(text=_(u"prog_read", curr, total)))
+                        
+                    lib = get_library(update_progress, lambda: self.prog_win.running)
+                    
+                    if not self.prog_win.running:
+                        self.after(0, self.prog_win.stop_timer)
+                        self.after(0, self.prog_win.destroy)
+                        return
+                        
+                    self.total_tracks = len(lib)
+                    self.cached_library = lib
+                    self.after(0, self.prog_win.stop_timer)
+                    self.after(0, self.prog_win.destroy)
+                    
+                    # Force UI update
+                    if hasattr(self, 'tab_genius'):
+                        self.after(0, self.tab_genius._update_library_info)
+                        
+                    self.after(0, lambda: tkMessageBox.showinfo("Sync", _(u"msg_lib_synced")))
+                except Exception as e:
+                    self.after(0, self.prog_win.stop_timer)
+                    self.after(0, self.prog_win.destroy)
+                    self.after(0, lambda: tkMessageBox.showerror("Error", str(e)))
+            
+            threading.Thread(target=task).start()
+
     def build_menu(self):
         self.menubar = tk.Menu(self)
         self.config(menu=self.menubar)

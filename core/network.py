@@ -80,7 +80,7 @@ def make_request(url, headers_dict, payload_dict=None, timeout_sec=90):
     except urllib2.HTTPError as e:
         if e.code in [401, 403]: 
             return True, e.read()
-        return False, "HTTP Error: {} - {}".format(e.code, e.read()[:100])
+        return False, "HTTP Error: {} - {}".format(e.code, e.read()[:4000])
     except Exception as e:
         # Only fallback to curl if it's an SSL/Protocol error
         err_str = str(e).lower()
@@ -123,6 +123,13 @@ def test_api_key(provider, api_key, model):
         return False, "Parse Error: " + str(e) + "\nRaw: " + result
 
 def call_ai_for_playlist(provider, api_key, model, prompt_text):
+    print("\n--- AI REQUEST START ---")
+    print("Provider: {}".format(provider))
+    print("Model: {}".format(model))
+    
+    payload_size = len(prompt_text.encode('utf-8'))
+    print("Payload Size: {:.2f} KB".format(payload_size / 1024.0))
+
     if provider == "Groq":
         url = "https://api.groq.com/openai/v1/chat/completions"
         payload = {
@@ -154,8 +161,14 @@ def call_ai_for_playlist(provider, api_key, model, prompt_text):
         payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
         headers = {}
 
+    print("Sending request... (Timeout: 120s)")
     ok, result = make_request(url, headers, payload, timeout_sec=120)
-    if not ok: return False, result
+    
+    if not ok:
+        print("REQUEST FAILED: {}".format(result))
+        return False, result
+    
+    print("Response received ({:.2f} KB)".format(len(result) / 1024.0))
     
     try:
         resp = json.loads(result)
@@ -163,6 +176,8 @@ def call_ai_for_playlist(provider, api_key, model, prompt_text):
             text = resp["choices"][0]["message"]["content"]
         else:
             text = resp["candidates"][0]["content"]["parts"][0]["text"]
+        print("--- AI REQUEST SUCCESS ---\n")
         return True, text
     except Exception as e:
+        print("PARSE ERROR: {}".format(str(e)))
         return False, "Failed to parse AI response: " + str(e) + "\nRaw: " + result

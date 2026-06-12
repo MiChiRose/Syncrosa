@@ -164,6 +164,7 @@ class SetupWindow(tk.Toplevel):
     def clear_lib_cache(self):
         self.btn_sync_lib.config(state="disabled")
         self.prog_win = ProgressWindow(self)
+        self.after(0, self.prog_win.start_timer)
         
         def task():
             from core.itunes_bridge import get_library
@@ -175,15 +176,24 @@ class SetupWindow(tk.Toplevel):
                 lib = get_library(update_progress, lambda: self.prog_win.running)
                 
                 if not self.prog_win.running:
+                    self.after(0, self.prog_win.stop_timer)
                     self.after(0, self.prog_win.destroy)
                     self.after(0, lambda: self.btn_sync_lib.config(state="normal"))
                     return
                     
                 self.master.cached_library = lib
+                self.master.total_tracks = len(lib)
+                
+                # Update main UI
+                if hasattr(self.master, 'tab_genius'):
+                    self.after(0, self.master.tab_genius._update_library_info)
+                
+                self.after(0, self.prog_win.stop_timer)
                 self.after(0, self.prog_win.destroy)
                 self.after(0, lambda: tkMessageBox.showinfo("Sync", _(u"msg_lib_synced")))
                 self.after(0, lambda: self.btn_sync_lib.config(state="normal"))
             except Exception as e:
+                self.after(0, self.prog_win.stop_timer)
                 self.after(0, self.prog_win.destroy)
                 self.after(0, lambda: tkMessageBox.showerror("Error", str(e)))
                 self.after(0, lambda: self.btn_sync_lib.config(state="normal"))

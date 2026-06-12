@@ -42,6 +42,11 @@ class ProgressWindow(tk.Toplevel):
         self.btn_cancel = tk.Button(cancel_frame, text="X", command=self.cancel, fg="#555555", font=("system", 11, "bold"), highlightbackground="#ECECEC", width=2)
         self.btn_cancel.pack(side=tk.LEFT)
         
+        self.timer_val = 0
+        self.timer_active = False
+        self.lbl_timer = tk.Label(self, text="00:00", font=("system", 11), bg="#ECECEC", fg="#333333")
+        self.lbl_timer.place(x=380, y=20)
+
         self.running = True
         self.fun_active = False
         self.fun_idx = 0
@@ -51,6 +56,28 @@ class ProgressWindow(tk.Toplevel):
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         self.geometry("+{}+{}".format((sw - 440)//2, (sh - 290)//2))
+
+    def start_timer(self):
+        self.timer_active = True
+        self.timer_val = 0
+        self._update_timer_ui()
+        
+    def _update_timer_ui(self):
+        if not self.running or not self.timer_active or not self.winfo_exists():
+            return
+        
+        m, s = divmod(self.timer_val, 60)
+        self.lbl_timer.config(text="{:02d}:{:02d}".format(m, s))
+        
+        # Periodic Heartbeat every 60 seconds
+        if self.timer_val > 0 and self.timer_val % 60 == 0:
+            self.log(_(u"prog_heartbeat", m, s))
+            
+        self.timer_val += 1
+        self.after(1000, self._update_timer_ui)
+        
+    def stop_timer(self):
+        self.timer_active = False
 
     def log(self, text):
         self.console.config(state="normal")

@@ -39,7 +39,9 @@ class GeniusTab(tk.Frame):
         self.pl_mood = tk.Entry(form_frame, state="normal", font=("system", 14), highlightbackground="#ECECEC")
         self.pl_mood.pack(fill=tk.X, padx=40, pady=(0, 15))
         
-        tk.Label(form_frame, text=_(u"pl_count", str(self.master_app.total_tracks)), font=("system", 12), bg="#ECECEC").pack(anchor="w", padx=40, pady=(5, 2))
+        self.lbl_max = tk.Label(form_frame, text=_(u"max_available", str(self.master_app.total_tracks)), font=("system", 12), bg="#ECECEC")
+        self.lbl_max.pack(anchor="w", padx=40, pady=(5, 2))
+        
         self.count_var = tk.StringVar(value="25")
         
         count_frame = tk.Frame(form_frame, bg="#ECECEC")
@@ -66,7 +68,20 @@ class GeniusTab(tk.Frame):
         self.btn_gen = ttk.Button(self, text=_(u"btn_gen"), command=self.start_generation)
         self.btn_gen.pack(pady=20, fill=tk.X, padx=40)
         
+        self.lbl_lib = tk.Label(self, text=_(u"genius_lib_info").format(self.master_app.total_tracks), font=("system", 11), bg="#ECECEC", fg="#333333")
+        self.lbl_lib.pack(pady=5)
+        
         tk.Label(self, text=_(u"footer"), font=("system", 10), fg="#666666", bg="#ECECEC", justify=tk.CENTER).pack(side=tk.BOTTOM, pady=15)
+
+    def _update_library_info(self):
+        # Thread-safe update from main app
+        def apply():
+            lib_info = _(u"genius_lib_info").format(self.master_app.total_tracks)
+            self.lbl_lib.config(text=lib_info)
+            
+            # Also update the "Max available" label
+            self.lbl_max.config(text=_(u"max_available", str(self.master_app.total_tracks)))
+        self.after(0, apply)
 
     def start_generation(self):
         mood = self.pl_mood.get().strip()
@@ -115,7 +130,10 @@ class GeniusTab(tk.Frame):
             self.after(0, lambda: self.prog_win.start_fun_messages(CONFIG_DATA.get("lang", "en")))
             
             slog("Connecting to %s..." % CONFIG_DATA["provider"])
-            slog("Awaiting AI response...")
+            slog("Sending playlist request (%d tracks)..." % len(lib))
+            
+            self.after(0, self.prog_win.start_timer)
+            slog("Awaiting AI response (this may take 1-2 minutes)...")
             
             ok, res = generate_playlist_ids(
                 CONFIG_DATA["provider"], 
@@ -126,6 +144,8 @@ class GeniusTab(tk.Frame):
                 lib
             )
             
+            self.after(0, self.prog_win.stop_timer)
+            
             if not self.prog_win.running:
                 self.after(0, self.prog_win.destroy)
                 return
@@ -134,10 +154,10 @@ class GeniusTab(tk.Frame):
             self.after(0, lambda: self.prog_win.progress.config(mode="determinate", value=100))
             
             if not ok:
-                slog("API Error received.")
+                slog("API Error or Timeout received.")
                 raise Exception(res)
                 
-            slog("Response received! Parsing JSON...")
+            slog("Response received! Parsing results...")
             final_ids = res
             
             slog("Found %d valid tracks. Injecting to iTunes..." % len(final_ids))
@@ -180,8 +200,11 @@ class GeniusTab(tk.Frame):
             self.after(0, self.prog_win.destroy)
             
             def show_error_and_ask_log():
+                # Truncate for UI display but keep full for log file
+                ui_err_str = (err_str[:250] + "...") if len(err_str) > 250 else err_str
+                
                 if CONFIG_DATA.get("prompt_logs", True):
-                    save_log = tkMessageBox.askyesno("Generation Error", short_msg + "\n\n" + _(u"ask_save_log"))
+                    save_log = tkMessageBox.askyesno("Generation Error", short_msg + "\n\n" + ui_err_str + "\n\n" + _(u"ask_save_log"))
                     if save_log:
                         desktop = os.path.join(os.path.expanduser("~"), "Desktop")
                         log_file = os.path.join(desktop, "iTunesGenius_Generation_Error.txt")
@@ -194,10 +217,10 @@ class GeniusTab(tk.Frame):
                                 f.write("User Input - Count: " + str(count) + "\n")
                                 f.write("Provider: " + CONFIG_DATA["provider"] + "\n")
                                 f.write("-" * 30 + "\n")
-                                f.write(err_str + "\n")
+                                f.write(err_str + "\n") # Full error here
                             tkMessageBox.showinfo(_(u"log_saved_title"), _(u"log_saved_msg").format("iTunesGenius_Generation_Error.txt"))
                         except: pass
                 else:
-                    tkMessageBox.showerror("Generation Error", short_msg)
+                    tkMessageBox.showerror("Generation Error", short_msg + "\n\n" + ui_err_str)
                     
             self.after(0, show_error_and_ask_log)
