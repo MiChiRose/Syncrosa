@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct iGenius_ARMApp: App {
+struct iGeniusAI_armApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

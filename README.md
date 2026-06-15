@@ -21,7 +21,7 @@ The application is available in **two distinct versions**, tailored for differen
 
 ## 🚀 The Applications
 
-### 1. [iGenius_ARM](./arm) (Modern Apple Silicon)
+### 1. [iGeniusAI-arm](./iGeniusAI-arm) (Modern Apple Silicon)
 A completely rewritten, native **SwiftUI** application designed exclusively for modern macOS (macOS 14 Sonoma and newer) running on Apple Silicon (M1/M2/M3/M4) chips.
 
 - **Deep Music.app Integration:** Seamlessly interacts with the modern macOS Music application.
@@ -30,7 +30,7 @@ A completely rewritten, native **SwiftUI** application designed exclusively for 
 - **Multi-Provider AI:** Supports generating playlists via Gemini, Groq, and OpenRouter (bypassing geo-blocks).
 - **10+ Languages:** Fully localized out of the box.
 
-### 2. [iGeniusAI](./legacy) (Legacy Intel / OS X)
+### 2. [iGeniusAI-legacy](./iGeniusAI-legacy) (Legacy Intel / OS X)
 The legendary original version, meticulously designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra.
 
 - **Stable Python Core:** The current stable build ensures 100% compatibility with older OS X versions.
