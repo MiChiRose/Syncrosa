@@ -12,14 +12,27 @@
 }
 
 - (NSString *)runAppleScript:(NSString *)source {
-    NSAppleScript *script = [[NSAppleScript alloc] initWithSource:source];
-    NSDictionary *error = nil;
-    NSAppleEventDescriptor *descriptor = [script executeAndReturnError:&error];
-    if (error) {
-        NSLog(@"AppleScript Error: %@", error);
-        return nil;
+    __block NSString *result = nil;
+    if ([NSThread isMainThread]) {
+        NSAppleScript *script = [[NSAppleScript alloc] initWithSource:source];
+        NSDictionary *error = nil;
+        NSAppleEventDescriptor *descriptor = [script executeAndReturnError:&error];
+        if (error) {
+            NSLog(@"AppleScript Error: %@", error);
+        }
+        result = [descriptor stringValue];
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            NSAppleScript *script = [[NSAppleScript alloc] initWithSource:source];
+            NSDictionary *error = nil;
+            NSAppleEventDescriptor *descriptor = [script executeAndReturnError:&error];
+            if (error) {
+                NSLog(@"AppleScript Error: %@", error);
+            }
+            result = [descriptor stringValue];
+        });
     }
-    return [descriptor stringValue];
+    return result;
 }
 
 - (void)fetchAllTracksWithProgress:(void(^)(NSInteger current, NSInteger total))progressBlock 

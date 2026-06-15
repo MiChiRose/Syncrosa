@@ -7,11 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5281AC5E2FDAE21700B6EAAC /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 5281AC5D2FDAE21700B6EAAC /* AppDelegate.m */; };
-		5281AC602FDAE21700B6EAAC /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 5281AC5F2FDAE21700B6EAAC /* main.m */; };
-		5281AC622FDAE21700B6EAAC /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5281AC612FDAE21700B6EAAC /* Images.xcassets */; };
-		5281AC652FDAE21700B6EAAC /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5281AC632FDAE21700B6EAAC /* MainMenu.xib */; };
-		5281AC712FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 5281AC702FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m */; };
+		7032D7D1CB9A4F9FB4C6027D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 3BF49AF7E26F4A4489EF0B77 /* main.m */; };
+		FC36B15EB76248AEAEFD332E /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = B72778B8F2164127B12493F9 /* AppDelegate.m */; };
+		45057B3DCF29466F8140CCBD /* IGSettingsViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 333609A089E34F02B5B467C2 /* IGSettingsViewController.m */; };
+		D93C43718AFA43698FA8D0B4 /* IGFileFixerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 93038FEDB5BA45A9914410BC /* IGFileFixerViewController.m */; };
+		A449CB56B43F4403B29C7C87 /* IGGeniusViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F79A632936F64D32B2381430 /* IGGeniusViewController.m */; };
+		9FA71A06FB044F958C3840A5 /* IGMainWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 134DE28CAF664A3E92BC23F2 /* IGMainWindowController.m */; };
+		B1F2D8B22B1A490397859EF3 /* IGFixerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B4403069AB1C4D84895A5DDD /* IGFixerViewController.m */; };
+		CF3B6E843E2E4ACBA0A95B97 /* IGTrack.m in Sources */ = {isa = PBXBuildFile; fileRef = 5E6D7018F921486991BCC615 /* IGTrack.m */; };
+		EF9469B18710421BBA6AB610 /* IGLogger.m in Sources */ = {isa = PBXBuildFile; fileRef = 1E9E6977DD284107A9F498BB /* IGLogger.m */; };
+		F0886BADD1BA4D428798599F /* IGAIService.m in Sources */ = {isa = PBXBuildFile; fileRef = 60E284F4D36D468983B63F8E /* IGAIService.m */; };
+		345B805AD19443A3A69CC056 /* IGiTunesService.m in Sources */ = {isa = PBXBuildFile; fileRef = 22FF007EDB6D4348B2C06DCB /* IGiTunesService.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,16 +31,31 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		5281AC572FDAE21700B6EAAC /* iGeniusAI-legacy-objc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iGeniusAI-legacy-objc.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		5281AC5B2FDAE21700B6EAAC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		5281AC5C2FDAE21700B6EAAC /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		5281AC5D2FDAE21700B6EAAC /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		5281AC5F2FDAE21700B6EAAC /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		5281AC612FDAE21700B6EAAC /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
-		5281AC642FDAE21700B6EAAC /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
-		5281AC6A2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iGeniusAI-legacy-objcTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		5281AC6F2FDAE21700B6EAAC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		5281AC702FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = iGeniusAI-legacy-objcTests.m; sourceTree = "<group>"; };
+		0C2FF1A7CFF84224B0BAFD8D /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AppDelegate.h"; sourceTree = "<group>"; };
+		3BF49AF7E26F4A4489EF0B77 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "main.m"; sourceTree = "<group>"; };
+		B72778B8F2164127B12493F9 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "AppDelegate.m"; sourceTree = "<group>"; };
+		29A6DE14A5DC4FCEB6FBF87D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		54D9377EC0354646BD0C48A6 /* IGMainWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMainWindowController.h"; sourceTree = "<group>"; };
+		333609A089E34F02B5B467C2 /* IGSettingsViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGSettingsViewController.m"; sourceTree = "<group>"; };
+		93038FEDB5BA45A9914410BC /* IGFileFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFileFixerViewController.m"; sourceTree = "<group>"; };
+		EFBBFB4B5ACA42B9999EC8BD /* IGFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFixerViewController.h"; sourceTree = "<group>"; };
+		F79A632936F64D32B2381430 /* IGGeniusViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGGeniusViewController.m"; sourceTree = "<group>"; };
+		134DE28CAF664A3E92BC23F2 /* IGMainWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMainWindowController.m"; sourceTree = "<group>"; };
+		EF171B0D358849319F0C8428 /* IGSettingsViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGSettingsViewController.h"; sourceTree = "<group>"; };
+		D048C1CEA5724F5FB98BF3DD /* IGGeniusViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGGeniusViewController.h"; sourceTree = "<group>"; };
+		B4403069AB1C4D84895A5DDD /* IGFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFixerViewController.m"; sourceTree = "<group>"; };
+		519322AF92514731BF78D152 /* IGFileFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFileFixerViewController.h"; sourceTree = "<group>"; };
+		E2DCAFC26CDF42119B8DAE80 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		4D79EEA6085141E9A053F7CE /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		5E6D7018F921486991BCC615 /* IGTrack.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGTrack.m"; sourceTree = "<group>"; };
+		CE64BE0267A7456280F3FFE5 /* IGTrack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGTrack.h"; sourceTree = "<group>"; };
+		1421EF322C5745F1B83E17BC /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = "MainMenu.xib"; sourceTree = "<group>"; };
+		1E9E6977DD284107A9F498BB /* IGLogger.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLogger.m"; sourceTree = "<group>"; };
+		60E284F4D36D468983B63F8E /* IGAIService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGAIService.m"; sourceTree = "<group>"; };
+		DFF98F357DD643B9A8AAA8BB /* IGiTunesService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGiTunesService.h"; sourceTree = "<group>"; };
+		22FF007EDB6D4348B2C06DCB /* IGiTunesService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGiTunesService.m"; sourceTree = "<group>"; };
+		1328ACE644334B0D92E60B82 /* IGAIService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGAIService.h"; sourceTree = "<group>"; };
+		BF372F6F23F54CD2B10922ED /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,13 +76,108 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		5281AC4E2FDAE21700B6EAAC = {
+		FAD935F760404D899471CBAA /* AppIcon.appiconset */ = {
 			isa = PBXGroup;
 			children = (
-				5281AC592FDAE21700B6EAAC /* iGeniusAI-legacy-objc */,
-				5281AC6D2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */,
-				5281AC582FDAE21700B6EAAC /* Products */,
 			);
+			path = "AppIcon.appiconset";
+			sourceTree = "<group>";
+		};
+		1834DA49DC5341CEAC23556F /* en.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				E2DCAFC26CDF42119B8DAE80 /* Localizable.strings */,
+			);
+			path = "en.lproj";
+			sourceTree = "<group>";
+		};
+		49CE790EA27E4AB486DA49EF /* ru.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				4D79EEA6085141E9A053F7CE /* Localizable.strings */,
+			);
+			path = "ru.lproj";
+			sourceTree = "<group>";
+		};
+		E6EA4F0AA00048799073DB36 /* Images.xcassets */ = {
+			isa = PBXGroup;
+			children = (
+				FAD935F760404D899471CBAA /* AppIcon.appiconset */,
+			);
+			path = "Images.xcassets";
+			sourceTree = "<group>";
+		};
+		B2A1B017A13F44E49437796E /* Base.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				1421EF322C5745F1B83E17BC /* MainMenu.xib */,
+			);
+			path = "Base.lproj";
+			sourceTree = "<group>";
+		};
+		53FD4AD0320641368A11189C /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				1834DA49DC5341CEAC23556F /* en.lproj */,
+				49CE790EA27E4AB486DA49EF /* ru.lproj */,
+			);
+			path = "Resources";
+			sourceTree = "<group>";
+		};
+		94F5E3FA580B4F6BBD1227A7 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				1E9E6977DD284107A9F498BB /* IGLogger.m */,
+				60E284F4D36D468983B63F8E /* IGAIService.m */,
+				DFF98F357DD643B9A8AAA8BB /* IGiTunesService.h */,
+				22FF007EDB6D4348B2C06DCB /* IGiTunesService.m */,
+				1328ACE644334B0D92E60B82 /* IGAIService.h */,
+				BF372F6F23F54CD2B10922ED /* IGLogger.h */,
+			);
+			path = "Services";
+			sourceTree = "<group>";
+		};
+		D515406A4400459BB1A9C6FD /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				5E6D7018F921486991BCC615 /* IGTrack.m */,
+				CE64BE0267A7456280F3FFE5 /* IGTrack.h */,
+			);
+			path = "Models";
+			sourceTree = "<group>";
+		};
+		7043C90311A64DC990038424 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				54D9377EC0354646BD0C48A6 /* IGMainWindowController.h */,
+				333609A089E34F02B5B467C2 /* IGSettingsViewController.m */,
+				93038FEDB5BA45A9914410BC /* IGFileFixerViewController.m */,
+				EFBBFB4B5ACA42B9999EC8BD /* IGFixerViewController.h */,
+				F79A632936F64D32B2381430 /* IGGeniusViewController.m */,
+				134DE28CAF664A3E92BC23F2 /* IGMainWindowController.m */,
+				EF171B0D358849319F0C8428 /* IGSettingsViewController.h */,
+				D048C1CEA5724F5FB98BF3DD /* IGGeniusViewController.h */,
+				B4403069AB1C4D84895A5DDD /* IGFixerViewController.m */,
+				519322AF92514731BF78D152 /* IGFileFixerViewController.h */,
+			);
+			path = "UI";
+			sourceTree = "<group>";
+		};
+		3AB5F54F8F1149E99261210C /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				0C2FF1A7CFF84224B0BAFD8D /* AppDelegate.h */,
+				3BF49AF7E26F4A4489EF0B77 /* main.m */,
+				B72778B8F2164127B12493F9 /* AppDelegate.m */,
+				29A6DE14A5DC4FCEB6FBF87D /* Info.plist */,
+				7043C90311A64DC990038424 /* UI */,
+				53FD4AD0320641368A11189C /* Resources */,
+				D515406A4400459BB1A9C6FD /* Models */,
+				B2A1B017A13F44E49437796E /* Base.lproj */,
+				E6EA4F0AA00048799073DB36 /* Images.xcassets */,
+				94F5E3FA580B4F6BBD1227A7 /* Services */,
+			);
+			path = "Sources";
 			sourceTree = "<group>";
 		};
 		5281AC582FDAE21700B6EAAC /* Products */ = {
@@ -73,25 +189,13 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		5281AC592FDAE21700B6EAAC /* iGeniusAI-legacy-objc */ = {
+		5281AC4E2FDAE21700B6EAAC /* Project object group */ = {
 			isa = PBXGroup;
 			children = (
-				5281AC5C2FDAE21700B6EAAC /* AppDelegate.h */,
-				5281AC5D2FDAE21700B6EAAC /* AppDelegate.m */,
-				5281AC612FDAE21700B6EAAC /* Images.xcassets */,
-				5281AC632FDAE21700B6EAAC /* MainMenu.xib */,
-				5281AC5A2FDAE21700B6EAAC /* Supporting Files */,
+				3AB5F54F8F1149E99261210C /* Sources */,
+				5281AC6D2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */,
+				5281AC582FDAE21700B6EAAC /* Products */,
 			);
-			path = iGeniusAI-legacy-objc;
-			sourceTree = "<group>";
-		};
-		5281AC5A2FDAE21700B6EAAC /* Supporting Files */ = {
-			isa = PBXGroup;
-			children = (
-				5281AC5B2FDAE21700B6EAAC /* Info.plist */,
-				5281AC5F2FDAE21700B6EAAC /* main.m */,
-			);
-			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
 		5281AC6D2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */ = {
@@ -100,7 +204,7 @@
 				5281AC702FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m */,
 				5281AC6E2FDAE21700B6EAAC /* Supporting Files */,
 			);
-			path = iGeniusAI-legacy-objcTests;
+			path = "iGeniusAI-legacy-objcTests";
 			sourceTree = "<group>";
 		};
 		5281AC6E2FDAE21700B6EAAC /* Supporting Files */ = {
@@ -210,9 +314,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5281AC602FDAE21700B6EAAC /* main.m in Sources */,
-				5281AC5E2FDAE21700B6EAAC /* AppDelegate.m in Sources */,
+				7032D7D1CB9A4F9FB4C6027D /* main.m in Sources */,
+				FC36B15EB76248AEAEFD332E /* AppDelegate.m in Sources */,
+				45057B3DCF29466F8140CCBD /* IGSettingsViewController.m in Sources */,
+				D93C43718AFA43698FA8D0B4 /* IGFileFixerViewController.m in Sources */,
+				A449CB56B43F4403B29C7C87 /* IGGeniusViewController.m in Sources */,
+				9FA71A06FB044F958C3840A5 /* IGMainWindowController.m in Sources */,
+				B1F2D8B22B1A490397859EF3 /* IGFixerViewController.m in Sources */,
+				CF3B6E843E2E4ACBA0A95B97 /* IGTrack.m in Sources */,
+				EF9469B18710421BBA6AB610 /* IGLogger.m in Sources */,
+				F0886BADD1BA4D428798599F /* IGAIService.m in Sources */,
+				345B805AD19443A3A69CC056 /* IGiTunesService.m in Sources */,
 			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5281AC662FDAE21700B6EAAC /* Sources */ = {
@@ -326,7 +441,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = iGeniusAI-legacy-objc/Info.plist;
+				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -337,7 +452,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = iGeniusAI-legacy-objc/Info.plist;
+				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
