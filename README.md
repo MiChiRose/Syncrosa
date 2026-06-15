@@ -3,6 +3,13 @@
 <div align="center">
   <img src="genius.jpeg" alt="iGeniusAI Logo" width="120" />
   <p><b>The ultimate power-tool for managing and creating Apple Music & iTunes playlists using AI.</b></p>
+  <p align="center">
+  <img src="https://img.shields.io/badge/Swift-SwiftUI-orange" alt="Swift / SwiftUI" />
+  <img src="https://img.shields.io/badge/Python-legacy%20build-blue" alt="Python" />
+  <img src="https://img.shields.io/badge/macOS-Sonoma%20to%20Mavericks-black" alt="macOS" />
+  <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20OpenRouter-brightgreen" alt="AI providers" />
+  <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="license" />
+</p>
 </div>
 
 Welcome to the central hub for the **iGeniusAI** ecosystem. This repository serves as the landing page and documentation hub for the project. 
@@ -31,6 +38,15 @@ The legendary original Python-based application, meticulously designed for vinta
 - **Retro Aesthetic:** Uses Tkinter to perfectly match the classic Aqua / El Capitan UI style.
 - **Resilient Network Layer:** Features a custom network wrapper to bypass outdated OpenSSL 0.9.8 limitations on old Macs, connecting seamlessly to modern AI APIs.
 - **Media Fixer:** Restores metadata for your classic MP3 libraries using the Apple iTunes Search API.
+
+---
+
+## ⚙️ Engineering Highlights
+- **Resilient network layer** that bypasses outdated OpenSSL 0.9.8 on vintage macOS to reach modern AI APIs.
+- **Secure by design** - API keys in macOS Keychain + Hardened Runtime (ARM build); no plain-text secrets.
+- **Multi-provider AI** (Gemini / Groq / OpenRouter) with geo-block bypass.
+- **Two native codebases, one product** - SwiftUI for Apple Silicon, Python/Tkinter for legacy Intel.
+- **Lightweight** - native app, no Electron.
 
 ---
 
