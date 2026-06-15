@@ -1,4 +1,5 @@
 #import "IGAIService.h"
+#import "IGLogger.h"
 
 @interface IGAIService () <NSURLSessionDelegate>
 @property (nonatomic, strong) NSURLSession *session;
@@ -189,12 +190,17 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     
     request.HTTPBody = [NSJSONSerialization dataWithJSONObject:body options:0 error:nil];
     
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Sending request to %@ (Model: %@)", self.provider, self.model]];
+
     [[self.session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         if (!data || error) {
+            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Network Error: %@", error.localizedDescription]];
+            [[IGLogger sharedLogger] saveLogToDesktopWithRawResponse:nil];
             dispatch_async(dispatch_get_main_queue(), ^{ completionBlock(nil); });
             return;
         }
         
+        NSString *rawText = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         NSString *text = @"";
         
@@ -210,6 +216,11 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             }
         }
         
+        if (text.length == 0) {
+            [[IGLogger sharedLogger] log:@"Error: AI returned empty response or invalid format."];
+            [[IGLogger sharedLogger] saveLogToDesktopWithRawResponse:rawText];
+        }
+
         // Use Regex to extract 16-char hex IDs
         NSError *regError = nil;
         NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"([a-fA-F0-9]{16})" options:0 error:&regError];

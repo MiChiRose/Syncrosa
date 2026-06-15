@@ -7,6 +7,7 @@
 @property (nonatomic, strong) NSComboBox *modelCombo;
 @property (nonatomic, strong) NSTextField *apiKeyField;
 @property (nonatomic, strong) NSButton *saveButton;
+@property (nonatomic, strong) NSButton *enableLoggingCheckbox;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @end
 
@@ -81,6 +82,12 @@
     self.apiKeyField = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 24)];
     [self.view addSubview:self.apiKeyField];
     
+    y -= 40;
+    self.enableLoggingCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
+    self.enableLoggingCheckbox.buttonType = NSSwitchButton;
+    self.enableLoggingCheckbox.title = @"Prompt to save text logs for errors and successful generation";
+    [self.view addSubview:self.enableLoggingCheckbox];
+    
     y -= 60;
     self.saveButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
     self.saveButton.title = @"VALIDATE & SAVE";
@@ -122,6 +129,7 @@
     self.providerCombo.stringValue = [defaults stringForKey:@"provider"] ?: @"Gemini";
     self.modelCombo.stringValue = [defaults stringForKey:@"model"] ?: @"google/gemini-2.0-flash-exp:free";
     self.apiKeyField.stringValue = [defaults stringForKey:@"api_key"] ?: @"";
+    self.enableLoggingCheckbox.state = [defaults boolForKey:@"enable_logging"] ? NSOnState : NSOffState;
     
     [IGAIService sharedService].provider = self.providerCombo.stringValue;
     [IGAIService sharedService].model = self.modelCombo.stringValue;
@@ -165,6 +173,7 @@
             [defaults setObject:self.providerCombo.stringValue forKey:@"provider"];
             [defaults setObject:self.modelCombo.stringValue forKey:@"model"];
             [defaults setObject:self.apiKeyField.stringValue forKey:@"api_key"];
+            [defaults setBool:(self.enableLoggingCheckbox.state == NSOnState) forKey:@"enable_logging"];
             [defaults synchronize];
             
             // Notify UI to update buttons
