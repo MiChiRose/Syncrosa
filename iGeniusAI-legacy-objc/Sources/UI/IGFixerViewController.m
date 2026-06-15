@@ -42,18 +42,6 @@
     self.statusLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.statusLabel];
 
-    // Footer
-    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
-    footer.stringValue = @"Note: AI models are not perfect.\nFor better results, try different models in Settings.";
-    footer.font = [NSFont systemFontOfSize:10];
-    footer.textColor = [NSColor grayColor];
-    footer.alignment = NSCenterTextAlignment;
-    footer.editable = NO;
-    footer.bordered = NO;
-    footer.drawsBackground = NO;
-    [self.view addSubview:footer];
-    }
-
     y -= 180;
     NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(40, y, 500, 150)];
     scrollView.hasVerticalScroller = YES;
@@ -75,6 +63,17 @@
     self.startButton.target = self;
     self.startButton.action = @selector(startClicked:);
     [self.view addSubview:self.startButton];
+
+    // Footer
+    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
+    footer.stringValue = @"Note: AI models are not perfect.\nFor better results, try different models in Settings.";
+    footer.font = [NSFont systemFontOfSize:10];
+    footer.textColor = [NSColor grayColor];
+    footer.alignment = NSCenterTextAlignment;
+    footer.editable = NO;
+    footer.bordered = NO;
+    footer.drawsBackground = NO;
+    [self.view addSubview:footer];
 }
 
 - (void)log:(NSString *)text {
@@ -88,15 +87,63 @@
 
 - (void)startClicked:(id)sender {
     self.startButton.enabled = NO;
-    [self log:@"Starting metadata restoration..."];
-    
+    [self log:@"Phase 1: Scanning for split albums..."];
+    self.statusLabel.stringValue = @"Scanning for merge candidates...";
+    self.progressIndicator.indeterminate = YES;
+    [self.progressIndicator startAnimation:nil];
+
+    IGiTunesService *service = [IGiTunesService sharedService];
+
+    [service getMergeCandidatesWithCompletion:^(NSArray *candidates) {
+        if (candidates.count > 0) {
+            [self log:[NSString stringWithFormat:@"Found %ld split albums to merge.", (long)candidates.count]];
+            // In a full app we might ask user, but following python's direct approach for now
+            [self runMergePhase:candidates];
+        } else {
+            [self log:@"No split albums found. Proceeding to metadata check."];
+            [self runMetadataPhase];
+        }
+    }];
+}
+
+- (void)runMergePhase:(NSArray *)candidates {
+    self.progressIndicator.indeterminate = NO;
+    self.progressIndicator.maxValue = candidates.count;
+    self.progressIndicator.doubleValue = 0;
+
+    __block NSInteger processed = 0;
+    IGiTunesService *service = [IGiTunesService sharedService];
+
+    for (NSDictionary *item in candidates) {
+        NSString *main = item[@"main"];
+        NSArray *targets = item[@"targets"];
+        
+        self.statusLabel.stringValue = [NSString stringWithFormat:@"Merging: %@", main];
+        
+        for (NSDictionary *t in targets) {
+            NSString *pid = t[@"pid"];
+            NSString *script = [NSString stringWithFormat:@"tell application \"iTunes\" to set album of (some track whose persistent ID is \"%@\") to \"%@\"", pid, [main stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]];
+            [service runAppleScript:script];
+        }
+        
+        processed++;
+        self.progressIndicator.doubleValue = processed;
+        [self log:[NSString stringWithFormat:@"Merged variants into: %@", main]];
+    }
+
+    [self log:@"Merge phase complete."];
+    [self runMetadataPhase];
+}
+
+- (void)runMetadataPhase {
+    [self log:@"Phase 2: Fetching missing metadata from iTunes API..."];
     [[IGiTunesService sharedService] runMetadataFixWithProgress:^(NSInteger current, NSInteger total) {
         self.progressIndicator.maxValue = total;
         self.progressIndicator.doubleValue = current;
         self.statusLabel.stringValue = [NSString stringWithFormat:@"Processing track %ld of %ld...", (long)current, (long)total];
     } completion:^{
         self.statusLabel.stringValue = @"Restoration Complete!";
-        [self log:@"Finished."];
+        [self log:@"All metadata tasks finished."];
         self.startButton.enabled = YES;
     }];
 }
