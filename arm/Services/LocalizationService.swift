@@ -1,0 +1,278 @@
+import Foundation
+import SwiftUI
+
+class LocalizationService: ObservableObject {
+    static let shared = LocalizationService()
+    
+    @Published var selectedLanguage: String {
+        didSet {
+            UserDefaults.standard.set(selectedLanguage, forKey: "selected_language")
+        }
+    }
+    
+    init() {
+        self.selectedLanguage = UserDefaults.standard.string(forKey: "selected_language") ?? "en"
+    }
+    
+    private let en: [String: String] = [
+        "settings": "Settings", "ai_playlist": "AI Playlist", "media_fixer": "iTunes Media Fixer", "folder_fix": "Folder Fixer",
+        "sync_library": "Sync Library", "sync_models": "Sync Models", "validate_save": "Validate & Save Key",
+        "generate_playlist": "Generate Playlist", "pl_name": "Playlist Name:", "pl_mood": "What kind of music would you like?",
+        "track_count": "Track Count:", "select_provider": "Select Provider:", "select_model": "Select Model:",
+        "enter_key": "Enter API Key:", "help_title": "How to get an API Key:", "sync_success": "Models updated successfully!",
+        "msg_lib_synced": "Library cache updated!", "scanning": "Scanning: {}/{}", "ready": "Ready.", "done": "Done!",
+        "footer": "© 2026 iTunesGeniusAI | Note: AI models are not perfect.\nFor better results, try different models in Settings.",
+        "setup_required": "API Key Required", "setup_instr": "Please go to Settings and enter an API Key to unlock all features.",
+        "go_settings": "Go to Settings", "active_config": "Active Config", "provider": "Provider",
+        "key_missing": "API Key missing", "lib_empty": "Library is empty.", "asking_ai": "Asking AI Assistant...",
+        "creating_playlist": "Creating playlist in Music...", "success_added": "Success! Added {} tracks.", "ai_fail": "AI failed to find matches.",
+        "lib_cleanup": "Library Cleanup", "merge_instr": "Identify split albums and restore missing metadata via iTunes Search API.",
+        "analyze_lib": "Analyze Library", "fix_selected": "Fix Selected", "results": "Analysis Results",
+        "no_issues": "No issues detected yet.", "tracks": "{} tracks", "file_fixing": "Direct File Fixing",
+        "file_instr": "Fix metadata for music files directly on your disk (MP3, FLAC, etc).", "no_folder": "No folder selected",
+        "select_folder": "Select Folder", "files_to_process": "Files to Process ({})", "fix_all": "Fix All Files",
+        "select_folder_msg": "Select a folder to see music files.", "checking": "Checking connection...",
+        "welcome": "Success! Welcome.", "val_failed": "Validation failed: {}", "lang_section": "Language", "refresh_cache": "Refresh your local music database cache.",
+        "lib_not_read": "Your Music library is empty or could not be read.", "analysis_complete": "Analysis complete. No split albums found.",
+        "found_albums": "Found {} albums to fix.", "processing_files": "Processing files...", "error_folder": "Error scanning folder.",
+        "note_sync": "Note: The model list updates automatically via the Sync button. You can also manually switch providers in Settings."
+    ]
+    
+    private let ru: [String: String] = [
+        "settings": "Настройки", "ai_playlist": "ИИ Плейлист", "media_fixer": "Медиа Фиксер iTunes", "folder_fix": "Фиксер папок",
+        "sync_library": "Синхронизировать", "sync_models": "Синхронизировать", "validate_save": "Проверить и сохранить",
+        "generate_playlist": "Сгенерировать плейлист", "pl_name": "Название плейлиста:", "pl_mood": "Какую музыку вы бы хотели видеть?",
+        "track_count": "Количество треков:", "select_provider": "Выберите провайдера:", "select_model": "Выберите модель:",
+        "enter_key": "Введите API ключ:", "help_title": "Как получить API ключ:", "sync_success": "Список моделей обновлен!",
+        "msg_lib_synced": "Кэш библиотеки обновлён!", "scanning": "Сканирование: {}/{}", "ready": "Готово.", "done": "Готово!",
+        "footer": "© 2026 iTunesGeniusAI | Внимание: ИИ модели не идеальны.\nДля лучшего результата попробуйте выбрать другие модели.",
+        "setup_required": "Требуется API ключ", "setup_instr": "Пожалуйста, перейдите в настройки и введите API ключ, чтобы разблокировать функции.",
+        "go_settings": "Перейти в настройки", "active_config": "Текущая конфиг.", "provider": "Провайдер",
+        "key_missing": "Ключ отсутствует", "lib_empty": "Медиатека пуста.", "asking_ai": "Запрос к ИИ...",
+        "creating_playlist": "Создание плейлиста в Музыке...", "success_added": "Успешно! Добавлено {} треков.", "ai_fail": "ИИ не нашел совпадений.",
+        "lib_cleanup": "Очистка медиатеки", "merge_instr": "Поиск разбитых альбомов и восстановление метаданных через iTunes Search API.",
+        "analyze_lib": "Анализ медиатеки", "fix_selected": "Исправить выбранное", "results": "Результаты анализа",
+        "no_issues": "Проблем пока не обнаружено.", "tracks": "{} треков", "file_fixing": "Работа с файлами",
+        "file_instr": "Исправление метаданных музыкальных файлов напрямую на диске (MP3, FLAC и др.).", "no_folder": "Папка не выбрана",
+        "select_folder": "Выбрать папку", "files_to_process": "Файлов для обработки ({})", "fix_all": "Исправить все файлы",
+        "select_folder_msg": "Выберите папку, чтобы увидеть файлы.", "checking": "Проверка подключения...",
+        "welcome": "Успешно! Добро пожаловать.", "val_failed": "Ошибка проверки: {}", "lang_section": "Язык", "refresh_cache": "Обновить кэш музыкальной базы.",
+        "lib_not_read": "Медиатека пуста или недоступна.", "analysis_complete": "Анализ завершен. Ошибок не найдено.",
+        "found_albums": "Найдено {} альбомов для исправления.", "processing_files": "Обработка файлов...", "error_folder": "Ошибка сканирования папки.",
+        "note_sync": "Примечание: Список моделей обновляется автоматически через кнопку Sync. Вы также можете сменить провайдера в настройках."
+    ]
+    
+    private let be: [String: String] = [
+        "settings": "Налады", "ai_playlist": "ШІ Плэйліст", "media_fixer": "iTunes Медыя Фіксер", "folder_fix": "Фіксер папак",
+        "sync_library": "Сінхранізаваць", "sync_models": "Сінхранізаваць", "validate_save": "Праверыць і захаваць",
+        "generate_playlist": "Згенераваць плэйліст", "pl_name": "Назва плэйліста:", "pl_mood": "Якую музыку вы хацелі б бачыць?",
+        "track_count": "Колькасць трэкаў:", "select_provider": "Выберыце правайдэра:", "select_model": "Выберыце мадэль:",
+        "enter_key": "Увядзіце API ключ:", "help_title": "Як атрымаць API ключ:", "sync_success": "Спіс мадэляў абноўлены!",
+        "msg_lib_synced": "Кэш бібліятэкі абноўлены!", "scanning": "Сканаванне: {}/{}", "ready": "Гатова.", "done": "Гатова!",
+        "footer": "© 2026 iTunesGeniusAI | Увага: ШІ мадэлі не ідэальныя.\nДля лепшага выніку паспрабуйце выбраць іншыя мадэлі.",
+        "setup_required": "Патрабуецца API ключ", "setup_instr": "Калі ласка, перайдзіце ў налады і ўвядзіце API ключ, каб разблакіраваць функцыі.",
+        "go_settings": "Перайсці ў налады", "active_config": "Бягучая канфіг.", "provider": "Правайдэр",
+        "key_missing": "Ключ адсутнічае", "lib_empty": "Медыятэка пустая.", "asking_ai": "Запыт да ШІ...",
+        "creating_playlist": "Стварэнне плэйліста ў Музыцы...", "success_added": "Паспяхова! Дададзена {} трэкаў.", "ai_fail": "ШІ не знайшоў супадзенняў.",
+        "lib_cleanup": "Ачыстка медыятэкі", "merge_instr": "Пошук разбітых альбомаў і аднаўленне метададзеных праз iTunes Search API.",
+        "analyze_lib": "Аналіз медыятэкі", "fix_selected": "Выправіць абранае", "results": "Вынікі аналізу",
+        "no_issues": "Праблем пакуль не выяўлена.", "tracks": "{} трэкаў", "file_fixing": "Праца з файламі",
+        "file_instr": "Выпраўленне метададзеных музычных файлаў непасрэдна на дыску (MP3, FLAC і інш.).", "no_folder": "Папка не абраная",
+        "select_folder": "Выбраць папку", "files_to_process": "Файлаў для апрацоўкі ({})", "fix_all": "Выправіць усе файлы",
+        "select_folder_msg": "Абярыце папку, каб убачыць файлы.", "checking": "Праверка падключэння...",
+        "welcome": "Паспяхова! Сардэчна запрашаем.", "val_failed": "Памылка праверкі: {}", "lang_section": "Мова", "refresh_cache": "Абнавіць кэш музычнай базы.",
+        "lib_not_read": "Медыятэка пустая або недаступная.", "analysis_complete": "Аналіз завершаны. Памылак не знойдзена.",
+        "found_albums": "Знойдзена {} альбомаў для выпраўлення.", "processing_files": "Апрацоўка файлаў...", "error_folder": "Памылка сканавання папкі.",
+        "note_sync": "Заўвага: Спіс мадэляў абнаўляецца аўтаматычна. Вы таксама можаце змяніць правайдэра ў наладах."
+    ]
+    
+    private let ko: [String: String] = [
+        "settings": "설정", "ai_playlist": "AI 플레이리스트", "media_fixer": "iTunes 미디어 픽서", "folder_fix": "폴더 픽서",
+        "sync_library": "보관함 동기화", "sync_models": "모델 동기화", "validate_save": "확인 및 저장",
+        "generate_playlist": "플레이리스트 생성", "pl_name": "플레이리스트 이름:", "pl_mood": "어떤 종류의 음악을 원하시나요?",
+        "track_count": "트랙 수:", "select_provider": "제공자 선택:", "select_model": "모델 선택:",
+        "enter_key": "API 키 입력:", "help_title": "API 키 얻는 방법:", "sync_success": "모델이 업데이트되었습니다!",
+        "msg_lib_synced": "보관함 캐시가 업데이트되었습니다!", "scanning": "스캔 중: {}/{}", "ready": "준비됨.", "done": "완료!",
+        "footer": "© 2026 iTunesGeniusAI | 참고: AI 모델은 완벽하지 않습니다.\n설정에서 다른 모델을 사용해 보세요.",
+        "setup_required": "API 키 필요", "setup_instr": "모든 기능을 사용하려면 설정에서 API 키를 입력하십시오.",
+        "go_settings": "설정으로 이동", "active_config": "활성 구성", "provider": "제공자",
+        "key_missing": "API 키 누락", "lib_empty": "보관함이 비어 있습니다.", "asking_ai": "AI 어시스턴트에게 묻는 중...",
+        "creating_playlist": "음악에 플레이리스트 생성 중...", "success_added": "성공! {}곡 추가됨.", "ai_fail": "AI가 일치하는 곡을 찾지 못했습니다.",
+        "lib_cleanup": "보관함 정리", "merge_instr": "iTunes 검색 API를 통해 분할된 앨범을 식별하고 누락된 메타데이터를 복원합니다.",
+        "analyze_lib": "보관함 분석", "fix_selected": "선택한 항목 수정", "results": "분석 결과",
+        "no_issues": "아직 문제가 발견되지 않았습니다.", "tracks": "{}개 트랙", "file_fixing": "직접 파일 수정",
+        "file_instr": "디스크에 있는 음악 파일(MP3, FLAC 등)의 메타데이터를 직접 수정합니다.", "no_folder": "선택된 폴더 없음",
+        "select_folder": "폴더 선택", "files_to_process": "처리할 파일 ({})", "fix_all": "모든 파일 수정",
+        "select_folder_msg": "음악 파일을 보려면 폴더를 선택하십시오.", "checking": "연결 확인 중...",
+        "welcome": "성공! 환영합니다.", "val_failed": "확인 실패: {}", "lang_section": "언어", "refresh_cache": "로컬 음악 데이터베이스 캐시를 새로 고칩니다.",
+        "lib_not_read": "음악 보관함이 비어 있거나 읽을 수 없습니다.", "analysis_complete": "분석 완료. 분할된 앨범이 발견되지 않았습니다.",
+        "found_albums": "수정할 앨범 {}개를 찾았습니다.", "processing_files": "파일 처리 중...", "error_folder": "폴더 스캔 중 오류가 발생했습니다.",
+        "note_sync": "참고: 모델 목록은 동기화 버튼을 통해 자동으로 업데이트됩니다."
+    ]
+    
+    private let ja: [String: String] = [
+        "settings": "設定", "ai_playlist": "AIプレイリスト", "media_fixer": "iTunes メディアフィクサー", "folder_fix": "フォルダフィクサー",
+        "sync_library": "ライブラリを同期", "sync_models": "モデルを同期", "validate_save": "検証して保存",
+        "generate_playlist": "プレイリストを生成", "pl_name": "プレイリスト名:", "pl_mood": "どのような音楽をご希望ですか？",
+        "track_count": "トラック数:", "select_provider": "プロバイダーを選択:", "select_model": "モデルを選択:",
+        "enter_key": "APIキーを入力:", "help_title": "APIキーの取得方法:", "sync_success": "モデルが更新されました！",
+        "msg_lib_synced": "ライブラリのキャッシュが更新されました！", "scanning": "スキャン中: {}/{}", "ready": "準備完了。", "done": "完了！",
+        "footer": "© 2026 iTunesGeniusAI | 注意: AIは完璧ではありません。\n設定で異なるモデルを試してください。",
+        "setup_required": "APIキーが必要", "setup_instr": "すべての機能のロックを解除するには、設定に移動してAPIキーを入力してください。",
+        "go_settings": "設定に移動", "active_config": "現在の構成", "provider": "プロバイダー",
+        "key_missing": "APIキーがありません", "lib_empty": "ライブラリが空です。", "asking_ai": "AIアシスタントに質問中...",
+        "creating_playlist": "Musicでプレイリストを作成中...", "success_added": "成功！ {}曲を追加しました。", "ai_fail": "一致する曲が見つかりませんでした。",
+        "lib_cleanup": "ライブラリのクリーンアップ", "merge_instr": "iTunes検索APIを介して分割されたアルバムを特定し、不足しているメタデータを復元します。",
+        "analyze_lib": "ライブラリを分析", "fix_selected": "選択したものを修正", "results": "分析結果",
+        "no_issues": "まだ問題は見つかりませんでした。", "tracks": "{}曲", "file_fixing": "直接ファイル修正",
+        "file_instr": "ディスク上の音楽ファイル（MP3、FLACなど）のメタデータを直接修正します。", "no_folder": "フォルダが選択されていません",
+        "select_folder": "フォルダを選択", "files_to_process": "処理するファイル ({})", "fix_all": "すべてのファイルを修正",
+        "select_folder_msg": "音楽ファイルを表示するにはフォルダを選択してください。", "checking": "接続を確認中...",
+        "welcome": "成功しました！ようこそ。", "val_failed": "検証に失敗しました: {}", "lang_section": "言語", "refresh_cache": "ローカル音楽データベースのキャッシュを更新します。",
+        "lib_not_read": "Musicライブラリが空か、読み込めませんでした。", "analysis_complete": "分析完了。分割されたアルバムは見つかりませんでした。",
+        "found_albums": "修正が必要なアルバムが{}件見つかりました。", "processing_files": "ファイルを処理中...", "error_folder": "フォルダのスキャン中にエラーが発生しました。",
+        "note_sync": "注意：モデルリストは同期ボタンを介して自動的に更新されます。"
+    ]
+    
+    private let zh: [String: String] = [
+        "settings": "设置", "ai_playlist": "AI 播放列表", "media_fixer": "iTunes 媒体修复", "folder_fix": "文件夹修复器",
+        "sync_library": "同步资料库", "sync_models": "同步模型", "validate_save": "验证并保存",
+        "generate_playlist": "生成播放列表", "pl_name": "播放列表名称:", "pl_mood": "您想要什么样的音乐？",
+        "track_count": "曲目数量:", "select_provider": "选择提供商:", "select_model": "选择模型:",
+        "enter_key": "输入 API 密钥:", "help_title": "如何获取 API 密钥:", "sync_success": "模型更新成功！",
+        "msg_lib_synced": "资料库缓存已更新！", "scanning": "正在扫描: {}/{}", "ready": "就绪。", "done": "完成！",
+        "footer": "© 2026 iTunesGeniusAI | 注意：AI模型并不完美。\n请在设置中尝试不同的模型。",
+        "setup_required": "需要 API 密钥", "setup_instr": "请前往设置并输入 API 密钥以解锁所有功能。",
+        "go_settings": "前往设置", "active_config": "活动配置", "provider": "提供商",
+        "key_missing": "API 密钥缺失", "lib_empty": "资料库为空。", "asking_ai": "正在询问 AI 助手...",
+        "creating_playlist": "正在音乐应用中创建播放列表...", "success_added": "成功！已添加 {} 首曲目。", "ai_fail": "AI 未能找到匹配项。",
+        "lib_cleanup": "资料库清理", "merge_instr": "通过 iTunes 搜索 API 识别拆分的专辑并恢复缺失的元数据。",
+        "analyze_lib": "分析资料库", "fix_selected": "修复选中项", "results": "分析结果",
+        "no_issues": "尚未检测到问题。", "tracks": "{} 首曲目", "file_fixing": "直接文件修复",
+        "file_instr": "直接修复磁盘上的音乐文件（MP3、FLAC 等）的元数据。", "no_folder": "未选择文件夹",
+        "select_folder": "选择文件夹", "files_to_process": "待处理文件 ({})", "fix_all": "修复所有文件",
+        "select_folder_msg": "选择一个文件夹以查看音乐文件。", "checking": "正在检查连接...",
+        "welcome": "成功！欢迎。", "val_failed": "验证失败: {}", "lang_section": "语言", "refresh_cache": "刷新本地音乐数据库缓存。",
+        "lib_not_read": "您的音乐资料库为空或无法读取。", "analysis_complete": "分析完成。未发现拆分的专辑。",
+        "found_albums": "发现 {} 个需要修复的专辑。", "processing_files": "正在处理文件...", "error_folder": "扫描文件夹时出错。",
+        "note_sync": "注意：模型列表通过同步按钮自动更新。"
+    ]
+    
+    private let de: [String: String] = [
+        "settings": "Einstellungen", "ai_playlist": "KI-Playlist", "media_fixer": "iTunes Media Fixer", "folder_fix": "Ordner Fixer",
+        "sync_library": "Mediathek synchronisieren", "sync_models": "Modelle synchronisieren", "validate_save": "Prüfen & Speichern",
+        "generate_playlist": "Playlist generieren", "pl_name": "Playlist Name:", "pl_mood": "Welche Musik möchten Sie?",
+        "track_count": "Anzahl Titel:", "select_provider": "Anbieter wählen:", "select_model": "Modell wählen:",
+        "enter_key": "API-Schlüssel eingeben:", "help_title": "API-Schlüssel erhalten:", "sync_success": "Modelle aktualisiert!",
+        "msg_lib_synced": "Mediathek-Cache aktualisiert!", "scanning": "Scannen: {}/{}", "ready": "Bereit.", "done": "Fertig!",
+        "footer": "© 2026 iTunesGeniusAI | Hinweis: KI-Modelle sind nicht perfekt.\nProbieren Sie andere Modelle in den Einstellungen aus.",
+        "setup_required": "API-Schlüssel erforderlich", "setup_instr": "Bitte gehen Sie zu den Einstellungen und geben Sie einen API-Schlüssel ein, um alle Funktionen freizuschalten.",
+        "go_settings": "Zu den Einstellungen", "active_config": "Aktive Konfig.", "provider": "Anbieter",
+        "key_missing": "API-Schlüssel fehlt", "lib_empty": "Mediathek ist leer.", "asking_ai": "KI-Assistent wird gefragt...",
+        "creating_playlist": "Playlist in Musik wird erstellt...", "success_added": "Erfolg! {} Titel hinzugefügt.", "ai_fail": "KI hat keine Treffer gefunden.",
+        "lib_cleanup": "Mediathek-Bereinigung", "merge_instr": "Identifizieren Sie geteilte Alben und stellen Sie fehlende Metadaten über die iTunes-Suche wieder her.",
+        "analyze_lib": "Mediathek analysieren", "fix_selected": "Auswahl reparieren", "results": "Analyse-Ergebnisse",
+        "no_issues": "Noch keine Probleme erkannt.", "tracks": "{} Titel", "file_fixing": "Direkte Dateireparatur",
+        "file_instr": "Metadaten für Musikdateien direkt auf der Festplatte reparieren (MP3, FLAC usw.).", "no_folder": "Kein Ordner ausgewählt",
+        "select_folder": "Ordner wählen", "files_to_process": "Dateien zu verarbeiten ({})", "fix_all": "Alle Dateien reparieren",
+        "select_folder_msg": "Wählen Sie einen Ordner, um Musikdateien zu sehen.", "checking": "Verbindung wird geprüft...",
+        "welcome": "Erfolgreich! Willkommen.", "val_failed": "Validierung fehlgeschlagen: {}", "lang_section": "Sprache", "refresh_cache": "Lokalen Musikdatenbank-Cache aktualisieren.",
+        "lib_not_read": "Ihre Musikbibliothek ist leer oder konnte nicht gelesen werden.", "analysis_complete": "Analyse abgeschlossen. Keine geteilten Alben gefunden.",
+        "found_albums": "{} Alben zum Reparieren gefunden.", "processing_files": "Dateien werden verarbeitet...", "error_folder": "Fehler beim Scannen des Ordners.",
+        "note_sync": "Hinweis: Die Modellliste wird automatisch über die Schaltfläche Sync aktualisiert."
+    ]
+    
+    private let pl: [String: String] = [
+        "settings": "Ustawienia", "ai_playlist": "Playlista AI", "media_fixer": "iTunes Naprawa Mediów", "folder_fix": "Naprawa Folderów",
+        "sync_library": "Synchronizuj", "sync_models": "Synchronizuj modele", "validate_save": "Sprawdź i zapisz",
+        "generate_playlist": "Generuj playlistę", "pl_name": "Nazwa playlisty:", "pl_mood": "Jaką muzykę chcesz usłyszeć?",
+        "track_count": "Liczba utworów:", "select_provider": "Wybierz dostawcę:", "select_model": "Wybierz model:",
+        "enter_key": "Wprowadź klucz API:", "help_title": "Jak uzyskać klucz API:", "sync_success": "Modele zaktualizowane!",
+        "msg_lib_synced": "Pamięć biblioteki zaktualizowana!", "scanning": "Skanowanie: {}/{}", "ready": "Gotowe.", "done": "Zrobione!",
+        "footer": "© 2026 iTunesGeniusAI | Uwaga: Modele AI nie są idealne.\nWypróbuj inne modele w Ustawieniach.",
+        "setup_required": "Klucz API wymagany", "setup_instr": "Przejdź do ustawień i wprowadź klucz API, aby odblokować wszystkie funkcje.",
+        "go_settings": "Idź do ustawień", "active_config": "Aktywna konfig.", "provider": "Dostawca",
+        "key_missing": "Brak klucza API", "lib_empty": "Biblioteka jest pusta.", "asking_ai": "Pytanie asystenta AI...",
+        "creating_playlist": "Tworzenie playlisty w Muzyce...", "success_added": "Sukces! Dodano {} utworów.", "ai_fail": "AI nie znalazło dopasowań.",
+        "lib_cleanup": "Oczyszczanie biblioteki", "merge_instr": "Zidentyfikuj podzielone albumy i przywróć brakujące metadane za pomocą iTunes Search API.",
+        "analyze_lib": "Analizuj bibliotekę", "fix_selected": "Napraw wybrane", "results": "Wyniki analizy",
+        "no_issues": "Nie wykryto jeszcze problemów.", "tracks": "{} utworów", "file_fixing": "Bezpośrednia naprawa plików",
+        "file_instr": "Napraw metadane plików muzycznych bezpośrednio na dysku (MP3, FLAC itp.).", "no_folder": "Nie wybrano folderu",
+        "select_folder": "Wybierz folder", "files_to_process": "Pliki do przetworzenia ({})", "fix_all": "Napraw wszystkie pliki",
+        "select_folder_msg": "Wybierz folder, aby zobaczyć pliki muzyczne.", "checking": "Sprawdzanie połączenia...",
+        "welcome": "Sukces! Witamy.", "val_failed": "Weryfikacja nie powiodła się: {}", "lang_section": "Język", "refresh_cache": "Odśwież pamięć podręczną lokalnej bazy danych muzyki.",
+        "lib_not_read": "Biblioteka muzyczna jest pusta lub nie można jej odczytać.", "analysis_complete": "Analiza zakończona. Nie znaleziono podzielonych albumów.",
+        "found_albums": "Znaleziono {} albumów do naprawy.", "processing_files": "Przetwarzanie plików...", "error_folder": "Błąd skanowania folderu.",
+        "note_sync": "Uwaga: Lista modeli aktualizuje się automatycznie za pomocą przycisku Sync."
+    ]
+    
+    private let et: [String: String] = [
+        "settings": "Seaded", "ai_playlist": "AI Esitusloend", "media_fixer": "iTunes Meedia Parandaja", "folder_fix": "Kausta Parandaja",
+        "sync_library": "Sünkrooni", "sync_models": "Sünkrooni mudelid", "validate_save": "Kontrolli ja salvesta",
+        "generate_playlist": "Genereeri esitusloend", "pl_name": "Esitusloendi nimi:", "pl_mood": "Millist muusikat soovid?",
+        "track_count": "Lugude arv:", "select_provider": "Vali teenusepakkuja:", "select_model": "Vali mudel:",
+        "enter_key": "Sisesta API võti:", "help_title": "API võtmed:", "sync_success": "Mudelid uuendatud!",
+        "msg_lib_synced": "Raamatukogu vahemälu uuendatud!", "scanning": "Skanneerimine: {}/{}", "ready": "Valmis.", "done": "Tehtud!",
+        "footer": "© 2026 iTunesGeniusAI | Märkus: AI mudelid pole täiuslikud.\nProovi teisi mudeleid seadetes.",
+        "setup_required": "Vajalik API võti", "setup_instr": "Kõigi funktsioonide avamiseks minge seadetesse ja sisestage API võti.",
+        "go_settings": "Mine seadetesse", "active_config": "Aktiivne konfig", "provider": "Teenusepakkuja",
+        "key_missing": "API võti puudub", "lib_empty": "Raamatukogu on tühi.", "asking_ai": "AI assistendilt küsimine...",
+        "creating_playlist": "Esitusloendi loomine Muusikas...", "success_added": "Edukas! Lisati {} lugu.", "ai_fail": "AI ei leidnud vasteid.",
+        "lib_cleanup": "Raamatukogu puhastamine", "merge_instr": "Tuvastage jagatud albumid ja taastage puuduvad metaandmed iTunes'i otsingu API kaudu.",
+        "analyze_lib": "Analüüsi raamatukogu", "fix_selected": "Paranda valitud", "results": "Analüüsi tulemused",
+        "no_issues": "Probleeme veel ei tuvastatud.", "tracks": "{} lugu", "file_fixing": "Failide otsene parandamine",
+        "file_instr": "Parandage muusikafailide metaandmeid otse kettal (MP3, FLAC jne).", "no_folder": "Kausta pole valitud",
+        "select_folder": "Vali kaust", "files_to_process": "Töödeldavad failid ({})", "fix_all": "Paranda kõik failid",
+        "select_folder_msg": "Muusikafailide nägemiseks valige kaust.", "checking": "Ühenduse kontrollimine...",
+        "welcome": "Edukas! Tere tulemast.", "val_failed": "Valideerimine ebaõnnestus: {}", "lang_section": "Keel", "refresh_cache": "Värskendage kohaliku muusikaandmebaasi vahemälu.",
+        "lib_not_read": "Teie muusikakogu on tühi või seda ei saanud lugeda.", "analysis_complete": "Analüüs lõpetatud. Jagatud albumeid ei leitud.",
+        "found_albums": "Leiti {} albumit parandamiseks.", "processing_files": "Failide töötlemine...", "error_folder": "Viga kausta skannimisel.",
+        "note_sync": "Märkus: Mudelite loend uueneb automaatselt sünkroonimisnupu kaudu."
+    ]
+    
+    private let es: [String: String] = [
+        "settings": "Ajustes", "ai_playlist": "Lista de IA", "media_fixer": "iTunes Fixer de Medios", "folder_fix": "Fixer de Carpetas",
+        "sync_library": "Sincronizar", "sync_models": "Sincronizar modelos", "validate_save": "Validar y guardar",
+        "generate_playlist": "Generar lista", "pl_name": "Nombre de lista:", "pl_mood": "¿Qué música desea?",
+        "track_count": "Número de pistas:", "select_provider": "Seleccione proveedor:", "select_model": "Seleccione modelo:",
+        "enter_key": "Introduzca clave API:", "help_title": "Cómo obtener clave:", "sync_success": "¡Modelos actualizados!",
+        "msg_lib_synced": "¡Caché de biblioteca actualizado!", "scanning": "Escaneando: {}/{}", "ready": "Listo.", "done": "¡Hecho!",
+        "footer": "© 2026 iTunesGeniusAI | Nota: Los modelos de IA no son perfectos.\nPruebe diferentes modelos en los Ajustes.",
+        "setup_required": "Clave API requerida", "setup_instr": "Vaya a Ajustes e ingrese una clave API para desbloquear todas las funciones.",
+        "go_settings": "Ir a Ajustes", "active_config": "Config. activa", "provider": "Proveedor",
+        "key_missing": "Falta la clave API", "lib_empty": "La biblioteca está vacía.", "asking_ai": "Preguntando al asistente de IA...",
+        "creating_playlist": "Creando lista en Música...", "success_added": "¡Éxito! Se añadieron {} pistas.", "ai_fail": "La IA no encontró coincidencias.",
+        "lib_cleanup": "Limpieza de biblioteca", "merge_instr": "Identifique álbumes divididos y restaure metadatos faltantes mediante la API de búsqueda de iTunes.",
+        "analyze_lib": "Analizar biblioteca", "fix_selected": "Reparar seleccionados", "results": "Resultados del análisis",
+        "no_issues": "Aún no se han detectado problemas.", "tracks": "{} pistas", "file_fixing": "Reparación directa de archivos",
+        "file_instr": "Reparar metadatos de archivos de música directamente en su disco (MP3, FLAC, etc.).", "no_folder": "Ninguna carpeta seleccionada",
+        "select_folder": "Seleccionar carpeta", "files_to_process": "Archivos a procesar ({})", "fix_all": "Reparar todos los archivos",
+        "select_folder_msg": "Seleccione una carpeta para ver los archivos de música.", "checking": "Comprobando conexión...",
+        "welcome": "¡Éxito! Bienvenido.", "val_failed": "Validación fallida: {}", "lang_section": "Idioma", "refresh_cache": "Actualizar el caché de la base de datos de música local.",
+        "lib_not_read": "Su biblioteca de música está vacía o no se pudo leer.", "analysis_complete": "Análisis completo. No se encontraron álbumes divididos.",
+        "found_albums": "Se encontraron {} álbumes para reparar.", "processing_files": "Procesando archivos...", "error_folder": "Error al escanear la carpeta.",
+        "note_sync": "Nota: La lista de modelos se actualiza automáticamente mediante el botón de sincronización."
+    ]
+    
+    private var languages: [String: [String: String]] {
+        return [
+            "en": en, "ru": ru, "be": be, "ko": ko, "ja": ja,
+            "zh": zh, "de": de, "pl": pl, "et": et, "es": es
+        ]
+    }
+    
+    func t(_ key: String, _ args: Any...) -> String {
+        let langDict = languages[selectedLanguage] ?? en
+        let text = langDict[key] ?? en[key] ?? key
+        if args.isEmpty { return text }
+        
+        var formattedText = text
+        for arg in args {
+            let argString = "\(arg)"
+            if let range = formattedText.range(of: "{}") {
+                formattedText.replaceSubrange(range, with: argString)
+            }
+        }
+        return formattedText
+    }
+}
