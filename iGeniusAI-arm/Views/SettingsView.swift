@@ -163,9 +163,9 @@ struct SettingsView: View {
         }
         .notification(message: $activeNotification)
         .onAppear {
-            geminiKey = KeychainHelper.shared.readString(service: "com.igeniusaim", account: "gemini") ?? ""
-            groqKey = KeychainHelper.shared.readString(service: "com.igeniusaim", account: "groq") ?? ""
-            openrouterKey = KeychainHelper.shared.readString(service: "com.igeniusaim", account: "openrouter") ?? ""
+            geminiKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "gemini") ?? ""
+            groqKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "groq") ?? ""
+            openrouterKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "openrouter") ?? ""
         }
     }
     
@@ -240,13 +240,8 @@ struct SettingsView: View {
                     isKeyValidated = true
                     
                     // Save to Keychain on success
-                    if selectedProvider == "Gemini" {
-                        KeychainHelper.shared.saveString(key, service: "com.igeniusaim", account: "gemini")
-                    } else if selectedProvider == "Groq" {
-                        KeychainHelper.shared.saveString(key, service: "com.igeniusaim", account: "groq")
-                    } else {
-                        KeychainHelper.shared.saveString(key, service: "com.igeniusaim", account: "openrouter")
-                    }
+                    let account = selectedProvider.lowercased()
+                    KeychainHelper.shared.saveString(key, service: KeychainHelper.serviceName, account: account)
                     
                     self.activeNotification = NotificationMessage(text: lang.t("welcome"), isError: false)
                 } else {

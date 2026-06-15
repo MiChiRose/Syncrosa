@@ -3,6 +3,7 @@ import Security
 
 class KeychainHelper {
     static let shared = KeychainHelper()
+    static let serviceName = "com.igeniusai.auth"
     
     private init() {}
     
