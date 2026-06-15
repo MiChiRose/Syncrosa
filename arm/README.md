@@ -1,21 +1,24 @@
-# iGeniusAI M-Series
+# iGeniusAI Apple Silicon 🚀
 
-This is a modern SwiftUI port of iGeniusAI, specifically designed for Apple Silicon (M1, M2, M3, etc.) and modern macOS versions using the **Music** app.
+A modern version of iGeniusAI, built from scratch with SwiftUI for the latest Macs and the macOS Music app.
 
-## Features
-- **AI Playlist Generator**: Create playlists using natural language prompts via Google Gemini.
-- **Media Fixer**: (In Progress) Normalize metadata and fix split albums using the iTunes Search API.
-- **Native SwiftUI**: Fast, efficient, and fits perfectly into the modern macOS aesthetic.
+### What it does:
+- AI Playlists: Generate Music.app playlists using AI (Gemini, Groq, OpenRouter) with natural language prompts.
+- Media Fixer: (In Progress) Clean up your modern library, fix metadata, and normalize split albums.
+- Modern UI: A fast, fluid interface designed specifically for the macOS Sonoma aesthetic.
+- Secure Storage: Uses the macOS Keychain to keep your AI API keys encrypted and safe.
 
-## How to Run
-1. Open the `Package.swift` file in Xcode.
-2. Set your Google Gemini API Key in the **Settings** tab.
-3. Start generating playlists!
+### Quick Start:
+- Download the latest version from [Releases](../../releases).
+- **Right-click** the app and select **Open** (this bypasses the Gatekeeper warning for the first launch).
+- Head to the **Settings** tab to add your Gemini or OpenRouter API key.
+- Enjoy your AI-powered music experience!
 
-## Architecture
-- `Services/`: Core logic for API calls and Music app integration.
-- `Views/`: SwiftUI components for the user interface.
-- `Models/`: Data structures.
+### Compatibility:
+- OS: macOS 14 Sonoma or newer.
+- Hardware: Apple Silicon (M1, M2, M3, M4) only.
+- Note: This version is not compatible with older Intel-based Macs.
 
 ---
-*Tailored for Apple Silicon.*
+
+*Part of the [iGeniusAI](../../) project.*
