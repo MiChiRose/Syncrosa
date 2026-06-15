@@ -2,21 +2,21 @@
 import PackageDescription
 
 let package = Package(
-    name: "iGenius_ARM",
+    name: "iGeniusAI-arm",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "iGenius_ARM", targets: ["iGenius_ARM"])
+        .executable(name: "iGeniusAI-arm", targets: ["iGeniusAI-arm"])
     ],
     dependencies: [],
     targets: [
         .executableTarget(
-            name: "iGenius_ARM",
+            name: "iGeniusAI-arm",
             dependencies: [],
             path: ".",
             sources: [
-                "iGenius_ARMApp.swift",
+                "iGeniusAI-armApp.swift",
                 "ContentView.swift",
                 "Views/PlaylistGeneratorView.swift",
                 "Views/MediaFixerView.swift",

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D3E1A2B3C4D5E6F700000001 /* iGenius_ARMApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000101 /* iGenius_ARMApp.swift */; };
+		D3E1A2B3C4D5E6F700000001 /* iGeniusAI-armApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000101 /* iGeniusAI-armApp.swift */; };
 		D3E1A2B3C4D5E6F700000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000102 /* ContentView.swift */; };
 		D3E1A2B3C4D5E6F700000003 /* PlaylistGeneratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */; };
 		D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */; };
@@ -23,7 +23,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		D3E1A2B3C4D5E6F700000101 /* iGenius_ARMApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iGenius_ARMApp.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000101 /* iGeniusAI-armApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iGeniusAI-armApp.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistGeneratorView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFixerView.swift; sourceTree = "<group>"; };
@@ -36,7 +36,7 @@
 		D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationService.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = genius_atom.icns; sourceTree = "<group>"; };
-		D3E1A2B3C4D5E6F700000201 /* iGenius_ARM.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iGenius_ARM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D3E1A2B3C4D5E6F700000201 /* iGeniusAI-arm.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iGeniusAI-arm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -50,10 +50,10 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		D3E1A2B3C4D5E6F700000401 /* iGenius_ARM */ = {
+		D3E1A2B3C4D5E6F700000401 /* iGeniusAI-arm */ = {
 			isa = PBXGroup;
 			children = (
-				D3E1A2B3C4D5E6F700000101 /* iGenius_ARMApp.swift */,
+				D3E1A2B3C4D5E6F700000101 /* iGeniusAI-armApp.swift */,
 				D3E1A2B3C4D5E6F700000102 /* ContentView.swift */,
 				D3E1A2B3C4D5E6F700000402 /* Views */,
 				D3E1A2B3C4D5E6F700000403 /* Services */,
@@ -90,7 +90,7 @@
 		D3E1A2B3C4D5E6F700000404 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D3E1A2B3C4D5E6F700000201 /* iGenius_ARM.app */,
+				D3E1A2B3C4D5E6F700000201 /* iGeniusAI-arm.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -98,9 +98,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D3E1A2B3C4D5E6F700000501 /* iGenius_ARM */ = {
+		D3E1A2B3C4D5E6F700000501 /* iGeniusAI-arm */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D3E1A2B3C4D5E6F700000601 /* Build configuration list for PBXNativeTarget "iGenius_ARM" */;
+			buildConfigurationList = D3E1A2B3C4D5E6F700000601 /* Build configuration list for PBXNativeTarget "iGeniusAI-arm" */;
 			buildPhases = (
 				D3E1A2B3C4D5E6F700000701 /* Sources */,
 				D3E1A2B3C4D5E6F700000301 /* Frameworks */,
@@ -110,9 +110,9 @@
 			);
 			dependencies = (
 			);
-			name = iGenius_ARM;
-			productName = iGenius_ARM;
-			productReference = D3E1A2B3C4D5E6F700000201 /* iGenius_ARM.app */;
+			name = iGeniusAI-arm;
+			productName = iGeniusAI-arm;
+			productReference = D3E1A2B3C4D5E6F700000201 /* iGeniusAI-arm.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -129,7 +129,7 @@
 					};
 				};
 			};
-			buildConfigurationList = D3E1A2B3C4D5E6F700000902 /* Build configuration list for PBXProject "iGenius_ARM" */;
+			buildConfigurationList = D3E1A2B3C4D5E6F700000902 /* Build configuration list for PBXProject "iGeniusAI-arm" */;
 			compatibilityVersion = "Xcode 13.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -137,12 +137,12 @@
 				en,
 				Base,
 			);
-			mainGroup = D3E1A2B3C4D5E6F700000401 /* iGenius_ARM */;
+			mainGroup = D3E1A2B3C4D5E6F700000401 /* iGeniusAI-arm */;
 			productRefGroup = D3E1A2B3C4D5E6F700000404 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D3E1A2B3C4D5E6F700000501 /* iGenius_ARM */,
+				D3E1A2B3C4D5E6F700000501 /* iGeniusAI-arm */,
 			);
 		};
 /* End PBXProject section */
@@ -163,7 +163,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D3E1A2B3C4D5E6F700000001 /* iGenius_ARMApp.swift in Sources */,
+				D3E1A2B3C4D5E6F700000001 /* iGeniusAI-armApp.swift in Sources */,
 				D3E1A2B3C4D5E6F700000002 /* ContentView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000003 /* PlaylistGeneratorView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */,
@@ -343,7 +343,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		D3E1A2B3C4D5E6F700000601 /* Build configuration list for PBXNativeTarget "iGenius_ARM" */ = {
+		D3E1A2B3C4D5E6F700000601 /* Build configuration list for PBXNativeTarget "iGeniusAI-arm" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D3E1A2B3C4D5E6F700000B01 /* Debug */,
@@ -352,7 +352,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D3E1A2B3C4D5E6F700000902 /* Build configuration list for PBXProject "iGenius_ARM" */ = {
+		D3E1A2B3C4D5E6F700000902 /* Build configuration list for PBXProject "iGeniusAI-arm" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D3E1A2B3C4D5E6F700000A01 /* Debug */,
