@@ -1,0 +1,413 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5281AC5E2FDAE21700B6EAAC /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 5281AC5D2FDAE21700B6EAAC /* AppDelegate.m */; };
+		5281AC602FDAE21700B6EAAC /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 5281AC5F2FDAE21700B6EAAC /* main.m */; };
+		5281AC622FDAE21700B6EAAC /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5281AC612FDAE21700B6EAAC /* Images.xcassets */; };
+		5281AC652FDAE21700B6EAAC /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5281AC632FDAE21700B6EAAC /* MainMenu.xib */; };
+		5281AC712FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 5281AC702FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5281AC6B2FDAE21700B6EAAC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5281AC4F2FDAE21700B6EAAC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5281AC562FDAE21700B6EAAC;
+			remoteInfo = iGeniusAI-legacy-objc;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		5281AC572FDAE21700B6EAAC /* iGeniusAI-legacy-objc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iGeniusAI-legacy-objc.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5281AC5B2FDAE21700B6EAAC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5281AC5C2FDAE21700B6EAAC /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		5281AC5D2FDAE21700B6EAAC /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		5281AC5F2FDAE21700B6EAAC /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		5281AC612FDAE21700B6EAAC /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
+		5281AC642FDAE21700B6EAAC /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		5281AC6A2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iGeniusAI-legacy-objcTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5281AC6F2FDAE21700B6EAAC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5281AC702FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = iGeniusAI-legacy-objcTests.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5281AC542FDAE21700B6EAAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5281AC672FDAE21700B6EAAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5281AC4E2FDAE21700B6EAAC = {
+			isa = PBXGroup;
+			children = (
+				5281AC592FDAE21700B6EAAC /* iGeniusAI-legacy-objc */,
+				5281AC6D2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */,
+				5281AC582FDAE21700B6EAAC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5281AC582FDAE21700B6EAAC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5281AC572FDAE21700B6EAAC /* iGeniusAI-legacy-objc.app */,
+				5281AC6A2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5281AC592FDAE21700B6EAAC /* iGeniusAI-legacy-objc */ = {
+			isa = PBXGroup;
+			children = (
+				5281AC5C2FDAE21700B6EAAC /* AppDelegate.h */,
+				5281AC5D2FDAE21700B6EAAC /* AppDelegate.m */,
+				5281AC612FDAE21700B6EAAC /* Images.xcassets */,
+				5281AC632FDAE21700B6EAAC /* MainMenu.xib */,
+				5281AC5A2FDAE21700B6EAAC /* Supporting Files */,
+			);
+			path = iGeniusAI-legacy-objc;
+			sourceTree = "<group>";
+		};
+		5281AC5A2FDAE21700B6EAAC /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				5281AC5B2FDAE21700B6EAAC /* Info.plist */,
+				5281AC5F2FDAE21700B6EAAC /* main.m */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		5281AC6D2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */ = {
+			isa = PBXGroup;
+			children = (
+				5281AC702FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m */,
+				5281AC6E2FDAE21700B6EAAC /* Supporting Files */,
+			);
+			path = iGeniusAI-legacy-objcTests;
+			sourceTree = "<group>";
+		};
+		5281AC6E2FDAE21700B6EAAC /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				5281AC6F2FDAE21700B6EAAC /* Info.plist */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5281AC562FDAE21700B6EAAC /* iGeniusAI-legacy-objc */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objc" */;
+			buildPhases = (
+				5281AC532FDAE21700B6EAAC /* Sources */,
+				5281AC542FDAE21700B6EAAC /* Frameworks */,
+				5281AC552FDAE21700B6EAAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = iGeniusAI-legacy-objc;
+			productName = iGeniusAI-legacy-objc;
+			productReference = 5281AC572FDAE21700B6EAAC /* iGeniusAI-legacy-objc.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5281AC692FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objcTests" */;
+			buildPhases = (
+				5281AC662FDAE21700B6EAAC /* Sources */,
+				5281AC672FDAE21700B6EAAC /* Frameworks */,
+				5281AC682FDAE21700B6EAAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */,
+			);
+			name = iGeniusAI-legacy-objcTests;
+			productName = iGeniusAI-legacy-objcTests;
+			productReference = 5281AC6A2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5281AC4F2FDAE21700B6EAAC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0620;
+				ORGANIZATIONNAME = "MacBook Pro";
+				TargetAttributes = {
+					5281AC562FDAE21700B6EAAC = {
+						CreatedOnToolsVersion = 6.2;
+					};
+					5281AC692FDAE21700B6EAAC = {
+						CreatedOnToolsVersion = 6.2;
+						TestTargetID = 5281AC562FDAE21700B6EAAC;
+					};
+				};
+			};
+			buildConfigurationList = 5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "iGeniusAI-legacy-objc" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5281AC4E2FDAE21700B6EAAC;
+			productRefGroup = 5281AC582FDAE21700B6EAAC /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5281AC562FDAE21700B6EAAC /* iGeniusAI-legacy-objc */,
+				5281AC692FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5281AC552FDAE21700B6EAAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5281AC622FDAE21700B6EAAC /* Images.xcassets in Resources */,
+				5281AC652FDAE21700B6EAAC /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5281AC682FDAE21700B6EAAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5281AC532FDAE21700B6EAAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5281AC602FDAE21700B6EAAC /* main.m in Sources */,
+				5281AC5E2FDAE21700B6EAAC /* AppDelegate.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5281AC662FDAE21700B6EAAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5281AC712FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5281AC562FDAE21700B6EAAC /* iGeniusAI-legacy-objc */;
+			targetProxy = 5281AC6B2FDAE21700B6EAAC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		5281AC632FDAE21700B6EAAC /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				5281AC642FDAE21700B6EAAC /* Base */,
+			);
+			name = MainMenu.xib;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		5281AC722FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		5281AC732FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		5281AC752FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = iGeniusAI-legacy-objc/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		5281AC762FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = iGeniusAI-legacy-objc/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		5281AC782FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = iGeniusAI-legacy-objcTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iGeniusAI-legacy-objc.app/Contents/MacOS/iGeniusAI-legacy-objc";
+			};
+			name = Debug;
+		};
+		5281AC792FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = iGeniusAI-legacy-objcTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iGeniusAI-legacy-objc.app/Contents/MacOS/iGeniusAI-legacy-objc";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "iGeniusAI-legacy-objc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC722FDAE21700B6EAAC /* Debug */,
+				5281AC732FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC752FDAE21700B6EAAC /* Debug */,
+				5281AC762FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+		5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objcTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC782FDAE21700B6EAAC /* Debug */,
+				5281AC792FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5281AC4F2FDAE21700B6EAAC /* Project object */;
+}
