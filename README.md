@@ -5,7 +5,8 @@
   <p><b>The ultimate power-tool for managing and creating Apple Music & iTunes playlists using AI.</b></p>
   <p align="center">
   <img src="https://img.shields.io/badge/Swift-SwiftUI-orange" alt="Swift / SwiftUI" />
-  <img src="https://img.shields.io/badge/Python-legacy%20build-blue" alt="Python" />
+  <img src="https://img.shields.io/badge/Objective--C-Legacy%20Pro%20(WIP)-blue" alt="Objective-C" />
+  <img src="https://img.shields.io/badge/Python-Legacy%20Stable-blue" alt="Python" />
   <img src="https://img.shields.io/badge/macOS-Sonoma%20to%20Mavericks-black" alt="macOS" />
   <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20OpenRouter-brightgreen" alt="AI providers" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="license" />
@@ -20,33 +21,30 @@ The application is available in **two distinct versions**, tailored for differen
 
 ## 🚀 The Applications
 
-### 1. iGenius_ARM (Modern Apple Silicon)
+### 1. [iGenius_ARM](./arm) (Modern Apple Silicon)
 A completely rewritten, native **SwiftUI** application designed exclusively for modern macOS (macOS 14 Sonoma and newer) running on Apple Silicon (M1/M2/M3/M4) chips.
 
 - **Deep Music.app Integration:** Seamlessly interacts with the modern macOS Music application.
-- **Native SwiftUI:** Fast, fluid, and beautiful interface with an iOS-style HUD notification system.
-- **Advanced Security:** Uses macOS Keychain to securely store your API keys and employs Hardened Runtime for process safety. No plain-text secrets.
+- **Modern UI:** Fast, fluid interface with a native iOS-style HUD notification system.
+- **Advanced Security:** Uses macOS Keychain to securely store your API keys and employs Hardened Runtime for process safety.
 - **Multi-Provider AI:** Supports generating playlists via Gemini, Groq, and OpenRouter (bypassing geo-blocks).
-- **iTunes Media Fixer:** Automatically corrects split albums and fetches missing metadata directly within your Music.app library.
-- **Folder Fixer:** A powerful new tool to fix ID3 metadata for music files directly on your disk (MP3, FLAC, etc.) before importing them.
-- **10+ Languages:** Fully localized out of the box (English, Russian, Belarusian, Korean, Japanese, Chinese, German, Polish, Estonian, Spanish).
+- **10+ Languages:** Fully localized out of the box.
 
-### 2. iGeniusAI (Legacy Intel / OS X)
-The legendary original Python-based application, meticulously designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra.
+### 2. [iGeniusAI](./legacy) (Legacy Intel / OS X)
+The legendary original version, meticulously designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra.
 
+- **Stable Python Core:** The current stable build ensures 100% compatibility with older OS X versions.
+- **Active Native Rewrite (WIP):** We are currently in the middle of a major transition to a native **Objective-C** core for even better performance on old hardware. *Note: The Obj-C version is currently in development and not yet available in the stable releases.*
 - **Classic iTunes Support:** Interacts directly with the legacy iTunes application.
-- **Retro Aesthetic:** Uses Tkinter to perfectly match the classic Aqua / El Capitan UI style.
-- **Resilient Network Layer:** Features a custom network wrapper to bypass outdated OpenSSL 0.9.8 limitations on old Macs, connecting seamlessly to modern AI APIs.
-- **Media Fixer:** Restores metadata for your classic MP3 libraries using the Apple iTunes Search API.
+- **Resilient Network Layer:** Bypasses outdated OpenSSL 0.9.8 limitations on old Macs.
 
 ---
 
 ## ⚙️ Engineering Highlights
-- **Resilient network layer** that bypasses outdated OpenSSL 0.9.8 on vintage macOS to reach modern AI APIs.
-- **Secure by design** - API keys in macOS Keychain + Hardened Runtime (ARM build); no plain-text secrets.
-- **Multi-provider AI** (Gemini / Groq / OpenRouter) with geo-block bypass.
-- **Two native codebases, one product** - SwiftUI for Apple Silicon, Python/Tkinter for legacy Intel.
-- **Lightweight** - native app, no Electron.
+- **Native Performance:** Transitioning to zero-dependency tracks for both Modern (SwiftUI) and Legacy (Objective-C) builds.
+- **Resilient Connectivity:** Custom network layer to bypass expired SSL certificates on vintage macOS.
+- **Security-First:** Native Keychain integration and Hardened Runtime for process protection.
+- **Zero Bloat:** Native codebases only—no Electron, no web-wrappers, just raw performance.
 
 ---
 
@@ -139,10 +137,10 @@ The **Media Fixer** tab helps keep your library organized:
 
 ## 🛠 Under the Hood
 
-* **Modern Native Architecture (ARM Version):** The modern version is written entirely in native Swift and SwiftUI, providing a lightning-fast, compiled macOS application that integrates securely with the system.
-* **Deep System Integration:** Both versions utilize advanced automation to seamlessly read your library and inject generated playlists directly into your Music or iTunes app.
-* **Legacy Connectivity (Legacy Version):** The legacy Python version features a custom, highly resilient network layer designed to bypass expired SSL certificates on older systems, ensuring uninterrupted connections to modern AI APIs.
-* **Lightweight Footprint:** Carefully optimized to run smoothly without draining system resources or relying on bloated modern web frameworks like Electron.
+*   **The Evolution of Legacy:** Originally prototyped in **Python** for speed, the legacy track is now moving to a **Native Objective-C** core (currently in development). This transition eliminates the need for an external interpreter and brings true Cocoa-level responsiveness to OS X 10.9+.
+*   **Modern Architecture:** The ARM version leverages **pure SwiftUI**, ensuring the app is power-efficient and fits perfectly into the modern macOS aesthetic while maintaining a lightning-fast compiled binary.
+*   **Protocol Bridge:** We use custom automation and AppleScript bridges to ensure that regardless of the version (iTunes or Music.app), the AI-generated playlists are injected accurately and instantly.
+*   **Network Resilience:** A custom socket-level wrapper is implemented in the legacy build to bridge the gap between vintage OpenSSL versions and the strict security requirements of modern AI APIs.
 
 ---
 
@@ -150,18 +148,17 @@ The **Media Fixer** tab helps keep your library organized:
 
 **Supported OS & Hardware:**
 - **iGenius_ARM:** Requires **macOS 14 Sonoma or newer** and an Apple Silicon (**M1/M2/M3/M4**) processor.
-- **iGeniusAI (Legacy):** Designed strictly for **OS X 10.9 Mavericks up to 10.13 High Sierra** on Intel Macs (2008-2013 era). Do not run or adapt this version for M-series Apple Silicon Macs.
+- **iGeniusAI (Legacy):** Designed strictly for **OS X 10.9 Mavericks up to 10.13 High Sierra** on Intel Macs (2008-2013 era). 
 
 **Security & Privacy:**
 - **Local Storage Only:** Your API keys are stored only locally in `~/.itunes_genius_ai.json` (Legacy) or securely encrypted in the macOS Keychain (ARM).
-- **No Data Collection:** The application does not collect, store, or distribute your API keys to any third-party server except the official AI provider.
+- **No Data Collection:** The application does not collect or distribute your private data.
 
 ## 💬 Issues & Support
 
-If you encounter any bugs, have questions, or just want to suggest a cool feature, feel free to reach out! 
-
-* **GitHub Issues:** The preferred way to report bugs or suggest improvements is by opening a ticket in the [Issues](../../issues) section of this repository.
-* **Direct Contact:** You can also reach me via email at [yura.menschikov@icloud.com](mailto:yura.menschikov@icloud.com). Feel free to write — I'm always open to feedback!
+If you encounter any bugs or have suggestions, reach out via:
+* **GitHub Issues:** [Issues](../../issues) section.
+* **Email:** [yura.menschikov@icloud.com](mailto:yura.menschikov@icloud.com)
 
 ---
 *Created with ❤️ for both the modern Apple Silicon and retro Mac communities.*
