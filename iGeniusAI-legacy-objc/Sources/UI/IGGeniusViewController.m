@@ -125,15 +125,23 @@
         self.progressIndicator.indeterminate = YES;
         [self.progressIndicator startAnimation:nil];
         
-        // Prepare a sample of the library for the AI (similar to Python logic)
-        NSMutableArray *sample = [NSMutableArray array];
-        for (IGTrack *t in tracks) {
-            [sample addObject:[NSString stringWithFormat:@"%@|%@|%@|%@|%ld", t.persistentID, t.artist, t.name, t.genre, (long)t.year]];
+        // Prepare a sample of the library for the AI
+        // For large libraries, we shuffle and take a sample to avoid context limits
+        NSArray *shuffledTracks = [tracks sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
+            return arc4random_uniform(3) - 1;
+        }];
+        
+        NSInteger maxSample = 500; // Safe limit for most models
+        NSArray *limitedSample = [shuffledTracks subarrayWithRange:NSMakeRange(0, MIN(tracks.count, maxSample))];
+        
+        NSMutableArray *sampleStrings = [NSMutableArray array];
+        for (IGTrack *t in limitedSample) {
+            [sampleStrings addObject:[NSString stringWithFormat:@"%@|%@|%@|%@|%ld", t.persistentID, t.artist, t.name, t.genre, (long)t.year]];
         }
         
         [[IGAIService sharedService] generatePlaylistWithPrompt:self.promptField.stringValue
                                                           count:[self.countField integerValue]
-                                                  librarySample:sample
+                                                  librarySample:sampleStrings
                                                      completion:^(NSArray *suggestedIDs) {
             [self.progressIndicator stopAnimation:nil];
             self.progressIndicator.indeterminate = NO;

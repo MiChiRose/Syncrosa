@@ -24,15 +24,33 @@
     return sharedInstance;
 }
 
-#pragma mark - NSURLSessionDelegate (Legacy SSL Support)
+#pragma mark - NSURLSessionDelegate (Secure SSL Support)
 
 - (void)URLSession:(NSURLSession *)session 
               task:(NSURLSessionTask *)task 
 didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge 
  completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
     
+    NSString *host = challenge.protectionSpace.host;
+    NSArray *trustedHosts = @[@"generativelanguage.googleapis.com", @"api.groq.com", @"openrouter.ai", @"itunes.apple.com"];
+    
+    BOOL isTrusted = NO;
+    for (NSString *h in trustedHosts) {
+        if ([host rangeOfString:h].location != NSNotFound) {
+            isTrusted = YES;
+            break;
+        }
+    }
+
     if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
-        completionHandler(NSURLSessionAuthChallengeUseCredential, [[NSURLCredential alloc] initWithTrust:challenge.protectionSpace.serverTrust]);
+        if (isTrusted) {
+            // For older macOS, we still might need to help it with the trust if root certs are expired,
+            // but we only do this for our known AI providers.
+            completionHandler(NSURLSessionAuthChallengeUseCredential, [[NSURLCredential alloc] initWithTrust:challenge.protectionSpace.serverTrust]);
+        } else {
+            // Default handling for other hosts (more secure)
+            completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
+        }
     } else {
         completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
     }

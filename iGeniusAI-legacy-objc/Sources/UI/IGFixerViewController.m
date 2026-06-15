@@ -1,5 +1,6 @@
 #import "IGFixerViewController.h"
 #import "IGiTunesService.h"
+#import "IGMediaFixerManager.h"
 
 @interface IGFixerViewController ()
 @property (nonatomic, strong) NSButton *startButton;
@@ -92,12 +93,9 @@
     self.progressIndicator.indeterminate = YES;
     [self.progressIndicator startAnimation:nil];
 
-    IGiTunesService *service = [IGiTunesService sharedService];
-
-    [service getMergeCandidatesWithCompletion:^(NSArray *candidates) {
+    [[IGMediaFixerManager sharedManager] getMergeCandidatesWithCompletion:^(NSArray *candidates) {
         if (candidates.count > 0) {
             [self log:[NSString stringWithFormat:@"Found %ld split albums to merge.", (long)candidates.count]];
-            // In a full app we might ask user, but following python's direct approach for now
             [self runMergePhase:candidates];
         } else {
             [self log:@"No split albums found. Proceeding to metadata check."];
@@ -137,7 +135,7 @@
 
 - (void)runMetadataPhase {
     [self log:@"Phase 2: Fetching missing metadata from iTunes API..."];
-    [[IGiTunesService sharedService] runMetadataFixWithProgress:^(NSInteger current, NSInteger total) {
+    [[IGMediaFixerManager sharedManager] runMetadataFixWithProgress:^(NSInteger current, NSInteger total) {
         self.progressIndicator.maxValue = total;
         self.progressIndicator.doubleValue = current;
         self.statusLabel.stringValue = [NSString stringWithFormat:@"Processing track %ld of %ld...", (long)current, (long)total];
