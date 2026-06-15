@@ -1,127 +1,24 @@
-# iGeniusAI PRO 🎵🤖 (AI + Media Fixer)
+# iGeniusAI Legacy 🎵
 
-<div align="center">
-  <img src="genius_icon.icns" alt="iGeniusAI Logo" width="120" />
-  <p><b>The ultimate power-tool for legacy iTunes libraries on OS X 10.9 – 10.13.</b></p>
-</div>
+This is the original version of iGeniusAI, built specifically for the "old school" — vintage Macs and classic iTunes libraries.
 
-iGeniusAI PRO is a unified desktop application that brings modern LLM capabilities and advanced library restoration tools to vintage Macs. It combines the AI playlist generation power of **iGeniusAI** with the library organization excellence of **iTunesMediaInfoFix**.
+### What it does:
+- AI Playlists: Generate iTunes playlists using AI (Gemini, Groq, OpenRouter) based on your mood or vibe.
+- Media Fixer: Automatically merge split albums and fetch missing metadata (Year, Genre) via the iTunes API.
+- Retro Feel: A native Aqua-style interface that looks and feels right at home on OS X 10.9 - 10.13.
+- Resilient SSL: Includes a custom network layer to ensure modern AI APIs work on older systems.
 
----
+### Quick Start:
+- Download the latest version from [Releases](../../releases).
+- **Right-click** the app and select **Open** (this bypasses the Gatekeeper warning for the first launch).
+- Follow the setup window to add your AI API key.
+- Enjoy organizing your classic music collection!
 
-## 🌟 Key Features
-
-### 1. 🧠 AI Genius (Tab 1)
-- **AI-Powered Playlists:** Generate perfect playlists based on moods, themes, or events (e.g., *"90s Underground Techno"* or *"Relaxing evening by the fireplace"*).
-- **Multi-Provider Support:** Integration with Google Gemini, Groq, and OpenRouter (perfect for bypassing geo-blocks).
-- **Deep Integration:** Direct injection of generated tracks into your iTunes library.
-
-### 2. 🛠 Media Fixer (Tab 2)
-- **Smart Album Merge:** Automatically unifies split albums (e.g., *"Artist - Hits"* and *"Artist: Hits"*) into a single clean entity by normalizing metadata.
-- **Apple Metadata Restoration:** Automatically fetches missing Year, Genre, and official Album info via the Apple iTunes Search API.
-- **Library Analysis:** Pre-flight check to identify tracks with missing information.
-- **Legacy Integration:** This feature is powered by the logic from the [iTunesMediaInfoFix](https://github.com/MiChiRose/iTunesMediaInfoFix) project, now fully integrated and improved for iGeniusAI.
-
-### 3. 🌍 General Features
-- **🍎 Classic Aqua Aesthetic:** Designed to feel right at home on OS X. No heavy modern web frameworks (like Electron), just a lightweight, fast, and familiar interface that seamlessly blends with your system.
-- **⚡️ Lightning Fast Library Caching:** Reads your iTunes library once and caches it for instant subsequent generations.
-- **🛡️ Resilient SSL:** Integrated workaround for outdated system OpenSSL 0.9.8, ensuring stable cloud connections on Mavericks/Yosemite.
-- **🌐 10+ Languages:** Fully localized for English, Russian, Belarusian, Korean, Japanese, Chinese, German, Polish, Estonian, and Spanish.
+### Compatibility:
+- OS: OS X 10.9 Mavericks up to 10.13 High Sierra.
+- Hardware: Intel-based Macs (circa 2008-2013).
+- Note: This version is not compatible with modern Apple Silicon (M1/M2/M3) Macs.
 
 ---
 
-## 📖 User Guide
-
-Below is a detailed guide on how to set up and use iGeniusAI PRO. 
-
-<details>
-<summary><b>1. Initial Setup & AI Configuration (First Launch)</b></summary>
-
-When you open the application for the first time, you will be greeted by the **AI Provider Setup** window. Follow these steps:
-
-1.  **Choose your AI Provider:**
-    *   **OpenRouter (Recommended):** Best for users in regions where direct access to AI models might be restricted. It provides a stable gateway to many free models.
-    *   **Google Gemini / Groq:** Select these if you already have a direct subscription or API access to these services.
-    *   *--- [Place for Screenshot: AI Provider Selection] ---*
-
-2.  **Select an AI Model:**
-    *   **Author's Recommendation:** I personally suggest finding and selecting **`z-ai/glm-4.5-air:free`** (or its newer versions) in the list.
-    *   **Can't find the model?** Click the **Sync (🔄)** button to update the list from the server.
-    *   **Note:** Different models provide different results. Some might be more "creative," while others are more strictly focused on data. If one doesn't work, don't hesitate to try another!
-    *   *--- [Place for Screenshot: Model Selection & Sync Button] ---*
-
-3.  **Get your API Key:**
-    *   Click the **Question Mark (?)** icon in the bottom corner of the setup window. This will open a helpful guide explaining exactly how to obtain your own free API key for each provider.
-    *   *--- [Place for Screenshot: Help Button Location] ---*
-
-4.  **Validate & Save:**
-    *   Paste your key into the input field and click **"Validate & Save Key"**.
-    *   **Success:** You will see a *"Success! Welcome"* message, and the window will close.
-    *   **Error:** If validation fails, double-check your key, ensure the selected model is currently available, and check your internet connection. If issues persist, see the [Issues & Support](#-issues--support) section below.
-
-5.  **Error Logging:**
-    *   There is a checkbox labeled **"Prompt to save text logs..."**. I recommend keeping this enabled. If the app crashes or behaves unexpectedly, these logs help me (the developer) understand exactly what went wrong. You can send these logs to me for a quick fix!
-    *   *--- [Place for Screenshot: Log Preference Checkbox] ---*
-
-</details>
-
-<details>
-<summary><b>2. Generating Playlists (AI Genius Tab)</b></summary>
-
-Using the application is designed to be simple and intuitive:
-
-1.  **Playlist Name:** Enter what you want your new iTunes playlist to be called (e.g., *"My Ultimate Drive"*).
-2.  **Mood / Vibe:** Describe what kind of music you want to hear. Be as specific as you like (e.g., *"Upbeat energetic 80s synth-pop for a workout"*).
-3.  **Track Count:** Choose how many songs should be in the playlist (default is 25). 
-    *   *Note: The AI will try to find as many matches as possible from your local library, but it might return fewer than requested if your library is small or the vibe is very niche.*
-4.  **Generate:** Click **"GENERATE PLAYLIST"** and wait a moment.
-    *   *--- [Place for Screenshot: Main Genius Tab Interface] ---*
-5.  **Troubleshooting:** If the AI finds zero songs, try slightly changing your mood description or switching to a different AI model in the settings.
-
-</details>
-
-<details>
-<summary><b>3. Cleaning your Library (Media Fixer Tab)</b></summary>
-
-The **Media Fixer** tab helps keep your library organized:
-
-1.  **Start Restoration:** Click this button to begin a two-phase process.
-2.  **Phase 1 (Smart Merge):** The app looks for albums that were split apart (e.g., *"Artist - Hits"* vs *"Artist: Hits"*) and merges them into one.
-3.  **Phase 2 (Metadata Fetch):** The app connects to the Apple iTunes API to find and fill in missing Years, Genres, and Track info.
-4.  **Monitoring:** You can watch the real-time log console to see exactly which tracks are being processed.
-    *   *--- [Place for Screenshot: Media Fixer Console in Action] ---*
-
-</details>
-
----
-
-## 🛠 Under the Hood
-
-*   **Deep System Integration:** Utilizes advanced AppleScript automation to seamlessly read your library and inject generated playlists directly into iTunes.
-*   **Legacy Connectivity:** Features a custom, highly resilient network layer designed to bypass expired SSL certificates on older systems, ensuring uninterrupted connections to modern AI APIs.
-*   **Lightweight Footprint:** Carefully optimized to run smoothly on vintage hardware without draining system resources or relying on bloated modern dependencies.
-
----
-
-## ⚠️ Compatibility & Security
-
-- **Supported OS:** OS X 10.9 Mavericks up to 10.13 High Sierra.
-- **Hardware:** Intel Macs (2008-2013 era). 
-- **BANNED:** Do not run or adapt this for M-series Apple Silicon Macs. This project is dedicated to legacy hardware.
-
-## 🔐 Security & API Keys
-
-Your privacy and security are paramount. Here is how your data is handled:
-
-*   **Local Storage Only:** Your API keys are stored only within the application on your machine (`~/.itunes_genius_ai.json`). 
-*   **No Data Collection:** The application does not collect, store, or distribute your API keys to any third-party server except the official AI provider.
-
-## 💬 Issues & Support
-
-If you encounter any bugs, have questions, or just want to suggest a cool feature, feel free to reach out! 
-
-*   **GitHub Issues:** The preferred way to report bugs or suggest improvements is by opening a ticket in the [Issues](../../issues) section of this repository.
-*   **Direct Contact:** You can also reach me via email at [yura.menschikov@icloud.com](mailto:yura.menschikov@icloud.com). Feel free to write — I'm always open to feedback!
-
----
-*Created with ❤️ for the retro Mac community.*
+*Part of the [iGeniusAI](../../) project.*
