@@ -2,10 +2,12 @@
 cd "$(dirname "$0")"
 echo "🛠 Building iGeniusAI-legacy-objc..."
 PROJECT="iGeniusAI-legacy-objc.xcodeproj"
-SCHEME="iGeniusAI-legacy-objc"
+TARGET="iGeniusAI-legacy-objc"
+TEST_TARGET="iGeniusAI-legacy-objcTests"
 
 rm -rf build
-xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release -arch x86_64 clean build | tee build.log
+# Use -target instead of -scheme because schemes were ignored in git (xcuserdata)
+xcodebuild -project "$PROJECT" -target "$TARGET" -configuration Release -arch x86_64 clean build | tee build.log
 
 if [ ${PIPESTATUS[0]} -eq 0 ]; then
     echo "✅ Build Successful!"
@@ -17,5 +19,5 @@ else
     exit 1
 fi
 
-echo "🧪 Running Tests..."
-xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug test | tee test.log
+echo "🧪 Compiling Tests..."
+xcodebuild -project "$PROJECT" -target "$TEST_TARGET" -configuration Debug build | tee test.log
