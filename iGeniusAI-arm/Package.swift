@@ -25,7 +25,12 @@ let package = Package(
                 "Views/NotificationOverlay.swift",
                 "Services/MusicService.swift",
                 "Services/AIService.swift",
-                "Services/MetadataService.swift"
+                "Services/MetadataService.swift",
+                "Services/LocalizationService.swift",
+                "Services/KeychainHelper.swift"
+            ],
+            resources: [
+                .process("genius_atom.icns")
             ],
             swiftSettings: [
                 .unsafeFlags(["-emit-module", "-emit-library"]), // Encourage dynamic behavior
