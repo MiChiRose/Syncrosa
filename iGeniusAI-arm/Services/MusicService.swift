@@ -12,26 +12,31 @@ struct MusicTrack: Identifiable, Codable {
 
 class MusicService {
     static let shared = MusicService()
+    private let scriptQueue = DispatchQueue(label: "com.igeniusai.scriptQueue")
     
     func runAppleScript(_ scriptSource: String) -> String? {
-        var error: NSDictionary?
-        if let script = NSAppleScript(source: scriptSource) {
-            let output = script.executeAndReturnError(&error)
-            if let err = error {
-                print("AppleScript Error: \(err)")
-                return nil
+        var result: String?
+        scriptQueue.sync {
+            var error: NSDictionary?
+            if let script = NSAppleScript(source: scriptSource) {
+                let output = script.executeAndReturnError(&error)
+                if let err = error {
+                    print("AppleScript Error: \(err)")
+                    result = nil
+                } else {
+                    result = output.stringValue
+                }
             }
-            return output.stringValue
         }
-        return nil
+        return result
     }
     
     func getAllTracks(progress: @escaping (Int, Int) -> Void) -> [MusicTrack] {
-        let countScript = "tell application \"Music\" to count every track"
-        guard let countStr = run_as(countScript), let total = Int(countStr.trimmingCharacters(in: .whitespacesAndNewlines)) else { return [] }
+        let countScript = "tell application \"Music\" to count every track of library playlist 1"
+        guard let countStr = runAppleScript(countScript), let total = Int(countStr) else { return [] }
         
         var allTracks: [MusicTrack] = []
-        let chunkSize = 200
+        let chunkSize = 300
         
         for i in stride(from: 1, through: total, by: chunkSize) {
             let end = min(i + chunkSize - 1, total)
@@ -54,7 +59,7 @@ class MusicService {
             return out
             """
             
-            if let result = run_as(script) {
+            if let result = runAppleScript(script) {
                 let lines = result.components(separatedBy: .newlines)
                 for line in lines where line.contains("|") {
                     let parts = line.components(separatedBy: "|")
@@ -74,19 +79,6 @@ class MusicService {
             progress(end, total)
         }
         return allTracks
-    }
-    
-    private func run_as(_ s: String) -> String? {
-        let process = Process()
-        process.launchPath = "/usr/bin/osascript"
-        process.arguments = ["-e", s]
-        
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.launch()
-        
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func createPlaylist(name: String, persistentIDs: [String]) -> Int {
@@ -114,6 +106,6 @@ class MusicService {
         end tell
         """
         
-        return Int(run_as(script) ?? "0") ?? 0
+        return Int(runAppleScript(script) ?? "0") ?? 0
     }
 }

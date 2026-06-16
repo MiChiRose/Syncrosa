@@ -37,6 +37,7 @@
 		D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = genius_atom.icns; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000201 /* iGeniusAI-arm.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iGeniusAI-arm.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D3E1A2B3C4D5E6F7000001FF /* iGeniusAI-arm.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "iGeniusAI-arm.entitlements"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */

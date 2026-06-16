@@ -145,7 +145,7 @@ struct PlaylistGeneratorView: View {
     
     func generatePlaylist() {
         let account = selectedProvider.lowercased()
-        let key = KeychainHelper.shared.readString(service: "com.igeniusaim", account: account) ?? ""
+        let key = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: account) ?? ""
         let model = selectedProvider == "Gemini" ? geminiModel : (selectedProvider == "Groq" ? groqModel : openrouterModel)
         
         guard !key.isEmpty else {
