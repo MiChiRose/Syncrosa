@@ -61,6 +61,10 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     request.HTTPMethod = @"GET";
     
+    // Required headers for OpenRouter API
+    [request addValue:@"https://github.com/MiChiRose/iGeniusAI" forHTTPHeaderField:@"HTTP-Referer"];
+    [request addValue:@"iGeniusAI-Legacy" forHTTPHeaderField:@"X-Title"];
+    
     [[self.session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         if (data && !error) {
             NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];

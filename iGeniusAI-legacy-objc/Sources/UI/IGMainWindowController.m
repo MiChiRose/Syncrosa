@@ -71,8 +71,10 @@
     
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
         NSButton *btn = self.sidebarButtons[i];
-        if (i < 3) {
+        if (i == 0) { // Only Genius Playlist requires an API key
             btn.enabled = hasKey;
+        } else {
+            btn.enabled = YES;
         }
     }
 }
@@ -105,7 +107,7 @@
     NSString *apiKey = [[NSUserDefaults standardUserDefaults] stringForKey:@"api_key"];
     BOOL hasKey = (apiKey && apiKey.length > 0);
     
-    if (index < 3 && !hasKey) {
+    if (index == 0 && !hasKey) { // Only restrict the Genius tab
         NSAlert *alert = [[NSAlert alloc] init];
         [alert setMessageText:@"Access Restricted"];
         [alert setInformativeText:@"Please enter and validate your API Key in Settings to unlock AI features."];
