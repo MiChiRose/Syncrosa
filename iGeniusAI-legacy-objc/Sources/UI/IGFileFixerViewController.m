@@ -31,7 +31,7 @@
     [self.view addSubview:titleLabel];
     
     y -= 50;
-    NSTextField *instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 35)];
+    NSTextField *instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 35)];
     instrLabel.stringValue = @"Fix music files directly in a folder (for tracks not in iTunes).";
     instrLabel.font = [NSFont systemFontOfSize:11];
     // secondaryLabelColor is 10.10+, using grayColor for 10.9 compatibility
@@ -39,15 +39,16 @@
     instrLabel.editable = NO;
     instrLabel.bordered = NO;
     instrLabel.drawsBackground = NO;
+    instrLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:instrLabel];
     
     y -= 40;
-    self.folderPathField = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 400, 24)];
+    self.folderPathField = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 360, 24)];
     self.folderPathField.editable = NO;
     [[self.folderPathField cell] setPlaceholderString:@"No folder selected"];
     [self.view addSubview:self.folderPathField];
     
-    self.selectFolderButton = [[NSButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 30)];
+    self.selectFolderButton = [[NSButton alloc] initWithFrame:NSMakeRect(410, y-2, 130, 30)];
     self.selectFolderButton.title = @"Select Folder";
     self.selectFolderButton.bezelStyle = NSRoundedBezelStyle;
     self.selectFolderButton.target = self;
@@ -83,7 +84,7 @@
     [self.view addSubview:scrollView];
     
     y -= 30;
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
+    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 20)];
     self.statusLabel.stringValue = @"Ready";
     self.statusLabel.editable = NO;
     self.statusLabel.bordered = NO;

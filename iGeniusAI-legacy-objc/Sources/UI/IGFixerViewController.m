@@ -143,6 +143,9 @@
         self.statusLabel.stringValue = @"Restoration Complete!";
         [self log:@"All metadata tasks finished."];
         self.startButton.enabled = YES;
+        [self.progressIndicator stopAnimation:nil];
+        self.progressIndicator.indeterminate = NO;
+        self.progressIndicator.doubleValue = self.progressIndicator.maxValue;
     }];
 }
 

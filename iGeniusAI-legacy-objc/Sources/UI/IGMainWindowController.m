@@ -80,12 +80,13 @@
 }
 
 - (void)setupSidebar {
-    CGFloat y = 460;
+    CGFloat y = 450;
     NSArray *titles = @[@"Genius Playlist", @"iTunes Fixer", @"Folder Fixer", @"Settings"];
     self.sidebarButtons = [NSMutableArray array];
     
     for (NSInteger i = 0; i < titles.count; i++) {
-        NSButton *btn = [[NSButton alloc] initWithFrame:NSMakeRect(0, y, 180, 30)];
+        // Added 15px padding on left/right (width 150 instead of 180)
+        NSButton *btn = [[NSButton alloc] initWithFrame:NSMakeRect(15, y, 150, 32)];
         btn.title = titles[i];
         btn.bezelStyle = NSTexturedSquareBezelStyle;
         btn.target = self;
@@ -94,7 +95,7 @@
         btn.autoresizingMask = NSViewWidthSizable;
         [self.sidebarContainer addSubview:btn];
         [self.sidebarButtons addObject:btn];
-        y -= 30; // Closer together for a list look
+        y -= 40; // Increased spacing between buttons from 30 to 40
     }
 }
 
