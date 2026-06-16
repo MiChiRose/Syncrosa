@@ -62,6 +62,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     request.HTTPMethod = @"GET";
     
     // Required headers for OpenRouter API
+    [request addValue:@"iTunesGeniusAI/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
     [request addValue:@"https://github.com/MiChiRose/iGeniusAI" forHTTPHeaderField:@"HTTP-Referer"];
     [request addValue:@"iGeniusAI-Legacy" forHTTPHeaderField:@"X-Title"];
     
@@ -125,6 +126,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     request = [NSMutableURLRequest requestWithURL:url];
     request.HTTPMethod = @"POST";
     [request addValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    [request addValue:@"iTunesGeniusAI/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
     
     if (![self.provider isEqualToString:@"Gemini"]) {
         [request addValue:[NSString stringWithFormat:@"Bearer %@", self.apiKey] forHTTPHeaderField:@"Authorization"];
@@ -201,6 +203,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     request.HTTPMethod = @"POST";
     [request addValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    [request addValue:@"iTunesGeniusAI/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
     
     if (![self.provider isEqualToString:@"Gemini"]) {
         [request addValue:[NSString stringWithFormat:@"Bearer %@", self.apiKey] forHTTPHeaderField:@"Authorization"];

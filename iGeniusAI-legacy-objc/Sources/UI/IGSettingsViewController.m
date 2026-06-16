@@ -2,7 +2,7 @@
 #import "IGAIService.h"
 #import "IGMainWindowController.h"
 
-@interface IGSettingsViewController ()
+@interface IGSettingsViewController () <NSComboBoxDelegate>
 @property (nonatomic, strong) NSComboBox *providerCombo;
 @property (nonatomic, strong) NSComboBox *modelCombo;
 @property (nonatomic, strong) NSTextField *apiKeyField;
@@ -41,6 +41,8 @@
     y -= 25;
     self.providerCombo = [[NSComboBox alloc] initWithFrame:NSMakeRect(20, y, 200, 26)];
     [self.providerCombo addItemsWithObjectValues:@[@"Gemini", @"OpenRouter", @"Groq"]];
+    self.providerCombo.editable = NO;
+    self.providerCombo.delegate = self;
     [self.view addSubview:self.providerCombo];
     
     y -= 40;
@@ -123,6 +125,26 @@
     [alert setMessageText:@"API Key Setup Guide"];
     [alert setInformativeText:@"To use iGeniusAI, you need an API key from one of our supported AI providers:\n\n1. OpenRouter (Recommended)\n- Where: openrouter.ai/keys\n- Format: 'sk-or-v1-...' (starts with sk-or)\n- Why: Gives access to many free models (like google/gemini-2.0-flash-exp:free) even in geo-blocked regions.\n\n2. Google Gemini\n- Where: aistudio.google.com/app/apikey\n- Format: 'AIzaSy...'\n- Why: Direct access to Google's fast models.\n\n3. Groq\n- Where: console.groq.com/keys\n- Format: 'gsk_...'\n- Why: Extremely fast generation.\n\nCommon Errors:\n- 'Invalid Key': Make sure there are no spaces at the start or end.\n- 'Model Not Found': Click 'Sync Models' to get the latest available list.\n\nHow to Check:\nEnter the key above and click 'VALIDATE & SAVE'. The app will test it immediately."];
     [alert runModal];
+}
+
+- (void)comboBoxSelectionDidChange:(NSNotification *)notification {
+    if (notification.object == self.providerCombo) {
+        NSInteger index = [self.providerCombo indexOfSelectedItem];
+        if (index >= 0 && index < self.providerCombo.numberOfItems) {
+            NSString *selected = [self.providerCombo itemObjectValueAtIndex:index];
+            [self.modelCombo removeAllItems];
+            if ([selected isEqualToString:@"Gemini"]) {
+                [self.modelCombo addItemsWithObjectValues:@[@"google/gemini-2.0-flash-exp:free", @"google/gemini-1.5-pro"]];
+                self.modelCombo.stringValue = @"google/gemini-2.0-flash-exp:free";
+            } else if ([selected isEqualToString:@"Groq"]) {
+                [self.modelCombo addItemsWithObjectValues:@[@"llama3-8b-8192", @"mixtral-8x7b-32768"]];
+                self.modelCombo.stringValue = @"llama3-8b-8192";
+            } else if ([selected isEqualToString:@"OpenRouter"]) {
+                [self.modelCombo addItemsWithObjectValues:@[@"google/gemini-2.0-flash-exp:free"]];
+                self.modelCombo.stringValue = @"google/gemini-2.0-flash-exp:free";
+            }
+        }
+    }
 }
 
 - (void)loadSettings {
