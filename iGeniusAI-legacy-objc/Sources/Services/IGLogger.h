@@ -1,4 +1,4 @@
-#import <Foundation/AppKit.h>
+#import <Cocoa/Cocoa.h>
 
 @interface IGLogger : NSObject
 
