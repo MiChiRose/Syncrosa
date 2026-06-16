@@ -59,9 +59,22 @@
     [rootView addSubview:self.splitView];
     
     [self setupSidebar];
+    [self updateButtonStates];
     
     // Initial VC
     [self switchViewToIndex:3]; 
+}
+
+- (void)updateButtonStates {
+    NSString *apiKey = [[NSUserDefaults standardUserDefaults] stringForKey:@"api_key"];
+    BOOL hasKey = (apiKey && apiKey.length > 0);
+    
+    for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
+        NSButton *btn = self.sidebarButtons[i];
+        if (i < 3) {
+            btn.enabled = hasKey;
+        }
+    }
 }
 
 - (void)setupSidebar {
