@@ -99,7 +99,7 @@
     [self.view addSubview:self.statusLabel];
 
     // Footer
-    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
+    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 500, 40)];
     footer.stringValue = @"© 2026 iGeniusAI | Note: AI models are not perfect.\nFor better results, try different models in Settings.";
     footer.font = [NSFont systemFontOfSize:10];
     footer.textColor = [NSColor grayColor];
@@ -109,7 +109,8 @@
     footer.drawsBackground = NO;
     [self.view addSubview:footer];
     
-    NSButton *helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(540, 25, 21, 21)];
+    // Y-coordinate 25 aligns the center of the 21x21 button with the visual center of the 40px high text field.
+    NSButton *helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(525, 29, 21, 21)];
     helpBtn.bezelStyle = NSHelpButtonBezelStyle;
     helpBtn.title = @"";
     helpBtn.target = self;

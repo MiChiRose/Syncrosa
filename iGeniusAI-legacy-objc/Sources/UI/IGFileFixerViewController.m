@@ -129,12 +129,19 @@
 - (void)scanFolder:(NSURL *)url {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSArray *extensions = @[@"mp3", @"m4a", @"wav", @"flac", @"alac", @"aiff"];
-    
-    NSError *error = nil;
-    NSArray *contents = [fm contentsOfDirectoryAtURL:url includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:&error];
-    
     NSMutableArray *matches = [NSMutableArray array];
-    for (NSURL *fileUrl in contents) {
+    
+    NSDirectoryEnumerator *enumerator = [fm enumeratorAtURL:url 
+                                 includingPropertiesForKeys:nil 
+                                                    options:NSDirectoryEnumerationSkipsHiddenFiles 
+                                               errorHandler:nil];
+    
+    for (NSURL *fileUrl in enumerator) {
+        // Skip directories themselves from being added as matches
+        NSNumber *isDirectory = nil;
+        [fileUrl getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
+        if ([isDirectory boolValue]) continue;
+        
         if ([extensions containsObject:[[fileUrl pathExtension] lowercaseString]]) {
             [matches addObject:fileUrl];
         }
@@ -142,7 +149,7 @@
     
     self.foundFiles = matches;
     self.statusLabel.stringValue = [NSString stringWithFormat:@"Found %ld music files.", (long)matches.count];
-    [self log:[NSString stringWithFormat:@"Scanned folder: Found %ld music files.", (long)matches.count]];
+    [self log:[NSString stringWithFormat:@"Scanned folder recursively: Found %ld music files.", (long)matches.count]];
     self.fixButton.enabled = (matches.count > 0);
 }
 
