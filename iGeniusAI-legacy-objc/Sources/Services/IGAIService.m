@@ -56,17 +56,91 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     }
 }
 
-- (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock {
-    NSURL *url = [NSURL URLWithString:@"https://openrouter.ai/api/v1/models"];
+#pragma mark - Network Helper with Curl Fallback
+
+- (void)makeRequestToURL:(NSURL *)url 
+                  method:(NSString *)method 
+                 headers:(NSDictionary *)headers 
+                    body:(NSData *)body 
+              completion:(void(^)(NSData *data, NSError *error))completionBlock {
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-    request.HTTPMethod = @"GET";
-    
-    // Required headers for OpenRouter API
+    request.HTTPMethod = method;
     [request addValue:@"iTunesGeniusAI/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
-    [request addValue:@"https://github.com/MiChiRose/iGeniusAI" forHTTPHeaderField:@"HTTP-Referer"];
-    [request addValue:@"iGeniusAI-Legacy" forHTTPHeaderField:@"X-Title"];
+    for (NSString *key in headers) {
+        [request addValue:headers[key] forHTTPHeaderField:key];
+    }
+    if (body) {
+        request.HTTPBody = body;
+        [request addValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    }
     
     [[self.session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        if (!error && data) {
+            completionBlock(data, nil);
+            return;
+        }
+        
+        // Fallback to curl on network error (likely SSL/TLS failure on 10.9)
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"NSURLSession failed: %@. Falling back to curl...", error.localizedDescription]];
+        
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSTask *task = [[NSTask alloc] init];
+            [task setLaunchPath:@"/usr/bin/curl"];
+            
+            NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"60"]];
+            [args addObjectsFromArray:@[@"-H", @"User-Agent: iTunesGeniusAI/1.0 (macOS)"]];
+            
+            for (NSString *key in headers) {
+                [args addObjectsFromArray:@[@"-H", [NSString stringWithFormat:@"%@: %@", key, headers[key]]]];
+            }
+            
+            NSString *tmpFile = nil;
+            if (body) {
+                [args addObjectsFromArray:@[@"-H", @"Content-Type: application/json"]];
+                tmpFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+                [body writeToFile:tmpFile atomically:YES];
+                [args addObjectsFromArray:@[@"-d", [NSString stringWithFormat:@"@%@", tmpFile]]];
+            }
+            
+            [args addObject:url.absoluteString];
+            [task setArguments:args];
+            
+            NSPipe *pipe = [NSPipe pipe];
+            [task setStandardOutput:pipe];
+            
+            @try {
+                [task launch];
+                [task waitUntilExit];
+                
+                if (tmpFile) {
+                    [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
+                }
+                
+                NSData *curlData = [[pipe fileHandleForReading] readDataToEndOfFile];
+                if ([task terminationStatus] == 0 && curlData.length > 0) {
+                    completionBlock(curlData, nil);
+                } else {
+                    NSString *errDesc = [NSString stringWithFormat:@"Curl failed with status %d", [task terminationStatus]];
+                    completionBlock(nil, [NSError errorWithDomain:@"IGCurlError" code:[task terminationStatus] userInfo:@{NSLocalizedDescriptionKey: errDesc}]);
+                }
+            } @catch (NSException *exception) {
+                if (tmpFile) {
+                    [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
+                }
+                completionBlock(nil, [NSError errorWithDomain:@"IGCurlException" code:-1 userInfo:@{NSLocalizedDescriptionKey: exception.reason}]);
+            }
+        });
+    }] resume];
+}
+
+- (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock {
+    NSURL *url = [NSURL URLWithString:@"https://openrouter.ai/api/v1/models"];
+    NSDictionary *headers = @{
+        @"HTTP-Referer": @"https://github.com/MiChiRose/iGeniusAI",
+        @"X-Title": @"iGeniusAI-Legacy"
+    };
+    
+    [self makeRequestToURL:url method:@"GET" headers:headers body:nil completion:^(NSData *data, NSError *error) {
         if (data && !error) {
             NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
             NSArray *dataArray = json[@"data"];
@@ -82,11 +156,12 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                 completionBlock(freeModels);
             });
         } else {
+            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Sync failed: %@", error.localizedDescription]];
             dispatch_async(dispatch_get_main_queue(), ^{
                 completionBlock(nil);
             });
         }
-    }] resume];
+    }];
 }
 
 - (void)validateAPIKeyWithCompletion:(void(^)(BOOL success, NSString *errorMsg))completionBlock {
@@ -96,48 +171,43 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     }
     
     NSURL *url = nil;
-    NSMutableURLRequest *request = nil;
-    NSDictionary *body = nil;
+    NSDictionary *bodyDict = nil;
+    NSMutableDictionary *headers = [NSMutableDictionary dictionary];
     
     if ([self.provider isEqualToString:@"Groq"]) {
         url = [NSURL URLWithString:@"https://api.groq.com/openai/v1/chat/completions"];
-        body = @{
+        bodyDict = @{
             @"model": self.model,
             @"messages": @[@{@"role": @"user", @"content": @"Say 'OK'"}],
             @"max_tokens": @10
         };
+        headers[@"Authorization"] = [NSString stringWithFormat:@"Bearer %@", self.apiKey];
     } else if ([self.provider isEqualToString:@"OpenRouter"]) {
         url = [NSURL URLWithString:@"https://openrouter.ai/api/v1/chat/completions"];
-        body = @{
+        bodyDict = @{
             @"model": self.model,
             @"messages": @[@{@"role": @"user", @"content": @"Say 'OK'"}],
             @"max_tokens": @10
         };
+        headers[@"Authorization"] = [NSString stringWithFormat:@"Bearer %@", self.apiKey];
+        headers[@"HTTP-Referer"] = @"https://github.com/MiChiRose/iGeniusAI";
+        headers[@"X-Title"] = @"iGeniusAI-Legacy";
     } else {
         // Gemini
         NSString *urlStr = [NSString stringWithFormat:@"https://generativelanguage.googleapis.com/v1beta/models/%@:generateContent?key=%@", self.model, self.apiKey];
         url = [NSURL URLWithString:urlStr];
-        body = @{
+        bodyDict = @{
             @"contents": @[@{@"parts": @[@{@"text": @"Say 'OK'"}]}],
             @"generationConfig": @{@"maxOutputTokens": @10}
         };
     }
     
-    request = [NSMutableURLRequest requestWithURL:url];
-    request.HTTPMethod = @"POST";
-    [request addValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-    [request addValue:@"iTunesGeniusAI/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
+    NSData *body = [NSJSONSerialization dataWithJSONObject:bodyDict options:0 error:nil];
     
-    if (![self.provider isEqualToString:@"Gemini"]) {
-        [request addValue:[NSString stringWithFormat:@"Bearer %@", self.apiKey] forHTTPHeaderField:@"Authorization"];
-    }
-    
-    request.HTTPBody = [NSJSONSerialization dataWithJSONObject:body options:0 error:nil];
-    
-    [[self.session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        if (error) {
+    [self makeRequestToURL:url method:@"POST" headers:headers body:body completion:^(NSData *data, NSError *error) {
+        if (error || !data) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                completionBlock(NO, error.localizedDescription);
+                completionBlock(NO, error ? error.localizedDescription : @"Unknown network error");
             });
             return;
         }
@@ -153,7 +223,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         dispatch_async(dispatch_get_main_queue(), ^{
             completionBlock(success, success ? @"OK" : @"Invalid Response");
         });
-    }] resume];
+    }];
 }
 
 - (void)generatePlaylistWithPrompt:(NSString *)prompt 
@@ -179,11 +249,12 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         prompt, (long)count, libraryText, (long)count];
 
     NSURL *url = nil;
-    NSDictionary *body = nil;
+    NSDictionary *bodyDict = nil;
+    NSMutableDictionary *headers = [NSMutableDictionary dictionary];
     
     if ([self.provider isEqualToString:@"Groq"] || [self.provider isEqualToString:@"OpenRouter"]) {
         url = [NSURL URLWithString:[self.provider isEqualToString:@"Groq"] ? @"https://api.groq.com/openai/v1/chat/completions" : @"https://openrouter.ai/api/v1/chat/completions"];
-        body = @{
+        bodyDict = @{
             @"model": self.model,
             @"messages": @[
                 @{@"role": @"system", @"content": @"You are a strict data API. You MUST output ONLY a valid JSON array of strings."},
@@ -191,35 +262,27 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             ],
             @"temperature": @0.3
         };
+        headers[@"Authorization"] = [NSString stringWithFormat:@"Bearer %@", self.apiKey];
+        if ([self.provider isEqualToString:@"OpenRouter"]) {
+            headers[@"HTTP-Referer"] = @"https://github.com/MiChiRose/iGeniusAI";
+            headers[@"X-Title"] = @"iGeniusAI-Legacy";
+        }
     } else {
         // Gemini
         NSString *urlStr = [NSString stringWithFormat:@"https://generativelanguage.googleapis.com/v1beta/models/%@:generateContent?key=%@", self.model, self.apiKey];
         url = [NSURL URLWithString:urlStr];
-        body = @{
+        bodyDict = @{
             @"contents": @[@{@"parts": @[@{@"text": systemPrompt}]}]
         };
     }
 
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-    request.HTTPMethod = @"POST";
-    [request addValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-    [request addValue:@"iTunesGeniusAI/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
-    
-    if (![self.provider isEqualToString:@"Gemini"]) {
-        [request addValue:[NSString stringWithFormat:@"Bearer %@", self.apiKey] forHTTPHeaderField:@"Authorization"];
-        if ([self.provider isEqualToString:@"OpenRouter"]) {
-            [request addValue:@"https://github.com/MiChiRose/iGeniusAI" forHTTPHeaderField:@"HTTP-Referer"];
-            [request addValue:@"iGeniusAI-M" forHTTPHeaderField:@"X-Title"];
-        }
-    }
-    
-    request.HTTPBody = [NSJSONSerialization dataWithJSONObject:body options:0 error:nil];
+    NSData *body = [NSJSONSerialization dataWithJSONObject:bodyDict options:0 error:nil];
     
     [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Sending request to %@ (Model: %@)", self.provider, self.model]];
 
-    [[self.session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    [self makeRequestToURL:url method:@"POST" headers:headers body:body completion:^(NSData *data, NSError *error) {
         if (!data || error) {
-            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Network Error: %@", error.localizedDescription]];
+            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Network Error: %@", error ? error.localizedDescription : @"Empty data"]];
             [[IGLogger sharedLogger] saveLogToDesktopWithRawResponse:nil];
             dispatch_async(dispatch_get_main_queue(), ^{ completionBlock(nil); });
             return;
@@ -266,6 +329,6 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                 completionBlock(ids);
             }
         });
-    }] resume];
+    }];
 }
 @end
