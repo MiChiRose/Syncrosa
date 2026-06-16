@@ -34,7 +34,8 @@
     NSTextField *instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 35)];
     instrLabel.stringValue = @"Fix music files directly in a folder (for tracks not in iTunes).";
     instrLabel.font = [NSFont systemFontOfSize:11];
-    instrLabel.textColor = [NSColor secondaryLabelColor];
+    // secondaryLabelColor is 10.10+, using grayColor for 10.9 compatibility
+    instrLabel.textColor = [NSColor grayColor];
     instrLabel.editable = NO;
     instrLabel.bordered = NO;
     instrLabel.drawsBackground = NO;
@@ -43,7 +44,7 @@
     y -= 40;
     self.folderPathField = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 400, 24)];
     self.folderPathField.editable = NO;
-    self.folderPathField.placeholderString = @"No folder selected";
+    [[self.folderPathField cell] setPlaceholderString:@"No folder selected"];
     [self.view addSubview:self.folderPathField];
     
     self.selectFolderButton = [[NSButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 30)];
@@ -166,7 +167,7 @@
                 self.progressIndicator.doubleValue = i + 1;
             });
             
-            // Simulation of metadata fetching and writing (similar to Swift version)
+            // Simulation of metadata fetching and writing
             [NSThread sleepForTimeInterval:0.5];
         }
         
@@ -182,11 +183,6 @@
             [alert setInformativeText:[NSString stringWithFormat:@"Processed %ld files successfully.", (long)self.foundFiles.count]];
             [alert runModal];
         });
-    });
-}
-
-@end
- });
     });
 }
 

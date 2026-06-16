@@ -9,11 +9,11 @@
 #import <Cocoa/Cocoa.h>
 #import <XCTest/XCTest.h>
 
-@interface iGeniusAI-legacy-objcTests : XCTestCase
+@interface iGeniusAI_legacy_objcTests : XCTestCase
 
 @end
 
-@implementation iGeniusAI-legacy-objcTests
+@implementation iGeniusAI_legacy_objcTests
 
 - (void)setUp {
     [super setUp];
