@@ -30,13 +30,6 @@
     titleLabel.drawsBackground = NO;
     [self.view addSubview:titleLabel];
     
-    NSButton *helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 32, 32)];
-    helpBtn.bezelStyle = NSHelpButtonBezelStyle;
-    helpBtn.title = @"";
-    helpBtn.target = self;
-    helpBtn.action = @selector(helpClicked:);
-    [self.view addSubview:helpBtn];
-    
     y -= 50;
     NSTextField *pLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
     pLabel.stringValue = @"AI Provider:";
@@ -107,7 +100,7 @@
 
     // Footer
     NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
-    footer.stringValue = @"Note: AI models are not perfect.\nFor better results, try different models in Settings.";
+    footer.stringValue = @"© 2026 iGeniusAI | Note: AI models are not perfect.\nFor better results, try different models in Settings.";
     footer.font = [NSFont systemFontOfSize:10];
     footer.textColor = [NSColor grayColor];
     footer.alignment = NSCenterTextAlignment;
@@ -115,12 +108,19 @@
     footer.bordered = NO;
     footer.drawsBackground = NO;
     [self.view addSubview:footer];
+    
+    NSButton *helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(540, 25, 21, 21)];
+    helpBtn.bezelStyle = NSHelpButtonBezelStyle;
+    helpBtn.title = @"";
+    helpBtn.target = self;
+    helpBtn.action = @selector(helpClicked:);
+    [self.view addSubview:helpBtn];
 }
 
 - (void)helpClicked:(id)sender {
     NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:@"About iGeniusAI"];
-    [alert setInformativeText:@"v1.0 (Legacy Objective-C)\n\nA native port for macOS 10.9-10.13.\nSupports iTunes library reconciliation and AI playlist generation.\n\nAuthor: Gemini CLI"];
+    [alert setMessageText:@"API Key Setup Guide"];
+    [alert setInformativeText:@"To use iGeniusAI, you need an API key from one of our supported AI providers:\n\n1. OpenRouter (Recommended)\n- Where: openrouter.ai/keys\n- Format: 'sk-or-v1-...' (starts with sk-or)\n- Why: Gives access to many free models (like google/gemini-2.0-flash-exp:free) even in geo-blocked regions.\n\n2. Google Gemini\n- Where: aistudio.google.com/app/apikey\n- Format: 'AIzaSy...'\n- Why: Direct access to Google's fast models.\n\n3. Groq\n- Where: console.groq.com/keys\n- Format: 'gsk_...'\n- Why: Extremely fast generation.\n\nCommon Errors:\n- 'Invalid Key': Make sure there are no spaces at the start or end.\n- 'Model Not Found': Click 'Sync Models' to get the latest available list.\n\nHow to Check:\nEnter the key above and click 'VALIDATE & SAVE'. The app will test it immediately."];
     [alert runModal];
 }
 

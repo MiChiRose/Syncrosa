@@ -67,7 +67,7 @@
 
     // Footer
     NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
-    footer.stringValue = @"Note: AI models are not perfect.\nFor better results, try different models in Settings.";
+    footer.stringValue = @"© 2026 iGeniusAI | Note: AI models are not perfect.\nFor better results, try different models in Settings.";
     footer.font = [NSFont systemFontOfSize:10];
     footer.textColor = [NSColor grayColor];
     footer.alignment = NSCenterTextAlignment;
