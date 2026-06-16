@@ -20,9 +20,9 @@
                  persistentIDs:(NSArray *)pids 
                     completion:(void(^)(NSInteger addedCount))completionBlock;
 
-// Metadata fixing methods (to be implemented)
-- (void)getMergeCandidatesWithCompletion:(void(^)(NSArray *candidates))completionBlock;
-- (void)runMetadataFixWithProgress:(void(^)(NSInteger current, NSInteger total))progressBlock 
-                        completion:(void(^)(void))completionBlock;
+/**
+ * Executes an AppleScript command on the main thread and returns the string result.
+ */
+- (NSString *)runAppleScript:(NSString *)source;
 
 @end
