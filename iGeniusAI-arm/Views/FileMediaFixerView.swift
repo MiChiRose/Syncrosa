@@ -140,22 +140,28 @@ struct FileMediaFixerView: View {
     
     func scanFolder(_ url: URL) {
         let musicExtensions = ["mp3", "wav", "flac", "alac", "m4a", "aiff"]
-        do {
-            let content = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
-            let urls = content.filter { musicExtensions.contains($0.pathExtension.lowercased()) }
-            
-            // Map to FileItems
-            self.fileItems = urls.map { FileItem(url: $0) }
-            
-            if fileItems.isEmpty {
-                activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.", isError: true)
-            } else {
-                activeNotification = NotificationMessage(text: lang.t("files_to_process", fileItems.count), isError: false)
+        var matches: [FileItem] = []
+        
+        let fm = FileManager.default
+        let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) { url, error in
+            return true
+        }
+        
+        while let fileUrl = enumerator?.nextObject() as? URL {
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: fileUrl.path, isDirectory: &isDir), !isDir.boolValue {
+                if musicExtensions.contains(fileUrl.pathExtension.lowercased()) {
+                    matches.append(FileItem(url: fileUrl))
+                }
             }
-            
-        } catch {
-            activeNotification = NotificationMessage(text: lang.t("error_folder"), isError: true)
-            self.fileItems = []
+        }
+        
+        self.fileItems = matches
+        
+        if fileItems.isEmpty {
+            activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.", isError: true)
+        } else {
+            activeNotification = NotificationMessage(text: lang.t("files_to_process", fileItems.count), isError: false)
         }
     }
     
@@ -174,17 +180,22 @@ struct FileMediaFixerView: View {
                     fileItems[index].status = .processing
                 }
                 
-                // Simulate fixing process (metadata fetching & writing)
-                Thread.sleep(forTimeInterval: 0.8)
+                // Real fixing logic (implemented in a service)
+                let success = FileMetadataService.shared.fixFile(url: fileItems[index].url, downloadCover: downloadCovers)
                 
                 DispatchQueue.main.async {
-                    fileItems[index].status = .done
+                    fileItems[index].status = success ? .done : .error
                 }
             }
             
             DispatchQueue.main.async {
                 isProcessing = false
                 activeNotification = NotificationMessage(text: lang.t("done"), isError: false)
+            }
+        }
+    }
+}
+lse)
             }
         }
     }
