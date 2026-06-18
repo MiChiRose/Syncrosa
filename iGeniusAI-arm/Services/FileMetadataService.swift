@@ -4,9 +4,17 @@ import AVFoundation
 class FileMetadataService {
     static let shared = FileMetadataService()
     
-    func fixFile(url: URL, downloadCover: Bool) -> Bool {
+    struct FixResult {
+        let success: Bool
+        let newURL: URL?
+        let message: String
+    }
+    
+    func fixFile(url: URL, downloadCover: Bool) -> FixResult {
         let semaphore = DispatchSemaphore(value: 0)
         var success = false
+        var resultURL: URL? = nil
+        var message = ""
         
         // 1. Extract current info
         var artist = ""
@@ -38,8 +46,7 @@ class FileMetadataService {
             defer { semaphore.signal() }
             
             guard let result = result else {
-                // If not found in iTunes, we still count as success if we have some info
-                // or we just return false if we want to signal "nothing found"
+                message = "Metadata not found in iTunes."
                 success = !artist.isEmpty && !title.isEmpty
                 return
             }
@@ -47,13 +54,6 @@ class FileMetadataService {
             // 4. Update file
             let newArtist = result.artistName ?? artist
             let newTitle = result.trackName ?? title
-            let newAlbum = result.collectionName ?? ""
-            let newGenre = result.primaryGenreName ?? ""
-            let newYear = result.releaseDate?.prefix(4) ?? ""
-            
-            // NOTE: Writing metadata back to MP3/WAV is limited in AVFoundation without ExportSession.
-            // For now, we will at least RENAME the file to the correct format as requested.
-            // And if it's M4A, we could do more.
             
             let sanitizedArtist = self.sanitizeFilename(newArtist)
             let sanitizedTitle = self.sanitizeFilename(newTitle)
@@ -61,12 +61,16 @@ class FileMetadataService {
             let newUrl = url.deletingLastPathComponent().appendingPathComponent(newFilename)
             
             do {
-                if url != newUrl {
+                if url.path != newUrl.path {
                     // Check if file already exists at destination
                     if FileManager.default.fileExists(atPath: newUrl.path) {
                         try FileManager.default.removeItem(at: newUrl)
                     }
                     try FileManager.default.moveItem(at: url, to: newUrl)
+                    message = "Renamed: \(newFilename)"
+                    resultURL = newUrl
+                } else {
+                    message = "Metadata verified (no rename needed)."
                 }
                 
                 // If downloadCover is true, try to download it
@@ -76,13 +80,13 @@ class FileMetadataService {
                 
                 success = true
             } catch {
-                print("Error renaming file: \(error)")
+                message = "Error: \(error.localizedDescription)"
                 success = false
             }
         }
         
         _ = semaphore.wait(timeout: .now() + 10)
-        return success
+        return FixResult(success: success, newURL: resultURL, message: message)
     }
     
     private func parseFilename(_ filename: String) -> (artist: String, title: String) {
