@@ -7,6 +7,7 @@ struct iTunesResult: Codable {
     let primaryGenreName: String?
     let releaseDate: String?
     let trackNumber: Int?
+    let artworkUrl100: String?
 }
 
 struct iTunesResponse: Codable {

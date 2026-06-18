@@ -10,8 +10,9 @@ enum FileStatus {
 
 struct FileItem: Identifiable {
     let id = UUID()
-    let url: URL
+    var url: URL
     var status: FileStatus = .pending
+    var message: String = ""
 }
 
 struct FileMediaFixerView: View {
@@ -19,6 +20,7 @@ struct FileMediaFixerView: View {
     @State private var folderPath: String = ""
     @State private var fileItems: [FileItem] = []
     @State private var isProcessing: Bool = false
+    @State private var downloadCovers: Bool = true
     @State private var activeNotification: NotificationMessage? = nil
     
     var body: some View {
@@ -43,13 +45,17 @@ struct FileMediaFixerView: View {
                         }
                         .buttonStyle(.bordered)
                         .disabled(isProcessing)
-                        
-                        Button(action: fixFolderMetadata) {
-                            Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(fileItems.isEmpty || isProcessing)
                     }
+                    
+                    Toggle(lang.selectedLanguage == "ru" ? "Загружать обложки" : "Download Covers", isOn: $downloadCovers)
+                        .disabled(isProcessing)
+                    
+                    Button(action: fixFolderMetadata) {
+                        Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(fileItems.isEmpty || isProcessing)
+                    .frame(maxWidth: .infinity)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -75,10 +81,18 @@ struct FileMediaFixerView: View {
                     } else {
                         ForEach(fileItems) { item in
                             HStack {
-                                Text(item.url.lastPathComponent)
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
+                                VStack(alignment: .leading) {
+                                    Text(item.url.lastPathComponent)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                    
+                                    if !item.message.isEmpty {
+                                        Text(item.message)
+                                            .font(.system(size: 9))
+                                            .foregroundColor(item.status == .error ? .red : .blue)
+                                    }
+                                }
                                 
                                 Spacer()
                                 
@@ -140,22 +154,28 @@ struct FileMediaFixerView: View {
     
     func scanFolder(_ url: URL) {
         let musicExtensions = ["mp3", "wav", "flac", "alac", "m4a", "aiff"]
-        do {
-            let content = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
-            let urls = content.filter { musicExtensions.contains($0.pathExtension.lowercased()) }
-            
-            // Map to FileItems
-            self.fileItems = urls.map { FileItem(url: $0) }
-            
-            if fileItems.isEmpty {
-                activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.", isError: true)
-            } else {
-                activeNotification = NotificationMessage(text: lang.t("files_to_process", fileItems.count), isError: false)
+        var matches: [FileItem] = []
+        
+        let fm = FileManager.default
+        let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) { url, error in
+            return true
+        }
+        
+        while let fileUrl = enumerator?.nextObject() as? URL {
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: fileUrl.path, isDirectory: &isDir), !isDir.boolValue {
+                if musicExtensions.contains(fileUrl.pathExtension.lowercased()) {
+                    matches.append(FileItem(url: fileUrl))
+                }
             }
-            
-        } catch {
-            activeNotification = NotificationMessage(text: lang.t("error_folder"), isError: true)
-            self.fileItems = []
+        }
+        
+        self.fileItems = matches
+        
+        if fileItems.isEmpty {
+            activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.", isError: true)
+        } else {
+            activeNotification = NotificationMessage(text: lang.t("files_to_process", fileItems.count), isError: false)
         }
     }
     
@@ -166,6 +186,7 @@ struct FileMediaFixerView: View {
         // Reset statuses
         for i in fileItems.indices {
             fileItems[i].status = .pending
+            fileItems[i].message = ""
         }
         
         DispatchQueue.global().async {
@@ -174,11 +195,15 @@ struct FileMediaFixerView: View {
                     fileItems[index].status = .processing
                 }
                 
-                // Simulate fixing process (metadata fetching & writing)
-                Thread.sleep(forTimeInterval: 0.8)
+                // Real fixing logic
+                let result = FileMetadataService.shared.fixFile(url: fileItems[index].url, downloadCover: downloadCovers)
                 
                 DispatchQueue.main.async {
-                    fileItems[index].status = .done
+                    fileItems[index].status = result.success ? .done : .error
+                    fileItems[index].message = result.message
+                    if let newURL = result.newURL {
+                        fileItems[index].url = newURL
+                    }
                 }
             }
             

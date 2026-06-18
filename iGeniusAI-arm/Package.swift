@@ -26,6 +26,7 @@ let package = Package(
                 "Services/MusicService.swift",
                 "Services/AIService.swift",
                 "Services/MetadataService.swift",
+                "Services/FileMetadataService.swift",
                 "Services/LocalizationService.swift",
                 "Services/KeychainHelper.swift"
             ],
