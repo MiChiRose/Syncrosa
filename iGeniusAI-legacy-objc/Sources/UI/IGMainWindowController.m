@@ -1,7 +1,10 @@
 #import "IGMainWindowController.h"
 #import "IGSettingsViewController.h"
 #import "IGFileFixerViewController.h"
+#import "IGUSBExportViewController.h"
 #import "IGAIService.h"
+#import "IGKeychainHelper.h"
+#import "IGLocalizationService.h"
 
 @interface IGMainWindowController () <NSSplitViewDelegate>
 @property (nonatomic, strong) NSSplitView *splitView;
@@ -12,6 +15,7 @@
 @property (nonatomic, strong) IGGeniusViewController *geniusVC;
 @property (nonatomic, strong) IGFixerViewController *fixerVC;
 @property (nonatomic, strong) IGFileFixerViewController *fileFixerVC;
+@property (nonatomic, strong) IGUSBExportViewController *usbExportVC;
 @property (nonatomic, strong) IGSettingsViewController *settingsVC;
 @end
 
@@ -30,6 +34,10 @@
         [self setupUI];
     }
     return self;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)setupUI {
@@ -58,15 +66,28 @@
     
     [rootView addSubview:self.splitView];
     
+    self.sidebarButtons = [NSMutableArray array];
     [self setupSidebar];
     [self updateButtonStates];
     
-    // Initial VC
-    [self switchViewToIndex:3]; 
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(localizationChanged:)
+                                                 name:@"IGLanguageChangedNotification"
+                                               object:nil];
+    
+    // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
+    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
+    NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
+    if (apiKey && apiKey.length > 0) {
+        [self switchViewToIndex:0];
+    } else {
+        [self switchViewToIndex:4];
+    }
 }
 
 - (void)updateButtonStates {
-    NSString *apiKey = [[NSUserDefaults standardUserDefaults] stringForKey:@"api_key"];
+    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
+    NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     BOOL hasKey = (apiKey && apiKey.length > 0);
     
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
@@ -80,12 +101,23 @@
 }
 
 - (void)setupSidebar {
-    CGFloat y = 450;
-    NSArray *titles = @[@"Genius Playlist", @"iTunes Fixer", @"Folder Fixer", @"Settings"];
-    self.sidebarButtons = [NSMutableArray array];
+    IGLocalizationService *lang = [IGLocalizationService sharedService];
+    NSArray *titles = @[
+        [lang t:@"ai_playlist"],
+        [lang t:@"media_fixer"],
+        [lang t:@"folder_fix"],
+        [lang t:@"usb_export"],
+        [lang t:@"settings"]
+    ];
     
+    // Clean old buttons
+    for (NSButton *btn in self.sidebarButtons) {
+        [btn removeFromSuperview];
+    }
+    [self.sidebarButtons removeAllObjects];
+    
+    CGFloat y = 450;
     for (NSInteger i = 0; i < titles.count; i++) {
-        // Added 15px padding on left/right (width 150 instead of 180)
         NSButton *btn = [[NSButton alloc] initWithFrame:NSMakeRect(15, y, 150, 32)];
         btn.title = titles[i];
         btn.bezelStyle = NSTexturedSquareBezelStyle;
@@ -95,7 +127,26 @@
         btn.autoresizingMask = NSViewWidthSizable;
         [self.sidebarContainer addSubview:btn];
         [self.sidebarButtons addObject:btn];
-        y -= 40; // Increased spacing between buttons from 30 to 40
+        y -= 40;
+    }
+}
+
+- (void)localizationChanged:(NSNotification *)notification {
+    NSInteger activeIndex = -1;
+    for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
+        NSButton *btn = self.sidebarButtons[i];
+        if (btn.state == NSOnState) {
+            activeIndex = i;
+            break;
+        }
+    }
+    
+    [self setupSidebar];
+    [self updateButtonStates];
+    
+    if (activeIndex >= 0 && activeIndex < self.sidebarButtons.count) {
+        NSButton *btn = self.sidebarButtons[activeIndex];
+        btn.state = NSOnState;
     }
 }
 
@@ -104,16 +155,26 @@
 }
 
 - (void)switchViewToIndex:(NSInteger)index {
-    // Access Control check
-    NSString *apiKey = [[NSUserDefaults standardUserDefaults] stringForKey:@"api_key"];
+    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
+    NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     BOOL hasKey = (apiKey && apiKey.length > 0);
     
-    if (index == 0 && !hasKey) { // Only restrict the Genius tab
+    if (index == 0 && !hasKey) {
         NSAlert *alert = [[NSAlert alloc] init];
         [alert setMessageText:@"Access Restricted"];
         [alert setInformativeText:@"Please enter and validate your API Key in Settings to unlock AI features."];
         [alert runModal];
         return;
+    }
+
+    // Highlight button state
+    for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
+        NSButton *btn = self.sidebarButtons[i];
+        if (i == index) {
+            btn.state = NSOnState;
+        } else {
+            btn.state = NSOffState;
+        }
     }
 
     // Clear content
@@ -136,6 +197,10 @@
             targetVC = self.fileFixerVC;
             break;
         case 3:
+            if (!self.usbExportVC) self.usbExportVC = [[IGUSBExportViewController alloc] init];
+            targetVC = self.usbExportVC;
+            break;
+        case 4:
             if (!self.settingsVC) self.settingsVC = [[IGSettingsViewController alloc] init];
             targetVC = self.settingsVC;
             break;

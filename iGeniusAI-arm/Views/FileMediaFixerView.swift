@@ -20,6 +20,7 @@ struct FileMediaFixerView: View {
     @State private var fileItems: [FileItem] = []
     @State private var isProcessing: Bool = false
     @State private var activeNotification: NotificationMessage? = nil
+    @State private var downloadCovers: Bool = true
     
     var body: some View {
         ScrollView {
@@ -191,11 +192,6 @@ struct FileMediaFixerView: View {
             DispatchQueue.main.async {
                 isProcessing = false
                 activeNotification = NotificationMessage(text: lang.t("done"), isError: false)
-            }
-        }
-    }
-}
-lse)
             }
         }
     }

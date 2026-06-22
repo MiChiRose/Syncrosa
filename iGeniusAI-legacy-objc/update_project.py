@@ -4,9 +4,9 @@ import uuid
 def generate_id():
     return uuid.uuid4().hex[:24].upper()
 
-project_path = 'iGeniusAI/iGeniusAI-legacy-objc/iGeniusAI-legacy-objc.xcodeproj/project.pbxproj'
-sources_root = 'iGeniusAI/iGeniusAI-legacy-objc/Sources'
-tests_root = 'iGeniusAI/iGeniusAI-legacy-objc/iGeniusAI-legacy-objcTests'
+project_path = 'iGeniusAI-legacy-objc/iGeniusAI-legacy-objc.xcodeproj/project.pbxproj'
+sources_root = 'iGeniusAI-legacy-objc/Sources'
+tests_root = 'iGeniusAI-legacy-objc/iGeniusAI-legacy-objcTests'
 
 # 1. Map Filesystem (Sources)
 file_to_ref_id = {}
@@ -317,7 +317,7 @@ content = f"""// !$*UTF8*$!
 \t\t\t\tGCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 \t\t\t\tGCC_WARN_UNUSED_FUNCTION = YES;
 \t\t\t\tGCC_WARN_UNUSED_VARIABLE = YES;
-\t\t\t\tMACOSX_DEPLOYMENT_TARGET = 10.9;
+\t\t\t\tMACOSX_DEPLOYMENT_TARGET = 10.13;
 \t\t\t\tMTL_ENABLE_DEBUG_INFO = YES;
 \t\t\t\tONLY_ACTIVE_ARCH = YES;
 \t\t\t\tSDKROOT = macosx;
@@ -350,7 +350,7 @@ content = f"""// !$*UTF8*$!
 \t\t\t\tGCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 \t\t\t\tGCC_WARN_UNUSED_FUNCTION = YES;
 \t\t\t\tGCC_WARN_UNUSED_VARIABLE = YES;
-\t\t\t\tMACOSX_DEPLOYMENT_TARGET = 10.9;
+\t\t\t\tMACOSX_DEPLOYMENT_TARGET = 10.13;
 \t\t\t\tMTL_ENABLE_DEBUG_INFO = NO;
 \t\t\t\tSDKROOT = macosx;
 \t\t\t}};

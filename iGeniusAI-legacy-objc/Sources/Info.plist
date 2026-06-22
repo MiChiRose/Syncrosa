@@ -9,7 +9,7 @@
 	<key>CFBundleIconFile</key>
 	<string></string>
 	<key>CFBundleIdentifier</key>
-	<string>com.example.$(PRODUCT_NAME:rfc1034identifier)</string>
+	<string>com.igeniusai.legacy</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -25,7 +25,11 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 MacBook Pro. All rights reserved.</string>
+	<string>Copyright © 2026 iGeniusAI. All rights reserved.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>iGeniusAI needs to access iTunes to read your music library and manage playlists.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>iGeniusAI needs access to your USB drive to export music files.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

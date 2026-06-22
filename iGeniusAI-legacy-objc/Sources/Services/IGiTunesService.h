@@ -21,6 +21,17 @@
                     completion:(void(^)(NSInteger addedCount))completionBlock;
 
 /**
+ * Fetches all user playlists from iTunes.
+ */
+- (void)fetchPlaylistsWithCompletion:(void(^)(NSArray<NSDictionary *> *playlists))completionBlock;
+
+/**
+ * Fetches all tracks from a specific playlist (including locations and sizes).
+ */
+- (void)fetchTracksForPlaylist:(NSString *)playlistName 
+                    completion:(void(^)(NSArray<NSDictionary *> *tracks))completionBlock;
+
+/**
  * Executes an AppleScript command on the main thread and returns the string result.
  */
 - (NSString *)runAppleScript:(NSString *)source;

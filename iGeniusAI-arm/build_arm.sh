@@ -48,6 +48,10 @@ cat > iGeniusAI-arm.app/Contents/Info.plist <<EOF
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>iGeniusAI needs to access Music.app to read your playlists.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>iGeniusAI needs access to your USB drive to export music files.</string>
 </dict>
 </plist>
 EOF

@@ -1,16 +1,26 @@
 #import "AppDelegate.h"
 #import "IGMainWindowController.h"
+#import "IGLocalizationService.h"
 
 @interface AppDelegate ()
 @property (nonatomic, strong) IGMainWindowController *mainWindowController;
+@property (nonatomic, strong) NSMenu *languageMenu;
 @end
 
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(localizationChanged:)
+                                                 name:@"IGLanguageChangedNotification"
+                                               object:nil];
     [self setupMenu];
     self.mainWindowController = [[IGMainWindowController alloc] init];
     [self.mainWindowController showWindow:self];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)setupMenu {
@@ -33,7 +43,47 @@
     [editMenu addItemWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"];
     [editMenuItem setSubmenu:editMenu];
     
+    // Language Menu
+    NSMenuItem *langMenuItem = [[NSMenuItem alloc] init];
+    [mainMenu addItem:langMenuItem];
+    self.languageMenu = [[NSMenu alloc] initWithTitle:@"Language"];
+    NSArray *langs = @[@"English", @"Русский", @"Беларуская", @"한국어", @"日本語", @"中文", @"Deutsch", @"Polski", @"Eesti", @"Español"];
+    for (NSInteger i = 0; i < langs.count; i++) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:langs[i] action:@selector(changeLanguage:) keyEquivalent:@""];
+        item.tag = i;
+        [self.languageMenu addItem:item];
+    }
+    [langMenuItem setSubmenu:self.languageMenu];
+    [self updateLanguageMenuState:self.languageMenu];
+    
     [NSApp setMainMenu:mainMenu];
+}
+
+- (void)changeLanguage:(NSMenuItem *)sender {
+    NSArray *codes = @[@"en", @"ru", @"be", @"ko", @"ja", @"zh", @"de", @"pl", @"et", @"es"];
+    NSInteger index = sender.tag;
+    if (index >= 0 && index < codes.count) {
+        [IGLocalizationService sharedService].selectedLanguage = codes[index];
+    }
+}
+
+- (void)updateLanguageMenuState:(NSMenu *)menu {
+    NSString *currentLang = [IGLocalizationService sharedService].selectedLanguage;
+    NSArray *codes = @[@"en", @"ru", @"be", @"ko", @"ja", @"zh", @"de", @"pl", @"et", @"es"];
+    
+    for (NSMenuItem *item in menu.itemArray) {
+        if (item.tag >= 0 && item.tag < codes.count) {
+            if ([codes[item.tag] isEqualToString:currentLang]) {
+                item.state = NSOnState;
+            } else {
+                item.state = NSOffState;
+            }
+        }
+    }
+}
+
+- (void)localizationChanged:(NSNotification *)notification {
+    [self updateLanguageMenuState:self.languageMenu];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {

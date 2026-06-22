@@ -28,7 +28,10 @@ let package = Package(
                 "Services/MetadataService.swift",
                 "Services/FileMetadataService.swift",
                 "Services/LocalizationService.swift",
-                "Services/KeychainHelper.swift"
+                "Services/KeychainHelper.swift",
+                "Services/USBService.swift",
+                "Services/PlaylistExportService.swift",
+                "Views/USBExportView.swift"
             ],
             resources: [
                 .process("genius_atom.icns")

@@ -12,6 +12,7 @@ struct ContentView: View {
         case playlist
         case fixer
         case folderFix
+        case usbExport
         case settings
     }
     
@@ -31,6 +32,10 @@ struct ContentView: View {
                     
                     NavigationLink(value: Tab.folderFix) {
                         Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
+                    }
+                    
+                    NavigationLink(value: Tab.usbExport) {
+                        Label(lang.t("usb_export"), systemImage: "externaldrive.fill")
                     }
                 }
                 
@@ -55,6 +60,7 @@ struct ContentView: View {
                             case .playlist: PlaylistGeneratorView()
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
+                            case .usbExport: USBExportView()
                             case .settings: SettingsView()
                             case .none: Text(lang.t("select_folder_msg")).foregroundColor(.secondary)
                             }

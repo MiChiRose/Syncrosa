@@ -140,4 +140,96 @@
     });
 }
 
+- (void)fetchPlaylistsWithCompletion:(void(^)(NSArray<NSDictionary *> *playlists))completionBlock {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *script = 
+            @"tell application \"iTunes\"\n"
+            "    set output to \"\"\n"
+            "    try\n"
+            "        set plist to (every user playlist whose special kind is none)\n"
+            "        repeat with pl in plist\n"
+            "            set plName to name of pl\n"
+            "            set plCount to count of tracks of pl\n"
+            "            set output to output & plName & \"|\" & plCount & \"\\n\"\n"
+            "        end repeat\n"
+            "    end try\n"
+            "    return output\n"
+            "end tell";
+            
+        NSString *rawResult = [self runAppleScript:script];
+        NSMutableArray *playlists = [NSMutableArray array];
+        
+        if (rawResult && rawResult.length > 0) {
+            NSArray *lines = [rawResult componentsSeparatedByString:@"\n"];
+            for (NSString *line in lines) {
+                if (line.length == 0) continue;
+                NSArray *parts = [line componentsSeparatedByString:@"|"];
+                if (parts.count >= 2) {
+                    NSString *name = parts[0];
+                    NSInteger count = [parts[1] integerValue];
+                    [playlists addObject:@{
+                        @"name": name,
+                        @"trackCount": @(count)
+                    }];
+                }
+            }
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completionBlock(playlists);
+        });
+    });
+}
+
+- (void)fetchTracksForPlaylist:(NSString *)playlistName 
+                    completion:(void(^)(NSArray<NSDictionary *> *tracks))completionBlock {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *escapedName = [playlistName stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
+        NSString *script = [NSString stringWithFormat:
+            @"tell application \"iTunes\"\n"
+            "    set output to \"\"\n"
+            "    try\n"
+            "        set pl to user playlist \"%@\"\n"
+            "        set trks to every file track of pl\n"
+            "        repeat with t in trks\n"
+            "            try\n"
+            "                set loc to location of t\n"
+            "                if loc is not missing value then\n"
+            "                    set trackPath to POSIX path of loc\n"
+            "                    set trackName to name of t\n"
+            "                    set trackArtist to artist of t\n"
+            "                    set trackSize to size of t\n"
+            "                    set output to output & trackName & \"|\" & trackArtist & \"|\" & trackPath & \"|\" & trackSize & \"\\n\"\n"
+            "                end if\n"
+            "            end try\n"
+            "        end repeat\n"
+            "    end try\n"
+            "    return output\n"
+            "end tell", escapedName];
+            
+        NSString *rawResult = [self runAppleScript:script];
+        NSMutableArray *tracks = [NSMutableArray array];
+        
+        if (rawResult && rawResult.length > 0) {
+            NSArray *lines = [rawResult componentsSeparatedByString:@"\n"];
+            for (NSString *line in lines) {
+                if (line.length == 0) continue;
+                NSArray *parts = [line componentsSeparatedByString:@"|"];
+                if (parts.count >= 4) {
+                    [tracks addObject:@{
+                        @"name": parts[0],
+                        @"artist": parts[1],
+                        @"path": parts[2],
+                        @"size": @([parts[3] longLongValue])
+                    }];
+                }
+            }
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completionBlock(tracks);
+        });
+    });
+}
+
 @end

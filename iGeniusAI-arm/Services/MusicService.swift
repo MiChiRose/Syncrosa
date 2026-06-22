@@ -108,4 +108,70 @@ class MusicService {
         
         return Int(runAppleScript(script) ?? "0") ?? 0
     }
+    
+    func getUserPlaylists() -> [(name: String, trackCount: Int)] {
+        let script = """
+        tell application "Music"
+            set output to ""
+            repeat with pl in (every user playlist whose special kind is none)
+                set plName to name of pl
+                set plCount to count of tracks of pl
+                set output to output & plName & "|" & plCount & "\\n"
+            end repeat
+            return output
+        end tell
+        """
+        guard let result = runAppleScript(script) else { return [] }
+        var playlists: [(name: String, trackCount: Int)] = []
+        let lines = result.components(separatedBy: .newlines)
+        for line in lines where line.contains("|") {
+            let parts = line.components(separatedBy: "|")
+            if parts.count >= 2 {
+                let name = parts[0]
+                let count = Int(parts[1]) ?? 0
+                playlists.append((name: name, trackCount: count))
+            }
+        }
+        return playlists
+    }
+    
+    func getPlaylistTrackPaths(playlistName: String) -> [(name: String, artist: String, path: String, size: Int64)] {
+        let escapedName = playlistName.replacingOccurrences(of: "\"", with: "\\\"")
+        let script = """
+        tell application "Music"
+            set output to ""
+            try
+                set pl to user playlist "\(escapedName)"
+                repeat with t in (every file track of pl)
+                    try
+                        set loc to location of t
+                        if loc is not missing value then
+                            set output to output & (name of t) & "|" & (artist of t) & "|" & (POSIX path of loc) & "\\n"
+                        end if
+                    end try
+                end repeat
+            end try
+            return output
+        end tell
+        """
+        guard let result = runAppleScript(script) else { return [] }
+        var tracks: [(name: String, artist: String, path: String, size: Int64)] = []
+        let lines = result.components(separatedBy: .newlines)
+        let fm = FileManager.default
+        for line in lines where line.contains("|") {
+            let parts = line.components(separatedBy: "|")
+            if parts.count >= 3 {
+                let name = parts[0]
+                let artist = parts[1]
+                let path = parts[2]
+                var size: Int64 = 0
+                if let attrs = try? fm.attributesOfItem(atPath: path),
+                   let fileSize = attrs[.size] as? Int64 {
+                    size = fileSize
+                }
+                tracks.append((name: name, artist: artist, path: path, size: size))
+            }
+        }
+        return tracks
+    }
 }
