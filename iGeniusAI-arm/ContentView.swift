@@ -37,6 +37,9 @@ struct ContentView: View {
                     NavigationLink(value: Tab.usbExport) {
                         Label(lang.t("usb_export"), systemImage: "externaldrive.fill")
                     }
+                    .simultaneousGesture(TapGesture().onEnded {
+                        NotificationCenter.default.post(name: NSNotification.Name("RefreshUSBExportTab"), object: nil)
+                    })
                 }
                 
                 Divider()

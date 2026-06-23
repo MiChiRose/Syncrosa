@@ -86,10 +86,18 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     driveLabel.drawsBackground = NO;
     [self.view addSubview:driveLabel];
     
-    self.drivePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 348, 340, 26) pullsDown:NO];
+    self.drivePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 348, 300, 26) pullsDown:NO];
     self.drivePopup.target = self;
     self.drivePopup.action = @selector(driveSelected:);
     [self.view addSubview:self.drivePopup];
+    
+    NSButton *refreshBtn = [[NSButton alloc] initWithFrame:NSMakeRect(505, 346, 35, 28)];
+    refreshBtn.bezelStyle = NSRecessedBezelStyle;
+    refreshBtn.title = @"↻";
+    refreshBtn.target = self;
+    refreshBtn.action = @selector(refreshClicked:);
+    [refreshBtn setToolTip:[lang.selectedLanguage isEqualToString:@"ru"] ? @"Обновить" : @"Refresh"];
+    [self.view addSubview:refreshBtn];
     
     self.driveInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 322, 340, 18)];
     self.driveInfoLabel.font = [NSFont systemFontOfSize:11];
@@ -259,6 +267,11 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     BOOL hasDrive = (self.drives.count > 0);
     BOOL hasPlaylist = (self.currentPlaylistTracks.count > 0);
     self.exportButton.enabled = hasDrive && hasPlaylist && !self.isExporting;
+}
+
+- (void)refreshClicked:(id)sender {
+    [[IGUSBService sharedService] updateDrives];
+    [self reloadPlaylists];
 }
 
 - (void)drivesUpdated:(NSNotification *)notification {

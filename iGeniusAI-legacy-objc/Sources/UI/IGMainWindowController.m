@@ -2,6 +2,7 @@
 #import "IGSettingsViewController.h"
 #import "IGFileFixerViewController.h"
 #import "IGUSBExportViewController.h"
+#import "IGUSBService.h"
 #import "IGAIService.h"
 #import "IGKeychainHelper.h"
 #import "IGLocalizationService.h"
@@ -210,6 +211,11 @@
         targetVC.view.frame = self.contentContainer.bounds;
         targetVC.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         [self.contentContainer addSubview:targetVC.view];
+        
+        if ([targetVC isKindOfClass:[IGUSBExportViewController class]]) {
+            [[IGUSBService sharedService] updateDrives];
+            [(IGUSBExportViewController *)targetVC reloadPlaylists];
+        }
     }
 }
 

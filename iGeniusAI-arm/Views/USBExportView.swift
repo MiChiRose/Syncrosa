@@ -44,9 +44,21 @@ struct USBExportView: View {
                     
                     // Drive Picker
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(lang.t("select_drive"))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        HStack {
+                            Text(lang.t("select_drive"))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Button(action: {
+                                usbService.updateDrives()
+                                loadPlaylists()
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.caption2)
+                            }
+                            .buttonStyle(.plain)
+                            .help(lang.selectedLanguage == "ru" ? "Обновить" : "Refresh")
+                        }
                         
                         if usbService.availableDrives.isEmpty {
                             HStack {
@@ -152,6 +164,11 @@ struct USBExportView: View {
         }
         .notification(message: $activeNotification)
         .onAppear {
+            usbService.updateDrives()
+            loadPlaylists()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshUSBExportTab"))) { _ in
+            usbService.updateDrives()
             loadPlaylists()
         }
         // Incompatible filesystem warning dialog
