@@ -10,9 +10,8 @@ enum FileStatus {
 
 struct FileItem: Identifiable {
     let id = UUID()
-    var url: URL
+    let url: URL
     var status: FileStatus = .pending
-    var message: String = ""
 }
 
 struct FileMediaFixerView: View {
@@ -20,8 +19,8 @@ struct FileMediaFixerView: View {
     @State private var folderPath: String = ""
     @State private var fileItems: [FileItem] = []
     @State private var isProcessing: Bool = false
-    @State private var downloadCovers: Bool = true
     @State private var activeNotification: NotificationMessage? = nil
+    @State private var downloadCovers: Bool = true
     
     var body: some View {
         ScrollView {
@@ -45,17 +44,13 @@ struct FileMediaFixerView: View {
                         }
                         .buttonStyle(.bordered)
                         .disabled(isProcessing)
+                        
+                        Button(action: fixFolderMetadata) {
+                            Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(fileItems.isEmpty || isProcessing)
                     }
-                    
-                    Toggle(lang.selectedLanguage == "ru" ? "Загружать обложки" : "Download Covers", isOn: $downloadCovers)
-                        .disabled(isProcessing)
-                    
-                    Button(action: fixFolderMetadata) {
-                        Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(fileItems.isEmpty || isProcessing)
-                    .frame(maxWidth: .infinity)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -81,18 +76,10 @@ struct FileMediaFixerView: View {
                     } else {
                         ForEach(fileItems) { item in
                             HStack {
-                                VStack(alignment: .leading) {
-                                    Text(item.url.lastPathComponent)
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                    
-                                    if !item.message.isEmpty {
-                                        Text(item.message)
-                                            .font(.system(size: 9))
-                                            .foregroundColor(item.status == .error ? .red : .blue)
-                                    }
-                                }
+                                Text(item.url.lastPathComponent)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
                                 
                                 Spacer()
                                 
@@ -186,7 +173,6 @@ struct FileMediaFixerView: View {
         // Reset statuses
         for i in fileItems.indices {
             fileItems[i].status = .pending
-            fileItems[i].message = ""
         }
         
         DispatchQueue.global().async {
@@ -195,15 +181,11 @@ struct FileMediaFixerView: View {
                     fileItems[index].status = .processing
                 }
                 
-                // Real fixing logic
-                let result = FileMetadataService.shared.fixFile(url: fileItems[index].url, downloadCover: downloadCovers)
+                // Real fixing logic (implemented in a service)
+                let success = FileMetadataService.shared.fixFile(url: fileItems[index].url, downloadCover: downloadCovers)
                 
                 DispatchQueue.main.async {
-                    fileItems[index].status = result.success ? .done : .error
-                    fileItems[index].message = result.message
-                    if let newURL = result.newURL {
-                        fileItems[index].url = newURL
-                    }
+                    fileItems[index].status = success ? .done : .error
                 }
             }
             

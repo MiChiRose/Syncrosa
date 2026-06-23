@@ -5,6 +5,7 @@ struct ContentView: View {
     
     @AppStorage("is_key_validated") private var isKeyValidated: Bool = false
     
+    @ObservedObject var usbService = USBService.shared
     @State private var selectedTab: Tab? = nil
     @State private var showHelp: Bool = false
     
@@ -12,6 +13,7 @@ struct ContentView: View {
         case playlist
         case fixer
         case folderFix
+        case usbExport
         case settings
     }
     
@@ -32,6 +34,12 @@ struct ContentView: View {
                     NavigationLink(value: Tab.folderFix) {
                         Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
                     }
+                    
+                    NavigationLink(value: Tab.usbExport) {
+                        Label(lang.t("usb_export"), systemImage: "externaldrive.fill")
+                    }
+                    .disabled(usbService.isSearching)
+                    .opacity(usbService.isSearching ? 0.5 : 1.0)
                 }
                 
                 Divider()
@@ -55,6 +63,7 @@ struct ContentView: View {
                             case .playlist: PlaylistGeneratorView()
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
+                            case .usbExport: USBExportView()
                             case .settings: SettingsView()
                             case .none: Text(lang.t("select_folder_msg")).foregroundColor(.secondary)
                             }

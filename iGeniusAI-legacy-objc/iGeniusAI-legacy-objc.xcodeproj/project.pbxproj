@@ -1,0 +1,556 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		EDF09DB09A7B4AE5AF4A8A8E /* main.m in Build */ = {isa = PBXBuildFile; fileRef = 45450BBAD6A84A9FA55489A7 /* main.m */; };
+		5329E37C75954B11956F98EA /* AppDelegate.m in Build */ = {isa = PBXBuildFile; fileRef = B51DB93EAA28464089F860C6 /* AppDelegate.m */; };
+		AF38979C51474D56BF4D89A3 /* IGSettingsViewController.m in Build */ = {isa = PBXBuildFile; fileRef = C452323F468D4CBF8DB860F6 /* IGSettingsViewController.m */; };
+		1B9E62A77F6943E39686BD5E /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 4082575ACC954B568FE0C4CE /* IGUSBExportViewController.m */; };
+		99684AAA929F4DE9869F9D9A /* IGFileFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 24C888A315C843C1AFDA7078 /* IGFileFixerViewController.m */; };
+		EE9C54EDED7B40BB886A0B49 /* IGGeniusViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 296D04DB19C940B9BB9F665B /* IGGeniusViewController.m */; };
+		19D21B9D9BCE402490BFEC12 /* IGNotificationView.m in Build */ = {isa = PBXBuildFile; fileRef = 6587AFD1BF7B4B87B99DDDE4 /* IGNotificationView.m */; };
+		4413E92F9D944C3DB0BEBF35 /* IGMainWindowController.m in Build */ = {isa = PBXBuildFile; fileRef = 38C2359F29BA4FCF8BD41917 /* IGMainWindowController.m */; };
+		AAB3C1E4395B425E9FFDB357 /* IGFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 15F7F604AABD4C46962A8F18 /* IGFixerViewController.m */; };
+		9349DFBF19554720869229E1 /* cacert.pem in Build */ = {isa = PBXBuildFile; fileRef = D51D6A81845E4BACB005089B /* cacert.pem */; };
+		7FDDB8ECF3AC482B99D76B68 /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = F61AF74895AD40C99E4EA032 /* Localizable.strings */; };
+		EE95CED078B640E2BC18C1F2 /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = 6013D6F23251490D975DE9AB /* Localizable.strings */; };
+		988B268256584420B6D55E4A /* IGTrack.m in Build */ = {isa = PBXBuildFile; fileRef = 8A997141D2E948538AAC2D96 /* IGTrack.m */; };
+		D4E76B9E606F4975AC32E9EA /* MainMenu.xib in Build */ = {isa = PBXBuildFile; fileRef = EDA41866CFF54F56ABC412BE /* MainMenu.xib */; };
+		27D6B41E2A6F4B82B8E3F422 /* IGLogger.m in Build */ = {isa = PBXBuildFile; fileRef = C0762F57F7404693993A00A0 /* IGLogger.m */; };
+		D20CD117DFA84B709B058660 /* IGLocalizationService.m in Build */ = {isa = PBXBuildFile; fileRef = DE42B065AC2F4B53A8BCF806 /* IGLocalizationService.m */; };
+		5FA3EED17A4A47D6A2930D78 /* IGAIService.m in Build */ = {isa = PBXBuildFile; fileRef = 8AD5511858F948ADAFD55677 /* IGAIService.m */; };
+		31CBAF5889E34A2C9E7D42DA /* IGUSBService.m in Build */ = {isa = PBXBuildFile; fileRef = 92686CBCD04A4D028994EC44 /* IGUSBService.m */; };
+		73AF9E0707184482A8CDD508 /* IGMediaFixerManager.m in Build */ = {isa = PBXBuildFile; fileRef = 463A6E23A86B4ADF90D9ACA0 /* IGMediaFixerManager.m */; };
+		77A24450E4E24FCC909BBD9D /* IGiTunesService.m in Build */ = {isa = PBXBuildFile; fileRef = C23204158E164EF2BCCE5803 /* IGiTunesService.m */; };
+		3CD46ADC47A14C94B0E9B93D /* IGKeychainHelper.m in Build */ = {isa = PBXBuildFile; fileRef = 631A80AB411D42C1BDA22C8D /* IGKeychainHelper.m */; };
+		6BCEF2244E63423AA6EE6447 /* IGBusinessLogicTests.m in Build */ = {isa = PBXBuildFile; fileRef = B172C6EA9C1C41989368B71A /* IGBusinessLogicTests.m */; };
+		400BADB7A7A645369CB6A526 /* iGenius_OBJCTests.m in Build */ = {isa = PBXBuildFile; fileRef = 537629D1C31D4B5F800439F7 /* iGenius_OBJCTests.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5281AC6B2FDAE21700B6EAAC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5281AC4F2FDAE21700B6EAAC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5281AC562FDAE21700B6EAAC;
+			remoteInfo = "iGeniusAI-legacy-objc";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		2340E245038C4991833003CC /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AppDelegate.h"; sourceTree = "<group>"; };
+		45450BBAD6A84A9FA55489A7 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "main.m"; sourceTree = "<group>"; };
+		B51DB93EAA28464089F860C6 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "AppDelegate.m"; sourceTree = "<group>"; };
+		F70395ABAFE3419DA817C7FF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		019D1E3DE6FF47829D26FAF3 /* IGMainWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMainWindowController.h"; sourceTree = "<group>"; };
+		FD6A9CEF7B064FC6934709EB /* IGNotificationView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGNotificationView.h"; sourceTree = "<group>"; };
+		C452323F468D4CBF8DB860F6 /* IGSettingsViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGSettingsViewController.m"; sourceTree = "<group>"; };
+		4082575ACC954B568FE0C4CE /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
+		24C888A315C843C1AFDA7078 /* IGFileFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFileFixerViewController.m"; sourceTree = "<group>"; };
+		5CAE236FF9164203BF049A7D /* IGFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFixerViewController.h"; sourceTree = "<group>"; };
+		296D04DB19C940B9BB9F665B /* IGGeniusViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGGeniusViewController.m"; sourceTree = "<group>"; };
+		6587AFD1BF7B4B87B99DDDE4 /* IGNotificationView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGNotificationView.m"; sourceTree = "<group>"; };
+		38C2359F29BA4FCF8BD41917 /* IGMainWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMainWindowController.m"; sourceTree = "<group>"; };
+		44A80C8F9B0B4572A34B1FEF /* IGSettingsViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGSettingsViewController.h"; sourceTree = "<group>"; };
+		057F57035A19408397D89752 /* IGGeniusViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGGeniusViewController.h"; sourceTree = "<group>"; };
+		15F7F604AABD4C46962A8F18 /* IGFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFixerViewController.m"; sourceTree = "<group>"; };
+		7437A4AE477E4ACE8CEB86FA /* IGUSBExportViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBExportViewController.h"; sourceTree = "<group>"; };
+		445B3AA39FFE472F8D758F35 /* IGFileFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFileFixerViewController.h"; sourceTree = "<group>"; };
+		D51D6A81845E4BACB005089B /* cacert.pem */ = {isa = PBXFileReference; lastKnownFileType = text; path = "cacert.pem"; sourceTree = "<group>"; };
+		F61AF74895AD40C99E4EA032 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		6013D6F23251490D975DE9AB /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		8A997141D2E948538AAC2D96 /* IGTrack.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGTrack.m"; sourceTree = "<group>"; };
+		006532A13ADE43628E4C856B /* IGTrack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGTrack.h"; sourceTree = "<group>"; };
+		EDA41866CFF54F56ABC412BE /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = "MainMenu.xib"; sourceTree = "<group>"; };
+		3AD90BF2A36941AEBE87005F /* IGMediaFixerManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMediaFixerManager.h"; sourceTree = "<group>"; };
+		C0762F57F7404693993A00A0 /* IGLogger.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLogger.m"; sourceTree = "<group>"; };
+		DE42B065AC2F4B53A8BCF806 /* IGLocalizationService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLocalizationService.m"; sourceTree = "<group>"; };
+		8AD5511858F948ADAFD55677 /* IGAIService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGAIService.m"; sourceTree = "<group>"; };
+		ACF03CE8CE904C9DA7401E07 /* IGiTunesService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGiTunesService.h"; sourceTree = "<group>"; };
+		04EF4EA1CF574932816FED96 /* IGKeychainHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGKeychainHelper.h"; sourceTree = "<group>"; };
+		92686CBCD04A4D028994EC44 /* IGUSBService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBService.m"; sourceTree = "<group>"; };
+		463A6E23A86B4ADF90D9ACA0 /* IGMediaFixerManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMediaFixerManager.m"; sourceTree = "<group>"; };
+		C23204158E164EF2BCCE5803 /* IGiTunesService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGiTunesService.m"; sourceTree = "<group>"; };
+		DCDC2E84950449C3B1AA9DB9 /* IGAIService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGAIService.h"; sourceTree = "<group>"; };
+		5E1B9F851715498FA7F164A0 /* IGLocalizationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLocalizationService.h"; sourceTree = "<group>"; };
+		F77393F29C944318935C3D01 /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
+		631A80AB411D42C1BDA22C8D /* IGKeychainHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGKeychainHelper.m"; sourceTree = "<group>"; };
+		3DA9C2A1A23F4B0A93222770 /* IGUSBService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBService.h"; sourceTree = "<group>"; };
+		B172C6EA9C1C41989368B71A /* IGBusinessLogicTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGBusinessLogicTests.m"; sourceTree = "<group>"; };
+		537629D1C31D4B5F800439F7 /* iGenius_OBJCTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "iGenius_OBJCTests.m"; sourceTree = "<group>"; };
+		0494EA65BA4E45A3A53B02F3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		5281AC572FDAE21700B6EAAC /* iGeniusAI-legacy-objc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "iGeniusAI-legacy-objc.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5281AC6A2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "iGeniusAI-legacy-objcTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5281AC542FDAE21700B6EAAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5281AC672FDAE21700B6EAAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BC76DED719D749A892C2725D /* AppIcon.appiconset */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = "AppIcon.appiconset";
+			sourceTree = "<group>";
+		};
+		7AB8F599FF394B499F977AE8 /* en.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				F61AF74895AD40C99E4EA032 /* Localizable.strings */,
+			);
+			path = "en.lproj";
+			sourceTree = "<group>";
+		};
+		5E1CA7E365EC408AAD921F3A /* ru.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				6013D6F23251490D975DE9AB /* Localizable.strings */,
+			);
+			path = "ru.lproj";
+			sourceTree = "<group>";
+		};
+		53D7AEA2B2AD471686030135 /* Images.xcassets */ = {
+			isa = PBXGroup;
+			children = (
+				BC76DED719D749A892C2725D /* AppIcon.appiconset */,
+			);
+			path = "Images.xcassets";
+			sourceTree = "<group>";
+		};
+		11FF040D1CC14A27A595C11F /* Base.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				EDA41866CFF54F56ABC412BE /* MainMenu.xib */,
+			);
+			path = "Base.lproj";
+			sourceTree = "<group>";
+		};
+		0CEF19BF4BFE4D59B829A01B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D51D6A81845E4BACB005089B /* cacert.pem */,
+				7AB8F599FF394B499F977AE8 /* en.lproj */,
+				5E1CA7E365EC408AAD921F3A /* ru.lproj */,
+			);
+			path = "Resources";
+			sourceTree = "<group>";
+		};
+		305064A4CB2A44E1A5FE2607 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				3AD90BF2A36941AEBE87005F /* IGMediaFixerManager.h */,
+				C0762F57F7404693993A00A0 /* IGLogger.m */,
+				DE42B065AC2F4B53A8BCF806 /* IGLocalizationService.m */,
+				8AD5511858F948ADAFD55677 /* IGAIService.m */,
+				ACF03CE8CE904C9DA7401E07 /* IGiTunesService.h */,
+				04EF4EA1CF574932816FED96 /* IGKeychainHelper.h */,
+				92686CBCD04A4D028994EC44 /* IGUSBService.m */,
+				463A6E23A86B4ADF90D9ACA0 /* IGMediaFixerManager.m */,
+				C23204158E164EF2BCCE5803 /* IGiTunesService.m */,
+				DCDC2E84950449C3B1AA9DB9 /* IGAIService.h */,
+				5E1B9F851715498FA7F164A0 /* IGLocalizationService.h */,
+				F77393F29C944318935C3D01 /* IGLogger.h */,
+				631A80AB411D42C1BDA22C8D /* IGKeychainHelper.m */,
+				3DA9C2A1A23F4B0A93222770 /* IGUSBService.h */,
+			);
+			path = "Services";
+			sourceTree = "<group>";
+		};
+		C4AA04BAFBD2403AA74503C4 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				8A997141D2E948538AAC2D96 /* IGTrack.m */,
+				006532A13ADE43628E4C856B /* IGTrack.h */,
+			);
+			path = "Models";
+			sourceTree = "<group>";
+		};
+		BBF6D8E140AA4FBBA8718E6C /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				019D1E3DE6FF47829D26FAF3 /* IGMainWindowController.h */,
+				FD6A9CEF7B064FC6934709EB /* IGNotificationView.h */,
+				C452323F468D4CBF8DB860F6 /* IGSettingsViewController.m */,
+				4082575ACC954B568FE0C4CE /* IGUSBExportViewController.m */,
+				24C888A315C843C1AFDA7078 /* IGFileFixerViewController.m */,
+				5CAE236FF9164203BF049A7D /* IGFixerViewController.h */,
+				296D04DB19C940B9BB9F665B /* IGGeniusViewController.m */,
+				6587AFD1BF7B4B87B99DDDE4 /* IGNotificationView.m */,
+				38C2359F29BA4FCF8BD41917 /* IGMainWindowController.m */,
+				44A80C8F9B0B4572A34B1FEF /* IGSettingsViewController.h */,
+				057F57035A19408397D89752 /* IGGeniusViewController.h */,
+				15F7F604AABD4C46962A8F18 /* IGFixerViewController.m */,
+				7437A4AE477E4ACE8CEB86FA /* IGUSBExportViewController.h */,
+				445B3AA39FFE472F8D758F35 /* IGFileFixerViewController.h */,
+			);
+			path = "UI";
+			sourceTree = "<group>";
+		};
+		99A2589EE2EC4AE4B366DDD4 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				2340E245038C4991833003CC /* AppDelegate.h */,
+				45450BBAD6A84A9FA55489A7 /* main.m */,
+				B51DB93EAA28464089F860C6 /* AppDelegate.m */,
+				F70395ABAFE3419DA817C7FF /* Info.plist */,
+				BBF6D8E140AA4FBBA8718E6C /* UI */,
+				0CEF19BF4BFE4D59B829A01B /* Resources */,
+				C4AA04BAFBD2403AA74503C4 /* Models */,
+				11FF040D1CC14A27A595C11F /* Base.lproj */,
+				53D7AEA2B2AD471686030135 /* Images.xcassets */,
+				305064A4CB2A44E1A5FE2607 /* Services */,
+			);
+			path = "Sources";
+			sourceTree = "<group>";
+		};
+		BF1ED9F56D7744CE9792C87B /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				B172C6EA9C1C41989368B71A /* IGBusinessLogicTests.m */,
+				537629D1C31D4B5F800439F7 /* iGenius_OBJCTests.m */,
+				0494EA65BA4E45A3A53B02F3 /* Info.plist */,
+			);
+			path = "iGeniusAI-legacy-objcTests";
+			sourceTree = "<group>";
+		};
+		5281AC582FDAE21700B6EAAC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5281AC572FDAE21700B6EAAC /* iGeniusAI-legacy-objc.app */,
+				5281AC6A2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5281AC4E2FDAE21700B6EAAC /* Project Group */ = {
+			isa = PBXGroup;
+			children = (
+				99A2589EE2EC4AE4B366DDD4 /* Sources */,
+				BF1ED9F56D7744CE9792C87B /* Tests */,
+				5281AC582FDAE21700B6EAAC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5281AC562FDAE21700B6EAAC /* iGeniusAI-legacy-objc */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objc" */;
+			buildPhases = (
+				5281AC532FDAE21700B6EAAC /* Sources */,
+				5281AC542FDAE21700B6EAAC /* Frameworks */,
+				5281AC552FDAE21700B6EAAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "iGeniusAI-legacy-objc";
+			productName = "iGeniusAI-legacy-objc";
+			productReference = 5281AC572FDAE21700B6EAAC /* iGeniusAI-legacy-objc.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5281AC692FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objcTests" */;
+			buildPhases = (
+				51046C98961B4086B70A9DE6 /* Sources */,
+				5281AC672FDAE21700B6EAAC /* Frameworks */,
+				5281AC682FDAE21700B6EAAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */,
+			);
+			name = "iGeniusAI-legacy-objcTests";
+			productName = "iGeniusAI-legacy-objcTests";
+			productReference = 5281AC6A2FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5281AC4F2FDAE21700B6EAAC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0610;
+				ORGANIZATIONNAME = "MacBook Pro";
+				TargetAttributes = {
+					5281AC562FDAE21700B6EAAC = {
+						CreatedOnToolsVersion = 6.1;
+					};
+					5281AC692FDAE21700B6EAAC = {
+						CreatedOnToolsVersion = 6.1;
+						TestTargetID = 5281AC562FDAE21700B6EAAC;
+					};
+				};
+			};
+			buildConfigurationList = 5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "iGeniusAI-legacy-objc" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5281AC4E2FDAE21700B6EAAC;
+			productRefGroup = 5281AC582FDAE21700B6EAAC /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5281AC562FDAE21700B6EAAC /* iGeniusAI-legacy-objc */,
+				5281AC692FDAE21700B6EAAC /* iGeniusAI-legacy-objcTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5281AC552FDAE21700B6EAAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9349DFBF19554720869229E1 /* cacert.pem in Resources */,
+				7FDDB8ECF3AC482B99D76B68 /* Localizable.strings in Resources */,
+				EE95CED078B640E2BC18C1F2 /* Localizable.strings in Resources */,
+				D4E76B9E606F4975AC32E9EA /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5281AC682FDAE21700B6EAAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5281AC532FDAE21700B6EAAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EDF09DB09A7B4AE5AF4A8A8E /* main.m in Sources */,
+				5329E37C75954B11956F98EA /* AppDelegate.m in Sources */,
+				AF38979C51474D56BF4D89A3 /* IGSettingsViewController.m in Sources */,
+				1B9E62A77F6943E39686BD5E /* IGUSBExportViewController.m in Sources */,
+				99684AAA929F4DE9869F9D9A /* IGFileFixerViewController.m in Sources */,
+				EE9C54EDED7B40BB886A0B49 /* IGGeniusViewController.m in Sources */,
+				19D21B9D9BCE402490BFEC12 /* IGNotificationView.m in Sources */,
+				4413E92F9D944C3DB0BEBF35 /* IGMainWindowController.m in Sources */,
+				AAB3C1E4395B425E9FFDB357 /* IGFixerViewController.m in Sources */,
+				988B268256584420B6D55E4A /* IGTrack.m in Sources */,
+				27D6B41E2A6F4B82B8E3F422 /* IGLogger.m in Sources */,
+				D20CD117DFA84B709B058660 /* IGLocalizationService.m in Sources */,
+				5FA3EED17A4A47D6A2930D78 /* IGAIService.m in Sources */,
+				31CBAF5889E34A2C9E7D42DA /* IGUSBService.m in Sources */,
+				73AF9E0707184482A8CDD508 /* IGMediaFixerManager.m in Sources */,
+				77A24450E4E24FCC909BBD9D /* IGiTunesService.m in Sources */,
+				3CD46ADC47A14C94B0E9B93D /* IGKeychainHelper.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		51046C98961B4086B70A9DE6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6BCEF2244E63423AA6EE6447 /* IGBusinessLogicTests.m in Build */,
+				400BADB7A7A645369CB6A526 /* iGenius_OBJCTests.m in Build */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5281AC562FDAE21700B6EAAC /* iGeniusAI-legacy-objc */;
+			targetProxy = 5281AC6B2FDAE21700B6EAAC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		5281AC502FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_BIT_CONVERT_TO_32_BIT_AS_SAFE = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		5281AC512FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_64_BIT_CONVERT_TO_32_BIT_AS_SAFE = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		5281AC752FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		5281AC762FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		5281AC782FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "iGeniusAI-legacy-objcTests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iGeniusAI-legacy-objc.app/Contents/MacOS/iGeniusAI-legacy-objc";
+			};
+			name = Debug;
+		};
+		5281AC792FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "iGeniusAI-legacy-objcTests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iGeniusAI-legacy-objc.app/Contents/MacOS/iGeniusAI-legacy-objc";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "iGeniusAI-legacy-objc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC502FDAE21700B6EAAC /* Debug */,
+				5281AC512FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC752FDAE21700B6EAAC /* Debug */,
+				5281AC762FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "iGeniusAI-legacy-objcTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC782FDAE21700B6EAAC /* Debug */,
+				5281AC792FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5281AC4F2FDAE21700B6EAAC /* Project object */;
+}

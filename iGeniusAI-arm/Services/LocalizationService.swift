@@ -35,7 +35,24 @@ class LocalizationService: ObservableObject {
         "welcome": "Success! Welcome.", "val_failed": "Validation failed: {}", "lang_section": "Language", "refresh_cache": "Refresh your local music database cache.",
         "lib_not_read": "Your Music library is empty or could not be read.", "analysis_complete": "Analysis complete. No split albums found.",
         "found_albums": "Found {} albums to fix.", "processing_files": "Processing files...", "error_folder": "Error scanning folder.",
-        "note_sync": "Note: The model list updates automatically via the Sync button. You can also manually switch providers in Settings."
+        "note_sync": "Note: The model list updates automatically via the Sync button. You can also manually switch providers in Settings.",
+        "usb_export": "USB Export",
+        "select_drive": "Select USB Drive",
+        "select_playlist": "Select Playlist",
+        "no_drives": "No USB drives connected",
+        "no_playlists": "No playlists available",
+        "export_button": "Export to USB Flash",
+        "exporting": "Exporting: {}/{} tracks...",
+        "export_success": "Successfully exported {} tracks!",
+        "export_partial": "Exported {} of {} tracks. {} skipped (DRM/not downloaded).",
+        "disk_full_title": "Not enough space",
+        "disk_full_msg": "Playlist: {} ({} tracks)\nAvailable: {}\n\nChoose action:",
+        "fit_available": "Copy what fits (random selection)",
+        "cancel": "Cancel",
+        "incompatible_fs": "Warning: {} format may not be supported by Android car systems.",
+        "drive_disconnected": "USB drive disconnected during export!",
+        "free_space": "Free: {}",
+        "tracks_count": "{} tracks"
     ]
     
     private let ru: [String: String] = [
@@ -59,7 +76,24 @@ class LocalizationService: ObservableObject {
         "welcome": "Успешно! Добро пожаловать.", "val_failed": "Ошибка проверки: {}", "lang_section": "Язык", "refresh_cache": "Обновить кэш музыкальной базы.",
         "lib_not_read": "Медиатека пуста или недоступна.", "analysis_complete": "Анализ завершен. Ошибок не найдено.",
         "found_albums": "Найдено {} альбомов для исправления.", "processing_files": "Обработка файлов...", "error_folder": "Ошибка сканирования папки.",
-        "note_sync": "Примечание: Список моделей обновляется автоматически через кнопку Sync. Вы также можете сменить провайдера в настройках."
+        "note_sync": "Примечание: Список моделей обновляется автоматически через кнопку Sync. Вы также можете сменить провайдера в настройках.",
+        "usb_export": "USB Экспорт",
+        "select_drive": "Выберите USB-накопитель",
+        "select_playlist": "Выберите плейлист",
+        "no_drives": "USB-накопители не подключены",
+        "no_playlists": "Нет доступных плейлистов",
+        "export_button": "Отправить на USB Flash",
+        "exporting": "Экспорт: {}/{} треков...",
+        "export_success": "Успешно экспортировано {} треков!",
+        "export_partial": "Экспортировано {} из {} треков. {} пропущено (DRM/не скачано).",
+        "disk_full_title": "Недостаточно места",
+        "disk_full_msg": "Плейлист: {} ({} треков)\nДоступно: {}\n\nВыберите действие:",
+        "fit_available": "Вместить сколько возможно (случайный выбор)",
+        "cancel": "Отмена",
+        "incompatible_fs": "Внимание: формат {} может не поддерживаться Android-магнитолами.",
+        "drive_disconnected": "USB-накопитель отключён во время экспорта!",
+        "free_space": "Свободно: {}",
+        "tracks_count": "{} треков"
     ]
     
     private let be: [String: String] = [
@@ -83,7 +117,24 @@ class LocalizationService: ObservableObject {
         "welcome": "Паспяхова! Сардэчна запрашаем.", "val_failed": "Памылка праверкі: {}", "lang_section": "Мова", "refresh_cache": "Абнавіць кэш музычнай базы.",
         "lib_not_read": "Медыятэка пустая або недаступная.", "analysis_complete": "Аналіз завершаны. Памылак не знойдзена.",
         "found_albums": "Знойдзена {} альбомаў для выпраўлення.", "processing_files": "Апрацоўка файлаў...", "error_folder": "Памылка сканавання папкі.",
-        "note_sync": "Заўвага: Спіс мадэляў абнаўляецца аўтаматычна. Вы таксама можаце змяніць правайдэра ў наладах."
+        "note_sync": "Заўвага: Спіс мадэляў абнаўляецца аўтаматычна. Вы таксама можаце змяніць правайдэра ў наладах.",
+        "usb_export": "USB Экспарт",
+        "select_drive": "Абярыце USB-накапляльнік",
+        "select_playlist": "Абярыце плэйліст",
+        "no_drives": "USB-накапляльнікі не падключаны",
+        "no_playlists": "Няма даступных плэйлістоў",
+        "export_button": "Адправіць на USB Flash",
+        "exporting": "Экспарт: {}/{} трэкаў...",
+        "export_success": "Паспяхова экспартавана {} трэкаў!",
+        "export_partial": "Экспартавана {} з {} трэкаў. {} прапушчана (DRM/не спампавана).",
+        "disk_full_title": "Недастаткова месца",
+        "disk_full_msg": "Плэйліст: {} ({} трэкаў)\nДаступна: {}\n\nАбярыце дзеянне:",
+        "fit_available": "Умясціць колькі магчыма (выпадковы выбар)",
+        "cancel": "Адмена",
+        "incompatible_fs": "Увага: фармат {} можа не падтрымлівацца Android-магнітоламі.",
+        "drive_disconnected": "USB-накапляльнік адключаны падчас экспарту!",
+        "free_space": "Вольна: {}",
+        "tracks_count": "{} трэкаў"
     ]
     
     private let ko: [String: String] = [
@@ -107,7 +158,24 @@ class LocalizationService: ObservableObject {
         "welcome": "성공! 환영합니다.", "val_failed": "확인 실패: {}", "lang_section": "언어", "refresh_cache": "로컬 음악 데이터베이스 캐시를 새로 고칩니다.",
         "lib_not_read": "음악 보관함이 비어 있거나 읽을 수 없습니다.", "analysis_complete": "분석 완료. 분할된 앨범이 발견되지 않았습니다.",
         "found_albums": "수정할 앨범 {}개를 찾았습니다.", "processing_files": "파일 처리 중...", "error_folder": "폴더 스캔 중 오류가 발생했습니다.",
-        "note_sync": "참고: 모델 목록은 동기화 버튼을 통해 자동으로 업데이트됩니다."
+        "note_sync": "참고: 모델 목록은 동기화 버튼을 통해 자동으로 업데이트됩니다.",
+        "usb_export": "USB 내보내기",
+        "select_drive": "USB 드라이브 선택",
+        "select_playlist": "플레이리스트 선택",
+        "no_drives": "연결된 USB 드라이브 없음",
+        "no_playlists": "사용 가능한 플레이리스트 없음",
+        "export_button": "USB 플래시로 내보내기",
+        "exporting": "내보내는 중: {}/{} 트랙...",
+        "export_success": "{}개 트랙을 성공적으로 내보냈습니다!",
+        "export_partial": "{}개 중 {}개 트랙을 내보냈습니다. {}개 건너뜀 (DRM/다운로드되지 않음).",
+        "disk_full_title": "공간 부족",
+        "disk_full_msg": "플레이리스트: {} ({} 트랙)\n사용 가능: {}\n\n작업 선택:",
+        "fit_available": "가능한 만큼 복사 (무작위 선택)",
+        "cancel": "취소",
+        "incompatible_fs": "경고: {} 형식은 안드로이드 카 시스템에서 지원되지 않을 수 있습니다.",
+        "drive_disconnected": "내보내는 동안 USB 드라이브가 연결 해제되었습니다!",
+        "free_space": "여유 공간: {}",
+        "tracks_count": "{} 트랙"
     ]
     
     private let ja: [String: String] = [
@@ -131,7 +199,24 @@ class LocalizationService: ObservableObject {
         "welcome": "成功しました！ようこそ。", "val_failed": "検証に失敗しました: {}", "lang_section": "言語", "refresh_cache": "ローカル音楽データベースのキャッシュを更新します。",
         "lib_not_read": "Musicライブラリが空か、読み込めませんでした。", "analysis_complete": "分析完了。分割されたアルバムは見つかりませんでした。",
         "found_albums": "修正が必要なアルバムが{}件見つかりました。", "processing_files": "ファイルを処理中...", "error_folder": "フォルダのスキャン中にエラーが発生しました。",
-        "note_sync": "注意：モデルリストは同期ボタンを介して自動的に更新されます。"
+        "note_sync": "注意：モデルリストは同期ボタンを介して自動的に更新されます。",
+        "usb_export": "USBエクスポート",
+        "select_drive": "USBドライブを選択",
+        "select_playlist": "プレイリストを選択",
+        "no_drives": "接続されたUSBドライブはありません",
+        "no_playlists": "利用可能なプレイリストはありません",
+        "export_button": "USBフラッシュにエクスポート",
+        "exporting": "エクスポート中: {}/{} トラック...",
+        "export_success": "{}曲のエクスポートに成功しました！",
+        "export_partial": "{}曲中{}曲をエクスポートしました。{}曲スキップ（DRM/未ダウンロード）。",
+        "disk_full_title": "空き容量不足",
+        "disk_full_msg": "プレイリスト: {} ({} 曲)\n空き容量: {}\n\nアクションを選択:",
+        "fit_available": "可能な限りコピー（ランダム選択）",
+        "cancel": "キャンセル",
+        "incompatible_fs": "警告: {} 形式はAndroidカーシステムでサポートされていない可能性があります。",
+        "drive_disconnected": "エクスポート中にUSBドライブが切断されました！",
+        "free_space": "空き: {}",
+        "tracks_count": "{}曲"
     ]
     
     private let zh: [String: String] = [
@@ -155,7 +240,24 @@ class LocalizationService: ObservableObject {
         "welcome": "成功！欢迎。", "val_failed": "验证失败: {}", "lang_section": "语言", "refresh_cache": "刷新本地音乐数据库缓存。",
         "lib_not_read": "您的音乐资料库为空或无法读取。", "analysis_complete": "分析完成。未发现拆分的专辑。",
         "found_albums": "发现 {} 个需要修复的专辑。", "processing_files": "正在处理文件...", "error_folder": "扫描文件夹时出错。",
-        "note_sync": "注意：模型列表通过同步按钮自动更新。"
+        "note_sync": "注意：模型列表通过同步按钮自动更新。",
+        "usb_export": "USB 导出",
+        "select_drive": "选择 USB 驱动器",
+        "select_playlist": "选择播放列表",
+        "no_drives": "未连接 USB 驱动器",
+        "no_playlists": "没有可用的播放列表",
+        "export_button": "导出到 USB 闪存盘",
+        "exporting": "正在导出: {}/{} 首曲目...",
+        "export_success": "已成功导出 {} 首曲目！",
+        "export_partial": "已导出 {}/{} 首曲目。已跳过 {} 首（DRM/未下载）。",
+        "disk_full_title": "空间不足",
+        "disk_full_msg": "播放列表: {} ({} 首曲目)\n可用空间: {}\n\n选择操作:",
+        "fit_available": "复制能容纳的项目（随机选择）",
+        "cancel": "取消",
+        "incompatible_fs": "警告: Android 车载系统可能不支持 {} 格式。",
+        "drive_disconnected": "导出过程中 USB 驱动器已断开！",
+        "free_space": "可用: {}",
+        "tracks_count": "{} 首曲目"
     ]
     
     private let de: [String: String] = [
@@ -179,7 +281,24 @@ class LocalizationService: ObservableObject {
         "welcome": "Erfolgreich! Willkommen.", "val_failed": "Validierung fehlgeschlagen: {}", "lang_section": "Sprache", "refresh_cache": "Lokalen Musikdatenbank-Cache aktualisieren.",
         "lib_not_read": "Ihre Musikbibliothek ist leer oder konnte nicht gelesen werden.", "analysis_complete": "Analyse abgeschlossen. Keine geteilten Alben gefunden.",
         "found_albums": "{} Alben zum Reparieren gefunden.", "processing_files": "Dateien werden verarbeitet...", "error_folder": "Fehler beim Scannen des Ordners.",
-        "note_sync": "Hinweis: Die Modellliste wird automatisch über die Schaltfläche Sync aktualisiert."
+        "note_sync": "Hinweis: Die Modellliste wird automatisch über die Schaltfläche Sync aktualisiert.",
+        "usb_export": "USB-Export",
+        "select_drive": "USB-Laufwerk auswählen",
+        "select_playlist": "Playlist auswählen",
+        "no_drives": "Keine USB-Laufwerke angeschlossen",
+        "no_playlists": "Keine Playlists verfügbar",
+        "export_button": "Auf USB-Stick exportieren",
+        "exporting": "Exportieren: {}/{} Titel...",
+        "export_success": "{} Titel erfolgreich exportiert!",
+        "export_partial": "{} von {} Titeln exportiert. {} übersprungen (DRM/nicht heruntergeladen).",
+        "disk_full_title": "Nicht genügend Speicherplatz",
+        "disk_full_msg": "Playlist: {} ({} Titel)\nVerfügbar: {}\n\nAktion wählen:",
+        "fit_available": "Kopieren was passt (zufällige Auswahl)",
+        "cancel": "Abbrechen",
+        "incompatible_fs": "Warnung: Das Format {} wird von Android-Autosystemen möglicherweise nicht unterstützt.",
+        "drive_disconnected": "USB-Laufwerk während des Exports getrennt!",
+        "free_space": "Frei: {}",
+        "tracks_count": "{} Titel"
     ]
     
     private let pl: [String: String] = [
@@ -203,7 +322,24 @@ class LocalizationService: ObservableObject {
         "welcome": "Sukces! Witamy.", "val_failed": "Weryfikacja nie powiodła się: {}", "lang_section": "Język", "refresh_cache": "Odśwież pamięć podręczną lokalnej bazy danych muzyki.",
         "lib_not_read": "Biblioteka muzyczna jest pusta lub nie można jej odczytać.", "analysis_complete": "Analiza zakończona. Nie znaleziono podzielonych albumów.",
         "found_albums": "Znaleziono {} albumów do naprawy.", "processing_files": "Przetwarzanie plików...", "error_folder": "Błąd skanowania folderu.",
-        "note_sync": "Uwaga: Lista modeli aktualizuje się automatycznie za pomocą przycisku Sync."
+        "note_sync": "Uwaga: Lista modeli aktualizuje się automatycznie za pomocą przycisku Sync.",
+        "usb_export": "Eksport USB",
+        "select_drive": "Wybierz dysk USB",
+        "select_playlist": "Wybierz playlistę",
+        "no_drives": "Brak podłączonych dysków USB",
+        "no_playlists": "Brak dostępnych playlist",
+        "export_button": "Eksportuj na pamięć USB",
+        "exporting": "Eksportowanie: {}/{} utworów...",
+        "export_success": "Pomyślnie wyeksportowano {} utworów!",
+        "export_partial": "Wyeksportowano {} z {} utworów. {} pominięto (DRM/niepobrane).",
+        "disk_full_title": "Za mało miejsca",
+        "disk_full_msg": "Playlista: {} ({} utworów)\nDostępne: {}\n\nWybierz działanie:",
+        "fit_available": "Kopiuj to, co się zmieści (wybór losowy)",
+        "cancel": "Anuluj",
+        "incompatible_fs": "Ostrzeżenie: Format {} może nie być obsługiwany przez samochodowe systemy Android.",
+        "drive_disconnected": "Dysk USB odłączony podczas eksportu!",
+        "free_space": "Wolne: {}",
+        "tracks_count": "{} utworów"
     ]
     
     private let et: [String: String] = [
@@ -227,7 +363,24 @@ class LocalizationService: ObservableObject {
         "welcome": "Edukas! Tere tulemast.", "val_failed": "Valideerimine ebaõnnestus: {}", "lang_section": "Keel", "refresh_cache": "Värskendage kohaliku muusikaandmebaasi vahemälu.",
         "lib_not_read": "Teie muusikakogu on tühi või seda ei saanud lugeda.", "analysis_complete": "Analüüs lõpetatud. Jagatud albumeid ei leitud.",
         "found_albums": "Leiti {} albumit parandamiseks.", "processing_files": "Failide töötlemine...", "error_folder": "Viga kausta skannimisel.",
-        "note_sync": "Märkus: Mudelite loend uueneb automaatselt sünkroonimisnupu kaudu."
+        "note_sync": "Märkus: Mudelite loend uueneb automaatselt sünkroonimisnupu kaudu.",
+        "usb_export": "USB Eksport",
+        "select_drive": "Vali USB-draiv",
+        "select_playlist": "Vali esitusloend",
+        "no_drives": "Ühtegi USB-draivi pole ühendatud",
+        "no_playlists": "Esitusloendeid pole saadaval",
+        "export_button": "Eksporti USB-mälupulgale",
+        "exporting": "Eksportimine: {}/{} lugu...",
+        "export_success": "Edukalt eksporditud {} lugu!",
+        "export_partial": "Eksporditud {} / {} lugu. Vahele jäetud {} (DRM / pole allalaaditud).",
+        "disk_full_title": "Pole piisavalt ruumi",
+        "disk_full_msg": "Esitusloend: {} ({} lugu)\nSaadaval: {}\n\nVali tegevus:",
+        "fit_available": "Kopeeri, mis mahub (juhuslik valik)",
+        "cancel": "Tühista",
+        "incompatible_fs": "Hoiatus: {} vormingut ei pruugi Androidi autosüsteemid toetada.",
+        "drive_disconnected": "USB-draiv ühendati eksportimise ajal lahti!",
+        "free_space": "Vaba: {}",
+        "tracks_count": "{} lugu"
     ]
     
     private let es: [String: String] = [
@@ -251,7 +404,24 @@ class LocalizationService: ObservableObject {
         "welcome": "¡Éxito! Bienvenido.", "val_failed": "Validación fallida: {}", "lang_section": "Idioma", "refresh_cache": "Actualizar el caché de la base de datos de música local.",
         "lib_not_read": "Su biblioteca de música está vacía o no se pudo leer.", "analysis_complete": "Análisis completo. No se encontraron álbumes divididos.",
         "found_albums": "Se encontraron {} álbumes para reparar.", "processing_files": "Procesando archivos...", "error_folder": "Error al escanear la carpeta.",
-        "note_sync": "Nota: La lista de modelos se actualiza automáticamente mediante el botón de sincronización."
+        "note_sync": "Nota: La lista de modelos se actualiza automáticamente mediante el botón de sincronización.",
+        "usb_export": "Exportar a USB",
+        "select_drive": "Seleccione unidad USB",
+        "select_playlist": "Seleccione lista de reproducción",
+        "no_drives": "No hay unidades USB conectadas",
+        "no_playlists": "No hay listas disponibles",
+        "export_button": "Exportar a memoria USB",
+        "exporting": "Exportando: {}/{} pistas...",
+        "export_success": "¡Se exportaron con éxito {} pistas!",
+        "export_partial": "Se exportaron {} de {} pistas. {} omitidas (DRM/no descargadas).",
+        "disk_full_title": "Espacio insuficiente",
+        "disk_full_msg": "Lista: {} ({} pistas)\nDisponible: {}\n\nSeleccione acción:",
+        "fit_available": "Copiar lo que quepa (selección aleatoria)",
+        "cancel": "Cancelar",
+        "incompatible_fs": "Advertencia: El formato {} puede no ser compatible con sistemas Android para coche.",
+        "drive_disconnected": "¡Unidad USB desconectada durante la exportación!",
+        "free_space": "Libre: {}",
+        "tracks_count": "{} pistas"
     ]
     
     private var languages: [String: [String: String]] {
