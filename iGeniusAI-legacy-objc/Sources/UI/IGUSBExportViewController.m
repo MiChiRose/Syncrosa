@@ -20,6 +20,14 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
 
+@property (nonatomic, strong) NSTextField *titleLabel;
+@property (nonatomic, strong) NSTextField *instrLabel;
+@property (nonatomic, strong) NSTextField *driveLabel;
+@property (nonatomic, strong) NSTextField *playlistLabel;
+@property (nonatomic, strong) NSTextField *modeLabel;
+@property (nonatomic, strong) NSButton *refreshBtn;
+@property (nonatomic, strong) NSTextField *footerLabel;
+
 @property (nonatomic, strong) NSArray<IGUSBDrive *> *drives;
 @property (nonatomic, strong) NSArray<NSDictionary *> *playlists;
 @property (nonatomic, strong) NSArray<NSDictionary *> *currentPlaylistTracks;
@@ -43,6 +51,12 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
                                                  name:@"IGUSBDrivesUpdatedNotification"
                                                object:nil];
     
+    // Register for language changes
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(localizationChanged:)
+                                                 name:@"IGLanguageChangedNotification"
+                                               object:nil];
+    
     [[IGUSBService sharedService] startMonitoring];
     [self reloadDrives];
     [self reloadPlaylists];
@@ -54,50 +68,44 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 }
 
 - (void)setupUI {
-    IGLocalizationService *lang = [IGLocalizationService sharedService];
-    
     // Title
-    NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 430, 540, 30)];
-    titleLabel.stringValue = [lang t:@"usb_export"];
-    titleLabel.font = [NSFont boldSystemFontOfSize:18];
-    titleLabel.editable = NO;
-    titleLabel.bordered = NO;
-    titleLabel.drawsBackground = NO;
-    titleLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:titleLabel];
+    self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 430, 540, 30)];
+    self.titleLabel.font = [NSFont boldSystemFontOfSize:18];
+    self.titleLabel.editable = NO;
+    self.titleLabel.bordered = NO;
+    self.titleLabel.drawsBackground = NO;
+    self.titleLabel.alignment = NSCenterTextAlignment;
+    [self.view addSubview:self.titleLabel];
     
     // Subtitle instructions
-    NSTextField *instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 395, 500, 30)];
-    instrLabel.stringValue = @"Export your iTunes playlists directly to an external flash drive.";
-    instrLabel.font = [NSFont systemFontOfSize:11];
-    instrLabel.textColor = [NSColor grayColor];
-    instrLabel.editable = NO;
-    instrLabel.bordered = NO;
-    instrLabel.drawsBackground = NO;
-    instrLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:instrLabel];
+    self.instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 395, 500, 30)];
+    self.instrLabel.font = [NSFont systemFontOfSize:11];
+    self.instrLabel.textColor = [NSColor grayColor];
+    self.instrLabel.editable = NO;
+    self.instrLabel.bordered = NO;
+    self.instrLabel.drawsBackground = NO;
+    self.instrLabel.alignment = NSCenterTextAlignment;
+    [self.view addSubview:self.instrLabel];
     
     // Drive Picker
-    NSTextField *driveLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 350, 150, 20)];
-    driveLabel.stringValue = [lang t:@"select_drive"];
-    driveLabel.font = [NSFont systemFontOfSize:13];
-    driveLabel.editable = NO;
-    driveLabel.bordered = NO;
-    driveLabel.drawsBackground = NO;
-    [self.view addSubview:driveLabel];
+    self.driveLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 350, 150, 20)];
+    self.driveLabel.font = [NSFont systemFontOfSize:13];
+    self.driveLabel.editable = NO;
+    self.driveLabel.bordered = NO;
+    self.driveLabel.drawsBackground = NO;
+    [self.view addSubview:self.driveLabel];
     
     self.drivePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 348, 300, 26) pullsDown:NO];
     self.drivePopup.target = self;
     self.drivePopup.action = @selector(driveSelected:);
     [self.view addSubview:self.drivePopup];
     
-    NSButton *refreshBtn = [[NSButton alloc] initWithFrame:NSMakeRect(505, 346, 35, 28)];
-    refreshBtn.bezelStyle = NSRecessedBezelStyle;
-    refreshBtn.title = @"↻";
-    refreshBtn.target = self;
-    refreshBtn.action = @selector(refreshClicked:);
-    [refreshBtn setToolTip:[lang.selectedLanguage isEqualToString:@"ru"] ? @"Обновить" : @"Refresh"];
-    [self.view addSubview:refreshBtn];
+    self.refreshBtn = [[NSButton alloc] initWithFrame:NSMakeRect(505, 346, 35, 28)];
+    self.refreshBtn.bezelStyle = NSRecessedBezelStyle;
+    self.refreshBtn.title = @"↻";
+    self.refreshBtn.target = self;
+    self.refreshBtn.action = @selector(refreshClicked:);
+    [self.view addSubview:self.refreshBtn];
     
     self.driveInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 322, 340, 18)];
     self.driveInfoLabel.font = [NSFont systemFontOfSize:11];
@@ -108,13 +116,12 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.driveInfoLabel];
     
     // Playlist Picker
-    NSTextField *playlistLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 280, 150, 20)];
-    playlistLabel.stringValue = [lang t:@"select_playlist"];
-    playlistLabel.font = [NSFont systemFontOfSize:13];
-    playlistLabel.editable = NO;
-    playlistLabel.bordered = NO;
-    playlistLabel.drawsBackground = NO;
-    [self.view addSubview:playlistLabel];
+    self.playlistLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 280, 150, 20)];
+    self.playlistLabel.font = [NSFont systemFontOfSize:13];
+    self.playlistLabel.editable = NO;
+    self.playlistLabel.bordered = NO;
+    self.playlistLabel.drawsBackground = NO;
+    [self.view addSubview:self.playlistLabel];
     
     self.playlistPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 278, 340, 26) pullsDown:NO];
     self.playlistPopup.target = self;
@@ -130,21 +137,18 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.playlistInfoLabel];
     
     // Mode Picker
-    NSTextField *modeLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 210, 150, 20)];
-    modeLabel.stringValue = @"Export Mode:";
-    modeLabel.font = [NSFont systemFontOfSize:13];
-    modeLabel.editable = NO;
-    modeLabel.bordered = NO;
-    modeLabel.drawsBackground = NO;
-    [self.view addSubview:modeLabel];
+    self.modeLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 210, 150, 20)];
+    self.modeLabel.font = [NSFont systemFontOfSize:13];
+    self.modeLabel.editable = NO;
+    self.modeLabel.bordered = NO;
+    self.modeLabel.drawsBackground = NO;
+    [self.view addSubview:self.modeLabel];
     
     self.modePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 208, 340, 26) pullsDown:NO];
-    [self.modePopup addItemsWithTitles:@[@"Copy all tracks", @"Fit available space (random selection)"]];
     [self.view addSubview:self.modePopup];
     
     // Export Button
     self.exportButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, 150, 200, 40)];
-    self.exportButton.title = [lang t:@"export_button"];
     self.exportButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.exportButton.target = self;
     self.exportButton.action = @selector(exportClicked:);
@@ -168,15 +172,16 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.statusLabel];
     
     // Footer
-    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
-    footer.stringValue = @"© 2026 iGeniusAI | Note: DRM protected (.m4p) tracks are skipped.\nEnsure your USB drive filesystem matches your destination system.";
-    footer.font = [NSFont systemFontOfSize:10];
-    footer.textColor = [NSColor grayColor];
-    footer.alignment = NSCenterTextAlignment;
-    footer.editable = NO;
-    footer.bordered = NO;
-    footer.drawsBackground = NO;
-    [self.view addSubview:footer];
+    self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
+    self.footerLabel.font = [NSFont systemFontOfSize:10];
+    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.alignment = NSCenterTextAlignment;
+    self.footerLabel.editable = NO;
+    self.footerLabel.bordered = NO;
+    self.footerLabel.drawsBackground = NO;
+    [self.view addSubview:self.footerLabel];
+    
+    [self updateLocalization];
 }
 
 #pragma mark - Data Loading
@@ -267,6 +272,44 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     BOOL hasDrive = (self.drives.count > 0);
     BOOL hasPlaylist = (self.currentPlaylistTracks.count > 0);
     self.exportButton.enabled = hasDrive && hasPlaylist && !self.isExporting;
+}
+
+- (void)updateLocalization {
+    IGLocalizationService *lang = [IGLocalizationService sharedService];
+    
+    self.titleLabel.stringValue = [lang t:@"usb_export"];
+    self.instrLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? 
+        @"Экспорт плейлистов iTunes прямо на внешний флеш-накопитель." : 
+        @"Export your iTunes playlists directly to an external flash drive.";
+        
+    self.driveLabel.stringValue = [lang t:@"select_drive"];
+    self.playlistLabel.stringValue = [lang t:@"select_playlist"];
+    self.modeLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Режим экспорта:" : @"Export Mode:";
+    
+    // Save selected mode index and restore after rebuilding options
+    NSInteger selectedIdx = [self.modePopup indexOfSelectedItem];
+    [self.modePopup removeAllItems];
+    [self.modePopup addItemsWithTitles:@[
+        [lang.selectedLanguage isEqualToString:@"ru"] ? @"Копировать все треки" : @"Copy all tracks",
+        [lang.selectedLanguage isEqualToString:@"ru"] ? @"Заполнить доступное место (случайный выбор)" : @"Fit available space (random selection)"
+    ]];
+    if (selectedIdx >= 0 && selectedIdx < self.modePopup.numberOfItems) {
+        [self.modePopup selectItemAtIndex:selectedIdx];
+    }
+    
+    self.exportButton.title = [lang t:@"export_button"];
+    [self.refreshBtn setToolTip:[lang.selectedLanguage isEqualToString:@"ru"] ? @"Обновить" : @"Refresh"];
+    
+    self.footerLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? 
+        @"© 2026 iGeniusAI | Примечание: Защищенные DRM (.m4p) треки пропускаются.\nУбедитесь, что файловая система USB совпадает с целевой системой." : 
+        @"© 2026 iGeniusAI | Note: DRM protected (.m4p) tracks are skipped.\nEnsure your USB drive filesystem matches your destination system.";
+        
+    [self reloadDrives];
+    [self reloadPlaylists];
+}
+
+- (void)localizationChanged:(NSNotification *)notification {
+    [self updateLocalization];
 }
 
 - (void)refreshClicked:(id)sender {
