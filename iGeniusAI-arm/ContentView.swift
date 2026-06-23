@@ -5,6 +5,7 @@ struct ContentView: View {
     
     @AppStorage("is_key_validated") private var isKeyValidated: Bool = false
     
+    @ObservedObject var usbService = USBService.shared
     @State private var selectedTab: Tab? = nil
     @State private var showHelp: Bool = false
     
@@ -37,8 +38,12 @@ struct ContentView: View {
                     NavigationLink(value: Tab.usbExport) {
                         Label(lang.t("usb_export"), systemImage: "externaldrive.fill")
                     }
+                    .disabled(usbService.isSearching)
+                    .opacity(usbService.isSearching ? 0.5 : 1.0)
                     .simultaneousGesture(TapGesture().onEnded {
-                        NotificationCenter.default.post(name: NSNotification.Name("RefreshUSBExportTab"), object: nil)
+                        if selectedTab == Tab.usbExport {
+                            NotificationCenter.default.post(name: NSNotification.Name("RefreshUSBExportTab"), object: nil)
+                        }
                     })
                 }
                 

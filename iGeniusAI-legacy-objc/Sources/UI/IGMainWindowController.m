@@ -76,6 +76,11 @@
                                                  name:@"IGLanguageChangedNotification"
                                                object:nil];
     
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(drivesUpdatedNotification:)
+                                                 name:@"IGUSBDrivesUpdatedNotification"
+                                               object:nil];
+    
     // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
     NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
     NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
@@ -86,15 +91,22 @@
     }
 }
 
+- (void)drivesUpdatedNotification:(NSNotification *)notification {
+    [self updateButtonStates];
+}
+
 - (void)updateButtonStates {
     NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
     NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     BOOL hasKey = (apiKey && apiKey.length > 0);
+    BOOL isUSBSearching = [IGUSBService sharedService].isSearching;
     
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
         NSButton *btn = self.sidebarButtons[i];
         if (i == 0) { // Only Genius Playlist requires an API key
             btn.enabled = hasKey;
+        } else if (i == 3) { // USB Export button
+            btn.enabled = !isUSBSearching;
         } else {
             btn.enabled = YES;
         }
@@ -152,7 +164,15 @@
 }
 
 - (void)sidebarClicked:(NSButton *)sender {
-    [self switchViewToIndex:sender.tag];
+    NSInteger index = sender.tag;
+    BOOL isNew = (index == 3 && self.usbExportVC == nil);
+    
+    [self switchViewToIndex:index];
+    
+    if (index == 3 && !isNew) {
+        [[IGUSBService sharedService] updateDrives];
+        [self.usbExportVC reloadPlaylists];
+    }
 }
 
 - (void)switchViewToIndex:(NSInteger)index {
@@ -211,11 +231,6 @@
         targetVC.view.frame = self.contentContainer.bounds;
         targetVC.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         [self.contentContainer addSubview:targetVC.view];
-        
-        if ([targetVC isKindOfClass:[IGUSBExportViewController class]]) {
-            [[IGUSBService sharedService] updateDrives];
-            [(IGUSBExportViewController *)targetVC reloadPlaylists];
-        }
     }
 }
 

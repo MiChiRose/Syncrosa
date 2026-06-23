@@ -26,6 +26,7 @@ class USBService: ObservableObject {
     static let shared = USBService()
     
     @Published var availableDrives: [USBDrive] = []
+    @Published var isSearching: Bool = false
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
@@ -54,54 +55,70 @@ class USBService: ObservableObject {
     }
     
     func updateDrives() {
-        let keys: [URLResourceKey] = [
-            .volumeNameKey,
-            .volumeIsRemovableKey,
-            .volumeIsEjectableKey,
-            .volumeTotalCapacityKey,
-            .volumeAvailableCapacityKey,
-            .volumeLocalizedFormatDescriptionKey
-        ]
-        
-        let fm = FileManager.default
-        guard let urls = fm.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: []) else { return }
-        
-        var drives: [USBDrive] = []
-        
-        for url in urls {
-            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
-            
-            let isRemovable = values.volumeIsRemovable ?? false
-            let isEjectable = values.volumeIsEjectable ?? false
-            
-            // Only include external removable volumes mounted under /Volumes/
-            if (isRemovable || isEjectable) && url.path.hasPrefix("/Volumes/") {
-                let name = values.volumeName ?? url.lastPathComponent
-                let totalSpace = Int64(values.volumeTotalCapacity ?? 0)
-                let freeSpace = Int64(values.volumeAvailableCapacity ?? 0)
-                let fsLabel = values.volumeLocalizedFormatDescription ?? "Unknown"
-                
-                // Retrieve raw filesystem type name using statfs
-                let fsType = getRawFilesystemType(for: url)
-                
-                let drive = USBDrive(
-                    name: name,
-                    volumeURL: url,
-                    totalSpace: totalSpace,
-                    freeSpace: freeSpace,
-                    filesystemType: fsType,
-                    filesystemLabel: fsLabel
-                )
-                
-                // Prevent duplicate mount points (e.g. nested or system mounts)
-                if !drives.contains(where: { $0.volumeURL == drive.volumeURL }) {
-                    drives.append(drive)
-                }
+        if Thread.isMainThread {
+            self.isSearching = true
+        } else {
+            DispatchQueue.main.async {
+                self.isSearching = true
             }
         }
         
-        DispatchQueue.main.async {
-            self.availableDrives = drives
+        DispatchQueue.global(qos: .userInitiated).async {
+            let keys: [URLResourceKey] = [
+                .volumeNameKey,
+                .volumeIsRemovableKey,
+                .volumeIsEjectableKey,
+                .volumeTotalCapacityKey,
+                .volumeAvailableCapacityKey,
+                .volumeLocalizedFormatDescriptionKey
+            ]
+            
+            let fm = FileManager.default
+            guard let urls = fm.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: []) else {
+                DispatchQueue.main.async {
+                    self.isSearching = false
+                }
+                return
+            }
+            
+            var drives: [USBDrive] = []
+            
+            for url in urls {
+                guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+                
+                let isRemovable = values.volumeIsRemovable ?? false
+                let isEjectable = values.volumeIsEjectable ?? false
+                
+                // Only include external removable volumes mounted under /Volumes/
+                if (isRemovable || isEjectable) && url.path.hasPrefix("/Volumes/") {
+                    let name = values.volumeName ?? url.lastPathComponent
+                    let totalSpace = Int64(values.volumeTotalCapacity ?? 0)
+                    let freeSpace = Int64(values.volumeAvailableCapacity ?? 0)
+                    let fsLabel = values.volumeLocalizedFormatDescription ?? "Unknown"
+                    
+                    // Retrieve raw filesystem type name using statfs
+                    let fsType = self.getRawFilesystemType(for: url)
+                    
+                    let drive = USBDrive(
+                        name: name,
+                        volumeURL: url,
+                        totalSpace: totalSpace,
+                        freeSpace: freeSpace,
+                        filesystemType: fsType,
+                        filesystemLabel: fsLabel
+                    )
+                    
+                    // Prevent duplicate mount points (e.g. nested or system mounts)
+                    if !drives.contains(where: { $0.volumeURL == drive.volumeURL }) {
+                        drives.append(drive)
+                    }
+                }
+            }
+            
+            DispatchQueue.main.async {
+                self.availableDrives = drives
+                self.isSearching = false
+            }
         }
     }
     

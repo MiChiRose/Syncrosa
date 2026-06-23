@@ -57,10 +57,19 @@ struct USBExportView: View {
                                     .font(.caption2)
                             }
                             .buttonStyle(.plain)
+                            .disabled(usbService.isSearching)
                             .help(lang.selectedLanguage == "ru" ? "Обновить" : "Refresh")
                         }
                         
-                        if usbService.availableDrives.isEmpty {
+                        if usbService.isSearching {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text(lang.selectedLanguage == "ru" ? "Поиск накопителей..." : "Searching for drives...")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 8)
+                        } else if usbService.availableDrives.isEmpty {
                             HStack {
                                 Image(systemName: "externaldrive.badge.exclamationmark")
                                     .foregroundColor(.red)

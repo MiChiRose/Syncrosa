@@ -190,12 +190,23 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     self.drives = [IGUSBService sharedService].availableDrives;
     [self.drivePopup removeAllItems];
     
-    if (self.drives.count == 0) {
+    BOOL isSearching = [IGUSBService sharedService].isSearching;
+    
+    if (isSearching) {
+        NSString *searchStr = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ? 
+            @"Поиск накопителей..." : @"Searching for drives...";
+        [self.drivePopup addItemWithTitle:searchStr];
+        self.drivePopup.enabled = NO;
+        self.driveInfoLabel.stringValue = @"";
+        self.refreshBtn.enabled = NO;
+    } else if (self.drives.count == 0) {
         [self.drivePopup addItemWithTitle:[[IGLocalizationService sharedService] t:@"no_drives"]];
         self.drivePopup.enabled = NO;
         self.driveInfoLabel.stringValue = @"";
+        self.refreshBtn.enabled = YES;
     } else {
         self.drivePopup.enabled = YES;
+        self.refreshBtn.enabled = YES;
         for (IGUSBDrive *drive in self.drives) {
             [self.drivePopup addItemWithTitle:drive.name];
         }

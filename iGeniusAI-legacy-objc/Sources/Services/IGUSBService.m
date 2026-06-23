@@ -18,6 +18,7 @@
 
 @interface IGUSBService ()
 @property (nonatomic, strong, readwrite) NSArray<IGUSBDrive *> *availableDrives;
+@property (nonatomic, assign, readwrite) BOOL isSearching;
 @end
 
 @implementation IGUSBService
@@ -69,51 +70,64 @@
 }
 
 - (void)updateDrives {
-    NSArray *keys = @[
-        NSURLVolumeNameKey,
-        NSURLVolumeIsRemovableKey,
-        NSURLVolumeIsEjectableKey,
-        NSURLVolumeTotalCapacityKey,
-        NSURLVolumeAvailableCapacityKey,
-        NSURLVolumeLocalizedFormatDescriptionKey
-    ];
-    
-    NSArray *urls = [[NSFileManager defaultManager] mountedVolumeURLsIncludingResourceValuesForKeys:keys options:0];
-    NSMutableArray *drives = [NSMutableArray array];
-    
-    for (NSURL *url in urls) {
-        NSDictionary *values = [url resourceValuesForKeys:keys error:nil];
-        if (!values) continue;
-        
-        BOOL isRemovable = [values[NSURLVolumeIsRemovableKey] boolValue];
-        BOOL isEjectable = [values[NSURLVolumeIsEjectableKey] boolValue];
-        
-        if ((isRemovable || isEjectable) && [url.path hasPrefix:@"/Volumes/"]) {
-            IGUSBDrive *drive = [[IGUSBDrive alloc] init];
-            drive.name = values[NSURLVolumeNameKey] ?: [url lastPathComponent];
-            drive.volumeURL = url;
-            drive.totalSpace = [values[NSURLVolumeTotalCapacityKey] longLongValue];
-            drive.freeSpace = [values[NSURLVolumeAvailableCapacityKey] longLongValue];
-            drive.filesystemLabel = values[NSURLVolumeLocalizedFormatDescriptionKey] ?: @"Unknown";
-            drive.filesystemType = [self getRawFilesystemType:url];
-            
-            // Deduplicate
-            BOOL exists = NO;
-            for (IGUSBDrive *d in drives) {
-                if ([d.volumeURL isEqual:drive.volumeURL]) {
-                    exists = YES;
-                    break;
-                }
-            }
-            if (!exists) {
-                [drives addObject:drive];
-            }
-        }
+    if ([NSThread isMainThread]) {
+        self.isSearching = YES;
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"IGUSBDrivesUpdatedNotification" object:nil];
+    } else {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.isSearching = YES;
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"IGUSBDrivesUpdatedNotification" object:nil];
+        });
     }
     
-    dispatch_async(dispatch_get_main_queue(), ^{
-        self.availableDrives = drives;
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"IGUSBDrivesUpdatedNotification" object:nil];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSArray *keys = @[
+            NSURLVolumeNameKey,
+            NSURLVolumeIsRemovableKey,
+            NSURLVolumeIsEjectableKey,
+            NSURLVolumeTotalCapacityKey,
+            NSURLVolumeAvailableCapacityKey,
+            NSURLVolumeLocalizedFormatDescriptionKey
+        ];
+        
+        NSArray *urls = [[NSFileManager defaultManager] mountedVolumeURLsIncludingResourceValuesForKeys:keys options:0];
+        NSMutableArray *drives = [NSMutableArray array];
+        
+        for (NSURL *url in urls) {
+            NSDictionary *values = [url resourceValuesForKeys:keys error:nil];
+            if (!values) continue;
+            
+            BOOL isRemovable = [values[NSURLVolumeIsRemovableKey] boolValue];
+            BOOL isEjectable = [values[NSURLVolumeIsEjectableKey] boolValue];
+            
+            if ((isRemovable || isEjectable) && [url.path hasPrefix:@"/Volumes/"]) {
+                IGUSBDrive *drive = [[IGUSBDrive alloc] init];
+                drive.name = values[NSURLVolumeNameKey] ?: [url lastPathComponent];
+                drive.volumeURL = url;
+                drive.totalSpace = [values[NSURLVolumeTotalCapacityKey] longLongValue];
+                drive.freeSpace = [values[NSURLVolumeAvailableCapacityKey] longLongValue];
+                drive.filesystemLabel = values[NSURLVolumeLocalizedFormatDescriptionKey] ?: @"Unknown";
+                drive.filesystemType = [self getRawFilesystemType:url];
+                
+                // Deduplicate
+                BOOL exists = NO;
+                for (IGUSBDrive *d in drives) {
+                    if ([d.volumeURL isEqual:drive.volumeURL]) {
+                        exists = YES;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    [drives addObject:drive];
+                }
+            }
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.availableDrives = drives;
+            self.isSearching = NO;
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"IGUSBDrivesUpdatedNotification" object:nil];
+        });
     });
 }
 
