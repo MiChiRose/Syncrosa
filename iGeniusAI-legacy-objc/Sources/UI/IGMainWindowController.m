@@ -164,15 +164,7 @@
 }
 
 - (void)sidebarClicked:(NSButton *)sender {
-    NSInteger index = sender.tag;
-    BOOL isNew = (index == 3 && self.usbExportVC == nil);
-    
-    [self switchViewToIndex:index];
-    
-    if (index == 3 && !isNew) {
-        [[IGUSBService sharedService] updateDrives];
-        [self.usbExportVC reloadPlaylists];
-    }
+    [self switchViewToIndex:sender.tag];
 }
 
 - (void)switchViewToIndex:(NSInteger)index {

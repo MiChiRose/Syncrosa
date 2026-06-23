@@ -30,28 +30,11 @@ class USBService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
-        startMonitoring()
-        updateDrives()
+        // Manual updates only
     }
     
     func startMonitoring() {
-        let wsCenter = NSWorkspace.shared.notificationCenter
-        
-        wsCenter.publisher(for: NSWorkspace.didMountNotification)
-            .sink { [weak self] _ in
-                self?.updateDrives()
-                // Check again after 1.0 second as external mounts may take a moment to register capacities
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self?.updateDrives()
-                }
-            }
-            .store(in: &cancellables)
-            
-        wsCenter.publisher(for: NSWorkspace.didUnmountNotification)
-            .sink { [weak self] _ in
-                self?.updateDrives()
-            }
-            .store(in: &cancellables)
+        // Manual updates only
     }
     
     func updateDrives() {

@@ -59,7 +59,12 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     
     [[IGUSBService sharedService] startMonitoring];
     [self reloadDrives];
-    [self reloadPlaylists];
+    
+    // Set initial placeholder state for playlists without calling AppleScript
+    [self.playlistPopup removeAllItems];
+    [self.playlistPopup addItemWithTitle:[[IGLocalizationService sharedService] t:@"no_playlists"]];
+    self.playlistPopup.enabled = NO;
+    self.playlistInfoLabel.stringValue = @"";
 }
 
 - (void)dealloc {

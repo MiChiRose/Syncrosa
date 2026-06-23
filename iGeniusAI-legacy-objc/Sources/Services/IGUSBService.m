@@ -41,32 +41,19 @@
 }
 
 - (void)startMonitoring {
-    NSNotificationCenter *wsCenter = [[NSWorkspace sharedWorkspace] notificationCenter];
-    [wsCenter addObserver:self
-                 selector:@selector(volumeMounted:)
-                     name:NSWorkspaceDidMountNotification
-                   object:nil];
-    [wsCenter addObserver:self
-                 selector:@selector(volumeUnmounted:)
-                     name:NSWorkspaceDidUnmountNotification
-                   object:nil];
-    [self updateDrives];
+    // Manual updates only
 }
 
 - (void)stopMonitoring {
-    NSNotificationCenter *wsCenter = [[NSWorkspace sharedWorkspace] notificationCenter];
-    [wsCenter removeObserver:self];
+    // Manual updates only
 }
 
 - (void)volumeMounted:(NSNotification *)notification {
-    [self updateDrives];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self updateDrives];
-    });
+    // Manual updates only
 }
 
 - (void)volumeUnmounted:(NSNotification *)notification {
-    [self updateDrives];
+    // Manual updates only
 }
 
 - (void)updateDrives {

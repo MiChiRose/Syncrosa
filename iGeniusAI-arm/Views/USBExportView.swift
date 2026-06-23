@@ -172,14 +172,6 @@ struct USBExportView: View {
             .padding(30)
         }
         .notification(message: $activeNotification)
-        .onAppear {
-            usbService.updateDrives()
-            loadPlaylists()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshUSBExportTab"))) { _ in
-            usbService.updateDrives()
-            loadPlaylists()
-        }
         // Incompatible filesystem warning dialog
         .alert(isPresented: $showFSWarning) {
             Alert(

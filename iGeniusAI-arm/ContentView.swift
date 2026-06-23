@@ -40,11 +40,6 @@ struct ContentView: View {
                     }
                     .disabled(usbService.isSearching)
                     .opacity(usbService.isSearching ? 0.5 : 1.0)
-                    .simultaneousGesture(TapGesture().onEnded {
-                        if selectedTab == Tab.usbExport {
-                            NotificationCenter.default.post(name: NSNotification.Name("RefreshUSBExportTab"), object: nil)
-                        }
-                    })
                 }
                 
                 Divider()
