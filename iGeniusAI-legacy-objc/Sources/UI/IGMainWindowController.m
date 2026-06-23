@@ -219,6 +219,10 @@
     }
 }
 
+- (void)windowWillClose:(NSNotification *)notification {
+    [NSApp terminate:nil];
+}
+
 #pragma mark - SplitView Delegate
 - (CGFloat)splitView:(NSSplitView *)splitView constrainMaxCoordinate:(CGFloat)proposedMax ofSubviewAt:(NSInteger)dividerIndex {
     return 250;
