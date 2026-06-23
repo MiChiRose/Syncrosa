@@ -85,7 +85,7 @@
         BOOL isRemovable = [values[NSURLVolumeIsRemovableKey] boolValue];
         BOOL isEjectable = [values[NSURLVolumeIsEjectableKey] boolValue];
         
-        if (isRemovable || isEjectable) {
+        if ((isRemovable || isEjectable) && [url.path hasPrefix:@"/Volumes/"]) {
             IGUSBDrive *drive = [[IGUSBDrive alloc] init];
             drive.name = values[NSURLVolumeNameKey] ?: [url lastPathComponent];
             drive.volumeURL = url;

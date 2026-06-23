@@ -70,8 +70,8 @@ class USBService: ObservableObject {
             let isRemovable = values.volumeIsRemovable ?? false
             let isEjectable = values.volumeIsEjectable ?? false
             
-            // Only include external removable volumes
-            if isRemovable || isEjectable {
+            // Only include external removable volumes mounted under /Volumes/
+            if (isRemovable || isEjectable) && url.path.hasPrefix("/Volumes/") {
                 let name = values.volumeName ?? url.lastPathComponent
                 let totalSpace = Int64(values.volumeTotalCapacity ?? 0)
                 let freeSpace = Int64(values.volumeAvailableCapacity ?? 0)

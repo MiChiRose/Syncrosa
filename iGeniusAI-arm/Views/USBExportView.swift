@@ -198,7 +198,12 @@ struct USBExportView: View {
     }
     
     private func loadPlaylists() {
-        playlists = MusicService.shared.getUserPlaylists()
+        DispatchQueue.global(qos: .userInitiated).async {
+            let list = MusicService.shared.getUserPlaylists()
+            DispatchQueue.main.async {
+                self.playlists = list
+            }
+        }
     }
     
     private func updatePlaylistDetails(_ playlistName: String) {
@@ -209,21 +214,27 @@ struct USBExportView: View {
             return
         }
         
-        let rawTracks = MusicService.shared.getPlaylistTrackPaths(playlistName: playlistName)
-        playlistTracksCount = rawTracks.count
-        playlistSize = rawTracks.reduce(0) { $0 + $1.size }
-        
-        // Map to PlaylistExportService.TrackFile
-        tracksToExport = rawTracks.map { track in
-            let pathExtension = URL(fileURLWithPath: track.path).pathExtension.lowercased()
-            let isDRM = pathExtension == "m4p"
-            return PlaylistExportService.TrackFile(
-                name: track.name,
-                artist: track.artist,
-                filePath: track.path,
-                fileSize: track.size,
-                isDRM: isDRM
-            )
+        DispatchQueue.global(qos: .userInitiated).async {
+            let rawTracks = MusicService.shared.getPlaylistTrackPaths(playlistName: playlistName)
+            let count = rawTracks.count
+            let size = rawTracks.reduce(0) { $0 + $1.size }
+            let mapped = rawTracks.map { track in
+                let pathExtension = URL(fileURLWithPath: track.path).pathExtension.lowercased()
+                let isDRM = pathExtension == "m4p"
+                return PlaylistExportService.TrackFile(
+                    name: track.name,
+                    artist: track.artist,
+                    filePath: track.path,
+                    fileSize: track.size,
+                    isDRM: isDRM
+                )
+            }
+            
+            DispatchQueue.main.async {
+                self.playlistTracksCount = count
+                self.playlistSize = size
+                self.tracksToExport = mapped
+            }
         }
     }
     
