@@ -5,7 +5,7 @@
   <p><b>The ultimate power-tool for managing and creating Apple Music & iTunes playlists using AI.</b></p>
   <p align="center">
   <img src="https://img.shields.io/badge/Swift-SwiftUI-orange" alt="Swift / SwiftUI" />
-  <img src="https://img.shields.io/badge/Objective--C-Legacy%20Pro%20(WIP)-blue" alt="Objective-C" />
+  <img src="https://img.shields.io/badge/Objective--C-Legacy%20Beta-yellow" alt="Objective-C" />
   <img src="https://img.shields.io/badge/Python-Legacy%20Stable-blue" alt="Python" />
   <img src="https://img.shields.io/badge/macOS-Sonoma%20to%20Mavericks-black" alt="macOS" />
   <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20OpenRouter-brightgreen" alt="AI providers" />
@@ -15,14 +15,14 @@
 
 Welcome to the central hub for the **iGeniusAI** ecosystem. This repository serves as the landing page and documentation hub for the project. 
 
-The application is available in **two distinct versions**, tailored for different eras of Apple hardware.
+The application is available in **three distinct versions**, tailored for different eras of Apple hardware.
 
 ---
 
 ## 🚀 The Applications
 
 ### 1. [iGeniusAI-arm](./iGeniusAI-arm) (Modern Apple Silicon)
-A completely rewritten, native **SwiftUI** application designed exclusively for modern macOS (macOS 14 Sonoma and newer) running on Apple Silicon (M1/M2/M3/M4) chips.
+A completely rewritten, native **SwiftUI** application designed exclusively for modern macOS (macOS 14 Sonoma and newer) running on Apple Silicon (M1/M2/M3/M4/M5) chips.
 
 - **Deep Music.app Integration:** Seamlessly interacts with the modern macOS Music application.
 - **Modern UI:** Fast, fluid interface with a native iOS-style HUD notification system.
@@ -30,11 +30,17 @@ A completely rewritten, native **SwiftUI** application designed exclusively for 
 - **Multi-Provider AI:** Supports generating playlists via Gemini, Groq, and OpenRouter (bypassing geo-blocks).
 - **10+ Languages:** Fully localized out of the box.
 
-### 2. [iGeniusAI-legacy](./iGeniusAI-legacy) (Legacy Intel / OS X)
-The legendary original version, meticulously designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra.
+### 2. [iGeniusAI-legacy-objc](./iGeniusAI-legacy-objc) (Native Objective-C Beta)
+A brand-new, native **Objective-C / AppKit** implementation designed for vintage Macs running OS X 10.9 Mavericks through macOS 10.13 High Sierra.
+- **Beta Warning:** ⚠️ *This version is still raw and in active beta. You might encounter visual anomalies, UI glitches, or bugs. We appreciate your feedback!*
+- **No Dependencies:** Completely compiled binary that requires no external Python interpreter or installation steps.
+- **Classic iTunes Integration:** Seamless AppleScript bridging to iTunes.
+- **Feature Parity:** Brings Keychain security, full runtime localization, Folder Fixer scanner, and the new USB Export tab to old machines.
+
+### 3. [iGeniusAI-legacy](./iGeniusAI-legacy) (Legacy Intel / OS X Python Stable)
+The stable original version, designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra.
 
 - **Stable Python Core:** The current stable build ensures 100% compatibility with older OS X versions.
-- **Active Native Rewrite (WIP):** We are currently in the middle of a major transition to a native **Objective-C** core for even better performance on old hardware. *Note: The Obj-C version is currently in development and not yet available in the stable releases.*
 - **Classic iTunes Support:** Interacts directly with the legacy iTunes application.
 - **Resilient Network Layer:** Bypasses outdated OpenSSL 0.9.8 limitations on old Macs.
 
@@ -137,7 +143,7 @@ The **Media Fixer** tab helps keep your library organized:
 
 ## 🛠 Under the Hood
 
-*   **The Evolution of Legacy:** Originally prototyped in **Python** for speed, the legacy track is now moving to a **Native Objective-C** core (currently in development). This transition eliminates the need for an external interpreter and brings true Cocoa-level responsiveness to OS X 10.9+.
+*   **The Evolution of Legacy:** Originally prototyped in **Python** for speed, the legacy track now features a native **Objective-C** core (currently in Beta). This transition eliminates the need for an external interpreter and brings true Cocoa-level responsiveness and direct Keychain API support to OS X 10.9+.
 *   **Modern Architecture:** The ARM version leverages **pure SwiftUI**, ensuring the app is power-efficient and fits perfectly into the modern macOS aesthetic while maintaining a lightning-fast compiled binary.
 *   **Protocol Bridge:** We use custom automation and AppleScript bridges to ensure that regardless of the version (iTunes or Music.app), the AI-generated playlists are injected accurately and instantly.
 *   **Network Resilience:** A custom socket-level wrapper is implemented in the legacy build to bridge the gap between vintage OpenSSL versions and the strict security requirements of modern AI APIs.
@@ -147,8 +153,8 @@ The **Media Fixer** tab helps keep your library organized:
 ## ⚠️ Compatibility & Security
 
 **Supported OS & Hardware:**
-- **iGenius_ARM:** Requires **macOS 14 Sonoma or newer** and an Apple Silicon (**M1/M2/M3/M4**) processor.
-- **iGeniusAI (Legacy):** Designed strictly for **OS X 10.9 Mavericks up to 10.13 High Sierra** on Intel Macs (2008-2013 era). 
+- **iGenius_ARM:** Requires **macOS 14 Sonoma or newer** and an Apple Silicon (**M1/M2/M3/M4/M5**) processor.
+- **iGeniusAI (Legacy & Legacy-ObjC):** Designed strictly for **OS X 10.9 Mavericks up to macOS 10.13 High Sierra** on Intel Macs (2008-2013 era). 
 
 **Security & Privacy:**
 - **Local Storage Only:** Your API keys are stored only locally in `~/.itunes_genius_ai.json` (Legacy) or securely encrypted in the macOS Keychain (ARM).
