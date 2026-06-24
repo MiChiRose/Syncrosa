@@ -1,7 +1,7 @@
 # Syncrosa 🎵🤖 (AI + Media Fixer)
 
 <div align="center">
-  <img src="logo.png" alt="Syncrosa Logo" width="120" />
+  <img src="app_logo.png" alt="Syncrosa Logo" width="120" />
   <p><b>The ultimate power-tool for managing and creating Apple Music & iTunes playlists using AI.</b></p>
   <p align="center">
   <img src="https://img.shields.io/badge/Swift-SwiftUI-orange" alt="Swift / SwiftUI" />
