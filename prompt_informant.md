@@ -1,3 +1,20 @@
+# 🚨 MANDATORY AI BEHAVIOR & GIT FLOW RULES
+
+Every AI Coding Assistant reading this file MUST strictly adhere to the following workflow:
+
+1. **Isolation of Tasks (Feature Branches):**
+   * Never commit directly to the `main` branch.
+   * All new features, refactoring, translations, or updates must be developed on a dedicated feature/fix branch (e.g., `feature/name` or `fix/issue`).
+   
+2. **Human-in-the-Loop (HITL) Validation:**
+   * All changes must undergo local testing and verification.
+   * A pull request or merge/push to `main` can ONLY be initiated after the user does manual testing and gives explicit, text-based approval (e.g., "approve", "push to main") in the chat.
+   
+3. **Parity Check:**
+   * When implementing features or fixing bugs, verify if the change needs to be replicated in both `modern-swift` and `legacy-objc` tracks to maintain feature parity.
+
+---
+
 # iGeniusAI Project Guide & Prompt Informant 🎵🤖
 
 This file serves as a comprehensive structural maps and context injector for AI coding assistants (like Antigravity) to immediately orient themselves within the iGeniusAI project repository.
