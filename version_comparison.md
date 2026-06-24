@@ -20,7 +20,7 @@ This document outlines the architectural, aesthetic, and functional differences 
 | **USB Export Tab** | Yes (fitAvailable + size limit) | Yes (fitAvailable + size limit) | No |
 | **Languages** | 10 Languages (runtime change) | 10 Languages (runtime change) | 10 Languages (restart required) |
 | **Binary Overhead** | 0% (compiled native Swift) | 0% (compiled native Obj-C) | High (requires Python interpreter) |
-| **Development Stage** | Stable Release (`1.3.0`) | Active Beta (`2.2.0-beta`) | Legacy Stable (`2.1.1`) |
+| **Development Stage** | Stable Release (`3.0.0`) | Active Beta (`3.0.0`) | Legacy Stable (`3.0.0`) |
 
 ---
 

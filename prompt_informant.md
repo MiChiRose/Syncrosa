@@ -21,6 +21,9 @@ Every AI Coding Assistant reading this file MUST strictly adhere to the followin
      4. Check for system API limitations (e.g. AppKit compatibility for macOS 10.13, SwiftUI compatibility for macOS 14+, Python 2.7 syntax restrictions, and SSL/TLS curl fallback constraints).
      5. Present a structured feasibility assessment: state if the feature is **Fully Feasible**, **Feasible with Workarounds (specify them)**, or **Infeasible**, and outline the planned changes for each codebase.
 
+5. **Semantic Versioning Rule:**
+   * Whenever a new feature, bugfix, or release is implemented, the version number of all three applications (`syncrosa-swift`, `syncrosa-objc`, `syncrosa-python`) MUST be updated in accordance with the rules of semantic versioning (Semantic Versioning). Keep the versions synchronized across all build files and Info.plists (e.g., `build_arm.sh`, `Info.plist`, `build_app.sh`).
+
 ---
 
 # Syncrosa Project Guide & Prompt Informant 🎵🤖
@@ -34,26 +37,26 @@ This file serves as a comprehensive structural maps and context injector for AI 
 The workspace contains three distinct application versions, each targetted at a specific architecture, OS range, and tech stack:
 
 1. **Modern SwiftUI Version:**
-   * **Directory:** [`/syncrosa-swift`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-swift)
+   * **Directory:** [`/syncrosa-swift`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-swift)
    * **Target OS:** macOS 14.0 (Sonoma) or newer
    * **Architectures:** Apple Silicon (`arm64` natively)
-   * **Current Version:** `1.3.0`
+   * **Current Version:** `3.0.0`
    * **Primary Host Integrations:** macOS system `Music.app`
    * **Development Stage:** Stable / Production
 
 2. **Native Objective-C Version:**
-   * **Directory:** [`/syncrosa-objc`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-objc)
+   * **Directory:** [`/syncrosa-objc`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-objc)
    * **Target OS:** OS X 10.13 (High Sierra) or newer
    * **Architectures:** Universal Binary (`x86_64` + `arm64` compiled with backwards-compatible SDK)
-   * **Current Version:** `2.2.0` (Beta)
+   * **Current Version:** `3.0.0` (Beta)
    * **Primary Host Integrations:** Classic `iTunes`
    * **Development Stage:** Active Development / Beta
 
 3. **Legacy Python Version:**
-   * **Directory:** [`/syncrosa-python`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-python)
+   * **Directory:** [`/syncrosa-python`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-python)
    * **Target OS:** OS X 10.9 (Mavericks) up to macOS 10.13 (High Sierra)
    * **Architectures:** Intel (`x86_64` running on system Python 2.7.x interpreter)
-   * **Current Version:** `2.1.1`
+   * **Current Version:** `3.0.0`
    * **Primary Host Integrations:** Classic `iTunes`
    * **Development Stage:** Stable / Maintenance (Deprecated in favor of Legacy-ObjC)
 
@@ -64,14 +67,14 @@ The workspace contains three distinct application versions, each targetted at a 
 ### 1. `syncrosa-swift` (Modern SwiftUI Edition)
 * **Entrypoint:** `SyncrosaApp.swift` — initializes main App delegate and binds SwiftUI lifecycle.
 * **Master Layout:** `ContentView.swift` — uses `NavigationSplitView` for left-sidebar pane switching.
-* **Services Directory ([`/syncrosa-swift/Services`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-swift/Services)):**
+* **Services Directory ([`/syncrosa-swift/Services`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-swift/Services)):**
   * `AIService.swift` — formats prompts, syncs free OpenRouter models, and validates credentials.
   * `MusicService.swift` — manages background queue communication with `Music.app` via AppleScript.
   * `USBService.swift` — detects removable volumes via FileManager and resolves metadata using `statfs`.
   * `PlaylistExportService.swift` — filters DRM (.m4p) tracks, validates free space, and runs chunked copying (1MB).
   * `KeychainHelper.swift` — encrypts and stores API credentials natively in the macOS Keychain.
   * `LocalizationService.swift` — dynamic i18n runtime translator (10 languages).
-* **Views Directory ([`/syncrosa-swift/Views`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-swift/Views)):**
+* **Views Directory ([`/syncrosa-swift/Views`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-swift/Views)):**
   * `PlaylistGeneratorView.swift` — AI playlist prompt editor.
   * `MediaFixerView.swift` — library consolidator (split albums fixer).
   * `FileMediaFixerView.swift` — disk folder cleaner and metadata rebuilder.
@@ -83,14 +86,14 @@ The workspace contains three distinct application versions, each targetted at a 
 ### 2. `syncrosa-objc` (Native Cocoa Edition)
 * **Entrypoint:** `main.m` -> `AppDelegate.m` — bootstraps standard Cocoa NSApplication lifecycle.
 * **Master Layout:** `IGMainWindowController.m` — programmatically creates `NSSplitView` sidebar structure (compatible down to OS X 10.9).
-* **Services Directory ([`/syncrosa-objc/Sources/Services`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-objc/Sources/Services)):**
+* **Services Directory ([`/syncrosa-objc/Sources/Services`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-objc/Sources/Services)):**
   * `IGAIService.h/.m` — handles NSURLSession calls with manual SSL trust verification and fallback to system `curl` via `NSTask` for outdated TLS layers.
   * `IGiTunesService.h/.m` — executes in-process AppleScript commands against `iTunes`.
   * `IGUSBService.h/.m` — runs asynchronous disk discovery routines.
   * `IGMediaFixerManager.h/.m` — consolidates tracks and retrieves metadata from the iTunes Search API.
   * `IGKeychainHelper.h/.m` — calls native Keychain APIs.
   * `IGLocalizationService.h/.m` — dynamic lookup class for translations.
-* **UI Panels Directory ([`/syncrosa-objc/Sources/UI`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-objc/Sources/UI)):**
+* **UI Panels Directory ([`/syncrosa-objc/Sources/UI`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-objc/Sources/UI)):**
   * `IGGeniusViewController.m` — prompts interface with input counters (30 chars for Name, 150 for Prompt) and stepper.
   * `IGFixerViewController.m` — consolidator log view.
   * `IGFileFixerViewController.m` — file scanner utilizing `AVAsset` to rename files and download covers.
@@ -102,11 +105,11 @@ The workspace contains three distinct application versions, each targetted at a 
 ### 3. `syncrosa-python` (Original Python Edition)
 * **Entrypoint:** `main.py` — starts Tkinter app loop and initializes tabs.
 * **Logic Core:** `app_logic.py` — original procedural/monolithic logic sheet.
-* **Core Folder ([`/syncrosa-python/core`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-python/core)):**
+* **Core Folder ([`/syncrosa-python/core`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-python/core)):**
   * `network.py` — urllib2 networking wrapper with SSL/TLS bypasses (injecting custom `cacert.pem` and parsing curl stdout if SSL fails).
   * `config.py` — manages local configurations stored inside `~/.syncrosa.json`.
   * `itunes_bridge.py` — runs osascript commands via shell subprocesses.
-* **UI Tabs ([`/syncrosa-python/ui/tabs`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-python/ui/tabs)):**
+* **UI Tabs ([`/syncrosa-python/ui/tabs`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-python/ui/tabs)):**
   * `tab_genius.py` — prompt-based layout with proportional library chunking to bypass Gemini token constraints.
   * `tab_fixer.py` — traditional listbox view showing split album groups.
 
@@ -117,14 +120,14 @@ The workspace contains three distinct application versions, each targetted at a 
 Always run build commands from the root directory of the respective version:
 
 * **Swift ARM Version:**
-  * Script: [`./build_arm.sh`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-swift/build_arm.sh)
+  * Script: [`./build_arm.sh`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-swift/build_arm.sh)
   * Output bundle: `/syncrosa-swift/Syncrosa.app`
 * **Objective-C Legacy Version:**
-  * Compilation project synchronizer: [`python3 update_project.py`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-objc/update_project.py)
-  * Script: [`./build_legacy.sh`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-objc/build_legacy.sh)
-  * Output bundle: `/syncrosa-objc/build/Debug/Syncrosa-Legacy-ObjC.app`
+  * Compilation project synchronizer: [`python3 update_project.py`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-objc/update_project.py)
+  * Script: [`./build_legacy.sh`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-objc/build_legacy.sh)
+  * Output bundle: `/syncrosa-objc/build/Debug/Syncrosa.app`
 * **Python Legacy Version:**
-  * Script: [`./build_app.sh`](file:///Users/yuramac/Desktop/iGeniusAI/syncrosa-python/build_app.sh)
+  * Script: [`./build_app.sh`](file:///Users/yuramac/Desktop/Syncrosa/syncrosa-python/build_app.sh)
   * Dependency: Requires `py2app` and OS X system Python 2.7.x interpreter.
   * Output bundle: `~/Desktop/Syncrosa.app`
 
