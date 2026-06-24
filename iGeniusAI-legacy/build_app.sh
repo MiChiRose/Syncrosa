@@ -33,6 +33,10 @@ cat << 'EOF' > "$APP_PATH/Contents/Info.plist"
     <string>iGeniusAI</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>2.1.1</string>
+    <key>CFBundleVersion</key>
+    <string>2.1.1</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.9</string>
 </dict>
