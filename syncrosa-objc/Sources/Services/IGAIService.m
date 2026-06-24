@@ -65,7 +65,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
               completion:(void(^)(NSData *data, NSError *error))completionBlock {
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     request.HTTPMethod = method;
-    [request addValue:@"iTunesGeniusAI/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
+    [request addValue:@"Syncrosa/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
     for (NSString *key in headers) {
         [request addValue:headers[key] forHTTPHeaderField:key];
     }
@@ -88,7 +88,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             [task setLaunchPath:@"/usr/bin/curl"];
             
             NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"60"]];
-            [args addObjectsFromArray:@[@"-H", @"User-Agent: iTunesGeniusAI/1.0 (macOS)"]];
+            [args addObjectsFromArray:@[@"-H", @"User-Agent: Syncrosa/1.0 (macOS)"]];
             
             for (NSString *key in headers) {
                 [args addObjectsFromArray:@[@"-H", [NSString stringWithFormat:@"%@: %@", key, headers[key]]]];

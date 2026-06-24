@@ -4,9 +4,9 @@ import uuid
 def generate_id():
     return uuid.uuid4().hex[:24].upper()
 
-project_path = 'syncrosa-objc/Syncrosa-Legacy-ObjC.xcodeproj/project.pbxproj'
+project_path = 'syncrosa-objc/Syncrosa.xcodeproj/project.pbxproj'
 sources_root = 'syncrosa-objc/Sources'
-tests_root = 'syncrosa-objc/Syncrosa-Legacy-ObjCTests'
+tests_root = 'syncrosa-objc/SyncrosaTests'
 
 # 1. Map Filesystem (Sources)
 file_to_ref_id = {}
@@ -85,12 +85,12 @@ for rel_path, g_id in sorted(groups.items(), key=lambda x: len(x[0]), reverse=Tr
 test_children = ""
 for fname, f_id in tests_files:
     test_children += f'\t\t\t\t{f_id} /* {fname} */,\n'
-new_groups += f'\t\t{tests_group_id} /* Tests */ = {{\n\t\t\tisa = PBXGroup;\n\t\t\tchildren = (\n{test_children}\t\t\t);\n\t\t\tpath = "Syncrosa-Legacy-ObjCTests";\n\t\t\tsourceTree = "<group>";\n\t\t}};\n'
+new_groups += f'\t\t{tests_group_id} /* Tests */ = {{\n\t\t\tisa = PBXGroup;\n\t\t\tchildren = (\n{test_children}\t\t\t);\n\t\t\tpath = "SyncrosaTests";\n\t\t\tsourceTree = "<group>";\n\t\t}};\n'
 
 # Products Group
 product_app_id = "5281AC572FDAE21700B6EAAC"
 product_test_id = "5281AC6A2FDAE21700B6EAAC"
-new_groups += f'\t\t5281AC582FDAE21700B6EAAC /* Products */ = {{\n\t\t\tisa = PBXGroup;\n\t\t\tchildren = (\n\t\t\t\t{product_app_id} /* Syncrosa-Legacy-ObjC.app */,\n\t\t\t\t{product_test_id} /* Syncrosa-Legacy-ObjCTests.xctest */,\n\t\t\t);\n\t\t\tname = Products;\n\t\t\tsourceTree = "<group>";\n\t\t}};\n'
+new_groups += f'\t\t5281AC582FDAE21700B6EAAC /* Products */ = {{\n\t\t\tisa = PBXGroup;\n\t\t\tchildren = (\n\t\t\t\t{product_app_id} /* Syncrosa.app */,\n\t\t\t\t{product_test_id} /* SyncrosaTests.xctest */,\n\t\t\t);\n\t\t\tname = Products;\n\t\t\tsourceTree = "<group>";\n\t\t}};\n'
 
 # Main Group
 main_group_id = "5281AC4E2FDAE21700B6EAAC"
@@ -140,13 +140,13 @@ content = f"""// !$*UTF8*$!
 \t\t\tcontainerPortal = 5281AC4F2FDAE21700B6EAAC /* Project object */;
 \t\t\tproxyType = 1;
 \t\t\tremoteGlobalIDString = 5281AC562FDAE21700B6EAAC;
-\t\t\tremoteInfo = "Syncrosa-Legacy-ObjC";
+\t\t\tremoteInfo = "Syncrosa";
 \t\t}};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-{pbx_file_ref}\t\t{product_app_id} /* Syncrosa-Legacy-ObjC.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Syncrosa-Legacy-ObjC.app"; sourceTree = BUILT_PRODUCTS_DIR; }};
-\t\t{product_test_id} /* Syncrosa-Legacy-ObjCTests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Syncrosa-Legacy-ObjCTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; }};
+{pbx_file_ref}\t\t{product_app_id} /* Syncrosa.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Syncrosa.app"; sourceTree = BUILT_PRODUCTS_DIR; }};
+\t\t{product_test_id} /* SyncrosaTests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SyncrosaTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; }};
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -170,9 +170,9 @@ content = f"""// !$*UTF8*$!
 {new_groups}/* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-\t\t5281AC562FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC */ = {{
+\t\t5281AC562FDAE21700B6EAAC /* Syncrosa */ = {{
 \t\t\tisa = PBXNativeTarget;
-\t\t\tbuildConfigurationList = 5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjC" */;
+\t\t\tbuildConfigurationList = 5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa" */;
 \t\t\tbuildPhases = (
 \t\t\t\t{src_phase_id} /* Sources */,
 \t\t\t\t5281AC542FDAE21700B6EAAC /* Frameworks */,
@@ -182,14 +182,14 @@ content = f"""// !$*UTF8*$!
 \t\t\t);
 \t\t\tdependencies = (
 \t\t\t);
-\t\t\tname = "Syncrosa-Legacy-ObjC";
-\t\t\tproductName = "Syncrosa-Legacy-ObjC";
-\t\t\tproductReference = {product_app_id} /* Syncrosa-Legacy-ObjC.app */;
+\t\t\tname = "Syncrosa";
+\t\t\tproductName = "Syncrosa";
+\t\t\tproductReference = {product_app_id} /* Syncrosa.app */;
 \t\t\tproductType = "com.apple.product-type.application";
 \t\t}};
-\t\t5281AC692FDAE21700B6EAAC /* Syncrosa-Legacy-ObjCTests */ = {{
+\t\t5281AC692FDAE21700B6EAAC /* SyncrosaTests */ = {{
 \t\t\tisa = PBXNativeTarget;
-\t\t\tbuildConfigurationList = 5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjCTests" */;
+\t\t\tbuildConfigurationList = 5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "SyncrosaTests" */;
 \t\t\tbuildPhases = (
 \t\t\t\t{test_src_phase_id} /* Sources */,
 \t\t\t\t5281AC672FDAE21700B6EAAC /* Frameworks */,
@@ -200,9 +200,9 @@ content = f"""// !$*UTF8*$!
 \t\t\tdependencies = (
 \t\t\t\t5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */,
 \t\t\t);
-\t\t\tname = "Syncrosa-Legacy-ObjCTests";
-\t\t\tproductName = "Syncrosa-Legacy-ObjCTests";
-\t\t\tproductReference = {product_test_id} /* Syncrosa-Legacy-ObjCTests.xctest */;
+\t\t\tname = "SyncrosaTests";
+\t\t\tproductName = "SyncrosaTests";
+\t\t\tproductReference = {product_test_id} /* SyncrosaTests.xctest */;
 \t\t\tproductType = "com.apple.product-type.bundle.unit-test";
 \t\t}};
 /* End PBXNativeTarget section */
@@ -223,7 +223,7 @@ content = f"""// !$*UTF8*$!
 \t\t\t\t\t}};
 \t\t\t\t}};
 \t\t\t}};
-\t\t\tbuildConfigurationList = 5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "Syncrosa-Legacy-ObjC" */;
+\t\t\tbuildConfigurationList = 5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "Syncrosa" */;
 \t\t\tcompatibilityVersion = "Xcode 3.2";
 \t\t\tdevelopmentRegion = English;
 \t\t\thasScannedForEncodings = 0;
@@ -236,8 +236,8 @@ content = f"""// !$*UTF8*$!
 \t\t\tprojectDirPath = "";
 \t\t\tprojectRoot = "";
 \t\t\ttargets = (
-\t\t\t\t5281AC562FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC */,
-\t\t\t\t5281AC692FDAE21700B6EAAC /* Syncrosa-Legacy-ObjCTests */,
+\t\t\t\t5281AC562FDAE21700B6EAAC /* Syncrosa */,
+\t\t\t\t5281AC692FDAE21700B6EAAC /* SyncrosaTests */,
 \t\t\t);
 \t\t}};
 /* End PBXProject section */
@@ -279,7 +279,7 @@ content = f"""// !$*UTF8*$!
 /* Begin PBXTargetDependency section */
 \t\t5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */ = {{
 \t\t\tisa = PBXTargetDependency;
-\t\t\ttarget = 5281AC562FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC */;
+\t\t\ttarget = 5281AC562FDAE21700B6EAAC /* Syncrosa */;
 \t\t\ttargetProxy = 5281AC6B2FDAE21700B6EAAC /* PBXContainerItemProxy */;
 \t\t}};
 /* End PBXTargetDependency section */
@@ -391,10 +391,10 @@ content = f"""// !$*UTF8*$!
 \t\t\t\t\t"DEBUG=1",
 \t\t\t\t\t"$(inherited)",
 \t\t\t\t);
-\t\t\t\tINFOPLIST_FILE = "Syncrosa-Legacy-ObjCTests/Info.plist";
+\t\t\t\tINFOPLIST_FILE = "SyncrosaTests/Info.plist";
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
-\t\t\t\tTEST_HOST = "$(BUILT_PRODUCTS_DIR)/Syncrosa-Legacy-ObjC.app/Contents/MacOS/Syncrosa-Legacy-ObjC";
+\t\t\t\tTEST_HOST = "$(BUILT_PRODUCTS_DIR)/Syncrosa.app/Contents/MacOS/Syncrosa";
 \t\t\t}};
 \t\t\tname = Debug;
 \t\t}};
@@ -406,17 +406,17 @@ content = f"""// !$*UTF8*$!
 \t\t\t\t\t"$(DEVELOPER_FRAMEWORKS_DIR)",
 \t\t\t\t\t"$(inherited)",
 \t\t\t\t);
-\t\t\t\tINFOPLIST_FILE = "Syncrosa-Legacy-ObjCTests/Info.plist";
+\t\t\t\tINFOPLIST_FILE = "SyncrosaTests/Info.plist";
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
-\t\t\t\tTEST_HOST = "$(BUILT_PRODUCTS_DIR)/Syncrosa-Legacy-ObjC.app/Contents/MacOS/Syncrosa-Legacy-ObjC";
+\t\t\t\tTEST_HOST = "$(BUILT_PRODUCTS_DIR)/Syncrosa.app/Contents/MacOS/Syncrosa";
 \t\t\t}};
 \t\t\tname = Release;
 \t\t}};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-\t\t5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "Syncrosa-Legacy-ObjC" */ = {{
+\t\t5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "Syncrosa" */ = {{
 \t\t\tisa = XCConfigurationList;
 \t\t\tbuildConfigurations = (
 \t\t\t\t5281AC502FDAE21700B6EAAC /* Debug */,
@@ -425,7 +425,7 @@ content = f"""// !$*UTF8*$!
 \t\t\tdefaultConfigurationIsVisible = 0;
 \t\t\tdefaultConfigurationName = Release;
 \t\t}};
-\t\t5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjC" */ = {{
+\t\t5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa" */ = {{
 \t\t\tisa = XCConfigurationList;
 \t\t\tbuildConfigurations = (
 \t\t\t\t5281AC752FDAE21700B6EAAC /* Debug */,
@@ -434,7 +434,7 @@ content = f"""// !$*UTF8*$!
 \t\t\tdefaultConfigurationIsVisible = 0;
 \t\t\tdefaultConfigurationName = Release;
 \t\t}};
-\t\t5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjCTests" */ = {{
+\t\t5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "SyncrosaTests" */ = {{
 \t\t\tisa = XCConfigurationList;
 \t\t\tbuildConfigurations = (
 \t\t\t\t5281AC782FDAE21700B6EAAC /* Debug */,

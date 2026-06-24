@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:iGenius_OBJC.xcodeproj">
+      location = "self:Syncrosa.xcodeproj">
    </FileRef>
 </Workspace>

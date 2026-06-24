@@ -7,9 +7,9 @@ import ssl
 
 def make_request(url, headers_dict, payload_dict=None, timeout_sec=90):
     req = urllib2.Request(url)
-    req.add_header("User-Agent", "iTunesGeniusAI/1.0 (macOS)")
+    req.add_header("User-Agent", "Syncrosa/1.0 (macOS)")
     
-    curl_headers = ["-H", "User-Agent: iTunesGeniusAI/1.0 (macOS)"]
+    curl_headers = ["-H", "User-Agent: Syncrosa/1.0 (macOS)"]
     
     for k, v in headers_dict.items():
         if isinstance(k, unicode): k = k.encode('utf-8')
@@ -98,8 +98,8 @@ def test_api_key(provider, api_key, model):
         payload = {"model": model.strip(), "messages": [{"role": "user", "content": "Say 'OK'"}], "max_tokens": 10}
         headers = {
             "Authorization": "Bearer " + api_key.strip(),
-            "HTTP-Referer": "https://github.com/YuraMenschikov/iTunesGeniusAI",
-            "X-Title": "iTunesGeniusAI"
+            "HTTP-Referer": "https://github.com/YuraMenschikov/Syncrosa",
+            "X-Title": "Syncrosa"
         }
     else:
         url = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}".format(model.strip(), api_key.strip())
@@ -153,8 +153,8 @@ def call_ai_for_playlist(provider, api_key, model, prompt_text):
         }
         headers = {
             "Authorization": "Bearer " + api_key.strip(),
-            "HTTP-Referer": "https://github.com/YuraMenschikov/iTunesGeniusAI",
-            "X-Title": "iTunesGeniusAI"
+            "HTTP-Referer": "https://github.com/YuraMenschikov/Syncrosa",
+            "X-Title": "Syncrosa"
         }
     else:
         url = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}".format(model.strip(), api_key.strip())

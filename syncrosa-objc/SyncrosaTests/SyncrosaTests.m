@@ -1,6 +1,6 @@
 //
-//  iGeniusAI-legacy-objcTests.m
-//  iGeniusAI-legacy-objcTests
+//  SyncrosaTests.m
+//  SyncrosaTests
 //
 //  Created by MacBook Pro on 6/11/26.
 //  Copyright (c) 2026 MacBook Pro. All rights reserved.
@@ -9,11 +9,11 @@
 #import <Cocoa/Cocoa.h>
 #import <XCTest/XCTest.h>
 
-@interface iGeniusAI_legacy_objcTests : XCTestCase
+@interface SyncrosaTests : XCTestCase
 
 @end
 
-@implementation iGeniusAI_legacy_objcTests
+@implementation SyncrosaTests
 
 - (void)setUp {
     [super setUp];

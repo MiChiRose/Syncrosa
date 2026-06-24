@@ -1,9 +1,9 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-echo "🛠 Building Syncrosa-Legacy-ObjC..."
-PROJECT="Syncrosa-Legacy-ObjC.xcodeproj"
-TARGET="Syncrosa-Legacy-ObjC"
-TEST_TARGET="Syncrosa-Legacy-ObjCTests"
+echo "🛠 Building Syncrosa..."
+PROJECT="Syncrosa.xcodeproj"
+TARGET="Syncrosa"
+TEST_TARGET="SyncrosaTests"
 
 rm -rf build
 # Use -target instead of -scheme because schemes were ignored in git (xcuserdata)
