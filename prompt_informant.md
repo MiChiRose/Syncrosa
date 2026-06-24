@@ -13,6 +13,14 @@ Every AI Coding Assistant reading this file MUST strictly adhere to the followin
 3. **Parity Check:**
    * When implementing features or fixing bugs, verify if the change needs to be replicated in both `modern-swift` and `legacy-objc` tracks to maintain feature parity.
 
+4. **Evaluating New Feature Requests (Feasibility Check Protocol):**
+   * When the user asks: *"I have a new feature I want to apply, can we implement it? (или 'у меня есть новая фича которую я хочу применить, можем ли мы такое реализовать?')"*, the AI assistant MUST:
+     1. Analyze the feature's requirements.
+     2. Cross-reference the architecture mapping of all three versions (`iGeniusAI-arm`, `iGeniusAI-legacy-objc`, `iGeniusAI-legacy`).
+     3. Identify which files need to be created, modified, or deleted in each target directory.
+     4. Check for system API limitations (e.g. AppKit compatibility for macOS 10.13, SwiftUI compatibility for macOS 14+, Python 2.7 syntax restrictions, and SSL/TLS curl fallback constraints).
+     5. Present a structured feasibility assessment: state if the feature is **Fully Feasible**, **Feasible with Workarounds (specify them)**, or **Infeasible**, and outline the planned changes for each codebase.
+
 ---
 
 # iGeniusAI Project Guide & Prompt Informant 🎵🤖
