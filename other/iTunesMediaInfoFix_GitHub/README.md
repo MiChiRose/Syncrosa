@@ -4,7 +4,7 @@
 
 The functionality of **iTunesMediaInfoFix** has been completely integrated into a new, more powerful project:
 
-## 🚀 [iGeniusAI PRO](https://github.com/MiChiRose/iGeniusAI)
+## 🚀 [Syncrosa](https://github.com/MiChiRose/Syncrosa)
 
 Please head over to the new repository for:
 - **Combined Features:** AI Playlist Generation + Media Metadata Fixing.
