@@ -50,7 +50,7 @@ This document outlines the architectural, aesthetic, and functional differences 
 * **OpenRouter Synchronization:** All three versions synchronize and fetch free models from OpenRouter, making them highly resilient against country blocks.
 * **API Validation:** Both the SwiftUI and Objective-C versions execute key validation checks immediately during credential entry.
 * **Token Protection (Large Libraries):**
-  * **ARM & Legacy-ObjC:** Select a randomized, shuffled subset of up to 500 tracks from the library to feed into the AI context window, protecting the user from "Context Limit Exceeded" errors.
+  * **Swift & Objective-C:** Select a randomized, shuffled subset of up to 500 tracks from the library to feed into the AI context window, protecting the user from "Context Limit Exceeded" errors.
   * **Python Legacy:** Implements a proportional chunking mechanism that scans the entire library in pieces to send to the AI model.
 
 ---
