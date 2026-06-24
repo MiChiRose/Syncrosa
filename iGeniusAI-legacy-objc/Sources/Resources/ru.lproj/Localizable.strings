@@ -1,9 +1,0 @@
-"main_title" = "iGeniusAI (Legacy)";
-"btn_generate" = "СГЕНЕРИРОВАТЬ ПЛЕЙЛИСТ";
-"status_ready" = "Готов";
-"status_reading" = "Чтение медиатеки iTunes...";
-"status_asking" = "Запрос к ИИ...";
-"status_creating" = "Создание плейлиста...";
-"status_success" = "Успешно! Плейлист создан.";
-"err_empty_lib" = "Ошибка: Медиатека пуста.";
-"err_no_matches" = "Ошибка: ИИ не нашел совпадений.";

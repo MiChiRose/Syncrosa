@@ -1,0 +1,9 @@
+"main_title" = "Syncrosa (Legacy)";
+"btn_generate" = "GENERATE PLAYLIST";
+"status_ready" = "Ready";
+"status_reading" = "Reading iTunes Library...";
+"status_asking" = "Asking AI Assistant...";
+"status_creating" = "Creating playlist...";
+"status_success" = "Success! Created playlist.";
+"err_empty_lib" = "Error: Library is empty.";
+"err_no_matches" = "Error: AI returned no matches.";

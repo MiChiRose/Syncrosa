@@ -1,0 +1,560 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		EA3E52CBFBA54D99A6FAEE43 /* AppIcon.icns in Build */ = {isa = PBXBuildFile; fileRef = 1A049E456F7D41229249A4E3 /* AppIcon.icns */; };
+		B15CB8379CF34D51A8C9966C /* main.m in Build */ = {isa = PBXBuildFile; fileRef = EE2B4DDCD2F649A799AB881D /* main.m */; };
+		1521208A6BE842E68B06D9D2 /* AppDelegate.m in Build */ = {isa = PBXBuildFile; fileRef = 7552F919E075414E9302B597 /* AppDelegate.m */; };
+		2D3BD4A6D5BC406A8B8E6222 /* IGSettingsViewController.m in Build */ = {isa = PBXBuildFile; fileRef = B63378E578534B84A1A00522 /* IGSettingsViewController.m */; };
+		67FB6040DCE146B5AFB62912 /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 3D6C06E0FF884B699D4AFDF7 /* IGUSBExportViewController.m */; };
+		258235594C024C5A8EDDEEFB /* IGFileFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 7BDFDC0599E8415CB373DCB6 /* IGFileFixerViewController.m */; };
+		1629BE59487B47FD81DAA353 /* IGGeniusViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 6AC938E71C8A4D8F93BB28AA /* IGGeniusViewController.m */; };
+		A50EC1DC832548EFA950240E /* IGNotificationView.m in Build */ = {isa = PBXBuildFile; fileRef = FC2036CEDD01406CA5852D25 /* IGNotificationView.m */; };
+		47D7A25E548C4C0E9F8AF8D9 /* IGMainWindowController.m in Build */ = {isa = PBXBuildFile; fileRef = 486E8EFC700948B1B1559FF0 /* IGMainWindowController.m */; };
+		8BC8DE5AA4DC4069BE2E83D6 /* IGFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 763908A028E54C42A07DF33E /* IGFixerViewController.m */; };
+		8C300A1586354369927CD686 /* cacert.pem in Build */ = {isa = PBXBuildFile; fileRef = E374558BE5764783B1DF4413 /* cacert.pem */; };
+		F5EB0EBD4FEF4439AE422BB0 /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = 6D1D0F3BC1A9431FA713FACA /* Localizable.strings */; };
+		20105E03D2E44367A5E776B2 /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = 2FD75338676D432287B942F2 /* Localizable.strings */; };
+		792CA144F36D41D18883196F /* IGTrack.m in Build */ = {isa = PBXBuildFile; fileRef = F6E0A661600140A4970322E3 /* IGTrack.m */; };
+		D42201E28E484D11A4CEE10E /* MainMenu.xib in Build */ = {isa = PBXBuildFile; fileRef = E2CF198FB78A4DC1AC072FF2 /* MainMenu.xib */; };
+		1D37ECFCC31943B78AC3B371 /* IGLogger.m in Build */ = {isa = PBXBuildFile; fileRef = FB3468E996FC47628A07F2F2 /* IGLogger.m */; };
+		5F0C8B31360F4930A25EFC8B /* IGLocalizationService.m in Build */ = {isa = PBXBuildFile; fileRef = 9CCE79AE97C945BFA6FE7FBB /* IGLocalizationService.m */; };
+		8D0CC88E6A134E789E26D9FC /* IGAIService.m in Build */ = {isa = PBXBuildFile; fileRef = E36E5D394BEB4A5EB5FEF00D /* IGAIService.m */; };
+		07330FE6832B499EBAF22CF1 /* IGUSBService.m in Build */ = {isa = PBXBuildFile; fileRef = 9202916478C84B4BBAF6B452 /* IGUSBService.m */; };
+		DBB30D05499948B586868B3D /* IGMediaFixerManager.m in Build */ = {isa = PBXBuildFile; fileRef = 16FDB113E7FA4685ADEC91F5 /* IGMediaFixerManager.m */; };
+		E58DCF6B647B4267A73B8C16 /* IGiTunesService.m in Build */ = {isa = PBXBuildFile; fileRef = 13C7D2CE8169426C8385D045 /* IGiTunesService.m */; };
+		25DC46590B3F4E9EBFE1E34E /* IGKeychainHelper.m in Build */ = {isa = PBXBuildFile; fileRef = 5AB1F206C1EE47C0B2485169 /* IGKeychainHelper.m */; };
+		25A596BD1B0C48B08AC02ACE /* IGBusinessLogicTests.m in Build */ = {isa = PBXBuildFile; fileRef = 1C676D860B2A41D2B67B9816 /* IGBusinessLogicTests.m */; };
+		B7EC2E0BBF02434B82558F88 /* iGenius_OBJCTests.m in Build */ = {isa = PBXBuildFile; fileRef = 263E84744D55413FB46FC776 /* iGenius_OBJCTests.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5281AC6B2FDAE21700B6EAAC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5281AC4F2FDAE21700B6EAAC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5281AC562FDAE21700B6EAAC;
+			remoteInfo = "Syncrosa-Legacy-ObjC";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		9A2352A559E54DB9B2EAC630 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AppDelegate.h"; sourceTree = "<group>"; };
+		1A049E456F7D41229249A4E3 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = "AppIcon.icns"; sourceTree = "<group>"; };
+		EE2B4DDCD2F649A799AB881D /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "main.m"; sourceTree = "<group>"; };
+		7552F919E075414E9302B597 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "AppDelegate.m"; sourceTree = "<group>"; };
+		AC9E86C5D0184F61B500B39B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		99F0529005DB43ACAA95A98E /* IGMainWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMainWindowController.h"; sourceTree = "<group>"; };
+		75FEE0048C524ECE9AB5D0EA /* IGNotificationView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGNotificationView.h"; sourceTree = "<group>"; };
+		B63378E578534B84A1A00522 /* IGSettingsViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGSettingsViewController.m"; sourceTree = "<group>"; };
+		3D6C06E0FF884B699D4AFDF7 /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
+		7BDFDC0599E8415CB373DCB6 /* IGFileFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFileFixerViewController.m"; sourceTree = "<group>"; };
+		9F3D77A654364564BE6691CD /* IGFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFixerViewController.h"; sourceTree = "<group>"; };
+		6AC938E71C8A4D8F93BB28AA /* IGGeniusViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGGeniusViewController.m"; sourceTree = "<group>"; };
+		FC2036CEDD01406CA5852D25 /* IGNotificationView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGNotificationView.m"; sourceTree = "<group>"; };
+		486E8EFC700948B1B1559FF0 /* IGMainWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMainWindowController.m"; sourceTree = "<group>"; };
+		B2C06157940B41F1B05EF2C0 /* IGSettingsViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGSettingsViewController.h"; sourceTree = "<group>"; };
+		A7C6AFE819CB4EB1ADEDF926 /* IGGeniusViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGGeniusViewController.h"; sourceTree = "<group>"; };
+		763908A028E54C42A07DF33E /* IGFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFixerViewController.m"; sourceTree = "<group>"; };
+		B3E37B18948E4BE6BDEC05CE /* IGUSBExportViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBExportViewController.h"; sourceTree = "<group>"; };
+		AEA74DF5DC284EEAA882732E /* IGFileFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFileFixerViewController.h"; sourceTree = "<group>"; };
+		E374558BE5764783B1DF4413 /* cacert.pem */ = {isa = PBXFileReference; lastKnownFileType = text; path = "cacert.pem"; sourceTree = "<group>"; };
+		6D1D0F3BC1A9431FA713FACA /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		2FD75338676D432287B942F2 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		F6E0A661600140A4970322E3 /* IGTrack.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGTrack.m"; sourceTree = "<group>"; };
+		34C60E863C434695AC1B3ADC /* IGTrack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGTrack.h"; sourceTree = "<group>"; };
+		E2CF198FB78A4DC1AC072FF2 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = "MainMenu.xib"; sourceTree = "<group>"; };
+		7E3E69909F5B4486992BB18D /* IGMediaFixerManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMediaFixerManager.h"; sourceTree = "<group>"; };
+		FB3468E996FC47628A07F2F2 /* IGLogger.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLogger.m"; sourceTree = "<group>"; };
+		9CCE79AE97C945BFA6FE7FBB /* IGLocalizationService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLocalizationService.m"; sourceTree = "<group>"; };
+		E36E5D394BEB4A5EB5FEF00D /* IGAIService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGAIService.m"; sourceTree = "<group>"; };
+		78ECA818E087450186C4F381 /* IGiTunesService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGiTunesService.h"; sourceTree = "<group>"; };
+		6910B64EF5F0403FAE12F115 /* IGKeychainHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGKeychainHelper.h"; sourceTree = "<group>"; };
+		9202916478C84B4BBAF6B452 /* IGUSBService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBService.m"; sourceTree = "<group>"; };
+		16FDB113E7FA4685ADEC91F5 /* IGMediaFixerManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMediaFixerManager.m"; sourceTree = "<group>"; };
+		13C7D2CE8169426C8385D045 /* IGiTunesService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGiTunesService.m"; sourceTree = "<group>"; };
+		440012A363524F0AB0A55446 /* IGAIService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGAIService.h"; sourceTree = "<group>"; };
+		5E114CA9F4C444F2B8112413 /* IGLocalizationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLocalizationService.h"; sourceTree = "<group>"; };
+		E3E511D56CC34B87A9C6B1FB /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
+		5AB1F206C1EE47C0B2485169 /* IGKeychainHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGKeychainHelper.m"; sourceTree = "<group>"; };
+		197E80BBD0D64A9FB6919BC5 /* IGUSBService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBService.h"; sourceTree = "<group>"; };
+		1C676D860B2A41D2B67B9816 /* IGBusinessLogicTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGBusinessLogicTests.m"; sourceTree = "<group>"; };
+		263E84744D55413FB46FC776 /* iGenius_OBJCTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "iGenius_OBJCTests.m"; sourceTree = "<group>"; };
+		2B7309A806C64E388E90E31C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		5281AC572FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Syncrosa-Legacy-ObjC.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5281AC6A2FDAE21700B6EAAC /* Syncrosa-Legacy-ObjCTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Syncrosa-Legacy-ObjCTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5281AC542FDAE21700B6EAAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5281AC672FDAE21700B6EAAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		9B6854E6C9024686BF9C7D30 /* AppIcon.appiconset */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = "AppIcon.appiconset";
+			sourceTree = "<group>";
+		};
+		F7045C4039434024A6837861 /* en.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				6D1D0F3BC1A9431FA713FACA /* Localizable.strings */,
+			);
+			path = "en.lproj";
+			sourceTree = "<group>";
+		};
+		2F8682CD8CE0487D9C36D920 /* ru.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				2FD75338676D432287B942F2 /* Localizable.strings */,
+			);
+			path = "ru.lproj";
+			sourceTree = "<group>";
+		};
+		3CC2D24B88C441B9A777ECF4 /* Images.xcassets */ = {
+			isa = PBXGroup;
+			children = (
+				9B6854E6C9024686BF9C7D30 /* AppIcon.appiconset */,
+			);
+			path = "Images.xcassets";
+			sourceTree = "<group>";
+		};
+		87C6A0D1D66E45CC96B7A29C /* Base.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				E2CF198FB78A4DC1AC072FF2 /* MainMenu.xib */,
+			);
+			path = "Base.lproj";
+			sourceTree = "<group>";
+		};
+		1E04F28820E2468BBADA01C4 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E374558BE5764783B1DF4413 /* cacert.pem */,
+				F7045C4039434024A6837861 /* en.lproj */,
+				2F8682CD8CE0487D9C36D920 /* ru.lproj */,
+			);
+			path = "Resources";
+			sourceTree = "<group>";
+		};
+		2E115DFDA77A4339B9F16470 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				7E3E69909F5B4486992BB18D /* IGMediaFixerManager.h */,
+				FB3468E996FC47628A07F2F2 /* IGLogger.m */,
+				9CCE79AE97C945BFA6FE7FBB /* IGLocalizationService.m */,
+				E36E5D394BEB4A5EB5FEF00D /* IGAIService.m */,
+				78ECA818E087450186C4F381 /* IGiTunesService.h */,
+				6910B64EF5F0403FAE12F115 /* IGKeychainHelper.h */,
+				9202916478C84B4BBAF6B452 /* IGUSBService.m */,
+				16FDB113E7FA4685ADEC91F5 /* IGMediaFixerManager.m */,
+				13C7D2CE8169426C8385D045 /* IGiTunesService.m */,
+				440012A363524F0AB0A55446 /* IGAIService.h */,
+				5E114CA9F4C444F2B8112413 /* IGLocalizationService.h */,
+				E3E511D56CC34B87A9C6B1FB /* IGLogger.h */,
+				5AB1F206C1EE47C0B2485169 /* IGKeychainHelper.m */,
+				197E80BBD0D64A9FB6919BC5 /* IGUSBService.h */,
+			);
+			path = "Services";
+			sourceTree = "<group>";
+		};
+		219437403B164153BF6F967D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				F6E0A661600140A4970322E3 /* IGTrack.m */,
+				34C60E863C434695AC1B3ADC /* IGTrack.h */,
+			);
+			path = "Models";
+			sourceTree = "<group>";
+		};
+		7162FC878CB946F1AAFA3E21 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				99F0529005DB43ACAA95A98E /* IGMainWindowController.h */,
+				75FEE0048C524ECE9AB5D0EA /* IGNotificationView.h */,
+				B63378E578534B84A1A00522 /* IGSettingsViewController.m */,
+				3D6C06E0FF884B699D4AFDF7 /* IGUSBExportViewController.m */,
+				7BDFDC0599E8415CB373DCB6 /* IGFileFixerViewController.m */,
+				9F3D77A654364564BE6691CD /* IGFixerViewController.h */,
+				6AC938E71C8A4D8F93BB28AA /* IGGeniusViewController.m */,
+				FC2036CEDD01406CA5852D25 /* IGNotificationView.m */,
+				486E8EFC700948B1B1559FF0 /* IGMainWindowController.m */,
+				B2C06157940B41F1B05EF2C0 /* IGSettingsViewController.h */,
+				A7C6AFE819CB4EB1ADEDF926 /* IGGeniusViewController.h */,
+				763908A028E54C42A07DF33E /* IGFixerViewController.m */,
+				B3E37B18948E4BE6BDEC05CE /* IGUSBExportViewController.h */,
+				AEA74DF5DC284EEAA882732E /* IGFileFixerViewController.h */,
+			);
+			path = "UI";
+			sourceTree = "<group>";
+		};
+		397BFED71B074F99B3A221DD /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				9A2352A559E54DB9B2EAC630 /* AppDelegate.h */,
+				1A049E456F7D41229249A4E3 /* AppIcon.icns */,
+				EE2B4DDCD2F649A799AB881D /* main.m */,
+				7552F919E075414E9302B597 /* AppDelegate.m */,
+				AC9E86C5D0184F61B500B39B /* Info.plist */,
+				7162FC878CB946F1AAFA3E21 /* UI */,
+				1E04F28820E2468BBADA01C4 /* Resources */,
+				219437403B164153BF6F967D /* Models */,
+				87C6A0D1D66E45CC96B7A29C /* Base.lproj */,
+				3CC2D24B88C441B9A777ECF4 /* Images.xcassets */,
+				2E115DFDA77A4339B9F16470 /* Services */,
+			);
+			path = "Sources";
+			sourceTree = "<group>";
+		};
+		8B093849154F4F79995EE18E /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				1C676D860B2A41D2B67B9816 /* IGBusinessLogicTests.m */,
+				263E84744D55413FB46FC776 /* iGenius_OBJCTests.m */,
+				2B7309A806C64E388E90E31C /* Info.plist */,
+			);
+			path = "Syncrosa-Legacy-ObjCTests";
+			sourceTree = "<group>";
+		};
+		5281AC582FDAE21700B6EAAC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5281AC572FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC.app */,
+				5281AC6A2FDAE21700B6EAAC /* Syncrosa-Legacy-ObjCTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5281AC4E2FDAE21700B6EAAC /* Project Group */ = {
+			isa = PBXGroup;
+			children = (
+				397BFED71B074F99B3A221DD /* Sources */,
+				8B093849154F4F79995EE18E /* Tests */,
+				5281AC582FDAE21700B6EAAC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5281AC562FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjC" */;
+			buildPhases = (
+				5281AC532FDAE21700B6EAAC /* Sources */,
+				5281AC542FDAE21700B6EAAC /* Frameworks */,
+				5281AC552FDAE21700B6EAAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Syncrosa-Legacy-ObjC";
+			productName = "Syncrosa-Legacy-ObjC";
+			productReference = 5281AC572FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5281AC692FDAE21700B6EAAC /* Syncrosa-Legacy-ObjCTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjCTests" */;
+			buildPhases = (
+				2A3B3564D7DF4EA998ED3EF8 /* Sources */,
+				5281AC672FDAE21700B6EAAC /* Frameworks */,
+				5281AC682FDAE21700B6EAAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */,
+			);
+			name = "Syncrosa-Legacy-ObjCTests";
+			productName = "Syncrosa-Legacy-ObjCTests";
+			productReference = 5281AC6A2FDAE21700B6EAAC /* Syncrosa-Legacy-ObjCTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5281AC4F2FDAE21700B6EAAC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0610;
+				ORGANIZATIONNAME = "MacBook Pro";
+				TargetAttributes = {
+					5281AC562FDAE21700B6EAAC = {
+						CreatedOnToolsVersion = 6.1;
+					};
+					5281AC692FDAE21700B6EAAC = {
+						CreatedOnToolsVersion = 6.1;
+						TestTargetID = 5281AC562FDAE21700B6EAAC;
+					};
+				};
+			};
+			buildConfigurationList = 5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "Syncrosa-Legacy-ObjC" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5281AC4E2FDAE21700B6EAAC;
+			productRefGroup = 5281AC582FDAE21700B6EAAC /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5281AC562FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC */,
+				5281AC692FDAE21700B6EAAC /* Syncrosa-Legacy-ObjCTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5281AC552FDAE21700B6EAAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EA3E52CBFBA54D99A6FAEE43 /* AppIcon.icns in Resources */,
+				8C300A1586354369927CD686 /* cacert.pem in Resources */,
+				F5EB0EBD4FEF4439AE422BB0 /* Localizable.strings in Resources */,
+				20105E03D2E44367A5E776B2 /* Localizable.strings in Resources */,
+				D42201E28E484D11A4CEE10E /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5281AC682FDAE21700B6EAAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5281AC532FDAE21700B6EAAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B15CB8379CF34D51A8C9966C /* main.m in Sources */,
+				1521208A6BE842E68B06D9D2 /* AppDelegate.m in Sources */,
+				2D3BD4A6D5BC406A8B8E6222 /* IGSettingsViewController.m in Sources */,
+				67FB6040DCE146B5AFB62912 /* IGUSBExportViewController.m in Sources */,
+				258235594C024C5A8EDDEEFB /* IGFileFixerViewController.m in Sources */,
+				1629BE59487B47FD81DAA353 /* IGGeniusViewController.m in Sources */,
+				A50EC1DC832548EFA950240E /* IGNotificationView.m in Sources */,
+				47D7A25E548C4C0E9F8AF8D9 /* IGMainWindowController.m in Sources */,
+				8BC8DE5AA4DC4069BE2E83D6 /* IGFixerViewController.m in Sources */,
+				792CA144F36D41D18883196F /* IGTrack.m in Sources */,
+				1D37ECFCC31943B78AC3B371 /* IGLogger.m in Sources */,
+				5F0C8B31360F4930A25EFC8B /* IGLocalizationService.m in Sources */,
+				8D0CC88E6A134E789E26D9FC /* IGAIService.m in Sources */,
+				07330FE6832B499EBAF22CF1 /* IGUSBService.m in Sources */,
+				DBB30D05499948B586868B3D /* IGMediaFixerManager.m in Sources */,
+				E58DCF6B647B4267A73B8C16 /* IGiTunesService.m in Sources */,
+				25DC46590B3F4E9EBFE1E34E /* IGKeychainHelper.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2A3B3564D7DF4EA998ED3EF8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				25A596BD1B0C48B08AC02ACE /* IGBusinessLogicTests.m in Build */,
+				B7EC2E0BBF02434B82558F88 /* iGenius_OBJCTests.m in Build */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5281AC6C2FDAE21700B6EAAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5281AC562FDAE21700B6EAAC /* Syncrosa-Legacy-ObjC */;
+			targetProxy = 5281AC6B2FDAE21700B6EAAC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		5281AC502FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_BIT_CONVERT_TO_32_BIT_AS_SAFE = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		5281AC512FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_64_BIT_CONVERT_TO_32_BIT_AS_SAFE = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		5281AC752FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		5281AC762FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		5281AC782FDAE21700B6EAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "Syncrosa-Legacy-ObjCTests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Syncrosa-Legacy-ObjC.app/Contents/MacOS/Syncrosa-Legacy-ObjC";
+			};
+			name = Debug;
+		};
+		5281AC792FDAE21700B6EAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "Syncrosa-Legacy-ObjCTests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Syncrosa-Legacy-ObjC.app/Contents/MacOS/Syncrosa-Legacy-ObjC";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5281AC522FDAE21700B6EAAC /* Build configuration list for PBXProject "Syncrosa-Legacy-ObjC" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC502FDAE21700B6EAAC /* Debug */,
+				5281AC512FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5281AC742FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjC" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC752FDAE21700B6EAAC /* Debug */,
+				5281AC762FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "Syncrosa-Legacy-ObjCTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5281AC782FDAE21700B6EAAC /* Debug */,
+				5281AC792FDAE21700B6EAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5281AC4F2FDAE21700B6EAAC /* Project object */;
+}

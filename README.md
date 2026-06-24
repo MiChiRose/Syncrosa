@@ -1,11 +1,11 @@
-# iGeniusAI 🎵🤖 (AI + Media Fixer)
+# Syncrosa 🎵🤖 (AI + Media Fixer)
 
 <div align="center">
-  <img src="genius.jpeg" alt="iGeniusAI Logo" width="120" />
+  <img src="genius.jpeg" alt="Syncrosa Logo" width="120" />
   <p><b>The ultimate power-tool for managing and creating Apple Music & iTunes playlists using AI.</b></p>
   <p align="center">
   <img src="https://img.shields.io/badge/Swift-SwiftUI-orange" alt="Swift / SwiftUI" />
-  <img src="https://img.shields.io/badge/Objective--C-Legacy%20Pro%20(WIP)-blue" alt="Objective-C" />
+  <img src="https://img.shields.io/badge/Objective--C-Legacy%20Pro-blue" alt="Objective-C" />
   <img src="https://img.shields.io/badge/Python-Legacy%20Stable-blue" alt="Python" />
   <img src="https://img.shields.io/badge/macOS-Sonoma%20to%20Mavericks-black" alt="macOS" />
   <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20OpenRouter-brightgreen" alt="AI providers" />
@@ -13,35 +13,44 @@
 </p>
 </div>
 
-Welcome to the central hub for the **iGeniusAI** ecosystem. This repository serves as the landing page and documentation hub for the project. 
+Welcome to the central hub for the **Syncrosa** ecosystem. This repository serves as the landing page and documentation hub for the project. 
 
-The application is available in **two distinct versions**, tailored for different eras of Apple hardware.
+The application is available in **three distinct versions**, tailored for different eras of Apple hardware.
 
 ---
 
 ## 🚀 The Applications
 
-### 1. [iGeniusAI-arm](./iGeniusAI-arm) (Modern Apple Silicon)
+### 1. [syncrosa-swift](./syncrosa-swift) (Modern Apple Silicon)
 A completely rewritten, native **SwiftUI** application designed exclusively for modern macOS (macOS 14 Sonoma and newer) running on Apple Silicon (M1/M2/M3/M4) chips.
 
 - **Deep Music.app Integration:** Seamlessly interacts with the modern macOS Music application.
 - **Modern UI:** Fast, fluid interface with a native iOS-style HUD notification system.
 - **Advanced Security:** Uses macOS Keychain to securely store your API keys and employs Hardened Runtime for process safety.
 - **Multi-Provider AI:** Supports generating playlists via Gemini, Groq, and OpenRouter (bypassing geo-blocks).
+- **USB Export:** Transfer playlists directly to USB drives with format compatibility check and size optimization (.fitAvailable).
 - **10+ Languages:** Fully localized out of the box.
 
-### 2. [iGeniusAI-legacy](./iGeniusAI-legacy) (Legacy Intel / OS X)
-The legendary original version, meticulously designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra.
+### 2. [syncrosa-objc](./syncrosa-objc) (Native Legacy Cocoa)
+A native, high-performance rewrite of the legacy track, built from the ground up using **Objective-C** and **Cocoa** for vintage Intel Macs running OS X 10.13 High Sierra and newer.
+
+- **Classic iTunes Support:** Interacts directly with the legacy iTunes application.
+- **Backwards-Compatible SDK:** Compiled to run natively on classic systems while maintaining modern parity.
+- **Secure Keychain Storage:** Separate Keychain item storage for each AI provider.
+- **Resilient Network Layer:** Spawns curl subprocesses when system openssl is too old to establish TLS 1.2+ handshakes.
+- **USB Export Tab:** Native Cocoa control panel for copying files to USB drives.
+
+### 3. [syncrosa-python](./syncrosa-python) (Legacy Python Track)
+The original stable version designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra using system Python 2.7.x interpreter.
 
 - **Stable Python Core:** The current stable build ensures 100% compatibility with older OS X versions.
-- **Active Native Rewrite (WIP):** We are currently in the middle of a major transition to a native **Objective-C** core for even better performance on old hardware. *Note: The Obj-C version is currently in development and not yet available in the stable releases.*
 - **Classic iTunes Support:** Interacts directly with the legacy iTunes application.
 - **Resilient Network Layer:** Bypasses outdated OpenSSL 0.9.8 limitations on old Macs.
 
 ---
 
 ## ⚙️ Engineering Highlights
-- **Native Performance:** Transitioning to zero-dependency tracks for both Modern (SwiftUI) and Legacy (Objective-C) builds.
+- **Native Performance:** Zero-dependency compilation tracks for both Modern (SwiftUI) and Legacy (Objective-C) builds.
 - **Resilient Connectivity:** Custom network layer to bypass expired SSL certificates on vintage macOS.
 - **Security-First:** Native Keychain integration and Hardened Runtime for process protection.
 - **Zero Bloat:** Native codebases only—no Electron, no web-wrappers, just raw performance.
@@ -50,10 +59,10 @@ The legendary original version, meticulously designed for vintage Macs running O
 
 ## 📥 How to Download & Run
 
-You can find the compiled release versions in the [Releases](https://github.com/MiChiRose/iGeniusAI/releases) section of this repository.
+You can find the compiled release versions in the [Releases](https://github.com/MiChiRose/Syncrosa/releases) section of this repository.
 
 ### Running the Application (Important)
-Because the application is distributed directly without an expensive Apple Developer Enterprise certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
+Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
 
 **To open the app for the first time:**
 1. Download and extract the release archive.
@@ -65,7 +74,7 @@ Because the application is distributed directly without an expensive Apple Devel
 
 ## 🌟 Legacy App Features Guide
 
-Below is a detailed guide on how to set up and use the legacy iGeniusAI application. 
+Below is a detailed guide on how to set up and use the legacy Syncrosa application. 
 
 <details>
 <summary><b>1. Initial Setup & AI Configuration (First Launch)</b></summary>
@@ -94,10 +103,10 @@ When you open the application for the first time, you will be greeted by the **A
 4. **Validate & Save:**
  * Paste your key into the input field and click **"Validate & Save Key"**.
  * **Success:** You will see a *"Success! Welcome"* message, and the window will close.
- * **Error:** If validation fails, double-check your key, ensure the selected model is currently available, and check your internet connection. If issues persist, see the [Issues & Support](#-issues--support) section below.
+ * **Error:** If validation fails, double-check your key, ensure the selected model is currently available, and check your internet connection.
 
 5. **Error Logging:**
- * There is a checkbox labeled **"Prompt to save text logs..."**. I recommend keeping this enabled. If the app crashes or behaves unexpectedly, these logs help me (the developer) understand exactly what went wrong. You can send these logs to me for a quick fix!
+ * There is a checkbox labeled **"Prompt to save text logs..."**. I recommend keeping this enabled. If the app crashes or behaves unexpectedly, these logs help me (the developer) understand exactly what went wrong.
  * <img width="751" height="564" alt="4th" src="https://github.com/user-attachments/assets/8de2b188-5ad0-4584-a5c1-b4b3064401a7" />
 
 
@@ -111,7 +120,7 @@ Using the application is designed to be simple and intuitive:
 1. **Playlist Name:** Enter what you want your new iTunes playlist to be called (e.g., *"My Ultimate Drive"*).
 2. **Mood / Vibe:** Describe what kind of music you want to hear. Be as specific as you like (e.g., *"Upbeat energetic 80s synth-pop for a workout"*).
 3. **Track Count:** Choose how many songs should be in the playlist (default is 25). 
- * *Note: The AI will try to find as many matches as possible from your local library, but it might return fewer than requested if your library is small or the vibe is very niche.*
+ * *Note: The AI will try to find as many matches as possible from your local library, but it might return fewer than requested if your library is small.*
 4. **Generate:** Click **"GENERATE PLAYLIST"** and wait a moment.
  * <img width="601" height="572" alt="5th" src="https://github.com/user-attachments/assets/fbd8ba59-c213-4c24-8bf4-2645d600193f" />
 
@@ -137,21 +146,22 @@ The **Media Fixer** tab helps keep your library organized:
 
 ## 🛠 Under the Hood
 
-*   **The Evolution of Legacy:** Originally prototyped in **Python** for speed, the legacy track is now moving to a **Native Objective-C** core (currently in development). This transition eliminates the need for an external interpreter and brings true Cocoa-level responsiveness to OS X 10.9+.
-*   **Modern Architecture:** The ARM version leverages **pure SwiftUI**, ensuring the app is power-efficient and fits perfectly into the modern macOS aesthetic while maintaining a lightning-fast compiled binary.
+*   **The Evolution of Legacy:** Originally prototyped in **Python** for speed, the legacy track is now moving to a **Native Objective-C** core (syncrosa-objc). This transition eliminates the need for an external interpreter and brings true Cocoa-level responsiveness to older OS X platforms.
+*   **Modern Architecture:** The modern version leverages **pure SwiftUI**, ensuring the app is power-efficient and fits perfectly into the modern macOS aesthetic while maintaining a lightning-fast compiled binary.
 *   **Protocol Bridge:** We use custom automation and AppleScript bridges to ensure that regardless of the version (iTunes or Music.app), the AI-generated playlists are injected accurately and instantly.
-*   **Network Resilience:** A custom socket-level wrapper is implemented in the legacy build to bridge the gap between vintage OpenSSL versions and the strict security requirements of modern AI APIs.
+*   **Network Resilience:** A custom socket-level wrapper and curl subprocess fallbacks are implemented in the legacy builds to bridge the gap between vintage OpenSSL versions and the strict security requirements of modern AI APIs.
 
 ---
 
 ## ⚠️ Compatibility & Security
 
 **Supported OS & Hardware:**
-- **iGenius_ARM:** Requires **macOS 14 Sonoma or newer** and an Apple Silicon (**M1/M2/M3/M4**) processor.
-- **iGeniusAI (Legacy):** Designed strictly for **OS X 10.9 Mavericks up to 10.13 High Sierra** on Intel Macs (2008-2013 era). 
+- **syncrosa-swift:** Requires **macOS 14 Sonoma or newer** and an Apple Silicon (**M1/M2/M3/M4**) processor.
+- **syncrosa-objc:** Designed strictly for **OS X 10.13 High Sierra** on Intel/Apple Silicon Macs (supports modern API Keychain separation and USB export).
+- **syncrosa-python:** Designed strictly for **OS X 10.9 Mavericks up to 10.13 High Sierra** on Intel Macs (original stable build).
 
 **Security & Privacy:**
-- **Local Storage Only:** Your API keys are stored only locally in `~/.itunes_genius_ai.json` (Legacy) or securely encrypted in the macOS Keychain (ARM).
+- **Local Storage Only:** Your API keys are stored only locally in `~/.syncrosa.json` (Python Legacy) or securely encrypted in the macOS Keychain (Swift & Obj-C).
 - **No Data Collection:** The application does not collect or distribute your private data.
 
 ## 💬 Issues & Support
