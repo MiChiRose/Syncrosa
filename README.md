@@ -32,7 +32,7 @@ A completely rewritten, native **SwiftUI** application designed exclusively for 
 - **10+ Languages:** Fully localized out of the box.
 
 ### 2. [syncrosa-objc](./syncrosa-objc) (Native Legacy Cocoa)
-A native, high-performance rewrite of the legacy track, built from the ground up using **Objective-C** and **Cocoa** for vintage Intel Macs running OS X 10.13 High Sierra and newer.
+A native, high-performance rewrite of the legacy track, built from the ground up using **Objective-C** and **Cocoa** for vintage Intel Macs running OS X 10.9 Mavericks and newer.
 
 - **Classic iTunes Support:** Interacts directly with the legacy iTunes application.
 - **Backwards-Compatible SDK:** Compiled to run natively on classic systems while maintaining modern parity.
@@ -157,7 +157,7 @@ The **Media Fixer** tab helps keep your library organized:
 
 **Supported OS & Hardware:**
 - **syncrosa-swift:** Requires **macOS 14 Sonoma or newer** and an Apple Silicon (**M1/M2/M3/M4**) processor.
-- **syncrosa-objc:** Designed strictly for **OS X 10.13 High Sierra** on Intel/Apple Silicon Macs (supports modern API Keychain separation and USB export).
+- **syncrosa-objc:** Designed strictly for **OS X 10.9 Mavericks and newer** on Intel/Apple Silicon Macs (supports modern API Keychain separation and USB export).
 - **syncrosa-python:** Designed strictly for **OS X 10.9 Mavericks up to 10.13 High Sierra** on Intel Macs (original stable build).
 
 **Security & Privacy:**
