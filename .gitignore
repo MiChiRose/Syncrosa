@@ -1,61 +1,67 @@
+# Ignore everything in the root by default
+/*
+
+# Whitelist allowed directories
+!/syncrosa-objc/
+!/syncrosa-python/
+!/syncrosa-swift/
+
+# Whitelist allowed root files
+!/.gitignore
+!/README.md
+!/app_logo.png
+
+# ==========================================
+# Rules for ignored files inside directories
+# ==========================================
+
 # macOS General
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+**/Icon
+**/._*
 
-# Xcode / Swift Package Manager
-build/
-DerivedData/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata/
-*.xccheckout
-*.moved-aside
-*.xcuserstate
-*.xcscmblueprint
-.swiftpm/
-.build/
+# Xcode / Swift / Objective-C Build Artifacts
+**/build/
+**/DerivedData/
+**/*.pbxuser
+**/!default.pbxuser
+**/*.mode1v3
+**/!default.mode1v3
+**/*.mode2v3
+**/!default.mode2v3
+**/*.perspectivev3
+**/!default.perspectivev3
+**/xcuserdata/
+**/xcuserdata/
+**/*.xccheckout
+**/*.moved-aside
+**/*.xcuserstate
+**/*.xcscmblueprint
+**/.swiftpm/
+**/.build/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-pip-log.txt
-pip-delete-this-directory.txt
+# Python Build & Environments
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/.Python
+**/env/
+**/venv/
+**/pip-log.txt
+**/pip-delete-this-directory.txt
 
-# Executables & Bundles
-*.app/
-*.app.dSYM/
-*.dSYM/
-*.zip
-*.dylib
-*.o
-*.obj
-*.out
+# Executables, Bundles, Archives
+**/*.app/
+**/*.app.dSYM/
+**/*.dSYM/
+**/*.zip
+**/*.dylib
+**/*.o
+**/*.obj
+**/*.out
 
 # Logs
-*.log
-iGeniusAI-legacy-objc.zip
-
-# Project Map & Agents
-PROJECT_MAP.md
-.agents/
-
-# Recursive build artifacts
-**/*.dSYM/
-**/*.dylib
-**/*.app/
-**/.DS_Store
-
+**/*.log
