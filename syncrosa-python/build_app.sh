@@ -34,9 +34,9 @@ cat << 'EOF' > "$APP_PATH/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.1.0</string>
+    <string>3.2.0</string>
     <key>CFBundleVersion</key>
-    <string>3.1.0</string>
+    <string>3.2.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.9</string>
 </dict>
@@ -107,10 +107,10 @@ echo "Refreshing Finder icon cache..."
 
 # 9. УПАКОВКА В ZIP
 echo "Creating distribution ZIP..."
-rm -f "$HOME/Desktop/Syncrosa_Python_Legacy.zip"
+rm -f "$HOME/Desktop/Syncrosa_Python_v3.2.0.zip"
 cd "$WORK_DIR"
-zip -ry "$HOME/Desktop/Syncrosa_Python_Legacy.zip" "$APP_NAME.app"
+zip -ry "$HOME/Desktop/Syncrosa_Python_v3.2.0.zip" "$APP_NAME.app"
 rm -rf "$APP_PATH"
 
 echo "--- SUCCESS! ---"
-echo "Ready: Syncrosa_Python_Legacy.zip on your Desktop."
+echo "Ready: Syncrosa_Python_v3.2.0.zip on your Desktop."

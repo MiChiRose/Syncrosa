@@ -47,6 +47,15 @@
 
 - (void)setupDictionaries {
     _en = @{
+        @"duplicate_finder": @"Duplicate Finder",
+        @"offline_playlist": @"Offline Playlist",
+        @"tag_album": @"Album",
+        @"tag_title": @"Title",
+        @"tag_artist": @"Artist",
+        @"tag_genre": @"Genre",
+        @"tag_track_number": @"Track Number",
+        @"tag_lyrics": @"Lyrics",
+        @"select_all": @"Select All",
         @"settings": @"Settings",
         @"ai_playlist": @"AI Playlist",
         @"media_fixer": @"iTunes Media Fixer",
@@ -141,6 +150,15 @@
     };
 
     _ru = @{
+        @"duplicate_finder": @"Поиск дубликатов",
+        @"offline_playlist": @"Офлайн плейлист",
+        @"tag_album": @"Альбом",
+        @"tag_title": @"Название",
+        @"tag_artist": @"Исполнитель",
+        @"tag_genre": @"Жанр",
+        @"tag_track_number": @"Номер трека",
+        @"tag_lyrics": @"Текст песни",
+        @"select_all": @"Выбрать все",
         @"settings": @"Настройки",
         @"ai_playlist": @"ИИ Плейлист",
         @"media_fixer": @"Медиа Фиксер iTunes",

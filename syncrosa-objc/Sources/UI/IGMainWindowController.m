@@ -3,6 +3,8 @@
 #import "IGFileFixerViewController.h"
 #import "IGUSBExportViewController.h"
 #import "IGCoversOptimizerViewController.h"
+#import "IGDuplicateFinderViewController.h"
+#import "IGOfflinePlaylistViewController.h"
 #import "IGUSBService.h"
 #import "IGAIService.h"
 #import "IGKeychainHelper.h"
@@ -19,6 +21,8 @@
 @property (nonatomic, strong) IGFileFixerViewController *fileFixerVC;
 @property (nonatomic, strong) IGUSBExportViewController *usbExportVC;
 @property (nonatomic, strong) IGCoversOptimizerViewController *coversOptimizerVC;
+@property (nonatomic, strong) IGDuplicateFinderViewController *duplicateFinderVC;
+@property (nonatomic, strong) IGOfflinePlaylistViewController *offlinePlaylistVC;
 @property (nonatomic, strong) IGSettingsViewController *settingsVC;
 @end
 
@@ -89,7 +93,7 @@
     if (apiKey && apiKey.length > 0) {
         [self switchViewToIndex:0];
     } else {
-        [self switchViewToIndex:5];
+        [self switchViewToIndex:7];
     }
 }
 
@@ -123,6 +127,8 @@
         [lang t:@"folder_fix"],
         [lang t:@"usb_export"],
         [lang t:@"covers_optimizer"],
+        [lang t:@"duplicate_finder"],
+        [lang t:@"offline_playlist"],
         [lang t:@"settings"]
     ];
     
@@ -132,9 +138,9 @@
     }
     [self.sidebarButtons removeAllObjects];
     
-    CGFloat y = 450;
+    CGFloat y = 440;
     for (NSInteger i = 0; i < titles.count; i++) {
-        NSButton *btn = [[NSButton alloc] initWithFrame:NSMakeRect(15, y, 150, 32)];
+        NSButton *btn = [[NSButton alloc] initWithFrame:NSMakeRect(15, y, 150, 30)];
         btn.title = titles[i];
         btn.bezelStyle = NSTexturedSquareBezelStyle;
         btn.target = self;
@@ -143,7 +149,7 @@
         btn.autoresizingMask = NSViewWidthSizable;
         [self.sidebarContainer addSubview:btn];
         [self.sidebarButtons addObject:btn];
-        y -= 40;
+        y -= 38;
     }
 }
 
@@ -221,6 +227,14 @@
             targetVC = self.coversOptimizerVC;
             break;
         case 5:
+            if (!self.duplicateFinderVC) self.duplicateFinderVC = [[IGDuplicateFinderViewController alloc] init];
+            targetVC = self.duplicateFinderVC;
+            break;
+        case 6:
+            if (!self.offlinePlaylistVC) self.offlinePlaylistVC = [[IGOfflinePlaylistViewController alloc] init];
+            targetVC = self.offlinePlaylistVC;
+            break;
+        case 7:
             if (!self.settingsVC) self.settingsVC = [[IGSettingsViewController alloc] init];
             targetVC = self.settingsVC;
             break;

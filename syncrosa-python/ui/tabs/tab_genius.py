@@ -32,8 +32,20 @@ class GeniusTab(tk.Frame):
         self.build_ui()
 
     def build_ui(self):
+        header_frame = tk.Frame(self, bg="#ECECEC")
+        header_frame.pack(pady=(15, 5))
+        
+        self.title_lbl = tk.Label(header_frame, text="iTunes Genius Generator", font=("system", 14, "bold"), bg="#ECECEC")
+        self.title_lbl.pack(side=tk.LEFT)
+        
+        self.help_btn = tk.Button(
+            header_frame, text="?", font=("system", 11, "bold"), width=2,
+            command=self.show_help, highlightbackground="#ECECEC"
+        )
+        self.help_btn.pack(side=tk.LEFT, padx=10)
+
         form_frame = tk.Frame(self, bg="#ECECEC")
-        form_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+        form_frame.pack(pady=5, fill=tk.BOTH, expand=True)
 
         tk.Label(form_frame, text=_(u"pl_name"), font=("system", 13), bg="#ECECEC").pack(anchor="w", padx=40, pady=(5, 2))
         self.pl_name = tk.Entry(form_frame, state="normal", font=("system", 14), highlightbackground="#ECECEC")
@@ -229,3 +241,7 @@ class GeniusTab(tk.Frame):
                     tkMessageBox.showerror("Generation Error", short_msg + "\n\n" + ui_err_str)
                     
             self.after(0, show_error_and_ask_log)
+
+    def show_help(self):
+        from ui.components import HelpDialog
+        HelpDialog(self, _(u"help_title"), _(u"help_text"))

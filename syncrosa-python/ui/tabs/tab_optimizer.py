@@ -29,8 +29,17 @@ class OptimizerTab(tk.Frame):
         self.build_ui()
 
     def build_ui(self):
-        self.title_lbl = tk.Label(self, text=_(u"covers_optimizer"), font=("system", 14, "bold"), bg="#ECECEC")
-        self.title_lbl.pack(pady=(15, 10))
+        header_frame = tk.Frame(self, bg="#ECECEC")
+        header_frame.pack(pady=(15, 5))
+        
+        self.title_lbl = tk.Label(header_frame, text=_(u"covers_optimizer"), font=("system", 14, "bold"), bg="#ECECEC")
+        self.title_lbl.pack(side=tk.LEFT)
+        
+        self.help_btn = tk.Button(
+            header_frame, text="?", font=("system", 11, "bold"), width=2,
+            command=self.show_help, highlightbackground="#ECECEC"
+        )
+        self.help_btn.pack(side=tk.LEFT, padx=10)
 
         # Select Device Frame
         self.sel_frame = tk.Frame(self, bg="#ECECEC")
@@ -211,3 +220,18 @@ class OptimizerTab(tk.Frame):
             self.action = None
             self.after(0, lambda: self.set_controls_state(True))
             self.after(0, lambda: self.status.config(text=""))
+
+    def show_help(self):
+        from ui.components import HelpDialog
+        help_text = (
+            "COVERS OPTIMIZER INSTRUCTIONS:\n\n"
+            "1. Select Target Resolution:\n"
+            "   Choose the target device from the dropdown menu to select the optimal resolution for your album covers (e.g., iPod Classic: 300x300, iPhone: 600x600, High-Res: 1000x1000).\n\n"
+            "2. Backup Original Covers:\n"
+            "   It is highly recommended to click 'Backup Original Covers' first. This saves your full-resolution original covers to 'Documents/AlbumCovers' folder.\n\n"
+            "3. Optimize Covers:\n"
+            "   Clicking 'Optimize Covers' will automatically extract each track's artwork, resize/compress it according to the target device using PIL (Pillow), and save it back to iTunes. This significantly reduces the size of your iTunes database and speeds up synching to retro devices.\n\n"
+            "4. Restore Covers:\n"
+            "   If you wish to restore the original full-quality artwork later, click 'Restore Original Covers'. It will read the backups from your 'Documents/AlbumCovers' folder and write them back to iTunes."
+        )
+        HelpDialog(self, "Covers Optimizer Help", help_text)

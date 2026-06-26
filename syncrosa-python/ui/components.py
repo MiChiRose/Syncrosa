@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+import sys
 try:
     import Tkinter as tk
     import ttk
@@ -117,3 +118,51 @@ class ProgressWindow(tk.Toplevel):
         self.fun_active = False
         self.lbl.config(text=_(u"prog_canceling"))
         self.btn_cancel.config(state="disabled")
+
+class HelpDialog(tk.Toplevel):
+    def __init__(self, parent, title, text):
+        tk.Toplevel.__init__(self, parent)
+        self.title(title)
+        self.geometry("480x380")
+        self.resizable(True, True)
+        self.transient(parent)
+        self.grab_set()
+        self.configure(bg="#ECECEC")
+        
+        try:
+            parent_x = parent.winfo_rootx()
+            parent_y = parent.winfo_rooty()
+            parent_w = parent.winfo_width()
+            parent_h = parent.winfo_height()
+            x = parent_x + (parent_w - 480) // 2
+            y = parent_y + (parent_h - 380) // 2
+            self.geometry("+{}+{}".format(max(0, x), max(0, y)))
+        except:
+            pass
+        
+        main_frame = tk.Frame(self, bg="#ECECEC")
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        txt_frame = tk.Frame(main_frame, bg="#ECECEC")
+        txt_frame.pack(fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(txt_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.text_widget = tk.Text(txt_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set, font=("system", 12), bg="white", fg="black")
+        self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.text_widget.yview)
+        
+        if sys.version_info[0] < 3:
+            if isinstance(text, str):
+                text = text.decode('utf-8', 'ignore')
+        else:
+            if isinstance(text, bytes):
+                text = text.decode('utf-8', 'ignore')
+                
+        self.text_widget.insert(tk.END, text)
+        self.text_widget.config(state="disabled")
+        
+        btn = ttk.Button(main_frame, text="Close", command=self.destroy)
+        btn.pack(pady=(10, 0))
+

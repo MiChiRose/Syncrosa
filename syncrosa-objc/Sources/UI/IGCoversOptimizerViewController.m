@@ -14,6 +14,7 @@
 @property (nonatomic, strong) NSTextView *logView;
 
 @property (nonatomic, assign) BOOL isProcessing;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
 
 @end
 
@@ -47,6 +48,13 @@
     self.titleLabel.drawsBackground = NO;
     self.titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.titleLabel];
+    
+    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
+    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.title = @"";
+    helpButton.target = self;
+    helpButton.action = @selector(helpClicked:);
+    [self.view addSubview:helpButton];
     
     y -= 45;
     self.selectLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y + 2, 180, 20)];
@@ -577,6 +585,49 @@
             [self.progressIndicator stopAnimation:nil];
         }
     });
+}
+
+- (void)helpClicked:(id)sender {
+    NSString *helpText = @"Covers Optimizer Help\n\n"
+                          "This utility optimizes album artwork sizes in your iTunes/Music library to save storage space (crucial for older iPods/devices):\n\n"
+                          "1. Target Device: Choose the target iPod or device (e.g. iPod Classic, Nano) to use tailored size rules.\n"
+                          "2. Backup: Extracts and saves a copy of all current artwork to your Documents folder before optimization.\n"
+                          "3. Optimize: Resizes large high-resolution artwork to optimal dimensions (e.g., 600x600 or smaller) and updates them in your iTunes library.\n"
+                          "4. Restore: Restores the original high-resolution artwork from the backup folder.";
+    
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
+                                                  styleMask:NSWindowStyleMaskTitled
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = helpText;
+    textView.font = [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+    
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+    
+    self.helpSheetWindow = sheet;
+    [self.view.window beginSheet:sheet completionHandler:nil];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    if (self.helpSheetWindow) {
+        [self.view.window endSheet:self.helpSheetWindow];
+        [self.helpSheetWindow orderOut:nil];
+        self.helpSheetWindow = nil;
+    }
 }
 
 @end

@@ -4,9 +4,14 @@ import uuid
 def generate_id():
     return uuid.uuid4().hex[:24].upper()
 
-project_path = 'syncrosa-objc/Syncrosa.xcodeproj/project.pbxproj'
-sources_root = 'syncrosa-objc/Sources'
-tests_root = 'syncrosa-objc/SyncrosaTests'
+if os.path.exists('Sources'):
+    project_path = 'Syncrosa.xcodeproj/project.pbxproj'
+    sources_root = 'Sources'
+    tests_root = 'SyncrosaTests'
+else:
+    project_path = 'syncrosa-objc/Syncrosa.xcodeproj/project.pbxproj'
+    sources_root = 'syncrosa-objc/Sources'
+    tests_root = 'syncrosa-objc/SyncrosaTests'
 
 # 1. Map Filesystem (Sources)
 file_to_ref_id = {}

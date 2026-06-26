@@ -14,10 +14,10 @@ if [ ${PIPESTATUS[0]} -eq 0 ]; then
     APP_PATH=$(find build -name "*.app" -type d | head -n 1)
     cp -R "$APP_PATH" .
     echo "Creating distribution ZIP..."
-    rm -f "$HOME/Desktop/Syncrosa_Cocoa_Legacy.zip"
-    zip -ry "$HOME/Desktop/Syncrosa_Cocoa_Legacy.zip" Syncrosa.app
+    rm -f "$HOME/Desktop/Syncrosa_Cocoa_v3.2.0.zip"
+    zip -ry "$HOME/Desktop/Syncrosa_Cocoa_v3.2.0.zip" Syncrosa.app
     rm -rf Syncrosa.app
-    echo "✅ Syncrosa_Cocoa_Legacy.zip successfully created on Desktop!"
+    echo "✅ Syncrosa_Cocoa_v3.2.0.zip successfully created on Desktop!"
 else
     echo "❌ Build Failed. Check build.log"
     exit 1

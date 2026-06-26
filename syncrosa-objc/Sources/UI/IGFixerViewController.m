@@ -13,6 +13,15 @@
 @property (nonatomic, strong) NSTextView *logView;
 @property (nonatomic, strong) NSTextField *footerLabel;
 
+@property (nonatomic, strong) NSButton *selectAllCheckbox;
+@property (nonatomic, strong) NSButton *albumCheckbox;
+@property (nonatomic, strong) NSButton *titleCheckbox;
+@property (nonatomic, strong) NSButton *artistCheckbox;
+@property (nonatomic, strong) NSButton *genreCheckbox;
+@property (nonatomic, strong) NSButton *trackNumberCheckbox;
+@property (nonatomic, strong) NSButton *lyricsCheckbox;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
+
 @end
 
 @implementation IGFixerViewController
@@ -47,13 +56,20 @@
     self.titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.titleLabel];
     
-    y -= 50;
+    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
+    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.title = @"";
+    helpButton.target = self;
+    helpButton.action = @selector(helpClicked:);
+    [self.view addSubview:helpButton];
+    
+    y -= 40;
     self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, y, 500, 20)];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
     self.progressIndicator.indeterminate = NO;
     [self.view addSubview:self.progressIndicator];
     
-    y -= 30;
+    y -= 25;
     self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
     self.statusLabel.editable = NO;
     self.statusLabel.bordered = NO;
@@ -61,8 +77,49 @@
     self.statusLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.statusLabel];
 
-    y -= 180;
-    NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(40, y, 500, 150)];
+    // Selective Tag Checkboxes
+    y -= 30;
+    self.selectAllCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 150, 20)];
+    [self.selectAllCheckbox setButtonType:NSSwitchButton];
+    self.selectAllCheckbox.target = self;
+    self.selectAllCheckbox.action = @selector(selectAllClicked:);
+    self.selectAllCheckbox.state = NSOnState;
+    [self.view addSubview:self.selectAllCheckbox];
+    
+    y -= 25;
+    self.albumCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
+    [self.albumCheckbox setButtonType:NSSwitchButton];
+    self.albumCheckbox.state = NSOnState;
+    [self.view addSubview:self.albumCheckbox];
+    
+    self.titleCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
+    [self.titleCheckbox setButtonType:NSSwitchButton];
+    self.titleCheckbox.state = NSOnState;
+    [self.view addSubview:self.titleCheckbox];
+    
+    self.artistCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
+    [self.artistCheckbox setButtonType:NSSwitchButton];
+    self.artistCheckbox.state = NSOnState;
+    [self.view addSubview:self.artistCheckbox];
+    
+    y -= 25;
+    self.genreCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
+    [self.genreCheckbox setButtonType:NSSwitchButton];
+    self.genreCheckbox.state = NSOnState;
+    [self.view addSubview:self.genreCheckbox];
+    
+    self.trackNumberCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
+    [self.trackNumberCheckbox setButtonType:NSSwitchButton];
+    self.trackNumberCheckbox.state = NSOnState;
+    [self.view addSubview:self.trackNumberCheckbox];
+    
+    self.lyricsCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
+    [self.lyricsCheckbox setButtonType:NSSwitchButton];
+    self.lyricsCheckbox.state = NSOnState;
+    [self.view addSubview:self.lyricsCheckbox];
+
+    y -= 140;
+    NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(40, y, 500, 130)];
     scrollView.hasVerticalScroller = YES;
     scrollView.borderType = NSBezelBorder;
     
@@ -75,7 +132,7 @@
     scrollView.documentView = self.logView;
     [self.view addSubview:scrollView];
     
-    y -= 60;
+    y -= 50;
     self.startButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
     self.startButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.startButton.target = self;
@@ -83,7 +140,7 @@
     [self.view addSubview:self.startButton];
 
     // Footer
-    self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
+    self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 15, 540, 30)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
     self.footerLabel.textColor = [NSColor grayColor];
     self.footerLabel.alignment = NSCenterTextAlignment;
@@ -101,6 +158,14 @@
     self.titleLabel.stringValue = [lang t:@"media_fixer"];
     self.startButton.title = [lang t:@"analyze_lib"];
     self.footerLabel.stringValue = [lang t:@"footer"];
+    
+    self.selectAllCheckbox.title = [lang t:@"select_all"];
+    self.albumCheckbox.title = [lang t:@"tag_album"];
+    self.titleCheckbox.title = [lang t:@"tag_title"];
+    self.artistCheckbox.title = [lang t:@"tag_artist"];
+    self.genreCheckbox.title = [lang t:@"tag_genre"];
+    self.trackNumberCheckbox.title = [lang t:@"tag_track_number"];
+    self.lyricsCheckbox.title = [lang t:@"tag_lyrics"];
     
     if (self.statusLabel.stringValue.length == 0 ||
         [self.statusLabel.stringValue isEqualToString:@"Ready to scan for metadata issues"] ||
@@ -122,6 +187,57 @@
         [self.logView.textStorage appendAttributedString:attrLine];
         [self.logView scrollRangeToVisible:NSMakeRange(self.logView.string.length, 0)];
     });
+}
+
+- (void)selectAllClicked:(id)sender {
+    NSInteger state = self.selectAllCheckbox.state;
+    self.albumCheckbox.state = state;
+    self.titleCheckbox.state = state;
+    self.artistCheckbox.state = state;
+    self.genreCheckbox.state = state;
+    self.trackNumberCheckbox.state = state;
+    self.lyricsCheckbox.state = state;
+}
+
+- (void)helpClicked:(id)sender {
+    NSString *helpText = @"iTunes Media Fixer Help\n\n"
+                          "This utility scans your iTunes/Music library for split albums and missing metadata (Album, Title, Artist, Genre, Track Number, and Lyrics).\n\n"
+                          "1. Select All / Individual Tags: Use the checkboxes to choose which metadata tags should be corrected. Only the checked tags will be updated via AppleScript.\n"
+                          "2. Safe Operation: Every single track operation is wrapped in a safe error handling block, ensuring that if any track write fails (due to write permissions, locked files, etc.), the app will skip it and continue without crashing.";
+    
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
+                                                  styleMask:NSWindowStyleMaskTitled
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = helpText;
+    textView.font = [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+    
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+    
+    self.helpSheetWindow = sheet;
+    [self.view.window beginSheet:sheet completionHandler:nil];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    if (self.helpSheetWindow) {
+        [self.view.window endSheet:self.helpSheetWindow];
+        [self.helpSheetWindow orderOut:nil];
+        self.helpSheetWindow = nil;
+    }
 }
 
 - (void)startClicked:(id)sender {
@@ -157,9 +273,13 @@
         self.statusLabel.stringValue = [NSString stringWithFormat:@"Merging: %@", main];
         
         for (NSDictionary *t in targets) {
-            NSString *pid = t[@"pid"];
-            NSString *script = [NSString stringWithFormat:@"tell application \"iTunes\" to set album of (some track whose persistent ID is \"%@\") to \"%@\"", pid, [main stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]];
-            [service runAppleScript:script];
+            @try {
+                NSString *pid = t[@"pid"];
+                NSString *script = [NSString stringWithFormat:@"tell application \"iTunes\" to set album of (some track whose persistent ID is \"%@\") to \"%@\"", pid, [main stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]];
+                [service runAppleScript:script];
+            } @catch (NSException *ex) {
+                NSLog(@"Error merging split album: %@", ex);
+            }
         }
         
         processed++;
@@ -172,8 +292,18 @@
 }
 
 - (void)runMetadataPhase {
-    [self log:@"Phase 2: Fetching missing metadata from iTunes API..."];
-    [[IGMediaFixerManager sharedManager] runMetadataFixWithProgress:^(NSInteger current, NSInteger total) {
+    [self log:@"Phase 2: Fetching missing metadata..."];
+    
+    NSDictionary *options = @{
+        @"album": @(self.albumCheckbox.state == NSOnState),
+        @"title": @(self.titleCheckbox.state == NSOnState),
+        @"artist": @(self.artistCheckbox.state == NSOnState),
+        @"genre": @(self.genreCheckbox.state == NSOnState),
+        @"trackNumber": @(self.trackNumberCheckbox.state == NSOnState),
+        @"lyrics": @(self.lyricsCheckbox.state == NSOnState)
+    };
+    
+    [[IGMediaFixerManager sharedManager] runMetadataFixWithOptions:options progress:^(NSInteger current, NSInteger total) {
         self.progressIndicator.maxValue = total;
         self.progressIndicator.doubleValue = current;
         self.statusLabel.stringValue = [NSString stringWithFormat:@"Processing track %ld of %ld...", (long)current, (long)total];

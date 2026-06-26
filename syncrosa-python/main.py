@@ -26,6 +26,8 @@ from ui.settings import SetupWindow
 from ui.tabs.tab_genius import GeniusTab
 from ui.tabs.tab_fixer import FixerTab
 from ui.tabs.tab_optimizer import OptimizerTab
+from ui.tabs.tab_duplicate_finder import DuplicateFinderTab
+from ui.tabs.tab_offline_playlist import OfflinePlaylistTab
 
 if sys.version_info[0] < 3:
     reload(sys)
@@ -60,10 +62,14 @@ class App(tk.Tk):
         self.tab_genius = GeniusTab(self.notebook, self)
         self.tab_fixer = FixerTab(self.notebook, self)
         self.tab_optimizer = OptimizerTab(self.notebook, self)
+        self.tab_duplicate_finder = DuplicateFinderTab(self.notebook, self)
+        self.tab_offline_playlist = OfflinePlaylistTab(self.notebook, self)
 
         self.notebook.add(self.tab_genius, text="Genius")
         self.notebook.add(self.tab_fixer, text="Media Fixer")
         self.notebook.add(self.tab_optimizer, text="Covers Optimizer")
+        self.notebook.add(self.tab_duplicate_finder, text="Duplicate Finder")
+        self.notebook.add(self.tab_offline_playlist, text="Offline Playlist")
         
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         

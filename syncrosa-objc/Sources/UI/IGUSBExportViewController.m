@@ -28,6 +28,8 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 @property (nonatomic, strong) NSButton *refreshBtn;
 @property (nonatomic, strong) NSTextField *footerLabel;
 
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
+
 @property (nonatomic, strong) NSArray<IGUSBDrive *> *drives;
 @property (nonatomic, strong) NSArray<NSDictionary *> *playlists;
 @property (nonatomic, strong) NSArray<NSDictionary *> *currentPlaylistTracks;
@@ -81,6 +83,13 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     self.titleLabel.drawsBackground = NO;
     self.titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.titleLabel];
+    
+    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, 430, 25, 25)];
+    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.title = @"";
+    helpButton.target = self;
+    helpButton.action = @selector(helpClicked:);
+    [self.view addSubview:helpButton];
     
     // Subtitle instructions
     self.instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 395, 500, 30)];
@@ -553,6 +562,50 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     
     self.statusLabel.stringValue = [NSString stringWithFormat:@"%@ (%@)", message, sizeStr];
     [IGNotificationView showInView:self.view message:message isError:NO];
+}
+
+- (void)helpClicked:(id)sender {
+    NSString *helpText = @"USB Export Help\n\n"
+                          "This utility copies tracks from your iTunes/Music playlists to a connected USB flash drive (useful for car systems or offline devices):\n\n"
+                          "1. Select USB Drive: Choose the destination USB drive from the connected volumes list.\n"
+                          "2. Select Playlist: Select the playlist containing the music you want to export.\n"
+                          "3. Export Mode: Choose how files should be organized on the target drive (e.g. flat list, folders grouped by Artist/Album, etc).\n"
+                          "4. Space Constraint: If the target drive is full, Syncrosa will notify you and offer options to copy what fits or cancel.\n"
+                          "5. File Skip: DRM-protected tracks (e.g. Apple Music downloads) and files not downloaded to the disk will be automatically skipped during export.";
+    
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
+                                                  styleMask:NSWindowStyleMaskTitled
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = helpText;
+    textView.font = [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+    
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+    
+    self.helpSheetWindow = sheet;
+    [self.view.window beginSheet:sheet completionHandler:nil];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    if (self.helpSheetWindow) {
+        [self.view.window endSheet:self.helpSheetWindow];
+        [self.helpSheetWindow orderOut:nil];
+        self.helpSheetWindow = nil;
+    }
 }
 
 @end

@@ -1,6 +1,8 @@
 #import "IGFileFixerViewController.h"
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
+#import "IGiTunesService.h"
+#import "IGLyricsService.h"
 #import <AVFoundation/AVFoundation.h>
 
 @interface IGFileFixerViewController ()
@@ -13,6 +15,15 @@
 @property (nonatomic, strong) NSTextView *logView;
 @property (nonatomic, strong) NSArray<NSURL *> *foundFiles;
 @property (nonatomic, assign) BOOL isProcessing;
+
+@property (nonatomic, strong) NSButton *selectAllCheckbox;
+@property (nonatomic, strong) NSButton *albumCheckbox;
+@property (nonatomic, strong) NSButton *titleCheckbox;
+@property (nonatomic, strong) NSButton *artistCheckbox;
+@property (nonatomic, strong) NSButton *genreCheckbox;
+@property (nonatomic, strong) NSButton *trackNumberCheckbox;
+@property (nonatomic, strong) NSButton *lyricsCheckbox;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
 @end
 
 @implementation IGFileFixerViewController
@@ -24,7 +35,7 @@
 
 - (void)setupUI {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
-    CGFloat y = 430;
+    CGFloat y = 440;
     
     NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)];
     titleLabel.stringValue = [lang t:@"file_fixing"];
@@ -35,7 +46,14 @@
     titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:titleLabel];
     
-    y -= 50;
+    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
+    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.title = @"";
+    helpButton.target = self;
+    helpButton.action = @selector(helpClicked:);
+    [self.view addSubview:helpButton];
+    
+    y -= 35;
     NSTextField *instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 35)];
     instrLabel.stringValue = [lang t:@"file_instr"];
     instrLabel.font = [NSFont systemFontOfSize:11];
@@ -46,7 +64,7 @@
     instrLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:instrLabel];
     
-    y -= 40;
+    y -= 35;
     self.folderPathField = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 360, 24)];
     self.folderPathField.editable = NO;
     [[self.folderPathField cell] setPlaceholderString:[lang t:@"no_folder"]];
@@ -59,7 +77,55 @@
     self.selectFolderButton.action = @selector(selectFolderClicked:);
     [self.view addSubview:self.selectFolderButton];
     
-    y -= 40;
+    // Grid of Checkboxes
+    y -= 30;
+    self.selectAllCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 150, 20)];
+    [self.selectAllCheckbox setButtonType:NSSwitchButton];
+    self.selectAllCheckbox.title = [lang t:@"select_all"];
+    self.selectAllCheckbox.target = self;
+    self.selectAllCheckbox.action = @selector(selectAllClicked:);
+    self.selectAllCheckbox.state = NSOnState;
+    [self.view addSubview:self.selectAllCheckbox];
+    
+    y -= 25;
+    self.albumCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
+    [self.albumCheckbox setButtonType:NSSwitchButton];
+    self.albumCheckbox.title = [lang t:@"tag_album"];
+    self.albumCheckbox.state = NSOnState;
+    [self.view addSubview:self.albumCheckbox];
+    
+    self.titleCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
+    [self.titleCheckbox setButtonType:NSSwitchButton];
+    self.titleCheckbox.title = [lang t:@"tag_title"];
+    self.titleCheckbox.state = NSOnState;
+    [self.view addSubview:self.titleCheckbox];
+    
+    self.artistCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
+    [self.artistCheckbox setButtonType:NSSwitchButton];
+    self.artistCheckbox.title = [lang t:@"tag_artist"];
+    self.artistCheckbox.state = NSOnState;
+    [self.view addSubview:self.artistCheckbox];
+    
+    y -= 25;
+    self.genreCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
+    [self.genreCheckbox setButtonType:NSSwitchButton];
+    self.genreCheckbox.title = [lang t:@"tag_genre"];
+    self.genreCheckbox.state = NSOnState;
+    [self.view addSubview:self.genreCheckbox];
+    
+    self.trackNumberCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
+    [self.trackNumberCheckbox setButtonType:NSSwitchButton];
+    self.trackNumberCheckbox.title = [lang t:@"tag_track_number"];
+    self.trackNumberCheckbox.state = NSOnState;
+    [self.view addSubview:self.trackNumberCheckbox];
+    
+    self.lyricsCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
+    [self.lyricsCheckbox setButtonType:NSSwitchButton];
+    self.lyricsCheckbox.title = [lang t:@"tag_lyrics"];
+    self.lyricsCheckbox.state = NSOnState;
+    [self.view addSubview:self.lyricsCheckbox];
+    
+    y -= 28;
     self.downloadCoversButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 20)];
     [self.downloadCoversButton setButtonType:NSSwitchButton];
     self.downloadCoversButton.title = @"Download Album Covers";
@@ -75,14 +141,14 @@
     self.fixButton.action = @selector(fixClicked:);
     [self.view addSubview:self.fixButton];
     
-    y -= 40;
+    y -= 25;
     self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, y, 500, 20)];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
     self.progressIndicator.indeterminate = NO;
     [self.view addSubview:self.progressIndicator];
     
-    y -= 160;
-    NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(40, y, 500, 150)];
+    y -= 110;
+    NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(40, y, 500, 105)];
     scrollView.hasVerticalScroller = YES;
     scrollView.borderType = NSBezelBorder;
     
@@ -104,7 +170,7 @@
     [self.view addSubview:self.statusLabel];
 
     // Footer
-    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
+    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 10, 540, 35)];
     footer.stringValue = [lang t:@"footer"];
     footer.font = [NSFont systemFontOfSize:10];
     footer.textColor = [NSColor grayColor];
@@ -113,6 +179,59 @@
     footer.bordered = NO;
     footer.drawsBackground = NO;
     [self.view addSubview:footer];
+}
+
+- (void)selectAllClicked:(id)sender {
+    NSInteger state = self.selectAllCheckbox.state;
+    self.albumCheckbox.state = state;
+    self.titleCheckbox.state = state;
+    self.artistCheckbox.state = state;
+    self.genreCheckbox.state = state;
+    self.trackNumberCheckbox.state = state;
+    self.lyricsCheckbox.state = state;
+}
+
+- (void)helpClicked:(id)sender {
+    NSString *helpText = @"Folder Media Fixer Help\n\n"
+                          "This utility scans a local directory for music files and performs the following actions:\n\n"
+                          "1. Standard Rename: Renames music files on your disk to the standard format 'Artist - Title' using metadata parsed from filenames or the iTunes API.\n"
+                          "2. iTunes Tag Sync: If the file is part of your iTunes/Music library, it runs an AppleScript to sync only the checked tags (Album, Title, Artist, Genre, Track Number, and Lyrics).\n"
+                          "3. Cover Art: Downloads the album cover as a separate JPEG file in the same directory if 'Download Album Covers' is checked.\n\n"
+                          "Every individual track write operation is wrapped in a safe block. If a write fails or the track is not present in iTunes/Music, it will skip without interrupting the overall process.";
+    
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
+                                                  styleMask:NSWindowStyleMaskTitled
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = helpText;
+    textView.font = [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+    
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+    
+    self.helpSheetWindow = sheet;
+    [self.view.window beginSheet:sheet completionHandler:nil];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    if (self.helpSheetWindow) {
+        [self.view.window endSheet:self.helpSheetWindow];
+        [self.helpSheetWindow orderOut:nil];
+        self.helpSheetWindow = nil;
+    }
 }
 
 - (void)log:(NSString *)text {
@@ -412,6 +531,60 @@
             }
             
             if (renameSuccess) {
+                // Update iTunes/Music.app via AppleScript if the track exists in iTunes (by checking original path or new path)
+                @try {
+                    NSMutableArray *updates = [NSMutableArray array];
+                    if (self.albumCheckbox.state == NSOnState && result[@"collectionName"]) {
+                        [updates addObject:[NSString stringWithFormat:@"set album of t to \"%@\"", [result[@"collectionName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                    }
+                    if (self.titleCheckbox.state == NSOnState && result[@"trackName"]) {
+                        [updates addObject:[NSString stringWithFormat:@"set name of t to \"%@\"", [result[@"trackName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                    }
+                    if (self.artistCheckbox.state == NSOnState && result[@"artistName"]) {
+                        [updates addObject:[NSString stringWithFormat:@"set artist of t to \"%@\"", [result[@"artistName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                    }
+                    if (self.genreCheckbox.state == NSOnState && result[@"primaryGenreName"]) {
+                        [updates addObject:[NSString stringWithFormat:@"set genre of t to \"%@\"", [result[@"primaryGenreName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                    }
+                    if (self.trackNumberCheckbox.state == NSOnState && result[@"trackNumber"]) {
+                        [updates addObject:[NSString stringWithFormat:@"set track number of t to %@", result[@"trackNumber"]]];
+                    }
+                    
+                    // Fetch and update lyrics if lyrics checkbox is checked
+                    if (self.lyricsCheckbox.state == NSOnState) {
+                        dispatch_semaphore_t sema = dispatch_semaphore_create(0);
+                        __block NSString *fetchedLyrics = nil;
+                        [[IGLyricsService sharedService] fetchLyricsForArtist:finalArtist title:finalTitle completion:^(NSString *lyrics) {
+                            fetchedLyrics = lyrics;
+                            dispatch_semaphore_signal(sema);
+                        }];
+                        dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+                        
+                        if (fetchedLyrics) {
+                            [updates addObject:[NSString stringWithFormat:@"set lyrics of t to \"%@\"", [fetchedLyrics stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                        }
+                    }
+                    
+                    if (updates.count > 0) {
+                        // We check both the old path and the new path to find the track in iTunes
+                        NSString *updateScript = [NSString stringWithFormat:
+                            @"tell application \"iTunes\"\n"
+                            "    try\n"
+                            "        set t to (some track of library playlist 1 whose location is POSIX file \"%@\")\n"
+                            "        %@\n"
+                            "    on error\n"
+                            "        try\n"
+                            "            set t to (some track of library playlist 1 whose location is POSIX file \"%@\")\n"
+                            "            %@\n"
+                            "        end try\n"
+                            "    end try\n"
+                            "end tell", fileURL.path, [updates componentsJoinedByString:@"\n"], newURL.path, [updates componentsJoinedByString:@"\n"]];
+                        [[IGiTunesService sharedService] runAppleScript:updateScript];
+                    }
+                } @catch (NSException *ex) {
+                    NSLog(@"AppleScript write in Folder Fixer failed: %@", ex);
+                }
+                
                 if (downloadCover && result[@"artworkUrl100"]) {
                     [self downloadCoverArtURL:result[@"artworkUrl100"] 
                                    toDirectory:[newURL URLByDeletingLastPathComponent] 

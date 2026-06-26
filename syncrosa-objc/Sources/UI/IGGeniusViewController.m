@@ -18,6 +18,7 @@
 @property (nonatomic, strong) NSTextField *countField;
 @property (nonatomic, strong) NSStepper *stepper;
 @property (nonatomic, strong) NSButton *generateButton;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextField *footerLabel;
@@ -62,6 +63,13 @@
     self.titleLabel.drawsBackground = NO;
     self.titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.titleLabel];
+    
+    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
+    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.title = @"";
+    helpButton.target = self;
+    helpButton.action = @selector(helpClicked:);
+    [self.view addSubview:helpButton];
     
     y -= 25;
     // Active configuration label
@@ -312,6 +320,49 @@
             }];
         }];
     }];
+}
+
+- (void)helpClicked:(id)sender {
+    NSString *helpText = @"AI Playlist Generator Help\n\n"
+                          "This utility lets you generate customized smart playlists using Artificial Intelligence (based on Google Gemini or other providers configured in Settings):\n\n"
+                          "1. Playlist Name: Set a name for the new playlist that will be created in iTunes/Music.\n"
+                          "2. Prompt / Mood: Describe the mood, style, or genres you want (e.g., 'chill electronic music for coding' or 'energetic 80s rock').\n"
+                          "3. Track Count: Select how many tracks you want in the playlist.\n"
+                          "4. Generation: Syncrosa will analyze your library cache, request matching recommendations from the AI API, and automatically create and populate the playlist in iTunes/Music.";
+    
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
+                                                  styleMask:NSWindowStyleMaskTitled
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = helpText;
+    textView.font = [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+    
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+    
+    self.helpSheetWindow = sheet;
+    [self.view.window beginSheet:sheet completionHandler:nil];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    if (self.helpSheetWindow) {
+        [self.view.window endSheet:self.helpSheetWindow];
+        [self.helpSheetWindow orderOut:nil];
+        self.helpSheetWindow = nil;
+    }
 }
 
 @end

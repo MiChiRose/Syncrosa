@@ -25,6 +25,7 @@
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextField *footerLabel;
 @property (nonatomic, strong) NSButton *helpBtn;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
 
 @end
 
@@ -157,8 +158,8 @@
     [self.view addSubview:self.statusLabel];
     
     // Help Button
-    self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(525, 29, 21, 21)];
-    self.helpBtn.bezelStyle = NSHelpButtonBezelStyle;
+    self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, 432, 25, 25)];
+    self.helpBtn.bezelStyle = NSBezelStyleHelpButton;
     self.helpBtn.title = @"";
     self.helpBtn.target = self;
     self.helpBtn.action = @selector(helpClicked:);
@@ -222,10 +223,59 @@
 }
 
 - (void)helpClicked:(id)sender {
-    NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:@"API Key Setup Guide"];
-    [alert setInformativeText:@"To use Syncrosa, you need an API key from one of our supported AI providers:\n\n1. OpenRouter (Recommended)\n- Where: openrouter.ai/keys\n- Format: 'sk-or-v1-...' (starts with sk-or)\n- Why: Gives access to many free models (like google/gemini-2.0-flash-exp:free) even in geo-blocked regions.\n\n2. Google Gemini\n- Where: aistudio.google.com/app/apikey\n- Format: 'AIzaSy...'\n- Why: Direct access to Google's fast models.\n\n3. Groq\n- Where: console.groq.com/keys\n- Format: 'gsk_...'\n- Why: Extremely fast generation.\n\nCommon Errors:\n- 'Invalid Key': Make sure there are no spaces at the start or end.\n- 'Model Not Found': Click 'Sync Models' to get the latest available list.\n\nHow to Check:\nEnter the key above and click 'VALIDATE & SAVE'. The app will test it immediately."];
-    [alert runModal];
+    NSString *helpText = @"API Key Setup Guide\n\n"
+                          "To use Syncrosa, you need an API key from one of our supported AI providers:\n\n"
+                          "1. OpenRouter (Recommended)\n"
+                          "- Where: openrouter.ai/keys\n"
+                          "- Format: 'sk-or-v1-...' (starts with sk-or)\n"
+                          "- Why: Gives access to many free models (like google/gemini-2.0-flash-exp:free) even in geo-blocked regions.\n\n"
+                          "2. Google Gemini\n"
+                          "- Where: aistudio.google.com/app/apikey\n"
+                          "- Format: 'AIzaSy...'\n"
+                          "- Why: Direct access to Google's fast models.\n\n"
+                          "3. Groq\n"
+                          "- Where: console.groq.com/keys\n"
+                          "- Format: 'gsk_...'\n"
+                          "- Why: Extremely fast generation.\n\n"
+                          "Common Errors:\n"
+                          "- 'Invalid Key': Make sure there are no spaces at the start or end.\n"
+                          "- 'Model Not Found': Click 'Sync Models' to get the latest available list.\n\n"
+                          "How to Check:\n"
+                          "Enter the key above and click 'VALIDATE & SAVE'. The app will test it immediately.";
+    
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 280)
+                                                  styleMask:NSWindowStyleMaskTitled
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 200)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = helpText;
+    textView.font = [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+    
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+    
+    self.helpSheetWindow = sheet;
+    [self.view.window beginSheet:sheet completionHandler:nil];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    if (self.helpSheetWindow) {
+        [self.view.window endSheet:self.helpSheetWindow];
+        [self.helpSheetWindow orderOut:nil];
+        self.helpSheetWindow = nil;
+    }
 }
 
 - (void)comboBoxSelectionDidChange:(NSNotification *)notification {

@@ -65,16 +65,22 @@ def get_merge_candidates(progress_cb, check_run):
             
     return to_fix
 
-def apply_merge(to_fix, progress_cb, status_cb, check_run):
+def apply_merge(to_fix, progress_cb, status_cb, check_run, checked_tags):
+    if "album" not in checked_tags:
+        progress_cb(len(to_fix), len(to_fix))
+        return
     for i, item in enumerate(to_fix):
         if not check_run(): break
         status_cb(u"Merging: " + item['main'][:45])
         for t in item['targets']:
             if not check_run(): break
-            run_as('tell application "iTunes" to set album of (some track whose persistent ID is "{0}") to "{1}"'.format(t['pid'], item['main'].replace('"', '\\"')))
+            try:
+                run_as(u'tell application "iTunes" to set album of (some track whose persistent ID is "{0}") to "{1}"'.format(t['pid'], item['main'].replace('"', '\\"')).encode('utf-8'))
+            except Exception as e:
+                print("Error merging track:", t['pid'], e)
         progress_cb(i + 1, len(to_fix))
 
-def run_metadata_fix(progress_cb, status_cb, check_run):
+def run_metadata_fix(progress_cb, status_cb, check_run, checked_tags):
     count_script = 'tell application "iTunes" to count tracks of library playlist 1'
     try:
         total = int(run_as(count_script))
@@ -84,29 +90,105 @@ def run_metadata_fix(progress_cb, status_cb, check_run):
     for i in range(1, total + 1):
         if not check_run(): break
         
-        get_script = 'tell application "iTunes"\ntry\nset t to track {0} of library playlist 1\nset alb to album of t\nif alb is "" or alb is "Unknown Album" or alb is missing value then\nreturn (persistent ID of t) & "|" & (artist of t) & "|" & (name of t)\nend if\nend try\nend tell\nreturn "SKIP"'.format(i)
-        track_raw = run_as(get_script)
-        if track_raw == "SKIP" or "|" not in track_raw: 
-            progress_cb(i, total)
-            continue
-        
-        parts = track_raw.split("|", 2)
-        if len(parts) < 3: 
-            progress_cb(i, total)
-            continue
+        try:
+            get_script = u'''tell application "iTunes"
+                try
+                    set t to track {0} of library playlist 1
+                    set pid to persistent ID of t
+                    set art to artist of t
+                    set nm to name of t
+                    
+                    set alb to ""
+                    try
+                        set alb to album of t
+                    end try
+                    
+                    set gen to ""
+                    try
+                        set gen to genre of t
+                    end try
+                    
+                    set trkNum to "0"
+                    try
+                        set trkNum to track number of t as string
+                    end try
+                    
+                    set hasLyr to "0"
+                    try
+                        set lyr to lyrics of t
+                        if lyr is not missing value and lyr is not "" then
+                            set hasLyr to "1"
+                        end if
+                    end try
+                    
+                    return pid & "|" & art & "|" & nm & "|" & alb & "|" & gen & "|" & trkNum & "|" & hasLyr
+                end try
+            end tell
+            return "SKIP"'''.format(i)
             
-        pid, artist, title = parts[0], parts[1], parts[2]
-        status_cb(u"Updating: " + title[:45])
-        
-        info = find_apple_metadata(artist, title)
-        if info:
+            track_raw = run_as(get_script.encode('utf-8'))
+            if track_raw == "SKIP" or "|" not in track_raw: 
+                progress_cb(i, total)
+                continue
+            
+            parts = track_raw.split("|")
+            if len(parts) < 7:
+                progress_cb(i, total)
+                continue
+                
+            pid, artist, title, alb, gen, trk_num, has_lyr = parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6]
+            
+            should_fix = False
+            if "album" in checked_tags and (not alb or alb == "Unknown Album"):
+                should_fix = True
+            if "genre" in checked_tags and (not gen or gen.lower() in ["unknown", "unknown genre"]):
+                should_fix = True
+            if "track_number" in checked_tags and (not trk_num or trk_num == "0"):
+                should_fix = True
+            if "lyrics" in checked_tags and has_lyr == "0":
+                should_fix = True
+            if "title" in checked_tags and (not title or title.lower().startswith("track") or title.lower().startswith("unknown")):
+                should_fix = True
+            if "artist" in checked_tags and (not artist or artist.lower() in ["unknown artist", "unknown"]):
+                should_fix = True
+                
+            if not should_fix:
+                progress_cb(i, total)
+                continue
+                
+            status_cb(u"Updating: " + title[:45])
+            
+            info = None
+            if any(t in checked_tags for t in ["album", "genre", "track_number", "title", "artist"]):
+                info = find_apple_metadata(artist, title)
+                
             updates = []
-            if info.get('alb'): updates.append('set album of t to "{0}"'.format(info['alb'].replace('"', '\\"')))
-            if info.get('yr'): updates.append('set year of t to {0}'.format(info['yr']))
-            if info.get('gen'): updates.append('set genre of t to "{0}"'.format(info['gen'].replace('"', '\\"')))
+            if info:
+                if "album" in checked_tags and info.get('alb') and (not alb or alb == "Unknown Album"):
+                    updates.append(u'set album of t to "{0}"'.format(info['alb'].replace('"', '\\"')))
+                if "genre" in checked_tags and info.get('gen') and (not gen or gen.lower() in ["unknown", "unknown genre"]):
+                    updates.append(u'set genre of t to "{0}"'.format(info['gen'].replace('"', '\\"')))
+                if "track_number" in checked_tags and info.get('track_number') and (not trk_num or trk_num == "0"):
+                    updates.append(u'set track number of t to {0}'.format(info['track_number']))
+                if "title" in checked_tags and info.get('title') and (not title or title.lower().startswith("track") or title.lower().startswith("unknown")):
+                    updates.append(u'set name of t to "{0}"'.format(info['title'].replace('"', '\\"')))
+                if "artist" in checked_tags and info.get('artist') and (not artist or artist.lower() in ["unknown artist", "unknown"]):
+                    updates.append(u'set artist of t to "{0}"'.format(info['artist'].replace('"', '\\"')))
+                    
+            if "lyrics" in checked_tags and has_lyr == "0":
+                from features.lyrics_service import fetch_lyrics
+                lyrics_text = fetch_lyrics(artist, title)
+                if lyrics_text:
+                    escaped_lyr = lyrics_text.replace('\\', '\\\\').replace('"', '\\"').replace('\r', '\\r').replace('\n', '\\r')
+                    updates.append(u'set lyrics of t to "{0}"'.format(escaped_lyr))
+                    
             if updates:
                 u_s = u'tell application "iTunes"\ntry\nset t to (some track whose persistent ID is "{0}")\n{1}\nreturn "OK"\nend try\nend tell'.format(pid, u"\n".join(updates))
                 run_as(u_s.encode('utf-8'))
-        
+                
+        except Exception as e:
+            print("Error fixing track metadata for index {}: {}".format(i, e))
+            
         progress_cb(i, total)
         time.sleep(0.05)
+

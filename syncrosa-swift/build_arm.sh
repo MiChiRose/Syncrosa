@@ -43,7 +43,7 @@ cat > Syncrosa.app/Contents/Info.plist <<EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.1.0</string>
+    <string>3.2.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
