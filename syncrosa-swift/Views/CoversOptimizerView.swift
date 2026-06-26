@@ -73,6 +73,7 @@ struct CoversOptimizerView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(NSColor.controlBackgroundColor))
                 .cornerRadius(10)
                 .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
@@ -89,6 +90,7 @@ struct CoversOptimizerView: View {
                             .progressViewStyle(LinearProgressViewStyle())
                     }
                     .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(10)
                     .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
