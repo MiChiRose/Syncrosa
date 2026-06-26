@@ -127,7 +127,7 @@ struct CoversOptimizerView: View {
                     .cornerRadius(8)
                 }
             }
-            .padding()
+            .padding(30)
         }
         .alert(isPresented: $showBackupAlert) {
             Alert(
