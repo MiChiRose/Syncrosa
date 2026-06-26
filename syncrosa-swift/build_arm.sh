@@ -64,7 +64,7 @@ else
 fi
 
 echo "Creating distribution ZIP..."
-rm -f "$HOME/Desktop/Syncrosa_SwiftUI_ARM.zip"
-zip -ry "$HOME/Desktop/Syncrosa_SwiftUI_ARM.zip" Syncrosa.app
+rm -f "$HOME/Desktop/Syncrosa_SwiftUI_v3.2.0.zip"
+zip -ry "$HOME/Desktop/Syncrosa_SwiftUI_v3.2.0.zip" Syncrosa.app
 
-echo "✅ Syncrosa_SwiftUI_ARM.zip successfully created on Desktop!"
+echo "✅ Syncrosa_SwiftUI_v3.2.0.zip successfully created on Desktop!"
