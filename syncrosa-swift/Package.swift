@@ -33,7 +33,10 @@ let package = Package(
                 "Services/PlaylistExportService.swift",
                 "Views/USBExportView.swift",
                 "Views/CoversOptimizerView.swift",
-                "Services/CoversOptimizerService.swift"
+                "Services/CoversOptimizerService.swift",
+                "Services/LyricsService.swift",
+                "Views/DuplicateFinderView.swift",
+                "Views/OfflinePlaylistGeneratorView.swift"
             ],
             resources: [
                 .process("AppIcon.icns")

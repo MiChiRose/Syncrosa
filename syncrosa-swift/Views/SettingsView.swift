@@ -16,6 +16,7 @@ struct SettingsView: View {
     
     @State private var activeNotification: NotificationMessage? = nil
     @State private var isValidating: Bool = false
+    @State private var showHelp: Bool = false
     
     let providers = ["Gemini", "Groq", "OpenRouter"]
     let geminiModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
@@ -36,6 +37,20 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 25) {
+                HStack(alignment: .center, spacing: 10) {
+                    Text(lang.t("settings"))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Button(action: { showHelp = true }) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 5)
+                
                 // Group 0: Language
                 VStack(alignment: .leading, spacing: 10) {
                     Label(lang.t("lang_section"), systemImage: "globe")
@@ -167,7 +182,50 @@ struct SettingsView: View {
             groqKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "groq") ?? ""
             openrouterKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "openrouter") ?? ""
         }
+        .sheet(isPresented: $showHelp) {
+            helpSheetView
+        }
     }
+    
+    var helpSheetView: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text(lang.selectedLanguage == "ru" ? "Инструкция: Настройки" : "Help: Settings")
+                    .font(.headline)
+                Spacer()
+                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
+                    showHelp = false
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(lang.selectedLanguage == "ru" ?
+                         "В разделе «Настройки» вы можете настроить язык приложения и параметры подключения к облачным провайдерам искусственного интеллекта (Gemini, Groq, OpenRouter).\n\n" +
+                         "Ключевые шаги:\n" +
+                         "1. Выберите язык интерфейса.\n" +
+                         "2. Выберите нужного ИИ-провайдера и укажите его API-ключ.\n" +
+                         "3. Нажмите кнопку «Проверить и сохранить» для сохранения ключа в безопасной системной связке ключей (Keychain).\n" +
+                         "4. Используйте кнопку синхронизации моделей для автоматического обновления доступных нейросетей." :
+                         
+                         "In the Settings section, you can configure the interface language and connectivity options for AI providers (Gemini, Groq, OpenRouter).\n\n" +
+                         "Key Steps:\n" +
+                         "1. Select the interface language.\n" +
+                         "2. Choose your preferred AI provider and enter your API Key.\n" +
+                         "3. Click 'Validate & Save Key' to verify the API key and store it securely in the macOS Keychain.\n" +
+                         "4. Use the sync buttons to update available models or manually refresh the local music database cache."
+                    )
+                    .font(.body)
+                }
+            }
+            .frame(minWidth: 450, minHeight: 300)
+        }
+        .padding()
+    }
+
     
     @ViewBuilder
     func modelPicker(selection: Binding<String>, models: [String]) -> some View {

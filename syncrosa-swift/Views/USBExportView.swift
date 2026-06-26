@@ -19,6 +19,7 @@ struct USBExportView: View {
     @State private var totalBytesToExport: Int64 = 0
     
     @State private var activeNotification: NotificationMessage? = nil
+    @State private var showHelp: Bool = false
     
     // Alerts/Dialogs
     @State private var showSpaceAlert: Bool = false
@@ -39,8 +40,16 @@ struct USBExportView: View {
             VStack(alignment: .leading, spacing: 25) {
                 // Card 1: Select Volume & Playlist
                 VStack(alignment: .leading, spacing: 20) {
-                    Label(lang.t("usb_export"), systemImage: "externaldrive.badge.gearshape")
-                        .font(.headline)
+                    HStack(alignment: .center, spacing: 10) {
+                        Label(lang.t("usb_export"), systemImage: "externaldrive.badge.gearshape")
+                            .font(.headline)
+                        
+                        Button(action: { showHelp = true }) {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
                     
                     // Drive Picker
                     VStack(alignment: .leading, spacing: 8) {
@@ -213,7 +222,50 @@ struct USBExportView: View {
             .padding()
             .frame(width: 380, height: 260)
         }
+        .sheet(isPresented: $showHelp) {
+            helpSheetView
+        }
     }
+    
+    var helpSheetView: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text(lang.selectedLanguage == "ru" ? "Инструкция: USB Экспорт" : "Help: USB Export")
+                    .font(.headline)
+                Spacer()
+                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
+                    showHelp = false
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(lang.selectedLanguage == "ru" ?
+                         "Этот инструмент позволяет экспортировать выбранные плейлисты из Apple Music на ваш внешний USB-накопитель.\n\n" +
+                         "Шаги использования:\n" +
+                         "1. Вставьте USB-накопитель и выберите его в списке.\n" +
+                         "2. Выберите плейлист, который хотите скопировать.\n" +
+                         "3. Нажмите «Отправить на USB Flash».\n" +
+                         "4. Если на накопителе недостаточно места, программа предложит скопировать случайную выборку песен, которая поместится на флешку." :
+                         
+                         "This tool allows you to export selected playlists from Apple Music to your external USB storage.\n\n" +
+                         "How to use:\n" +
+                         "1. Connect your USB drive and select it from the list.\n" +
+                         "2. Choose the playlist you want to copy.\n" +
+                         "3. Click 'Export to USB Flash'.\n" +
+                         "4. If space is insufficient, you will be prompted to either cancel or copy a random subset that fits."
+                    )
+                    .font(.body)
+                }
+            }
+            .frame(minWidth: 450, minHeight: 300)
+        }
+        .padding()
+    }
+
     
     private func loadPlaylists() {
         DispatchQueue.global(qos: .userInitiated).async {

@@ -249,8 +249,14 @@ class CoversOptimizerService {
                 set imgData to read fileAlias as picture
                 
                 tell t
-                    delete every artwork
-                    set data of artwork 1 to imgData
+                    try
+                        set data of artwork 1 to imgData
+                    on error
+                        try
+                            delete every artwork
+                        end try
+                        set data of artwork 1 to imgData
+                    end try
                 end tell
                 return "SUCCESS"
             on error errMsg number errNum

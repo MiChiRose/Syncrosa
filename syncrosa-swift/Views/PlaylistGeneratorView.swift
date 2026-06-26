@@ -7,6 +7,7 @@ struct PlaylistGeneratorView: View {
     @State private var isGenerating: Bool = false
     @State private var activeNotification: NotificationMessage? = nil
     @State private var trackCount: String = "25"
+    @State private var showHelp: Bool = false
     
     @AppStorage("selected_provider") private var selectedProvider: String = "Gemini"
     @AppStorage("selected_model_gemini") private var geminiModel: String = "gemini-1.5-flash"
@@ -27,8 +28,17 @@ struct PlaylistGeneratorView: View {
             VStack(alignment: .leading, spacing: 25) {
                 // Card 1: Configuration
                 VStack(alignment: .leading, spacing: 20) {
-                    Label(lang.t("ai_playlist"), systemImage: "sparkles")
-                        .font(.headline)
+                    HStack(alignment: .center, spacing: 10) {
+                        Label(lang.t("ai_playlist"), systemImage: "sparkles")
+                            .font(.headline)
+                        
+                        Button(action: { showHelp = true }) {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     
                     // Playlist Name Input
                     VStack(alignment: .leading, spacing: 5) {
@@ -141,7 +151,50 @@ struct PlaylistGeneratorView: View {
             .padding(30)
         }
         .notification(message: $activeNotification)
+        .sheet(isPresented: $showHelp) {
+            helpSheetView
+        }
     }
+    
+    var helpSheetView: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text(lang.selectedLanguage == "ru" ? "Инструкция: ИИ Плейлист" : "Help: AI Playlist")
+                    .font(.headline)
+                Spacer()
+                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
+                    showHelp = false
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(lang.selectedLanguage == "ru" ?
+                         "Этот инструмент использует передовые модели ИИ для автоматического создания плейлистов на основе вашего текстового описания (промпта) и содержимого вашей медиатеки.\n\n" +
+                         "Шаги использования:\n" +
+                         "1. Задайте имя создаваемому плейлисту.\n" +
+                         "2. Опишите ваши пожелания к трекам (например, 'спокойная музыка для работы', 'энергичный рок из 90-х').\n" +
+                         "3. Укажите количество треков.\n" +
+                         "4. Нажмите «Сгенерировать плейлист». Система проанализирует вашу библиотеку, отправит запрос выбранной модели ИИ и автоматически добавит подходящие треки в новый плейлист в приложении «Музыка»." :
+                         
+                         "This tool uses advanced AI models to automatically generate playlists based on your text prompt and the content of your Music library.\n\n" +
+                         "How to use:\n" +
+                         "1. Enter a name for the new playlist.\n" +
+                         "2. Describe the mood or style of music you want (e.g., 'calm acoustic music for studying', 'energetic 90s rock').\n" +
+                         "3. Set the target track count.\n" +
+                         "4. Click 'Generate Playlist'. The system will scan your library, consult the selected AI provider, and automatically compile the playlist in your Music app."
+                    )
+                    .font(.body)
+                }
+            }
+            .frame(minWidth: 450, minHeight: 300)
+        }
+        .padding()
+    }
+
     
     func generatePlaylist() {
         let account = selectedProvider.lowercased()

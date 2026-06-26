@@ -11,8 +11,10 @@ struct ContentView: View {
     
     enum Tab: Hashable {
         case playlist
+        case offlinePlaylist
         case fixer
         case folderFix
+        case duplicateFinder
         case usbExport
         case coversOptimizer
         case settings
@@ -28,12 +30,20 @@ struct ContentView: View {
                     .disabled(!isKeyValidated)
                     .opacity(isKeyValidated ? 1.0 : 0.5)
                     
+                    NavigationLink(value: Tab.offlinePlaylist) {
+                        Label(lang.selectedLanguage == "ru" ? "Офлайн плейлист" : "Offline Playlist", systemImage: "music.note.house")
+                    }
+                    
                     NavigationLink(value: Tab.fixer) {
                         Label(lang.t("media_fixer"), systemImage: "wrench.and.screwdriver")
                     }
                     
                     NavigationLink(value: Tab.folderFix) {
                         Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
+                    }
+                    
+                    NavigationLink(value: Tab.duplicateFinder) {
+                        Label(lang.selectedLanguage == "ru" ? "Поиск дубликатов" : "Duplicate Finder", systemImage: "arrow.2.squarepath")
                     }
                     
                     NavigationLink(value: Tab.usbExport) {
@@ -66,8 +76,10 @@ struct ContentView: View {
                         } else {
                             switch selectedTab {
                             case .playlist: PlaylistGeneratorView()
+                            case .offlinePlaylist: OfflinePlaylistGeneratorView()
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
+                            case .duplicateFinder: DuplicateFinderView()
                             case .usbExport: USBExportView()
                             case .coversOptimizer: CoversOptimizerView()
                             case .settings: SettingsView()

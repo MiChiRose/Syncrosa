@@ -10,6 +10,7 @@ struct CoversOptimizerView: View {
     @State private var isProcessing = false
     @State private var showBackupAlert = false
     @State private var currentTrackName = ""
+    @State private var showHelp = false
     
     let devices = [
         (name: "iPod Classic / Nano / Vintage (300x300)", size: 300),
@@ -19,10 +20,19 @@ struct CoversOptimizerView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text(lang.t("covers_optimizer"))
-                .font(.title)
-                .bold()
-                .padding(.top, 10)
+            HStack(alignment: .center, spacing: 10) {
+                Text(lang.t("covers_optimizer"))
+                    .font(.title)
+                    .bold()
+                
+                Button(action: { showHelp = true }) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 10)
             
             // Picker
             HStack {
@@ -94,9 +104,9 @@ struct CoversOptimizerView: View {
                             }
                         }
                         .padding(10)
-                        .onChange(of: logs.count) { _ in
-                            if logs.count > 0 {
-                                proxy.scrollTo(logs.count - 1, anchor: .bottom)
+                        .onChange(of: logs.count) { oldValue, newValue in
+                            if newValue > 0 {
+                                proxy.scrollTo(newValue - 1, anchor: .bottom)
                             }
                         }
                     }
@@ -120,7 +130,50 @@ struct CoversOptimizerView: View {
                 secondaryButton: .cancel(Text(lang.t("confirm_no")))
             )
         }
+        .sheet(isPresented: $showHelp) {
+            helpSheetView
+        }
     }
+    
+    var helpSheetView: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text(lang.selectedLanguage == "ru" ? "Инструкция: Оптимизатор обложек" : "Help: Covers Optimizer")
+                    .font(.headline)
+                Spacer()
+                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
+                    showHelp = false
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(lang.selectedLanguage == "ru" ?
+                         "Этот инструмент оптимизирует размер обложек ваших музыкальных альбомов для старых или портативных устройств (например, iPod Classic, iPhone 4s).\n\n" +
+                         "Шаги использования:\n" +
+                         "1. Сделайте резервную копию ваших обложек, нажав «Резервная копия обложек» (сохранит в Documents/AlbumCovers).\n" +
+                         "2. Выберите целевой размер обложки из выпадающего списка.\n" +
+                         "3. Нажмите «Оптимизировать обложки» для запуска процесса сжатия.\n" +
+                         "4. Если что-то пойдет не так, вы всегда сможете восстановить исходные обложки, нажав «Восстановить обложки»." :
+                         
+                         "This tool optimizes the size of your album cover art for older or vintage portable devices (like iPod Classic, iPhone 4s).\n\n" +
+                         "How to use:\n" +
+                         "1. Backup your original cover arts first by clicking 'Backup Original Covers' (saves them to Documents/AlbumCovers).\n" +
+                         "2. Select the target cover size from the dropdown.\n" +
+                         "3. Click 'Optimize Covers' to compress the artwork for all tracks.\n" +
+                         "4. If needed, restore the original high-resolution cover art by clicking 'Restore Original Covers'."
+                    )
+                    .font(.body)
+                }
+            }
+            .frame(minWidth: 450, minHeight: 300)
+        }
+        .padding()
+    }
+
     
     private func log(_ message: String) {
         let formatter = DateFormatter()

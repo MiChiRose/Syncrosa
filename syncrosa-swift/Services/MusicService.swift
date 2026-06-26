@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicTrack: Identifiable, Codable {
+struct MusicTrack: Identifiable, Codable, Equatable {
     var id: String { persistentID }
     let persistentID: String
     let name: String
@@ -174,4 +174,151 @@ class MusicService {
         }
         return tracks
     }
+    
+    private func escapeAppleScriptString(_ str: String) -> String {
+        return str
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+    }
+    
+    func updateTrack(persistentID: String, properties: [String: String]) -> Bool {
+        var scriptLines: [String] = []
+        scriptLines.append("tell application \"Music\"")
+        scriptLines.append("    try")
+        scriptLines.append("        set t to (some track of library playlist 1 whose persistent ID is \"\(persistentID)\")")
+        
+        for (key, value) in properties {
+            let cleanKey = key.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            if cleanKey == "genre" {
+                let escaped = escapeAppleScriptString(value)
+                scriptLines.append("        set genre of t to \"\(escaped)\"")
+            } else if cleanKey == "year" {
+                if let intVal = Int(value) {
+                    scriptLines.append("        set year of t to \(intVal)")
+                }
+            } else if cleanKey == "tracknumber" || cleanKey == "track number" || cleanKey == "track" {
+                if let intVal = Int(value) {
+                    scriptLines.append("        set track number of t to \(intVal)")
+                }
+            } else if cleanKey == "lyrics" {
+                let escaped = escapeAppleScriptString(value)
+                scriptLines.append("        set lyrics of t to \"\(escaped)\"")
+            } else if cleanKey == "album" {
+                let escaped = escapeAppleScriptString(value)
+                scriptLines.append("        set album of t to \"\(escaped)\"")
+            } else if cleanKey == "artist" {
+                let escaped = escapeAppleScriptString(value)
+                scriptLines.append("        set artist of t to \"\(escaped)\"")
+            } else if cleanKey == "name" || cleanKey == "title" {
+                let escaped = escapeAppleScriptString(value)
+                scriptLines.append("        set name of t to \"\(escaped)\"")
+            }
+        }
+        
+        scriptLines.append("        return \"success\"")
+        scriptLines.append("    on error err")
+        scriptLines.append("        return \"error: \" & err")
+        scriptLines.append("    end try")
+        scriptLines.append("end tell")
+        
+        let script = scriptLines.joined(separator: "\n")
+        if let result = runAppleScript(script), result == "success" {
+            return true
+        }
+        return false
+    }
+    
+    func deleteTrack(persistentID: String) -> Bool {
+        let script = """
+        tell application "Music"
+            try
+                delete (some track of library playlist 1 whose persistent ID is "\(persistentID)")
+                return "success"
+            on error err
+                return "error: " & err
+            end try
+        end tell
+        """
+        if let result = runAppleScript(script), result == "success" {
+            return true
+        }
+        return false
+    }
+    
+    func getTrackDetails(persistentID: String) -> (format: String, size: Int64)? {
+        let script = """
+        tell application "Music"
+            try
+                set t to (some track of library playlist 1 whose persistent ID is "\(persistentID)")
+                set sz to size of t
+                set k to kind of t
+                try
+                    set loc to location of t
+                    if loc is not missing value then
+                        set pth to POSIX path of loc
+                        return (sz as string) & "|" & k & "|" & pth
+                    end if
+                end try
+                return (sz as string) & "|" & k & "|"
+            on error
+                return ""
+            end try
+        end tell
+        """
+        guard let res = runAppleScript(script), !res.isEmpty else { return nil }
+        let parts = res.components(separatedBy: "|")
+        guard parts.count >= 2 else { return nil }
+        
+        let size = Int64(parts[0]) ?? 0
+        let kind = parts[1]
+        var format = "Unknown"
+        if parts.count >= 3 && !parts[2].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let path = parts[2].trimmingCharacters(in: .whitespacesAndNewlines)
+            format = URL(fileURLWithPath: path).pathExtension.uppercased()
+        }
+        if format == "Unknown" || format.isEmpty {
+            if kind.contains("AAC") || kind.contains("Apple Lossless") {
+                format = "M4A"
+            } else if kind.contains("MPEG") {
+                format = "MP3"
+            } else if kind.contains("AIFF") {
+                format = "AIFF"
+            } else if kind.contains("WAV") {
+                format = "WAV"
+            } else {
+                format = kind.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return (format: format.isEmpty ? "Unknown" : format, size: size)
+    }
+    
+    func checkTrackFilter(persistentID: String) -> (hasArtwork: Bool, rating: Int)? {
+        let script = """
+        tell application "Music"
+            try
+                set t to (some track of library playlist 1 whose persistent ID is "\(persistentID)")
+                set hasArt to "false"
+                try
+                    if (count of artwork of t) > 0 then
+                        set hasArt to "true"
+                    end if
+                end try
+                set rt to rating of t as string
+                return hasArt & "|" & rt
+            on error
+                return ""
+            end try
+        end tell
+        """
+        guard let res = runAppleScript(script), !res.isEmpty else { return nil }
+        let parts = res.components(separatedBy: "|")
+        guard parts.count >= 2 else { return nil }
+        let hasArtwork = (parts[0] == "true")
+        let rating = Int(parts[1]) ?? 0
+        return (hasArtwork: hasArtwork, rating: rating)
+    }
 }
+
+

@@ -4,7 +4,7 @@ import AVFoundation
 class FileMetadataService {
     static let shared = FileMetadataService()
     
-    func fixFile(url: URL, downloadCover: Bool) -> Bool {
+    func fixFile(url: URL, downloadCover: Bool, checkedTags: [String: Bool]) -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         var success = false
         
@@ -13,17 +13,23 @@ class FileMetadataService {
         var title = ""
         
         let asset = AVAsset(url: url)
-        let metadata = asset.metadata
+        let metadataSemaphore = DispatchSemaphore(value: 0)
         
-        for item in metadata {
-            if let commonKey = item.commonKey {
-                if commonKey == .commonKeyArtist {
-                    artist = item.stringValue ?? ""
-                } else if commonKey == .commonKeyTitle {
-                    title = item.stringValue ?? ""
+        Task {
+            if let metadata = try? await asset.load(.metadata) {
+                for item in metadata {
+                    if let commonKey = item.commonKey {
+                        if commonKey == .commonKeyArtist {
+                            artist = (try? await item.load(.stringValue)) ?? ""
+                        } else if commonKey == .commonKeyTitle {
+                            title = (try? await item.load(.stringValue)) ?? ""
+                        }
+                    }
                 }
             }
+            metadataSemaphore.signal()
         }
+        _ = metadataSemaphore.wait(timeout: .now() + 5.0)
         
         // 2. If info is missing, parse from filename
         if artist.isEmpty || title.isEmpty {
@@ -38,22 +44,36 @@ class FileMetadataService {
             defer { semaphore.signal() }
             
             guard let result = result else {
-                // If not found in iTunes, we still count as success if we have some info
-                // or we just return false if we want to signal "nothing found"
                 success = !artist.isEmpty && !title.isEmpty
                 return
             }
             
-            // 4. Update file
-            let newArtist = result.artistName ?? artist
-            let newTitle = result.trackName ?? title
-            let newAlbum = result.collectionName ?? ""
-            let newGenre = result.primaryGenreName ?? ""
-            let newYear = result.releaseDate?.prefix(4) ?? ""
+            // 4. Update info applying only checked tags
+            let newArtist = (checkedTags["artist"] == true) ? (result.artistName ?? artist) : artist
+            let newTitle = (checkedTags["title"] == true) ? (result.trackName ?? title) : title
             
-            // NOTE: Writing metadata back to MP3/WAV is limited in AVFoundation without ExportSession.
-            // For now, we will at least RENAME the file to the correct format as requested.
-            // And if it's M4A, we could do more.
+            // Log other tags if checked (AVFoundation lacks direct tag editing without export, so we print/rename)
+            if checkedTags["album"] == true {
+                print("Album tag matches: \(result.collectionName ?? "")")
+            }
+            if checkedTags["genre"] == true {
+                print("Genre tag matches: \(result.primaryGenreName ?? "")")
+            }
+            if checkedTags["trackNumber"] == true {
+                print("Track number tag matches: \(result.trackNumber ?? 0)")
+            }
+            
+            // Fetch lyrics if checked
+            if checkedTags["lyrics"] == true {
+                let semLyrics = DispatchSemaphore(value: 0)
+                LyricsService.shared.fetchLyrics(artist: newArtist, title: newTitle) { lyrics in
+                    if let ly = lyrics {
+                        print("Lyrics found: \(ly.prefix(50))...")
+                    }
+                    semLyrics.signal()
+                }
+                _ = semLyrics.wait(timeout: .now() + 5.0)
+            }
             
             let sanitizedArtist = self.sanitizeFilename(newArtist)
             let sanitizedTitle = self.sanitizeFilename(newTitle)
@@ -61,16 +81,22 @@ class FileMetadataService {
             let newUrl = url.deletingLastPathComponent().appendingPathComponent(newFilename)
             
             do {
-                if url != newUrl {
-                    // Check if file already exists at destination
-                    if FileManager.default.fileExists(atPath: newUrl.path) {
-                        try FileManager.default.removeItem(at: newUrl)
+                if url.standardized.path != newUrl.standardized.path {
+                    if url.path.lowercased() == newUrl.path.lowercased() {
+                        // Case-only rename: use a temp name first to avoid deleting the source file on case-insensitive macOS volumes
+                        let tempUrl = url.deletingLastPathComponent().appendingPathComponent("temp_\(UUID().uuidString)_\(url.lastPathComponent)")
+                        try FileManager.default.moveItem(at: url, to: tempUrl)
+                        try FileManager.default.moveItem(at: tempUrl, to: newUrl)
+                    } else {
+                        if FileManager.default.fileExists(atPath: newUrl.path) {
+                            try FileManager.default.removeItem(at: newUrl)
+                        }
+                        try FileManager.default.moveItem(at: url, to: newUrl)
                     }
-                    try FileManager.default.moveItem(at: url, to: newUrl)
                 }
                 
-                // If downloadCover is true, try to download it
-                if downloadCover, let artworkUrl = result.artworkUrl100 {
+                // If downloadCover is true and album tag is checked, try to download cover
+                if downloadCover && checkedTags["album"] == true, let artworkUrl = result.artworkUrl100 {
                     self.downloadCover(url: artworkUrl, destinationFolder: newUrl.deletingLastPathComponent(), baseName: "\(sanitizedArtist) - \(sanitizedTitle)")
                 }
                 
@@ -86,13 +112,11 @@ class FileMetadataService {
     }
     
     private func parseFilename(_ filename: String) -> (artist: String, title: String) {
-        // Pattern: Artist - Title
         let parts = filename.components(separatedBy: " - ")
         if parts.count >= 2 {
             return (parts[0].trimmingCharacters(in: .whitespaces), parts[1].trimmingCharacters(in: .whitespaces))
         }
         
-        // Pattern: Artist-Title
         let parts2 = filename.components(separatedBy: "-")
         if parts2.count >= 2 {
             return (parts2[0].trimmingCharacters(in: .whitespaces), parts2[1].trimmingCharacters(in: .whitespaces))

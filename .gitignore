@@ -38,6 +38,7 @@ pip-delete-this-directory.txt
 # Executables & Bundles
 *.app/
 *.app.dSYM/
+*.dSYM/
 *.zip
 *.dylib
 *.o
