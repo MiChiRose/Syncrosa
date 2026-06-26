@@ -6,16 +6,16 @@ import time
 from collections import Counter
 from core.itunes_bridge import run_as
 from core.network import make_request
+import sys
 try:
-    import urllib
-    q_f = urllib.quote
+    from urllib import quote as q_f
 except ImportError:
-    import urllib.parse
-    q_f = urllib.parse.quote
+    from urllib.parse import quote as q_f
 
 def norm_text(t):
     if not t: return u""
-    if isinstance(t, str): t = t.decode('utf-8')
+    if isinstance(t, bytes):
+        t = t.decode('utf-8', 'ignore')
     # Normalize text by removing special characters and lowercasing
     return u' '.join(re.sub(r'[^a-zA-Z0-9а-яА-ЯёЁ\s]', u' ', t).lower().split())
 

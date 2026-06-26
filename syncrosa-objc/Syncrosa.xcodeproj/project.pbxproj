@@ -7,30 +7,31 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		EC1954EAA8AF4D6D9A048EDE /* AppIcon.icns in Build */ = {isa = PBXBuildFile; fileRef = 808BED475BAA4889AFCFC9AA /* AppIcon.icns */; };
-		4745F4E8D9B94BC88FC02600 /* main.m in Build */ = {isa = PBXBuildFile; fileRef = 6CCA5EE1C68A41E4AE95E16A /* main.m */; };
-		2B7B51C9A7494D4C9BB6C8F4 /* AppDelegate.m in Build */ = {isa = PBXBuildFile; fileRef = 63B09A111F7A4228AD95EC2D /* AppDelegate.m */; };
-		BF7ACFE87055406F9EE300AC /* IGSettingsViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 4FF0A011D71F4F0F887D2E77 /* IGSettingsViewController.m */; };
-		44AA05BD11F64E939D140FE9 /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 7472465EA6784D3AA18DA1D4 /* IGUSBExportViewController.m */; };
-		C98F76F630C74D2EB6BFCC8C /* IGFileFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 65995CFA1C63457D88B47B66 /* IGFileFixerViewController.m */; };
-		E8511F364D204927A6D614AC /* IGGeniusViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 16FF42454B524C8B86A42A6B /* IGGeniusViewController.m */; };
-		529AE213522942C299D0CE48 /* IGNotificationView.m in Build */ = {isa = PBXBuildFile; fileRef = 9B712E4BD5A44425AA435FD1 /* IGNotificationView.m */; };
-		E4BBD47B71BB4748B8BA11AE /* IGMainWindowController.m in Build */ = {isa = PBXBuildFile; fileRef = C56332A6AFE54EEA9CF085B0 /* IGMainWindowController.m */; };
-		5C4407673D1F45D8BE91DFEF /* IGFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = DA408F1D718F4498AB8CE9FE /* IGFixerViewController.m */; };
-		871AF4B4F37E48F59B311A50 /* cacert.pem in Build */ = {isa = PBXBuildFile; fileRef = 1FAFB8C1C7044EBFB3A44DD1 /* cacert.pem */; };
-		4DECCA17DA9740368DCFEC25 /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = 015D055FADA34FF9AE2F31A4 /* Localizable.strings */; };
-		FED4765191B44D9E964E10BF /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = 780753684E5F4CBDB6C8690D /* Localizable.strings */; };
-		C3894ED267A740829C600378 /* IGTrack.m in Build */ = {isa = PBXBuildFile; fileRef = 07C93D09787041A18B84B0BB /* IGTrack.m */; };
-		00291EDEC0E84A1A8ECBF19F /* MainMenu.xib in Build */ = {isa = PBXBuildFile; fileRef = 71750CDA09F74CD094F5911C /* MainMenu.xib */; };
-		DFF1401A8CAF40D280C60825 /* IGLogger.m in Build */ = {isa = PBXBuildFile; fileRef = BF7C11BA19244EF787A84A71 /* IGLogger.m */; };
-		BA2CB37DA6234BBE85D8A61E /* IGLocalizationService.m in Build */ = {isa = PBXBuildFile; fileRef = C9A30EA0FBD44F0E83A6BA4A /* IGLocalizationService.m */; };
-		7827FD5DB78B4965B89CECBC /* IGAIService.m in Build */ = {isa = PBXBuildFile; fileRef = C6386617ABC74D5280DDDB31 /* IGAIService.m */; };
-		0B0B8453BAA94260B8C865D0 /* IGUSBService.m in Build */ = {isa = PBXBuildFile; fileRef = 4BCDCDFE8F1943B2ACEF9832 /* IGUSBService.m */; };
-		DA71B4B903894A3780B3406D /* IGMediaFixerManager.m in Build */ = {isa = PBXBuildFile; fileRef = 291FDA4B4CF74171908BE421 /* IGMediaFixerManager.m */; };
-		0669AE25044E4330926BCC45 /* IGiTunesService.m in Build */ = {isa = PBXBuildFile; fileRef = B136084E99184E5BAABE1AAC /* IGiTunesService.m */; };
-		927C1565C8DD49D097486D85 /* IGKeychainHelper.m in Build */ = {isa = PBXBuildFile; fileRef = F7E9B35F17FC4A64A7B970FE /* IGKeychainHelper.m */; };
-		D32CF608ADEB4F29A7117A0A /* SyncrosaTests.m in Build */ = {isa = PBXBuildFile; fileRef = 37683F39B9E14A659A09B1AD /* SyncrosaTests.m */; };
-		E17AF256BFF746F788C2C64F /* IGBusinessLogicTests.m in Build */ = {isa = PBXBuildFile; fileRef = B0D8ED5D2FA94363959D8657 /* IGBusinessLogicTests.m */; };
+		535824A467824B33ABB94481 /* AppIcon.icns in Build */ = {isa = PBXBuildFile; fileRef = 55EF3A68A79D417FA78D4899 /* AppIcon.icns */; };
+		DBDBD83956084AF2BAFE9FE4 /* main.m in Build */ = {isa = PBXBuildFile; fileRef = 901389B19698487EBF9CD452 /* main.m */; };
+		8731C9B5A09040A0A7DB4482 /* AppDelegate.m in Build */ = {isa = PBXBuildFile; fileRef = 93F39929AEEB4F6A91D622FB /* AppDelegate.m */; };
+		034450986A1445C892610EC1 /* IGSettingsViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 3AF694044A4344A7AEF27E5A /* IGSettingsViewController.m */; };
+		1D553E37E5E044F8BA930D6C /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 81A0F306CB954E6B9DC640E9 /* IGUSBExportViewController.m */; };
+		303A9196467D432284C3F87B /* IGFileFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = AED66924C4774F7C8C12292C /* IGFileFixerViewController.m */; };
+		3084A46E677140C69CAFD476 /* IGGeniusViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 83E569B2B63E49B39E4D9739 /* IGGeniusViewController.m */; };
+		48CB5284626C46F0A6963BDF /* IGNotificationView.m in Build */ = {isa = PBXBuildFile; fileRef = 5B0F8440EE8B49659033A46A /* IGNotificationView.m */; };
+		0EA396700F5C4C0CAFFDB018 /* IGMainWindowController.m in Build */ = {isa = PBXBuildFile; fileRef = AF2C6B0D4B344099AAED01EC /* IGMainWindowController.m */; };
+		538B59D44CA84BEE9948658D /* IGFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = FA733CA310154D02AB8E1B26 /* IGFixerViewController.m */; };
+		0B925C199A374043A554744A /* IGCoversOptimizerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 8ABB1DE792F94F3494638205 /* IGCoversOptimizerViewController.m */; };
+		DDD3A2B18607494E84D6F2FA /* cacert.pem in Build */ = {isa = PBXBuildFile; fileRef = 1896AF9BC0CA4AC9B6D08AB7 /* cacert.pem */; };
+		2F5AA956C59B485B88C8A053 /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = 9006DD061E43440CA15243C3 /* Localizable.strings */; };
+		21BD0ED3205047DAB00EB7D0 /* Localizable.strings in Build */ = {isa = PBXBuildFile; fileRef = D80F3CA3DD5A4E56AD4C5903 /* Localizable.strings */; };
+		0ED1F420375A4D40848555B8 /* IGTrack.m in Build */ = {isa = PBXBuildFile; fileRef = F616478F5D88427CADE2A4DD /* IGTrack.m */; };
+		F61A217BC5CE4373888EE571 /* MainMenu.xib in Build */ = {isa = PBXBuildFile; fileRef = CF9B5D81FE364C0099683FB4 /* MainMenu.xib */; };
+		FBBF91FCD91C4AB5AD44180A /* IGLogger.m in Build */ = {isa = PBXBuildFile; fileRef = 3B0F4DCC54A243509DCFDB0F /* IGLogger.m */; };
+		A833A61E5B064EEEA7DDB07B /* IGLocalizationService.m in Build */ = {isa = PBXBuildFile; fileRef = F2D2D1B1A1D1483DA5C50D71 /* IGLocalizationService.m */; };
+		1CF1D4AC7EA6489E9BE56F30 /* IGAIService.m in Build */ = {isa = PBXBuildFile; fileRef = EA8814A5B8A84E33ABE3A4C6 /* IGAIService.m */; };
+		6F66C1A15F35492D8E96C3E1 /* IGUSBService.m in Build */ = {isa = PBXBuildFile; fileRef = 00D48F8D0E1E436DBA095BE0 /* IGUSBService.m */; };
+		89F173B325DE4380B0690AFE /* IGMediaFixerManager.m in Build */ = {isa = PBXBuildFile; fileRef = CD0D352023294180932CA1F7 /* IGMediaFixerManager.m */; };
+		B35545A453DF46F2BDA3E7AE /* IGiTunesService.m in Build */ = {isa = PBXBuildFile; fileRef = 25FB2EB59C3A44F9A3C3DDB2 /* IGiTunesService.m */; };
+		5253B36BCEED4778BC90EB2D /* IGKeychainHelper.m in Build */ = {isa = PBXBuildFile; fileRef = 7481178E4A3F48DA84AB38D6 /* IGKeychainHelper.m */; };
+		5416AB4083CA43D39243ED87 /* SyncrosaTests.m in Build */ = {isa = PBXBuildFile; fileRef = 4687373B79FF4C1AB61CFCB3 /* SyncrosaTests.m */; };
+		3916242D27E64BC48FF877A3 /* IGBusinessLogicTests.m in Build */ = {isa = PBXBuildFile; fileRef = 31F360655C88418AA48EF690 /* IGBusinessLogicTests.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,48 +45,50 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		E3BBCCD8067E43DB949A39D0 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AppDelegate.h"; sourceTree = "<group>"; };
-		808BED475BAA4889AFCFC9AA /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = "AppIcon.icns"; sourceTree = "<group>"; };
-		6CCA5EE1C68A41E4AE95E16A /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "main.m"; sourceTree = "<group>"; };
-		63B09A111F7A4228AD95EC2D /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "AppDelegate.m"; sourceTree = "<group>"; };
-		E8A38788878C4DF2A805DDA9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
-		291B7820453443CABFDD1680 /* IGMainWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMainWindowController.h"; sourceTree = "<group>"; };
-		942958CBEAE5472AA7641FBA /* IGNotificationView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGNotificationView.h"; sourceTree = "<group>"; };
-		4FF0A011D71F4F0F887D2E77 /* IGSettingsViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGSettingsViewController.m"; sourceTree = "<group>"; };
-		7472465EA6784D3AA18DA1D4 /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
-		65995CFA1C63457D88B47B66 /* IGFileFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFileFixerViewController.m"; sourceTree = "<group>"; };
-		A9231F10E77B45B9B2BAF612 /* IGFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFixerViewController.h"; sourceTree = "<group>"; };
-		16FF42454B524C8B86A42A6B /* IGGeniusViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGGeniusViewController.m"; sourceTree = "<group>"; };
-		9B712E4BD5A44425AA435FD1 /* IGNotificationView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGNotificationView.m"; sourceTree = "<group>"; };
-		C56332A6AFE54EEA9CF085B0 /* IGMainWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMainWindowController.m"; sourceTree = "<group>"; };
-		E597B7C5C47B48D6BFDF2DB9 /* IGSettingsViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGSettingsViewController.h"; sourceTree = "<group>"; };
-		570BB9F4DEB34092B5AFBD59 /* IGGeniusViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGGeniusViewController.h"; sourceTree = "<group>"; };
-		DA408F1D718F4498AB8CE9FE /* IGFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFixerViewController.m"; sourceTree = "<group>"; };
-		37E6A4EFB1A14716AE1D6C30 /* IGUSBExportViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBExportViewController.h"; sourceTree = "<group>"; };
-		A6850399EE344904A5E341ED /* IGFileFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFileFixerViewController.h"; sourceTree = "<group>"; };
-		1FAFB8C1C7044EBFB3A44DD1 /* cacert.pem */ = {isa = PBXFileReference; lastKnownFileType = text; path = "cacert.pem"; sourceTree = "<group>"; };
-		015D055FADA34FF9AE2F31A4 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
-		780753684E5F4CBDB6C8690D /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
-		07C93D09787041A18B84B0BB /* IGTrack.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGTrack.m"; sourceTree = "<group>"; };
-		050CE29F437B4D72B9A19B66 /* IGTrack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGTrack.h"; sourceTree = "<group>"; };
-		71750CDA09F74CD094F5911C /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = "MainMenu.xib"; sourceTree = "<group>"; };
-		709B48D68F5B4D629F2DB811 /* IGMediaFixerManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMediaFixerManager.h"; sourceTree = "<group>"; };
-		BF7C11BA19244EF787A84A71 /* IGLogger.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLogger.m"; sourceTree = "<group>"; };
-		C9A30EA0FBD44F0E83A6BA4A /* IGLocalizationService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLocalizationService.m"; sourceTree = "<group>"; };
-		C6386617ABC74D5280DDDB31 /* IGAIService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGAIService.m"; sourceTree = "<group>"; };
-		E24FA23A037249AE89603900 /* IGiTunesService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGiTunesService.h"; sourceTree = "<group>"; };
-		148DC42A15CB4A9398F7563C /* IGKeychainHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGKeychainHelper.h"; sourceTree = "<group>"; };
-		4BCDCDFE8F1943B2ACEF9832 /* IGUSBService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBService.m"; sourceTree = "<group>"; };
-		291FDA4B4CF74171908BE421 /* IGMediaFixerManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMediaFixerManager.m"; sourceTree = "<group>"; };
-		B136084E99184E5BAABE1AAC /* IGiTunesService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGiTunesService.m"; sourceTree = "<group>"; };
-		A6A18253FA5B4AA49226061A /* IGAIService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGAIService.h"; sourceTree = "<group>"; };
-		316E03DE4E12484F9CBA2601 /* IGLocalizationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLocalizationService.h"; sourceTree = "<group>"; };
-		3DF0C5A1BFA44D34B9AA828C /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
-		F7E9B35F17FC4A64A7B970FE /* IGKeychainHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGKeychainHelper.m"; sourceTree = "<group>"; };
-		A1A7BF52D9D2479888CC42FF /* IGUSBService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBService.h"; sourceTree = "<group>"; };
-		37683F39B9E14A659A09B1AD /* SyncrosaTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "SyncrosaTests.m"; sourceTree = "<group>"; };
-		B0D8ED5D2FA94363959D8657 /* IGBusinessLogicTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGBusinessLogicTests.m"; sourceTree = "<group>"; };
-		CFCA83C51D96438290989CC4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		0AD2BAC114AA454687DD11EB /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AppDelegate.h"; sourceTree = "<group>"; };
+		55EF3A68A79D417FA78D4899 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = "AppIcon.icns"; sourceTree = "<group>"; };
+		901389B19698487EBF9CD452 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "main.m"; sourceTree = "<group>"; };
+		93F39929AEEB4F6A91D622FB /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "AppDelegate.m"; sourceTree = "<group>"; };
+		D231A8FE26B341BFAF55CBD5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		541203312FD74DBA89E7B67F /* IGMainWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMainWindowController.h"; sourceTree = "<group>"; };
+		2B25573F9D9C4072BFD5494E /* IGNotificationView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGNotificationView.h"; sourceTree = "<group>"; };
+		3AF694044A4344A7AEF27E5A /* IGSettingsViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGSettingsViewController.m"; sourceTree = "<group>"; };
+		81A0F306CB954E6B9DC640E9 /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
+		AED66924C4774F7C8C12292C /* IGFileFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFileFixerViewController.m"; sourceTree = "<group>"; };
+		6193630A29054A729FAA37E6 /* IGCoversOptimizerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGCoversOptimizerViewController.h"; sourceTree = "<group>"; };
+		279918B4087244BE97C15ACE /* IGFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFixerViewController.h"; sourceTree = "<group>"; };
+		83E569B2B63E49B39E4D9739 /* IGGeniusViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGGeniusViewController.m"; sourceTree = "<group>"; };
+		5B0F8440EE8B49659033A46A /* IGNotificationView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGNotificationView.m"; sourceTree = "<group>"; };
+		AF2C6B0D4B344099AAED01EC /* IGMainWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMainWindowController.m"; sourceTree = "<group>"; };
+		46A168438DB84B5F874EFFC5 /* IGSettingsViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGSettingsViewController.h"; sourceTree = "<group>"; };
+		8E91E042D974471EB952E38E /* IGGeniusViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGGeniusViewController.h"; sourceTree = "<group>"; };
+		FA733CA310154D02AB8E1B26 /* IGFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFixerViewController.m"; sourceTree = "<group>"; };
+		8ABB1DE792F94F3494638205 /* IGCoversOptimizerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGCoversOptimizerViewController.m"; sourceTree = "<group>"; };
+		1605ED37CB78443AAD76EFFD /* IGUSBExportViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBExportViewController.h"; sourceTree = "<group>"; };
+		DCA207FC97184120B245333F /* IGFileFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFileFixerViewController.h"; sourceTree = "<group>"; };
+		1896AF9BC0CA4AC9B6D08AB7 /* cacert.pem */ = {isa = PBXFileReference; lastKnownFileType = text; path = "cacert.pem"; sourceTree = "<group>"; };
+		9006DD061E43440CA15243C3 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		D80F3CA3DD5A4E56AD4C5903 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "Localizable.strings"; sourceTree = "<group>"; };
+		F616478F5D88427CADE2A4DD /* IGTrack.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGTrack.m"; sourceTree = "<group>"; };
+		2D944F9A16DA44E1878C831A /* IGTrack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGTrack.h"; sourceTree = "<group>"; };
+		CF9B5D81FE364C0099683FB4 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = "MainMenu.xib"; sourceTree = "<group>"; };
+		EFD2F5D79FC64F8F802AA02C /* IGMediaFixerManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMediaFixerManager.h"; sourceTree = "<group>"; };
+		3B0F4DCC54A243509DCFDB0F /* IGLogger.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLogger.m"; sourceTree = "<group>"; };
+		F2D2D1B1A1D1483DA5C50D71 /* IGLocalizationService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLocalizationService.m"; sourceTree = "<group>"; };
+		EA8814A5B8A84E33ABE3A4C6 /* IGAIService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGAIService.m"; sourceTree = "<group>"; };
+		D05ED9AFB6844751BE62F326 /* IGiTunesService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGiTunesService.h"; sourceTree = "<group>"; };
+		D3AC8B40C3EF4546BB2464F8 /* IGKeychainHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGKeychainHelper.h"; sourceTree = "<group>"; };
+		00D48F8D0E1E436DBA095BE0 /* IGUSBService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBService.m"; sourceTree = "<group>"; };
+		CD0D352023294180932CA1F7 /* IGMediaFixerManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMediaFixerManager.m"; sourceTree = "<group>"; };
+		25FB2EB59C3A44F9A3C3DDB2 /* IGiTunesService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGiTunesService.m"; sourceTree = "<group>"; };
+		B65E738896BB4BA881604D7A /* IGAIService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGAIService.h"; sourceTree = "<group>"; };
+		FFAE1BEB8BD24DF792EA0C6F /* IGLocalizationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLocalizationService.h"; sourceTree = "<group>"; };
+		4F302754C84A424884352454 /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
+		7481178E4A3F48DA84AB38D6 /* IGKeychainHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGKeychainHelper.m"; sourceTree = "<group>"; };
+		A16E620033504B37A6FE8850 /* IGUSBService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBService.h"; sourceTree = "<group>"; };
+		4687373B79FF4C1AB61CFCB3 /* SyncrosaTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "SyncrosaTests.m"; sourceTree = "<group>"; };
+		31F360655C88418AA48EF690 /* IGBusinessLogicTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGBusinessLogicTests.m"; sourceTree = "<group>"; };
+		A7494476FC874D249D028963 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
 		5281AC572FDAE21700B6EAAC /* Syncrosa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Syncrosa.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5281AC6A2FDAE21700B6EAAC /* SyncrosaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SyncrosaTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -108,130 +111,132 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		5C5CD128277B4436870DDD3A /* AppIcon.appiconset */ = {
+		00794C396E4149D7B26F4894 /* AppIcon.appiconset */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = "AppIcon.appiconset";
 			sourceTree = "<group>";
 		};
-		CE60204001DE43CCBC6E73DA /* en.lproj */ = {
+		D3947D82AFE0407A82A2CBA2 /* en.lproj */ = {
 			isa = PBXGroup;
 			children = (
-				015D055FADA34FF9AE2F31A4 /* Localizable.strings */,
+				9006DD061E43440CA15243C3 /* Localizable.strings */,
 			);
 			path = "en.lproj";
 			sourceTree = "<group>";
 		};
-		75A4E57B7CCC4CB09AAE214D /* ru.lproj */ = {
+		47267656B42742D08375940F /* ru.lproj */ = {
 			isa = PBXGroup;
 			children = (
-				780753684E5F4CBDB6C8690D /* Localizable.strings */,
+				D80F3CA3DD5A4E56AD4C5903 /* Localizable.strings */,
 			);
 			path = "ru.lproj";
 			sourceTree = "<group>";
 		};
-		FF1ED514D00D4352B3E21FCE /* Images.xcassets */ = {
+		6BA275376A9B4139B8828056 /* Images.xcassets */ = {
 			isa = PBXGroup;
 			children = (
-				5C5CD128277B4436870DDD3A /* AppIcon.appiconset */,
+				00794C396E4149D7B26F4894 /* AppIcon.appiconset */,
 			);
 			path = "Images.xcassets";
 			sourceTree = "<group>";
 		};
-		D34769E7E6A845F98D9A942C /* Base.lproj */ = {
+		9C55A1EFFBFB4EB583DBD4F3 /* Base.lproj */ = {
 			isa = PBXGroup;
 			children = (
-				71750CDA09F74CD094F5911C /* MainMenu.xib */,
+				CF9B5D81FE364C0099683FB4 /* MainMenu.xib */,
 			);
 			path = "Base.lproj";
 			sourceTree = "<group>";
 		};
-		A9990F214EF84968B7CD9473 /* Resources */ = {
+		5E4553374983436B94F286C4 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				1FAFB8C1C7044EBFB3A44DD1 /* cacert.pem */,
-				CE60204001DE43CCBC6E73DA /* en.lproj */,
-				75A4E57B7CCC4CB09AAE214D /* ru.lproj */,
+				1896AF9BC0CA4AC9B6D08AB7 /* cacert.pem */,
+				D3947D82AFE0407A82A2CBA2 /* en.lproj */,
+				47267656B42742D08375940F /* ru.lproj */,
 			);
 			path = "Resources";
 			sourceTree = "<group>";
 		};
-		6927EAFABDC646E6AEBD5349 /* Services */ = {
+		982E76C096F048B2925D0FBA /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				709B48D68F5B4D629F2DB811 /* IGMediaFixerManager.h */,
-				BF7C11BA19244EF787A84A71 /* IGLogger.m */,
-				C9A30EA0FBD44F0E83A6BA4A /* IGLocalizationService.m */,
-				C6386617ABC74D5280DDDB31 /* IGAIService.m */,
-				E24FA23A037249AE89603900 /* IGiTunesService.h */,
-				148DC42A15CB4A9398F7563C /* IGKeychainHelper.h */,
-				4BCDCDFE8F1943B2ACEF9832 /* IGUSBService.m */,
-				291FDA4B4CF74171908BE421 /* IGMediaFixerManager.m */,
-				B136084E99184E5BAABE1AAC /* IGiTunesService.m */,
-				A6A18253FA5B4AA49226061A /* IGAIService.h */,
-				316E03DE4E12484F9CBA2601 /* IGLocalizationService.h */,
-				3DF0C5A1BFA44D34B9AA828C /* IGLogger.h */,
-				F7E9B35F17FC4A64A7B970FE /* IGKeychainHelper.m */,
-				A1A7BF52D9D2479888CC42FF /* IGUSBService.h */,
+				EFD2F5D79FC64F8F802AA02C /* IGMediaFixerManager.h */,
+				3B0F4DCC54A243509DCFDB0F /* IGLogger.m */,
+				F2D2D1B1A1D1483DA5C50D71 /* IGLocalizationService.m */,
+				EA8814A5B8A84E33ABE3A4C6 /* IGAIService.m */,
+				D05ED9AFB6844751BE62F326 /* IGiTunesService.h */,
+				D3AC8B40C3EF4546BB2464F8 /* IGKeychainHelper.h */,
+				00D48F8D0E1E436DBA095BE0 /* IGUSBService.m */,
+				CD0D352023294180932CA1F7 /* IGMediaFixerManager.m */,
+				25FB2EB59C3A44F9A3C3DDB2 /* IGiTunesService.m */,
+				B65E738896BB4BA881604D7A /* IGAIService.h */,
+				FFAE1BEB8BD24DF792EA0C6F /* IGLocalizationService.h */,
+				4F302754C84A424884352454 /* IGLogger.h */,
+				7481178E4A3F48DA84AB38D6 /* IGKeychainHelper.m */,
+				A16E620033504B37A6FE8850 /* IGUSBService.h */,
 			);
 			path = "Services";
 			sourceTree = "<group>";
 		};
-		880158BC70B54997A6348B56 /* Models */ = {
+		B8071E1E15164DE5890BAC75 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				07C93D09787041A18B84B0BB /* IGTrack.m */,
-				050CE29F437B4D72B9A19B66 /* IGTrack.h */,
+				F616478F5D88427CADE2A4DD /* IGTrack.m */,
+				2D944F9A16DA44E1878C831A /* IGTrack.h */,
 			);
 			path = "Models";
 			sourceTree = "<group>";
 		};
-		1EDBA892965F434598866814 /* UI */ = {
+		E53F3708911844C28F843BEA /* UI */ = {
 			isa = PBXGroup;
 			children = (
-				291B7820453443CABFDD1680 /* IGMainWindowController.h */,
-				942958CBEAE5472AA7641FBA /* IGNotificationView.h */,
-				4FF0A011D71F4F0F887D2E77 /* IGSettingsViewController.m */,
-				7472465EA6784D3AA18DA1D4 /* IGUSBExportViewController.m */,
-				65995CFA1C63457D88B47B66 /* IGFileFixerViewController.m */,
-				A9231F10E77B45B9B2BAF612 /* IGFixerViewController.h */,
-				16FF42454B524C8B86A42A6B /* IGGeniusViewController.m */,
-				9B712E4BD5A44425AA435FD1 /* IGNotificationView.m */,
-				C56332A6AFE54EEA9CF085B0 /* IGMainWindowController.m */,
-				E597B7C5C47B48D6BFDF2DB9 /* IGSettingsViewController.h */,
-				570BB9F4DEB34092B5AFBD59 /* IGGeniusViewController.h */,
-				DA408F1D718F4498AB8CE9FE /* IGFixerViewController.m */,
-				37E6A4EFB1A14716AE1D6C30 /* IGUSBExportViewController.h */,
-				A6850399EE344904A5E341ED /* IGFileFixerViewController.h */,
+				541203312FD74DBA89E7B67F /* IGMainWindowController.h */,
+				2B25573F9D9C4072BFD5494E /* IGNotificationView.h */,
+				3AF694044A4344A7AEF27E5A /* IGSettingsViewController.m */,
+				81A0F306CB954E6B9DC640E9 /* IGUSBExportViewController.m */,
+				AED66924C4774F7C8C12292C /* IGFileFixerViewController.m */,
+				6193630A29054A729FAA37E6 /* IGCoversOptimizerViewController.h */,
+				279918B4087244BE97C15ACE /* IGFixerViewController.h */,
+				83E569B2B63E49B39E4D9739 /* IGGeniusViewController.m */,
+				5B0F8440EE8B49659033A46A /* IGNotificationView.m */,
+				AF2C6B0D4B344099AAED01EC /* IGMainWindowController.m */,
+				46A168438DB84B5F874EFFC5 /* IGSettingsViewController.h */,
+				8E91E042D974471EB952E38E /* IGGeniusViewController.h */,
+				FA733CA310154D02AB8E1B26 /* IGFixerViewController.m */,
+				8ABB1DE792F94F3494638205 /* IGCoversOptimizerViewController.m */,
+				1605ED37CB78443AAD76EFFD /* IGUSBExportViewController.h */,
+				DCA207FC97184120B245333F /* IGFileFixerViewController.h */,
 			);
 			path = "UI";
 			sourceTree = "<group>";
 		};
-		4B1A3C942B8E42319A6AC8BD /* Sources */ = {
+		138DB29F081F4D03865EB368 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				E3BBCCD8067E43DB949A39D0 /* AppDelegate.h */,
-				808BED475BAA4889AFCFC9AA /* AppIcon.icns */,
-				6CCA5EE1C68A41E4AE95E16A /* main.m */,
-				63B09A111F7A4228AD95EC2D /* AppDelegate.m */,
-				E8A38788878C4DF2A805DDA9 /* Info.plist */,
-				1EDBA892965F434598866814 /* UI */,
-				A9990F214EF84968B7CD9473 /* Resources */,
-				880158BC70B54997A6348B56 /* Models */,
-				D34769E7E6A845F98D9A942C /* Base.lproj */,
-				FF1ED514D00D4352B3E21FCE /* Images.xcassets */,
-				6927EAFABDC646E6AEBD5349 /* Services */,
+				0AD2BAC114AA454687DD11EB /* AppDelegate.h */,
+				55EF3A68A79D417FA78D4899 /* AppIcon.icns */,
+				901389B19698487EBF9CD452 /* main.m */,
+				93F39929AEEB4F6A91D622FB /* AppDelegate.m */,
+				D231A8FE26B341BFAF55CBD5 /* Info.plist */,
+				E53F3708911844C28F843BEA /* UI */,
+				5E4553374983436B94F286C4 /* Resources */,
+				B8071E1E15164DE5890BAC75 /* Models */,
+				9C55A1EFFBFB4EB583DBD4F3 /* Base.lproj */,
+				6BA275376A9B4139B8828056 /* Images.xcassets */,
+				982E76C096F048B2925D0FBA /* Services */,
 			);
 			path = "Sources";
 			sourceTree = "<group>";
 		};
-		039C7967F8904F77986BFC10 /* Tests */ = {
+		96EDFA68318D4F7E8BF1E11F /* Tests */ = {
 			isa = PBXGroup;
 			children = (
-				37683F39B9E14A659A09B1AD /* SyncrosaTests.m */,
-				B0D8ED5D2FA94363959D8657 /* IGBusinessLogicTests.m */,
-				CFCA83C51D96438290989CC4 /* Info.plist */,
+				4687373B79FF4C1AB61CFCB3 /* SyncrosaTests.m */,
+				31F360655C88418AA48EF690 /* IGBusinessLogicTests.m */,
+				A7494476FC874D249D028963 /* Info.plist */,
 			);
 			path = "SyncrosaTests";
 			sourceTree = "<group>";
@@ -248,8 +253,8 @@
 		5281AC4E2FDAE21700B6EAAC /* Project Group */ = {
 			isa = PBXGroup;
 			children = (
-				4B1A3C942B8E42319A6AC8BD /* Sources */,
-				039C7967F8904F77986BFC10 /* Tests */,
+				138DB29F081F4D03865EB368 /* Sources */,
+				96EDFA68318D4F7E8BF1E11F /* Tests */,
 				5281AC582FDAE21700B6EAAC /* Products */,
 			);
 			sourceTree = "<group>";
@@ -278,7 +283,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 5281AC772FDAE21700B6EAAC /* Build configuration list for PBXNativeTarget "SyncrosaTests" */;
 			buildPhases = (
-				A30E416891884A80940B5B0A /* Sources */,
+				80D1B72ABF2B47469764CA5A /* Sources */,
 				5281AC672FDAE21700B6EAAC /* Frameworks */,
 				5281AC682FDAE21700B6EAAC /* Resources */,
 			);
@@ -334,11 +339,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EC1954EAA8AF4D6D9A048EDE /* AppIcon.icns in Resources */,
-				871AF4B4F37E48F59B311A50 /* cacert.pem in Resources */,
-				4DECCA17DA9740368DCFEC25 /* Localizable.strings in Resources */,
-				FED4765191B44D9E964E10BF /* Localizable.strings in Resources */,
-				00291EDEC0E84A1A8ECBF19F /* MainMenu.xib in Resources */,
+				535824A467824B33ABB94481 /* AppIcon.icns in Resources */,
+				DDD3A2B18607494E84D6F2FA /* cacert.pem in Resources */,
+				2F5AA956C59B485B88C8A053 /* Localizable.strings in Resources */,
+				21BD0ED3205047DAB00EB7D0 /* Localizable.strings in Resources */,
+				F61A217BC5CE4373888EE571 /* MainMenu.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -356,32 +361,33 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4745F4E8D9B94BC88FC02600 /* main.m in Sources */,
-				2B7B51C9A7494D4C9BB6C8F4 /* AppDelegate.m in Sources */,
-				BF7ACFE87055406F9EE300AC /* IGSettingsViewController.m in Sources */,
-				44AA05BD11F64E939D140FE9 /* IGUSBExportViewController.m in Sources */,
-				C98F76F630C74D2EB6BFCC8C /* IGFileFixerViewController.m in Sources */,
-				E8511F364D204927A6D614AC /* IGGeniusViewController.m in Sources */,
-				529AE213522942C299D0CE48 /* IGNotificationView.m in Sources */,
-				E4BBD47B71BB4748B8BA11AE /* IGMainWindowController.m in Sources */,
-				5C4407673D1F45D8BE91DFEF /* IGFixerViewController.m in Sources */,
-				C3894ED267A740829C600378 /* IGTrack.m in Sources */,
-				DFF1401A8CAF40D280C60825 /* IGLogger.m in Sources */,
-				BA2CB37DA6234BBE85D8A61E /* IGLocalizationService.m in Sources */,
-				7827FD5DB78B4965B89CECBC /* IGAIService.m in Sources */,
-				0B0B8453BAA94260B8C865D0 /* IGUSBService.m in Sources */,
-				DA71B4B903894A3780B3406D /* IGMediaFixerManager.m in Sources */,
-				0669AE25044E4330926BCC45 /* IGiTunesService.m in Sources */,
-				927C1565C8DD49D097486D85 /* IGKeychainHelper.m in Sources */,
+				DBDBD83956084AF2BAFE9FE4 /* main.m in Sources */,
+				8731C9B5A09040A0A7DB4482 /* AppDelegate.m in Sources */,
+				034450986A1445C892610EC1 /* IGSettingsViewController.m in Sources */,
+				1D553E37E5E044F8BA930D6C /* IGUSBExportViewController.m in Sources */,
+				303A9196467D432284C3F87B /* IGFileFixerViewController.m in Sources */,
+				3084A46E677140C69CAFD476 /* IGGeniusViewController.m in Sources */,
+				48CB5284626C46F0A6963BDF /* IGNotificationView.m in Sources */,
+				0EA396700F5C4C0CAFFDB018 /* IGMainWindowController.m in Sources */,
+				538B59D44CA84BEE9948658D /* IGFixerViewController.m in Sources */,
+				0B925C199A374043A554744A /* IGCoversOptimizerViewController.m in Sources */,
+				0ED1F420375A4D40848555B8 /* IGTrack.m in Sources */,
+				FBBF91FCD91C4AB5AD44180A /* IGLogger.m in Sources */,
+				A833A61E5B064EEEA7DDB07B /* IGLocalizationService.m in Sources */,
+				1CF1D4AC7EA6489E9BE56F30 /* IGAIService.m in Sources */,
+				6F66C1A15F35492D8E96C3E1 /* IGUSBService.m in Sources */,
+				89F173B325DE4380B0690AFE /* IGMediaFixerManager.m in Sources */,
+				B35545A453DF46F2BDA3E7AE /* IGiTunesService.m in Sources */,
+				5253B36BCEED4778BC90EB2D /* IGKeychainHelper.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A30E416891884A80940B5B0A /* Sources */ = {
+		80D1B72ABF2B47469764CA5A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D32CF608ADEB4F29A7117A0A /* SyncrosaTests.m in Build */,
-				E17AF256BFF746F788C2C64F /* IGBusinessLogicTests.m in Build */,
+				5416AB4083CA43D39243ED87 /* SyncrosaTests.m in Build */,
+				3916242D27E64BC48FF877A3 /* IGBusinessLogicTests.m in Build */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

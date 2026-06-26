@@ -7,9 +7,14 @@ res_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if res_path not in sys.path:
     sys.path.insert(0, res_path)
 
-import Tkinter as tk
-import ttk
-import tkMessageBox
+try:
+    import Tkinter as tk
+    import ttk
+    import tkMessageBox
+except ImportError:
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import messagebox as tkMessageBox
 import threading
 import json
 

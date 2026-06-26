@@ -2,6 +2,7 @@
 #import "IGSettingsViewController.h"
 #import "IGFileFixerViewController.h"
 #import "IGUSBExportViewController.h"
+#import "IGCoversOptimizerViewController.h"
 #import "IGUSBService.h"
 #import "IGAIService.h"
 #import "IGKeychainHelper.h"
@@ -17,6 +18,7 @@
 @property (nonatomic, strong) IGFixerViewController *fixerVC;
 @property (nonatomic, strong) IGFileFixerViewController *fileFixerVC;
 @property (nonatomic, strong) IGUSBExportViewController *usbExportVC;
+@property (nonatomic, strong) IGCoversOptimizerViewController *coversOptimizerVC;
 @property (nonatomic, strong) IGSettingsViewController *settingsVC;
 @end
 
@@ -87,7 +89,7 @@
     if (apiKey && apiKey.length > 0) {
         [self switchViewToIndex:0];
     } else {
-        [self switchViewToIndex:4];
+        [self switchViewToIndex:5];
     }
 }
 
@@ -120,6 +122,7 @@
         [lang t:@"media_fixer"],
         [lang t:@"folder_fix"],
         [lang t:@"usb_export"],
+        [lang t:@"covers_optimizer"],
         [lang t:@"settings"]
     ];
     
@@ -214,6 +217,10 @@
             targetVC = self.usbExportVC;
             break;
         case 4:
+            if (!self.coversOptimizerVC) self.coversOptimizerVC = [[IGCoversOptimizerViewController alloc] init];
+            targetVC = self.coversOptimizerVC;
+            break;
+        case 5:
             if (!self.settingsVC) self.settingsVC = [[IGSettingsViewController alloc] init];
             targetVC = self.settingsVC;
             break;

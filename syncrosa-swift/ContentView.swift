@@ -14,6 +14,7 @@ struct ContentView: View {
         case fixer
         case folderFix
         case usbExport
+        case coversOptimizer
         case settings
     }
     
@@ -40,6 +41,10 @@ struct ContentView: View {
                     }
                     .disabled(usbService.isSearching)
                     .opacity(usbService.isSearching ? 0.5 : 1.0)
+                    
+                    NavigationLink(value: Tab.coversOptimizer) {
+                        Label(lang.t("covers_optimizer"), systemImage: "photo.on.rectangle.angled")
+                    }
                 }
                 
                 Divider()
@@ -64,6 +69,7 @@ struct ContentView: View {
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
                             case .usbExport: USBExportView()
+                            case .coversOptimizer: CoversOptimizerView()
                             case .settings: SettingsView()
                             case .none: Text(lang.t("select_folder_msg")).foregroundColor(.secondary)
                             }

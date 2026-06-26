@@ -2,6 +2,8 @@
 import subprocess
 
 def run_as(s):
+    if isinstance(s, bytes):
+        s = s.decode('utf-8')
     p = subprocess.Popen(['osascript', '-e', s], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return p.communicate()[0].decode('utf-8').strip()
 

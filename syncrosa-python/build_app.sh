@@ -6,7 +6,7 @@
 
 APP_NAME="Syncrosa"
 WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-APP_PATH="$HOME/Desktop/$APP_NAME.app"
+APP_PATH="$WORK_DIR/$APP_NAME.app"
 
 echo "--- Building Native $APP_NAME PRO (AI + Fixer) for Mavericks ---"
 
@@ -34,9 +34,9 @@ cat << 'EOF' > "$APP_PATH/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.0.0</string>
+    <string>3.1.0</string>
     <key>CFBundleVersion</key>
-    <string>3.0.0</string>
+    <string>3.1.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.9</string>
 </dict>
@@ -49,8 +49,16 @@ cat << 'EOF' > "$APP_PATH/Contents/MacOS/$APP_NAME"
 # Find the best python version available
 if [ -x "/usr/local/bin/python2.7" ]; then
     PYTHON_EXE="/usr/local/bin/python2.7"
-else
+elif [ -x "/usr/bin/python" ]; then
     PYTHON_EXE="/usr/bin/python"
+elif [ -x "/usr/bin/python3" ]; then
+    PYTHON_EXE="/usr/bin/python3"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_EXE="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON_EXE="$(command -v python)"
+else
+    PYTHON_EXE="python"
 fi
 
 BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -99,9 +107,10 @@ echo "Refreshing Finder icon cache..."
 
 # 9. УПАКОВКА В ZIP
 echo "Creating distribution ZIP..."
-cd "$HOME/Desktop"
-zip -ry "${APP_NAME}_v2.0_Merged.zip" "$APP_NAME.app"
+rm -f "$HOME/Desktop/Syncrosa_Python_Legacy.zip"
+cd "$WORK_DIR"
+zip -ry "$HOME/Desktop/Syncrosa_Python_Legacy.zip" "$APP_NAME.app"
+rm -rf "$APP_PATH"
 
 echo "--- SUCCESS! ---"
-echo "Ready: $APP_NAME.app and ${APP_NAME}_v2.0_Merged.zip on your Desktop."
-echo "If the icon is still missing, try moving the app to another folder."
+echo "Ready: Syncrosa_Python_Legacy.zip on your Desktop."

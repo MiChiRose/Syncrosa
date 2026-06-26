@@ -43,7 +43,7 @@ cat > Syncrosa.app/Contents/Info.plist <<EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.0.0</string>
+    <string>3.1.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
@@ -63,5 +63,8 @@ else
     codesign --force --sign - Syncrosa.app
 fi
 
-echo "✅ Syncrosa.app successfully created!"
-open .
+echo "Creating distribution ZIP..."
+rm -f "$HOME/Desktop/Syncrosa_SwiftUI_ARM.zip"
+zip -ry "$HOME/Desktop/Syncrosa_SwiftUI_ARM.zip" Syncrosa.app
+
+echo "✅ Syncrosa_SwiftUI_ARM.zip successfully created on Desktop!"

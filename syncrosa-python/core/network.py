@@ -2,18 +2,44 @@
 import json
 import os
 import subprocess
-import urllib2
+import sys
+try:
+    import urllib2
+except ImportError:
+    import urllib.request as urllib2
+    import urllib.error
+    urllib2.HTTPError = urllib.error.HTTPError
 import ssl
 
+try:
+    unicode
+except NameError:
+    unicode = str
+
 def make_request(url, headers_dict, payload_dict=None, timeout_sec=90):
+    # In Python 3, URL must be a string, but in Python 2 it can be unicode or bytes.
+    if sys.version_info[0] >= 3:
+        if isinstance(url, bytes):
+            url = url.decode('utf-8')
+    else:
+        if isinstance(url, unicode):
+            url = url.encode('utf-8')
+            
     req = urllib2.Request(url)
     req.add_header("User-Agent", "Syncrosa/1.0 (macOS)")
     
     curl_headers = ["-H", "User-Agent: Syncrosa/1.0 (macOS)"]
     
     for k, v in headers_dict.items():
-        if isinstance(k, unicode): k = k.encode('utf-8')
-        if isinstance(v, unicode): v = v.encode('utf-8')
+        if sys.version_info[0] < 3:
+            if isinstance(k, unicode): k = k.encode('utf-8')
+            if isinstance(v, unicode): v = v.encode('utf-8')
+        else:
+            if isinstance(k, bytes): k = k.decode('utf-8')
+            if isinstance(v, bytes): v = v.decode('utf-8')
+            # Ensure they are str in Python 3
+            k = str(k)
+            v = str(v)
         req.add_header(k, v)
         curl_headers.extend(["-H", "{}: {}".format(k, v)])
         
@@ -37,6 +63,9 @@ def make_request(url, headers_dict, payload_dict=None, timeout_sec=90):
         try:
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             out, err = p.communicate()
+            if sys.version_info[0] >= 3:
+                out = out.decode('utf-8', 'ignore')
+                err = err.decode('utf-8', 'ignore')
             if tmp_path:
                 try: os.remove(tmp_path)
                 except: pass
@@ -76,11 +105,17 @@ def make_request(url, headers_dict, payload_dict=None, timeout_sec=90):
                 # Final fallback: legacy urllib2
                 response = urllib2.urlopen(req, data=data, timeout=timeout_sec)
                 
-        return True, response.read()
+        resp_data = response.read()
+        if sys.version_info[0] >= 3:
+            resp_data = resp_data.decode('utf-8', 'ignore')
+        return True, resp_data
     except urllib2.HTTPError as e:
+        err_data = e.read()
+        if sys.version_info[0] >= 3:
+            err_data = err_data.decode('utf-8', 'ignore')
         if e.code in [401, 403]: 
-            return True, e.read()
-        return False, "HTTP Error: {} - {}".format(e.code, e.read()[:4000])
+            return True, err_data
+        return False, "HTTP Error: {} - {}".format(e.code, err_data[:4000])
     except Exception as e:
         # Only fallback to curl if it's an SSL/Protocol error
         err_str = str(e).lower()

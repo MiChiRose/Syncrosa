@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-import Tkinter as tk
-import ttk
+try:
+    import Tkinter as tk
+    import ttk
+except ImportError:
+    import tkinter as tk
+    from tkinter import ttk
 from core.localization import _
 
 class ProgressWindow(tk.Toplevel):

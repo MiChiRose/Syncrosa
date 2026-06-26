@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from config import CONFIG_DATA
+from core.config import CONFIG_DATA
 
 # --- ЛОКАЛИЗАЦИЯ (i18n) ---
 LANGUAGES = {
@@ -61,7 +61,24 @@ LANGUAGES = {
         "genius_lib_info": "Library: {} tracks",
         "ask_sync_startup": "Do you want to update iTunes library data now?",
         "max_available": "Max available: {}",
-        "prog_heartbeat": "AI is still processing... [{:02d}:{:02d}]"
+        "prog_heartbeat": "AI is still processing... [{:02d}:{:02d}]",
+        "covers_optimizer": "Covers Optimizer",
+        "select_device": "Optimize covers for:",
+        "btn_backup_covers": "Backup Original Covers",
+        "btn_optimize_covers": "Optimize Covers",
+        "btn_restore_covers": "Restore Original Covers",
+        "confirm_backup_title": "Backup Check",
+        "confirm_backup_msg": "Have you saved a backup copy of your covers? If not, cancel and do it now!",
+        "confirm_yes": "Yes, I did",
+        "confirm_no": "Cancel",
+        "log_backup_started": "Starting cover art backup...",
+        "log_backup_finished": "Backup finished! Saved {} covers to Documents/AlbumCovers.",
+        "log_optimize_started": "Starting optimization to {}...",
+        "log_optimize_finished": "Optimization finished! Processed {} tracks.",
+        "log_restore_started": "Starting restoration of original covers...",
+        "log_restore_finished": "Restoration finished! Restored {} tracks.",
+        "no_covers_found": "No covers found to process.",
+        "error_processing": "Error processing track: {}"
     },
     "ru": {
         "ssl_update_msg": u"Ваш Mac использует устаревшие сертификаты безопасности (OpenSSL 0.9.8).\n\nДля стабильной и быстрой работы с ИИ мы настоятельно рекомендуем установить официальное обновление Python 2.7.18 для macOS 10.9+.\n\nХотите скачать его сейчас?",
@@ -121,7 +138,24 @@ LANGUAGES = {
         "genius_lib_info": u"Медиатека: {} треков",
         "ask_sync_startup": u"Вы хотите обновить данные о медиатеке iTunes сейчас?",
         "max_available": u"Доступно максимум: {}",
-        "prog_heartbeat": u"ИИ всё ещё думает... [{:02d}:{:02d}]"
+        "prog_heartbeat": u"ИИ всё ещё думает... [{:02d}:{:02d}]",
+        "covers_optimizer": u"Оптимизатор обложек",
+        "select_device": u"Оптимизировать обложки для:",
+        "btn_backup_covers": u"Резервная копия обложек",
+        "btn_optimize_covers": u"Оптимизировать обложки",
+        "btn_restore_covers": u"Восстановить обложки",
+        "confirm_backup_title": u"Резервная копия",
+        "confirm_backup_msg": u"Вы сохранили резервную копию обложек? Если нет, то отмените запрос и сделайте это сейчас!",
+        "confirm_yes": u"Да, сохранил",
+        "confirm_no": u"Отмена",
+        "log_backup_started": u"Запуск резервного копирования обложек...",
+        "log_backup_finished": u"Резервное копирование завершено! Сохранено {} обложек в Documents/AlbumCovers.",
+        "log_optimize_started": u"Запуск оптимизации обложек для {}...",
+        "log_optimize_finished": u"Оптимизация завершена! Обработано {} треков.",
+        "log_restore_started": u"Запуск восстановления оригинальных обложек...",
+        "log_restore_finished": u"Восстановление завершено! Восстановлено {} треков.",
+        "no_covers_found": u"Обложки для обработки не найдены.",
+        "error_processing": u"Ошибка обработки трека: {}"
     },
     "be": {
         "ssl_update_msg": u"Ваш Mac выкарыстоўвае састарэлыя сертыфікаты бяспекі (OpenSSL 0.9.8).\n\nДля стабільнай і хуткай працы з ШІ мы настойліва рэкамендуем усталяваць афіцыйнае абнаўленне Python 2.7.18 для macOS 10.9+.\n\nХочаце спампаваць яго зараз?",

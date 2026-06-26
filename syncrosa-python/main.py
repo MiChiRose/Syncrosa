@@ -8,9 +8,14 @@ res_path = os.path.dirname(os.path.abspath(__file__))
 if res_path not in sys.path:
     sys.path.insert(0, res_path)
 
-import Tkinter as tk
-import ttk
-import tkMessageBox
+try:
+    import Tkinter as tk
+    import ttk
+    import tkMessageBox
+except ImportError:
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import messagebox as tkMessageBox
 import ssl
 
 # Absolute imports from the Resources root
@@ -20,6 +25,7 @@ from core.itunes_bridge import run_as
 from ui.settings import SetupWindow
 from ui.tabs.tab_genius import GeniusTab
 from ui.tabs.tab_fixer import FixerTab
+from ui.tabs.tab_optimizer import OptimizerTab
 
 if sys.version_info[0] < 3:
     reload(sys)
@@ -53,9 +59,11 @@ class App(tk.Tk):
 
         self.tab_genius = GeniusTab(self.notebook, self)
         self.tab_fixer = FixerTab(self.notebook, self)
+        self.tab_optimizer = OptimizerTab(self.notebook, self)
 
         self.notebook.add(self.tab_genius, text="Genius")
         self.notebook.add(self.tab_fixer, text="Media Fixer")
+        self.notebook.add(self.tab_optimizer, text="Covers Optimizer")
         
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         

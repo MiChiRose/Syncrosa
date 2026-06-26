@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-import Tkinter as tk
-import ttk
+try:
+    import Tkinter as tk
+    import ttk
+    import tkMessageBox
+except ImportError:
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import messagebox as tkMessageBox
 import threading
-import tkMessageBox
 import os
 from core.localization import _
 from features.media_fixer import get_merge_candidates, apply_merge, run_metadata_fix

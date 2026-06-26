@@ -52,7 +52,24 @@ class LocalizationService: ObservableObject {
         "incompatible_fs": "Warning: {} format may not be supported by Android car systems.",
         "drive_disconnected": "USB drive disconnected during export!",
         "free_space": "Free: {}",
-        "tracks_count": "{} tracks"
+        "tracks_count": "{} tracks",
+        "covers_optimizer": "Covers Optimizer",
+        "select_device": "Optimize covers for:",
+        "btn_backup_covers": "Backup Original Covers",
+        "btn_optimize_covers": "Optimize Covers",
+        "btn_restore_covers": "Restore Original Covers",
+        "confirm_backup_title": "Backup Check",
+        "confirm_backup_msg": "Have you saved a backup copy of your covers? If not, cancel and do it now!",
+        "confirm_yes": "Yes, I did",
+        "confirm_no": "Cancel",
+        "log_backup_started": "Starting cover art backup...",
+        "log_backup_finished": "Backup finished! Saved {} covers to Documents/AlbumCovers.",
+        "log_optimize_started": "Starting optimization to {}...",
+        "log_optimize_finished": "Optimization finished! Processed {} tracks.",
+        "log_restore_started": "Starting restoration of original covers...",
+        "log_restore_finished": "Restoration finished! Restored {} tracks.",
+        "no_covers_found": "No covers found to process.",
+        "error_processing": "Error processing track: {}"
     ]
     
     private let ru: [String: String] = [
@@ -93,7 +110,24 @@ class LocalizationService: ObservableObject {
         "incompatible_fs": "Внимание: формат {} может не поддерживаться Android-магнитолами.",
         "drive_disconnected": "USB-накопитель отключён во время экспорта!",
         "free_space": "Свободно: {}",
-        "tracks_count": "{} треков"
+        "tracks_count": "{} треков",
+        "covers_optimizer": "Оптимизатор обложек",
+        "select_device": "Оптимизировать обложки для:",
+        "btn_backup_covers": "Резервная копия обложек",
+        "btn_optimize_covers": "Оптимизировать обложки",
+        "btn_restore_covers": "Восстановить обложки",
+        "confirm_backup_title": "Резервная копия",
+        "confirm_backup_msg": "Вы сохранили резервную копию обложек? Если нет, то отмените запрос и сделайте это сейчас!",
+        "confirm_yes": "Да, сохранил",
+        "confirm_no": "Отмена",
+        "log_backup_started": "Запуск резервного копирования обложек...",
+        "log_backup_finished": "Резервное копирование завершено! Сохранено {} обложек в Documents/AlbumCovers.",
+        "log_optimize_started": "Запуск оптимизации обложек для {}...",
+        "log_optimize_finished": "Оптимизация завершена! Обработано {} треков.",
+        "log_restore_started": "Запуск восстановления оригинальных обложек...",
+        "log_restore_finished": "Восстановление завершено! Восстановлено {} треков.",
+        "no_covers_found": "Обложки для обработки не найдены.",
+        "error_processing": "Ошибка обработки трека: {}"
     ]
     
     private let be: [String: String] = [

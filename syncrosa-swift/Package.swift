@@ -31,7 +31,9 @@ let package = Package(
                 "Services/KeychainHelper.swift",
                 "Services/USBService.swift",
                 "Services/PlaylistExportService.swift",
-                "Views/USBExportView.swift"
+                "Views/USBExportView.swift",
+                "Views/CoversOptimizerView.swift",
+                "Services/CoversOptimizerService.swift"
             ],
             resources: [
                 .process("AppIcon.icns")
