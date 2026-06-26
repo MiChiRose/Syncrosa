@@ -120,6 +120,7 @@ struct CoversOptimizerView: View {
                         }
                     }
                     .frame(height: 250)
+                    .frame(maxWidth: .infinity)
                     .background(Color.black)
                     .cornerRadius(8)
                 }
