@@ -51,7 +51,7 @@ struct FileMediaFixerView: View {
             VStack(alignment: .leading, spacing: 25) {
                 // Title with Help Button
                 HStack(alignment: .center, spacing: 10) {
-                    Label(lang.t("file_fixing"), systemImage: "folder.badge.gearshape")
+                    Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
                         .font(.title2)
                         .fontWeight(.bold)
                     

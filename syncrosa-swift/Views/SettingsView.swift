@@ -38,7 +38,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 25) {
                 HStack(alignment: .center, spacing: 10) {
-                    Text(lang.t("settings"))
+                    Label(lang.t("settings"), systemImage: "gearshape")
                         .font(.title2)
                         .fontWeight(.bold)
                     

@@ -38,18 +38,22 @@ struct USBExportView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 25) {
+                // Title with Help Button
+                HStack(alignment: .center, spacing: 10) {
+                    Label(lang.t("usb_export"), systemImage: "externaldrive.fill")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Button(action: { showHelp = true }) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                
                 // Card 1: Select Volume & Playlist
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack(alignment: .center, spacing: 10) {
-                        Label(lang.t("usb_export"), systemImage: "externaldrive.badge.gearshape")
-                            .font(.headline)
-                        
-                        Button(action: { showHelp = true }) {
-                            Image(systemName: "questionmark.circle")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
                     
                     // Drive Picker
                     VStack(alignment: .leading, spacing: 8) {

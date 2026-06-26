@@ -19,107 +19,113 @@ struct CoversOptimizerView: View {
     ]
     
     var body: some View {
-        VStack(spacing: 20) {
-            HStack(alignment: .center, spacing: 10) {
-                Text(lang.t("covers_optimizer"))
-                    .font(.title)
-                    .bold()
-                
-                Button(action: { showHelp = true }) {
-                    Image(systemName: "questionmark.circle")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 25) {
+                // Title with Help Button
+                HStack(alignment: .center, spacing: 10) {
+                    Label(lang.t("covers_optimizer"), systemImage: "photo.on.rectangle.angled")
                         .font(.title2)
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.top, 10)
-            
-            // Picker
-            HStack {
-                Text(lang.t("select_device"))
-                    .font(.body)
-                Picker("", selection: $targetSize) {
-                    ForEach(devices, id: \.size) { device in
-                        Text(device.name).tag(device.size)
-                    }
-                }
-                .pickerStyle(DefaultPickerStyle())
-                .frame(width: 320)
-                .disabled(isProcessing)
-            }
-            .padding(.horizontal)
-            
-            // Action Buttons
-            HStack(spacing: 15) {
-                Button(action: runBackup) {
-                    Text(lang.t("btn_backup_covers"))
-                        .frame(minWidth: 160)
-                }
-                .disabled(isProcessing)
-                
-                Button(action: { showBackupAlert = true }) {
-                    Text(lang.t("btn_optimize_covers"))
-                        .bold()
-                        .frame(minWidth: 160)
-                }
-                .disabled(isProcessing)
-                
-                Button(action: runRestore) {
-                    Text(lang.t("btn_restore_covers"))
-                        .frame(minWidth: 160)
-                }
-                .disabled(isProcessing)
-            }
-            
-            // Current track/status
-            if isProcessing {
-                VStack(spacing: 5) {
-                    Text(currentTrackName)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .fontWeight(.bold)
                     
-                    ProgressView(value: progressValue, total: progressMax)
-                        .progressViewStyle(LinearProgressViewStyle())
-                        .frame(height: 10)
-                        .padding(.horizontal)
+                    Button(action: { showHelp = true }) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-            }
-            
-            // Terminal Console Logs
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Console Log:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
                 
-                ScrollView {
-                    ScrollViewReader { proxy in
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(0..<logs.count, id: \.self) { idx in
-                                Text(logs[idx])
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(.green)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .id(idx)
+                // Card 1: Configuration
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(spacing: 15) {
+                        Text(lang.t("select_device"))
+                            .font(.body)
+                        Picker("", selection: $targetSize) {
+                            ForEach(devices, id: \.size) { device in
+                                Text(device.name).tag(device.size)
                             }
                         }
-                        .padding(10)
-                        .onChange(of: logs.count) { oldValue, newValue in
-                            if newValue > 0 {
-                                proxy.scrollTo(newValue - 1, anchor: .bottom)
+                        .pickerStyle(DefaultPickerStyle())
+                        .frame(width: 320)
+                        .disabled(isProcessing)
+                    }
+                    
+                    // Action Buttons
+                    HStack(spacing: 15) {
+                        Button(action: runBackup) {
+                            Text(lang.t("btn_backup_covers"))
+                                .frame(minWidth: 160)
+                        }
+                        .disabled(isProcessing)
+                        
+                        Button(action: { showBackupAlert = true }) {
+                            Text(lang.t("btn_optimize_covers"))
+                                .bold()
+                                .frame(minWidth: 160)
+                        }
+                        .disabled(isProcessing)
+                        
+                        Button(action: runRestore) {
+                            Text(lang.t("btn_restore_covers"))
+                                .frame(minWidth: 160)
+                        }
+                        .disabled(isProcessing)
+                    }
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(10)
+                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                
+                // Current track/status
+                if isProcessing {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(currentTrackName)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        
+                        ProgressView(value: progressValue, total: progressMax)
+                            .progressViewStyle(LinearProgressViewStyle())
+                    }
+                    .padding()
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                }
+                
+                // Terminal Console Logs
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(lang.selectedLanguage == "ru" ? "Лог консоли:" : "Console Log:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    ScrollView {
+                        ScrollViewReader { proxy in
+                            VStack(alignment: .leading, spacing: 4) {
+                                ForEach(0..<logs.count, id: \.self) { idx in
+                                    Text(logs[idx])
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundColor(.green)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .id(idx)
+                                }
+                            }
+                            .padding(10)
+                            .onChange(of: logs.count) { oldValue, newValue in
+                                if newValue > 0 {
+                                    proxy.scrollTo(newValue - 1, anchor: .bottom)
+                                }
                             }
                         }
                     }
+                    .frame(height: 250)
+                    .background(Color.black)
+                    .cornerRadius(8)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
-                .cornerRadius(6)
-                .border(Color.gray.opacity(0.3), width: 1)
             }
-            .padding(.horizontal)
-            .padding(.bottom, 10)
+            .padding()
         }
-        .padding()
         .alert(isPresented: $showBackupAlert) {
             Alert(
                 title: Text(lang.t("confirm_backup_title")),

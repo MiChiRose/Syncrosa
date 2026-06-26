@@ -44,7 +44,7 @@ struct MediaFixerView: View {
             VStack(alignment: .leading, spacing: 25) {
                 // Title with Help Button
                 HStack(alignment: .center, spacing: 10) {
-                    Label(lang.selectedLanguage == "ru" ? "Очистка медиатеки" : "Library Cleanup", systemImage: "bolt.shield")
+                    Label(lang.t("media_fixer"), systemImage: "wrench.and.screwdriver")
                         .font(.title2)
                         .fontWeight(.bold)
                     

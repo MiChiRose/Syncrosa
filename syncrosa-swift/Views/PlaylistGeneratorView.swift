@@ -26,18 +26,22 @@ struct PlaylistGeneratorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 25) {
+                // Title with Help Button
+                HStack(alignment: .center, spacing: 10) {
+                    Label(lang.t("ai_playlist"), systemImage: "music.note.list")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Button(action: { showHelp = true }) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                
                 // Card 1: Configuration
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack(alignment: .center, spacing: 10) {
-                        Label(lang.t("ai_playlist"), systemImage: "sparkles")
-                            .font(.headline)
-                        
-                        Button(action: { showHelp = true }) {
-                            Image(systemName: "questionmark.circle")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
 
                     
                     // Playlist Name Input

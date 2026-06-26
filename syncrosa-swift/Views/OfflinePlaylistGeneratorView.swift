@@ -6,11 +6,24 @@ struct OfflinePlaylistGeneratorView: View {
     @State private var allTracks: [MusicTrack] = []
     @State private var genres: [String] = []
     @State private var selectedGenre: String = "All"
-    @State private var yearFrom: String = ""
-    @State private var yearTo: String = ""
+    @State private var yearFrom: Int? = nil
+    @State private var yearTo: Int? = nil
     @State private var filterCover: Bool = false
     @State private var filterRating: Bool = false
     @State private var minimumRating: Double = 3.0 // 1 to 5 stars
+    
+    var yearsList: [Int] {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        return Array(1950...currentYear).reversed()
+    }
+    
+    var filteredYearsTo: [Int] {
+        let list = yearsList
+        if let from = yearFrom {
+            return list.filter { $0 >= from }
+        }
+        return list
+    }
     
     @State private var checkedDecades: [String: Bool] = [
         "60s": false,
@@ -87,35 +100,63 @@ struct OfflinePlaylistGeneratorView: View {
                                 Text(lang.selectedLanguage == "ru" ? "Год с:" : "Year From:")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                TextField("1990", text: $yearFrom)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 100)
+                                
+                                Picker("", selection: $yearFrom) {
+                                    Text(lang.selectedLanguage == "ru" ? "Любой" : "Any").tag(nil as Int?)
+                                    ForEach(yearsList, id: \.self) { yr in
+                                        Text(String(yr)).tag(yr as Int?)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .frame(width: 120)
                             }
                             
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(lang.selectedLanguage == "ru" ? "по:" : "Year To:")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                TextField("2010", text: $yearTo)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 100)
+                                
+                                Picker("", selection: $yearTo) {
+                                    Text(lang.selectedLanguage == "ru" ? "Любой" : "Any").tag(nil as Int?)
+                                    ForEach(filteredYearsTo, id: \.self) { yr in
+                                        Text(String(yr)).tag(yr as Int?)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .frame(width: 120)
                             }
                         }
                         
                         // Cover Checkbox
-                        Toggle(isOn: $filterCover) {
-                            Text(lang.selectedLanguage == "ru" ? "Требовать наличие обложки" : "Require cover art")
-                                .font(.subheadline)
-                        }
-                        .toggleStyle(.checkbox)
-                        
-                        // Rating Filter Checkbox + Slider
-                        VStack(alignment: .leading, spacing: 8) {
-                            Toggle(isOn: $filterRating) {
-                                Text(lang.selectedLanguage == "ru" ? "Фильтровать по рейтингу" : "Filter by rating")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Toggle(isOn: $filterCover) {
+                                Text(lang.selectedLanguage == "ru" ? "Требовать наличие обложки" : "Require cover art")
                                     .font(.subheadline)
                             }
                             .toggleStyle(.checkbox)
+                            
+                            Text(lang.selectedLanguage == "ru" ? "(необязательно)" : "(optional)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .padding(.leading, 20)
+                        }
+                        
+                        // Rating Filter Checkbox + Slider
+                        VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Toggle(isOn: $filterRating) {
+                                    Text(lang.selectedLanguage == "ru" ? "Фильтровать по рейтингу" : "Filter by rating")
+                                        .font(.subheadline)
+                                }
+                                .toggleStyle(.checkbox)
+                                
+                                Text(lang.selectedLanguage == "ru" ? "(необязательно)" : "(optional)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 20)
+                            }
                             
                             if filterRating {
                                 HStack(spacing: 12) {
@@ -202,6 +243,11 @@ struct OfflinePlaylistGeneratorView: View {
             .padding(30)
         }
         .onAppear(perform: loadLibrary)
+        .onChange(of: yearFrom) { oldValue, newValue in
+            if let from = newValue, let to = yearTo, to < from {
+                yearTo = from
+            }
+        }
         .notification(message: $activeNotification)
         .alert(isPresented: $showAlert) {
             Alert(
@@ -294,11 +340,11 @@ struct OfflinePlaylistGeneratorView: View {
                     return false
                 }
                 
-                if let fromYr = Int(yearFrom), track.year < fromYr {
+                if let fromYr = yearFrom, track.year < fromYr {
                     return false
                 }
                 
-                if let toYr = Int(yearTo), track.year > toYr {
+                if let toYr = yearTo, track.year > toYr {
                     return false
                 }
                 return true
