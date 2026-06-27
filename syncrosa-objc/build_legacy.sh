@@ -13,6 +13,11 @@ if [ ${PIPESTATUS[0]} -eq 0 ]; then
     echo "✅ Build Successful!"
     APP_PATH=$(find build -name "*.app" -type d | head -n 1)
     cp -R "$APP_PATH" .
+    
+    echo "⚙️ Patching minimum deployment version to 10.9..."
+    python3 patch_binary.py Syncrosa.app/Contents/MacOS/Syncrosa
+    codesign --force --deep --sign - Syncrosa.app
+    
     echo "Creating distribution ZIP..."
     rm -f "$HOME/Desktop/Syncrosa_Cocoa_v3.2.0.zip"
     zip -ry "$HOME/Desktop/Syncrosa_Cocoa_v3.2.0.zip" Syncrosa.app
