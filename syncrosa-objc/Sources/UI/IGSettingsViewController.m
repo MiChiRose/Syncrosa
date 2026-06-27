@@ -159,7 +159,7 @@
     
     // Help Button
     self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, 432, 25, 25)];
-    self.helpBtn.bezelStyle = NSBezelStyleHelpButton;
+    self.helpBtn.bezelStyle = NSHelpButtonBezelStyle;
     self.helpBtn.title = @"";
     self.helpBtn.target = self;
     self.helpBtn.action = @selector(helpClicked:);
@@ -244,7 +244,7 @@
                           "Enter the key above and click 'VALIDATE & SAVE'. The app will test it immediately.";
     
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 280)
-                                                  styleMask:NSWindowStyleMaskTitled
+                                                  styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:YES];
     

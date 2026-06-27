@@ -16,7 +16,7 @@
 
 + (instancetype)sharedService;
 
-@property (nonatomic, strong, readonly) NSArray<IGUSBDrive *> *availableDrives;
+@property (nonatomic, strong, readonly) NSArray *availableDrives;
 @property (nonatomic, assign, readonly) BOOL isSearching;
 
 - (void)startMonitoring;

@@ -45,7 +45,7 @@
     [self.view addSubview:self.titleLabel];
     
     NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
-    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
@@ -106,7 +106,7 @@
                           "4. Delete Copy: Safely deletes the designated copy track from your iTunes/Music library using AppleScript.";
     
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSWindowStyleMaskTitled
+                                                  styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:YES];
     

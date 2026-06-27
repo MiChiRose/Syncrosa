@@ -17,7 +17,7 @@
 @end
 
 @interface IGUSBService ()
-@property (nonatomic, strong, readwrite) NSArray<IGUSBDrive *> *availableDrives;
+@property (nonatomic, strong, readwrite) NSArray *availableDrives;
 @property (nonatomic, assign, readwrite) BOOL isSearching;
 @end
 

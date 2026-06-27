@@ -50,7 +50,7 @@
     [self.view addSubview:self.titleLabel];
     
     NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
-    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
@@ -596,7 +596,7 @@
                           "4. Restore: Restores the original high-resolution artwork from the backup folder.";
     
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSWindowStyleMaskTitled
+                                                  styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:YES];
     

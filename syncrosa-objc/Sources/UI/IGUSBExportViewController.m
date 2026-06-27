@@ -30,9 +30,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 
-@property (nonatomic, strong) NSArray<IGUSBDrive *> *drives;
-@property (nonatomic, strong) NSArray<NSDictionary *> *playlists;
-@property (nonatomic, strong) NSArray<NSDictionary *> *currentPlaylistTracks;
+@property (nonatomic, strong) NSArray *drives;
+@property (nonatomic, strong) NSArray *playlists;
+@property (nonatomic, strong) NSArray *currentPlaylistTracks;
 @property (nonatomic, assign) BOOL isExporting;
 
 @end
@@ -85,7 +85,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.titleLabel];
     
     NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, 430, 25, 25)];
-    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
@@ -230,7 +230,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 }
 
 - (void)reloadPlaylists {
-    [[IGiTunesService sharedService] fetchPlaylistsWithCompletion:^(NSArray<NSDictionary *> *playlists) {
+    [[IGiTunesService sharedService] fetchPlaylistsWithCompletion:^(NSArray *playlists) {
         self.playlists = playlists;
         [self.playlistPopup removeAllItems];
         
@@ -574,7 +574,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
                           "5. File Skip: DRM-protected tracks (e.g. Apple Music downloads) and files not downloaded to the disk will be automatically skipped during export.";
     
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSWindowStyleMaskTitled
+                                                  styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:YES];
     

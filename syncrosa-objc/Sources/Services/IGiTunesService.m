@@ -140,7 +140,7 @@
     });
 }
 
-- (void)fetchPlaylistsWithCompletion:(void(^)(NSArray<NSDictionary *> *playlists))completionBlock {
+- (void)fetchPlaylistsWithCompletion:(void(^)(NSArray *playlists))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSString *script = 
             @"tell application \"iTunes\"\n"
@@ -182,7 +182,7 @@
 }
 
 - (void)fetchTracksForPlaylist:(NSString *)playlistName 
-                    completion:(void(^)(NSArray<NSDictionary *> *tracks))completionBlock {
+                    completion:(void(^)(NSArray *tracks))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSString *escapedName = [playlistName stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
         NSString *script = [NSString stringWithFormat:

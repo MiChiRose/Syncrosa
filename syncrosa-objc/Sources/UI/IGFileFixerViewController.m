@@ -13,7 +13,7 @@
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextView *logView;
-@property (nonatomic, strong) NSArray<NSURL *> *foundFiles;
+@property (nonatomic, strong) NSArray *foundFiles;
 @property (nonatomic, assign) BOOL isProcessing;
 
 @property (nonatomic, strong) NSButton *selectAllCheckbox;
@@ -47,7 +47,7 @@
     [self.view addSubview:titleLabel];
     
     NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
-    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
@@ -200,7 +200,7 @@
                           "Every individual track write operation is wrapped in a safe block. If a write fails or the track is not present in iTunes/Music, it will skip without interrupting the overall process.";
     
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSWindowStyleMaskTitled
+                                                  styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:YES];
     

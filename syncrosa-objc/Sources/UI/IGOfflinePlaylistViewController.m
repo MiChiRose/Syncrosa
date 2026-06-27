@@ -53,7 +53,7 @@
     [self.view addSubview:self.titleLabel];
     
     NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
-    helpButton.bezelStyle = NSBezelStyleHelpButton;
+    helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
@@ -305,7 +305,7 @@
                           "5. Warning Modal: If the filters yield zero matches across your library, a warning dialog will prompt you to ignore filters and run by decade anyway, or cancel.";
     
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 280)
-                                                  styleMask:NSWindowStyleMaskTitled
+                                                  styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:YES];
     

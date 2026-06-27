@@ -23,13 +23,13 @@
 /**
  * Fetches all user playlists from iTunes.
  */
-- (void)fetchPlaylistsWithCompletion:(void(^)(NSArray<NSDictionary *> *playlists))completionBlock;
+- (void)fetchPlaylistsWithCompletion:(void(^)(NSArray *playlists))completionBlock;
 
 /**
  * Fetches all tracks from a specific playlist (including locations and sizes).
  */
 - (void)fetchTracksForPlaylist:(NSString *)playlistName 
-                    completion:(void(^)(NSArray<NSDictionary *> *tracks))completionBlock;
+                    completion:(void(^)(NSArray *tracks))completionBlock;
 
 /**
  * Executes an AppleScript command on the main thread and returns the string result.
