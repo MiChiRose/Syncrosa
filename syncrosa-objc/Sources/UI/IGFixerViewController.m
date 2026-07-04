@@ -3,6 +3,24 @@
 #import "IGMediaFixerManager.h"
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
+#import "IGLogger.h"
+
+static NSString *IGFixerAppleScriptLiteral(NSString *value) {
+    if (![value isKindOfClass:[NSString class]]) {
+        return @"\"\"";
+    }
+
+    NSMutableString *escaped = [value mutableCopy];
+    [escaped replaceOccurrencesOfString:@"\\" withString:@"\\\\" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\"" withString:@"\\\"" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r\n" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    NSString *literal = [NSString stringWithFormat:@"\"%@\"", escaped];
+#if !__has_feature(objc_arc)
+    [escaped release];
+#endif
+    return literal;
+}
 
 @interface IGFixerViewController ()
 
@@ -82,7 +100,7 @@
     [self.selectAllCheckbox setButtonType:NSSwitchButton];
     self.selectAllCheckbox.target = self;
     self.selectAllCheckbox.action = @selector(selectAllClicked:);
-    self.selectAllCheckbox.state = NSOnState;
+    self.selectAllCheckbox.state = NSOffState;
     [self.view addSubview:self.selectAllCheckbox];
     
     y -= 25;
@@ -114,7 +132,7 @@
     
     self.lyricsCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
     [self.lyricsCheckbox setButtonType:NSSwitchButton];
-    self.lyricsCheckbox.state = NSOnState;
+    self.lyricsCheckbox.state = NSOffState;
     [self.view addSubview:self.lyricsCheckbox];
 
     y -= 140;
@@ -180,6 +198,7 @@
 }
 
 - (void)log:(NSString *)text {
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer UI: %@", text ?: @""]];
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text];
         NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}];
@@ -251,6 +270,13 @@
 }
 
 - (void)startClicked:(id)sender {
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer start options album=%ld title=%ld artist=%ld genre=%ld trackNumber=%ld lyrics=%ld",
+                                  (long)self.albumCheckbox.state,
+                                  (long)self.titleCheckbox.state,
+                                  (long)self.artistCheckbox.state,
+                                  (long)self.genreCheckbox.state,
+                                  (long)self.trackNumberCheckbox.state,
+                                  (long)self.lyricsCheckbox.state]];
     self.startButton.enabled = NO;
     [self log:@"Phase 1: Scanning for split albums..."];
     self.statusLabel.stringValue = @"Scanning for merge candidates...";
@@ -273,32 +299,41 @@
     self.progressIndicator.maxValue = candidates.count;
     self.progressIndicator.doubleValue = 0;
 
-    __block NSInteger processed = 0;
-    IGiTunesService *service = [IGiTunesService sharedService];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        __block NSInteger processed = 0;
+        IGiTunesService *service = [IGiTunesService sharedService];
 
-    for (NSDictionary *item in candidates) {
-        NSString *main = item[@"main"];
-        NSArray *targets = item[@"targets"];
-        
-        self.statusLabel.stringValue = [NSString stringWithFormat:@"Merging: %@", main];
-        
-        for (NSDictionary *t in targets) {
-            @try {
-                NSString *pid = t[@"pid"];
-                NSString *script = [NSString stringWithFormat:@"tell application \"iTunes\" to set album of (some track whose persistent ID is \"%@\") to \"%@\"", pid, [main stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]];
-                [service runAppleScript:script];
-            } @catch (NSException *ex) {
-                NSLog(@"Error merging split album: %@", ex);
+        for (NSDictionary *item in candidates) {
+            NSString *main = item[@"main"];
+            NSArray *targets = item[@"targets"];
+            NSString *mainLiteral = IGFixerAppleScriptLiteral(main);
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.statusLabel.stringValue = [NSString stringWithFormat:@"Merging: %@", main];
+            });
+
+            for (NSDictionary *t in targets) {
+                @try {
+                    NSString *pid = t[@"pid"];
+                    NSString *script = [NSString stringWithFormat:@"tell application \"iTunes\" to set album of (some track of library playlist 1 whose persistent ID is %@) to %@", IGFixerAppleScriptLiteral(pid), mainLiteral];
+                    [service runAppleScriptNamed:@"mediaFixer.mergeAlbum" source:script];
+                } @catch (NSException *ex) {
+                    NSLog(@"Error merging split album: %@", ex);
+                }
             }
-        }
-        
-        processed++;
-        self.progressIndicator.doubleValue = processed;
-        [self log:[NSString stringWithFormat:@"Merged variants into: %@", main]];
-    }
 
-    [self log:@"Merge phase complete."];
-    [self runMetadataPhase];
+            processed++;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.progressIndicator.doubleValue = processed;
+            });
+            [self log:[NSString stringWithFormat:@"Merged variants into: %@", main]];
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self log:@"Merge phase complete."];
+            [self runMetadataPhase];
+        });
+    });
 }
 
 - (void)runMetadataPhase {

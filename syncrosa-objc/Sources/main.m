@@ -1,7 +1,10 @@
 #import <Cocoa/Cocoa.h>
 #import "AppDelegate.h"
+#import "IGLogger.h"
 
 static void IGWriteStartupLog(NSString *message) {
+    if (![IGLogger desktopDiagnosticsEnabled]) return;
+
     @autoreleasepool {
         NSString *path = [NSHomeDirectory() stringByAppendingPathComponent:@"Desktop/Syncrosa-objc-startup.log"];
         NSString *line = [NSString stringWithFormat:@"%@ %@\n", [NSDate date], message];

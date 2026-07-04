@@ -3,6 +3,31 @@
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
 
+static NSString *IGOfflineAppleScriptLiteral(NSString *value) {
+    if (![value isKindOfClass:[NSString class]]) {
+        return @"\"\"";
+    }
+
+    NSMutableString *escaped = [value mutableCopy];
+    [escaped replaceOccurrencesOfString:@"\\" withString:@"\\\\" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\"" withString:@"\\\"" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r\n" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    NSString *literal = [NSString stringWithFormat:@"\"%@\"", escaped];
+#if !__has_feature(objc_arc)
+    [escaped release];
+#endif
+    return literal;
+}
+
+static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
+    NSMutableArray *parts = [NSMutableArray arrayWithCapacity:values.count];
+    for (id value in values) {
+        [parts addObject:IGOfflineAppleScriptLiteral([value isKindOfClass:[NSString class]] ? value : @"")];
+    }
+    return [NSString stringWithFormat:@"{%@}", [parts componentsJoinedByString:@", "]];
+}
+
 @interface IGOfflinePlaylistViewController ()
 @property (nonatomic, strong) NSTextField *titleLabel;
 @property (nonatomic, strong) NSPopUpButton *genrePopup;
@@ -225,21 +250,41 @@
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         IGiTunesService *service = [IGiTunesService sharedService];
         NSString *script =
-            @"set out to \"\"\n"
+            @"on replaceText(theText, oldText, newText)\n"
+            "    set AppleScript's text item delimiters to oldText\n"
+            "    set textItems to every text item of theText\n"
+            "    set AppleScript's text item delimiters to newText\n"
+            "    set newString to textItems as text\n"
+            "    set AppleScript's text item delimiters to \"\"\n"
+            "    return newString\n"
+            "end replaceText\n"
+            "on textValue(v)\n"
+            "    try\n"
+            "        if v is missing value then return \"\"\n"
+            "        set s to v as text\n"
+            "        set s to my replaceText(s, tab, \" \")\n"
+            "        set s to my replaceText(s, linefeed, \" \")\n"
+            "        set s to my replaceText(s, return, \" \")\n"
+            "        return s\n"
+            "    on error\n"
+            "        return \"\"\n"
+            "    end try\n"
+            "end textValue\n"
+            "set out to \"\"\n"
             "tell application \"iTunes\"\n"
             "    set trks to every track of library playlist 1\n"
             "    repeat with t in trks\n"
             "        try\n"
-            "            set gen to genre of t\n"
+            "            set gen to my textValue(genre of t)\n"
             "            if gen is not \"\" then\n"
-            "                set out to out & gen & \"\\n\"\n"
+            "                set out to out & gen & linefeed\n"
             "            end if\n"
             "        end try\n"
             "    end repeat\n"
             "end tell\n"
             "return out";
 
-        NSString *raw = [service runAppleScript:script];
+        NSString *raw = [service runAppleScriptNamed:@"offline.genres" source:script];
         NSMutableSet *genreSet = [NSMutableSet set];
         if (raw && raw.length > 0) {
             NSArray *lines = [raw componentsSeparatedByString:@"\n"];
@@ -355,23 +400,43 @@
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         IGiTunesService *service = [IGiTunesService sharedService];
         NSString *script =
-            @"set out to \"\"\n"
+            @"on replaceText(theText, oldText, newText)\n"
+            "    set AppleScript's text item delimiters to oldText\n"
+            "    set textItems to every text item of theText\n"
+            "    set AppleScript's text item delimiters to newText\n"
+            "    set newString to textItems as text\n"
+            "    set AppleScript's text item delimiters to \"\"\n"
+            "    return newString\n"
+            "end replaceText\n"
+            "on textValue(v)\n"
+            "    try\n"
+            "        if v is missing value then return \"\"\n"
+            "        set s to v as text\n"
+            "        set s to my replaceText(s, tab, \" \")\n"
+            "        set s to my replaceText(s, linefeed, \" \")\n"
+            "        set s to my replaceText(s, return, \" \")\n"
+            "        return s\n"
+            "    on error\n"
+            "        return \"\"\n"
+            "    end try\n"
+            "end textValue\n"
+            "set out to \"\"\n"
             "tell application \"iTunes\"\n"
             "    set trks to every track of library playlist 1\n"
             "    repeat with t in trks\n"
             "        try\n"
-            "            set pid to persistent ID of t\n"
-            "            set gen to genre of t\n"
+            "            set pid to my textValue(persistent ID of t)\n"
+            "            set gen to my textValue(genre of t)\n"
             "            set yr to year of t\n"
             "            set rt to rating of t\n"
             "            set artCount to count of artworks of t\n"
-            "            set out to out & pid & \"|\" & gen & \"|\" & yr & \"|\" & rt & \"|\" & artCount & \"\\n\"\n"
+            "            set out to out & pid & tab & gen & tab & yr & tab & rt & tab & artCount & linefeed\n"
             "        end try\n"
             "    end repeat\n"
             "end tell\n"
             "return out";
 
-        NSString *raw = [service runAppleScript:script];
+        NSString *raw = [service runAppleScriptNamed:@"offline.scanTracks" source:script];
         if (!raw || raw.length == 0) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.generateButton.enabled = YES;
@@ -385,7 +450,7 @@
         NSMutableArray *allTracks = [NSMutableArray array];
 
         for (NSString *line in lines) {
-            NSArray *parts = [line componentsSeparatedByString:@"|"];
+            NSArray *parts = [line componentsSeparatedByString:@"\t"];
             if (parts.count < 5) continue;
 
             [allTracks addObject:@{
@@ -508,30 +573,31 @@
             // Create playlist and populate it
             NSString *playlistName = [NSString stringWithFormat:@"Epoch - %@", decadeName];
 
-            // Build the Applescript to create/clear playlist
+            // Build the AppleScript to create/clear playlist and add tracks in one batch.
             NSString *createScript = [NSString stringWithFormat:
+                @"set plName to %@\n"
+                "set idList to %@\n"
+                "set addedCount to 0\n"
                 @"tell application \"iTunes\"\n"
                 "    try\n"
-                "        if not (exists playlist \"%@\") then\n"
-                "            make new user playlist with properties {name:\"%@\"}\n"
+                "        if not (exists user playlist plName) then\n"
+                "            make new user playlist with properties {name:plName}\n"
                 "        end if\n"
-                "        set pl to playlist \"%@\"\n"
+                "        set pl to user playlist plName\n"
                 "        delete every track of pl\n"
+                "        repeat with pidItem in idList\n"
+                "            try\n"
+                "                set pidText to (contents of pidItem) as text\n"
+                "                duplicate (some track of library playlist 1 whose persistent ID is pidText) to pl\n"
+                "                set addedCount to addedCount + 1\n"
+                "            end try\n"
+                "        end repeat\n"
                 "    end try\n"
-                "end tell", playlistName, playlistName, playlistName];
-            [service runAppleScript:createScript];
-
-            // Add tracks to it
-            for (NSString *pid in decadeTracks) {
-                NSString *addScript = [NSString stringWithFormat:
-                    @"tell application \"iTunes\"\n"
-                    "    try\n"
-                    "        set pl to playlist \"%@\"\n"
-                    "        duplicate (some track of library playlist 1 whose persistent ID is \"%@\") to pl\n"
-                    "    end try\n"
-                    "end tell", playlistName, pid];
-                [service runAppleScript:addScript];
-            }
+                "end tell\n"
+                "return addedCount as text",
+                IGOfflineAppleScriptLiteral(playlistName),
+                IGOfflineAppleScriptListLiteral(decadeTracks)];
+            [service runAppleScriptNamed:@"offline.createDecadePlaylist" source:createScript];
 
             NSLog(@"Created playlist '%@' with %ld tracks.", playlistName, (long)decadeTracks.count);
         }

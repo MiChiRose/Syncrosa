@@ -4,6 +4,16 @@
 
 @implementation IGUSBDrive
 
+- (void)dealloc {
+#if !__has_feature(objc_arc)
+    [_name release];
+    [_volumeURL release];
+    [_filesystemType release];
+    [_filesystemLabel release];
+    [super dealloc];
+#endif
+}
+
 - (BOOL)isAndroidCompatible {
     NSString *typeLower = [self.filesystemType lowercaseString];
     NSString *labelLower = [self.filesystemLabel lowercaseString];

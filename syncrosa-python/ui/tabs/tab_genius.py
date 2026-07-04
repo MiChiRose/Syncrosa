@@ -20,7 +20,7 @@ import os
 import re
 
 from core.localization import _
-from core.config import CONFIG_DATA
+from core.config import CONFIG_DATA, desktop_debug_logs_enabled
 from core.itunes_bridge import get_library, create_itunes_playlist
 from features.ai_playlist import generate_playlist_ids
 from ui.components import ProgressWindow
@@ -187,7 +187,7 @@ class GeniusTab(tk.Frame):
             
             def show_success():
                 msg = _(u"msg_success", name, added_count)
-                if CONFIG_DATA.get("prompt_logs", True):
+                if desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False):
                     save_log = tkMessageBox.askyesno("Success", msg + "\n\n" + _(u"ask_success_log"))
                     if save_log:
                         desktop = os.path.join(os.path.expanduser("~"), "Desktop")
@@ -220,7 +220,7 @@ class GeniusTab(tk.Frame):
                 # Truncate for UI display but keep full for log file
                 ui_err_str = (err_str[:250] + "...") if len(err_str) > 250 else err_str
                 
-                if CONFIG_DATA.get("prompt_logs", True):
+                if desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False):
                     save_log = tkMessageBox.askyesno("Generation Error", short_msg + "\n\n" + ui_err_str + "\n\n" + _(u"ask_save_log"))
                     if save_log:
                         desktop = os.path.join(os.path.expanduser("~"), "Desktop")

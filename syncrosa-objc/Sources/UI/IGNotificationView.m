@@ -1,4 +1,5 @@
 #import "IGNotificationView.h"
+#import "IGLogger.h"
 #import <QuartzCore/QuartzCore.h>
 
 @interface IGNotificationView ()
@@ -10,6 +11,7 @@
 @implementation IGNotificationView
 
 + (void)showInView:(NSView *)parentView message:(NSString *)message isError:(BOOL)isError {
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Notification show isError=%@ message=%@", isError ? @"YES" : @"NO", message ?: @""]];
     [self dismissInView:parentView];
     
     CGFloat width = 450;
@@ -32,6 +34,9 @@
     hud.alphaValue = 0.0;
     hud.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin;
     [parentView addSubview:hud];
+#if !__has_feature(objc_arc)
+    [hud release];
+#endif
     
     [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
         context.duration = 0.3;
@@ -54,7 +59,8 @@
 }
 
 + (void)dismissInView:(NSView *)parentView {
-    for (NSView *subview in [parentView.subviews copy]) {
+    NSArray *subviews = [parentView.subviews copy];
+    for (NSView *subview in subviews) {
         if ([subview isKindOfClass:[IGNotificationView class]]) {
             [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
                 context.duration = 0.2;
@@ -64,6 +70,9 @@
             }];
         }
     }
+#if !__has_feature(objc_arc)
+    [subviews release];
+#endif
 }
 
 - (instancetype)initWithFrame:(NSRect)frame {
@@ -89,12 +98,30 @@
         _closeButton.title = @"✕";
         _closeButton.bordered = NO;
         _closeButton.font = [NSFont systemFontOfSize:11];
-        [_closeButton.cell setTextColor:[NSColor grayColor]];
+        if ([_closeButton respondsToSelector:@selector(setAttributedTitle:)]) {
+            NSDictionary *attrs = @{
+                NSForegroundColorAttributeName: [NSColor grayColor],
+                NSFontAttributeName: [NSFont systemFontOfSize:11]
+            };
+            NSAttributedString *title = [[NSAttributedString alloc] initWithString:_closeButton.title attributes:attrs];
+            [_closeButton setAttributedTitle:title];
+#if !__has_feature(objc_arc)
+            [title release];
+#endif
+        }
         _closeButton.target = self;
         _closeButton.action = @selector(closeClicked:);
         [self addSubview:_closeButton];
     }
     return self;
+}
+
+- (void)dealloc {
+#if !__has_feature(objc_arc)
+    [_label release];
+    [_closeButton release];
+    [super dealloc];
+#endif
 }
 
 - (void)drawRect:(NSRect)dirtyRect {

@@ -20,6 +20,64 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
     }
 }
 
+static NSString *IGFileFixerAppleScriptLiteral(NSString *value) {
+    if (![value isKindOfClass:[NSString class]]) {
+        return @"\"\"";
+    }
+
+    NSMutableString *escaped = [value mutableCopy];
+    [escaped replaceOccurrencesOfString:@"\\" withString:@"\\\\" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\"" withString:@"\\\"" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r\n" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    NSString *literal = [NSString stringWithFormat:@"\"%@\"", escaped];
+#if !__has_feature(objc_arc)
+    [escaped release];
+#endif
+    return literal;
+}
+
+static NSString *IGFileFixerTempPath(NSString *extension) {
+    NSString *baseName = [NSString stringWithFormat:@"syncrosa-curl-%@", [[NSProcessInfo processInfo] globallyUniqueString]];
+    return [NSTemporaryDirectory() stringByAppendingPathComponent:[baseName stringByAppendingPathExtension:extension]];
+}
+
+static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
+    NSString *stdoutPath = IGFileFixerTempPath(@"stdout");
+    NSString *stderrPath = IGFileFixerTempPath(@"stderr");
+    NSDictionary *attrs = @{NSFilePosixPermissions: [NSNumber numberWithUnsignedLong:0600]};
+    [[NSFileManager defaultManager] createFileAtPath:stdoutPath contents:nil attributes:attrs];
+    [[NSFileManager defaultManager] createFileAtPath:stderrPath contents:nil attributes:attrs];
+
+    NSFileHandle *stdoutHandle = [NSFileHandle fileHandleForWritingAtPath:stdoutPath];
+    NSFileHandle *stderrHandle = [NSFileHandle fileHandleForWritingAtPath:stderrPath];
+    int status = -1;
+    NSData *data = nil;
+
+    @try {
+        NSTask *task = [[[NSTask alloc] init] autorelease];
+        [task setLaunchPath:@"/usr/bin/curl"];
+        [task setArguments:args];
+        [task setStandardOutput:stdoutHandle];
+        [task setStandardError:stderrHandle];
+        [task launch];
+        [task waitUntilExit];
+        status = [task terminationStatus];
+        [stdoutHandle closeFile];
+        [stderrHandle closeFile];
+        data = [NSData dataWithContentsOfFile:stdoutPath];
+    } @catch (NSException *exception) {
+        NSLog(@"Curl in Folder Fixer failed: %@", exception.reason);
+        [stdoutHandle closeFile];
+        [stderrHandle closeFile];
+    }
+
+    [[NSFileManager defaultManager] removeItemAtPath:stdoutPath error:nil];
+    [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
+    if (statusOut) *statusOut = status;
+    return data;
+}
+
 @interface IGFileFixerViewController ()
 @property (nonatomic, strong) NSTextField *folderPathField;
 @property (nonatomic, strong) NSButton *selectFolderButton;
@@ -283,30 +341,46 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
 }
 
 - (void)scanFolder:(NSURL *)url {
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSArray *extensions = @[@"mp3", @"m4a", @"wav", @"flac", @"alac", @"aiff"];
-    NSMutableArray *matches = [NSMutableArray array];
+    self.fixButton.enabled = NO;
+    self.statusLabel.stringValue = @"Scanning folder...";
+    [self log:[NSString stringWithFormat:@"Scanning folder recursively: %@", url.path ?: @""]];
 
-    NSDirectoryEnumerator *enumerator = [fm enumeratorAtURL:url
-                                 includingPropertiesForKeys:nil
-                                                     options:NSDirectoryEnumerationSkipsHiddenFiles
-                                                errorHandler:nil];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSArray *extensions = @[@"mp3", @"m4a", @"wav", @"flac", @"alac", @"aiff"];
+        NSMutableArray *matches = [NSMutableArray array];
 
-    for (NSURL *fileUrl in enumerator) {
-        NSNumber *isDirectory = nil;
-        [fileUrl getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
-        if ([isDirectory boolValue]) continue;
+        NSDirectoryEnumerator *enumerator = [fm enumeratorAtURL:url
+                                     includingPropertiesForKeys:nil
+                                                        options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                   errorHandler:nil];
 
-        if ([extensions containsObject:[[fileUrl pathExtension] lowercaseString]]) {
-            [matches addObject:fileUrl];
+        for (NSURL *fileUrl in enumerator) {
+            NSNumber *isDirectory = nil;
+            [fileUrl getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
+            if ([isDirectory boolValue]) continue;
+
+            if ([extensions containsObject:[[fileUrl pathExtension] lowercaseString]]) {
+                [matches addObject:fileUrl];
+            }
         }
-    }
 
-    self.foundFiles = matches;
-    IGLocalizationService *lang = [IGLocalizationService sharedService];
-    self.statusLabel.stringValue = [lang t:@"files_to_process" args:@[@([matches count])]];
-    [self log:[NSString stringWithFormat:@"Scanned folder recursively: Found %ld music files.", (long)matches.count]];
-    self.fixButton.enabled = (matches.count > 0);
+        NSArray *result = [matches copy];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.foundFiles = result;
+            IGLocalizationService *lang = [IGLocalizationService sharedService];
+            self.statusLabel.stringValue = [lang t:@"files_to_process" args:@[@([result count])]];
+            [self log:[NSString stringWithFormat:@"Scanned folder recursively: Found %ld music files.", (long)result.count]];
+            self.fixButton.enabled = (result.count > 0);
+#if !__has_feature(objc_arc)
+            [result release];
+#endif
+        });
+#if !__has_feature(objc_arc)
+        [pool drain];
+#endif
+    });
 }
 
 - (void)fixClicked:(id)sender {
@@ -356,25 +430,27 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
     BOOL updateTrackNumber = (self.trackNumberCheckbox.state == NSOnState);
     BOOL updateLyrics = (self.lyricsCheckbox.state == NSOnState);
 
-    [self fixFileAtURL:fileUrl
-         downloadCover:downloadCovers
-           updateAlbum:updateAlbum
-           updateTitle:updateTitle
-          updateArtist:updateArtist
-           updateGenre:updateGenre
-     updateTrackNumber:updateTrackNumber
-          updateLyrics:updateLyrics
-            completion:^(BOOL success) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (success) {
-                [self log:[NSString stringWithFormat:@"Successfully fixed: %@", fileName]];
-            } else {
-                [self log:[NSString stringWithFormat:@"Failed to fix: %@", fileName]];
-            }
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self fixFileAtURL:fileUrl
+             downloadCover:downloadCovers
+               updateAlbum:updateAlbum
+               updateTitle:updateTitle
+              updateArtist:updateArtist
+               updateGenre:updateGenre
+         updateTrackNumber:updateTrackNumber
+              updateLyrics:updateLyrics
+                completion:^(BOOL success) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (success) {
+                    [self log:[NSString stringWithFormat:@"Successfully fixed: %@", fileName]];
+                } else {
+                    [self log:[NSString stringWithFormat:@"Failed to fix: %@", fileName]];
+                }
 
-            [self processFileAtIndex:index + 1];
-        });
-    }];
+                [self processFileAtIndex:index + 1];
+            });
+        }];
+    });
 }
 
 #pragma mark - Metadata Fixing Core Logic
@@ -489,22 +565,14 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
 }
 
 - (void)fetchITunesMetadataWithCurl:(NSString *)urlString completion:(void(^)(NSDictionary *result))completionBlock {
-    NSTask *task = [[[NSTask alloc] init] autorelease];
-    [task setLaunchPath:@"/usr/bin/curl"];
-    NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-s", @"-L"]];
+    NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-s", @"-L", @"-f", @"-m", @"20"]];
     IGFileFixerAddCACertIfAvailable(args);
     [args addObject:urlString];
-    [task setArguments:args];
-
-    NSPipe *pipe = [NSPipe pipe];
-    [task setStandardOutput:pipe];
 
     @try {
-        [task launch];
-        [task waitUntilExit];
-
-        NSData *data = [[pipe fileHandleForReading] readDataToEndOfFile];
-        if (data.length > 0) {
+        int status = -1;
+        NSData *data = IGFileFixerRunCurl(args, &status);
+        if (status == 0 && data.length > 0) {
             NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
             NSArray *results = json[@"results"];
             if (results.count > 0) {
@@ -542,7 +610,7 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
                    completion:(void(^)(BOOL success))completionBlock {
     NSTask *task = [[[NSTask alloc] init] autorelease];
     [task setLaunchPath:@"/usr/bin/curl"];
-    NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-s", @"-L"]];
+    NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-s", @"-L", @"-f", @"-m", @"30"]];
     IGFileFixerAddCACertIfAvailable(args);
     [args addObjectsFromArray:@[@"-o", destURL.path, urlString]];
     [task setArguments:args];
@@ -550,12 +618,36 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
     @try {
         [task launch];
         [task waitUntilExit];
-        BOOL success = [[NSFileManager defaultManager] fileExistsAtPath:destURL.path];
+        NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:destURL.path error:nil];
+        BOOL success = (attrs != nil && [[attrs objectForKey:NSFileSize] unsignedLongLongValue] > 0);
         completionBlock(success);
     } @catch (NSException *exception) {
         NSLog(@"Curl cover art download failed: %@", exception.reason);
         completionBlock(NO);
     }
+}
+
+- (NSURL *)uniqueDestinationURLForURL:(NSURL *)url excludingURL:(NSURL *)originalURL {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    if (![fm fileExistsAtPath:url.path] || [url.path isEqualToString:originalURL.path]) {
+        return url;
+    }
+
+    NSURL *dirURL = [url URLByDeletingLastPathComponent];
+    NSString *ext = [url pathExtension];
+    NSString *base = [[url lastPathComponent] stringByDeletingPathExtension];
+
+    for (NSInteger suffix = 2; suffix < 10000; suffix++) {
+        NSString *candidateName = ext.length > 0 ?
+            [NSString stringWithFormat:@"%@ - %ld.%@", base, (long)suffix, ext] :
+            [NSString stringWithFormat:@"%@ - %ld", base, (long)suffix];
+        NSURL *candidateURL = [dirURL URLByAppendingPathComponent:candidateName];
+        if (![fm fileExistsAtPath:candidateURL.path]) {
+            return candidateURL;
+        }
+    }
+
+    return nil;
 }
 
 - (void)fixFileAtURL:(NSURL *)fileURL
@@ -589,15 +681,18 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
 
             NSString *newName = [NSString stringWithFormat:@"%@ - %@.%@", sanitizedArtist, sanitizedTitle, [fileURL pathExtension]];
             NSURL *newURL = [[fileURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:newName];
+            newURL = [self uniqueDestinationURLForURL:newURL excludingURL:fileURL];
+            if (!newURL) {
+                NSLog(@"Could not find a safe destination filename for %@", fileURL.path);
+                completionBlock(NO);
+                return;
+            }
 
             NSFileManager *fm = [NSFileManager defaultManager];
             NSError *moveError = nil;
             BOOL renameSuccess = YES;
 
             if (![fileURL.path isEqualToString:newURL.path]) {
-                if ([fm fileExistsAtPath:newURL.path]) {
-                    [fm removeItemAtURL:newURL error:nil];
-                }
                 renameSuccess = [fm moveItemAtURL:fileURL toURL:newURL error:&moveError];
             }
 
@@ -606,16 +701,16 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
                 @try {
                     NSMutableArray *updates = [NSMutableArray array];
                     if (updateAlbum && [result[@"collectionName"] length] > 0) {
-                        [updates addObject:[NSString stringWithFormat:@"set album of t to \"%@\"", [result[@"collectionName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                        [updates addObject:[NSString stringWithFormat:@"set album of t to %@", IGFileFixerAppleScriptLiteral(result[@"collectionName"])]];
                     }
                     if (updateTitle && [result[@"trackName"] length] > 0) {
-                        [updates addObject:[NSString stringWithFormat:@"set name of t to \"%@\"", [result[@"trackName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                        [updates addObject:[NSString stringWithFormat:@"set name of t to %@", IGFileFixerAppleScriptLiteral(result[@"trackName"])]];
                     }
                     if (updateArtist && [result[@"artistName"] length] > 0) {
-                        [updates addObject:[NSString stringWithFormat:@"set artist of t to \"%@\"", [result[@"artistName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                        [updates addObject:[NSString stringWithFormat:@"set artist of t to %@", IGFileFixerAppleScriptLiteral(result[@"artistName"])]];
                     }
                     if (updateGenre && [result[@"primaryGenreName"] length] > 0) {
-                        [updates addObject:[NSString stringWithFormat:@"set genre of t to \"%@\"", [result[@"primaryGenreName"] stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                        [updates addObject:[NSString stringWithFormat:@"set genre of t to %@", IGFileFixerAppleScriptLiteral(result[@"primaryGenreName"])]];
                     }
                     if (updateTrackNumber && [result[@"trackNumber"] integerValue] > 0) {
                         [updates addObject:[NSString stringWithFormat:@"set track number of t to %@", result[@"trackNumber"]]];
@@ -633,13 +728,21 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
 #endif
                             dispatch_semaphore_signal(sema);
                         }];
-                        dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+                        long waitResult = dispatch_semaphore_wait(sema, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(35 * NSEC_PER_SEC)));
+                        if (waitResult != 0) {
+                            NSLog(@"Lyrics timeout for %@ - %@", finalArtist, finalTitle);
+                        }
 
                         if (fetchedLyrics) {
-                            [updates addObject:[NSString stringWithFormat:@"set lyrics of t to \"%@\"", [fetchedLyrics stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]]];
+                            [updates addObject:[NSString stringWithFormat:@"set lyrics of t to %@", IGFileFixerAppleScriptLiteral(fetchedLyrics)]];
                         }
 #if !__has_feature(objc_arc)
                         [fetchedLyrics release];
+#endif
+#if !OS_OBJECT_USE_OBJC
+                        if (waitResult == 0) {
+                            dispatch_release(sema);
+                        }
 #endif
                     }
 
@@ -648,16 +751,20 @@ static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
                         NSString *updateScript = [NSString stringWithFormat:
                             @"tell application \"iTunes\"\n"
                             "    try\n"
-                            "        set t to (some track of library playlist 1 whose location is POSIX file \"%@\")\n"
+                            "        set t to (some track of library playlist 1 whose location is POSIX file %@)\n"
                             "        %@\n"
                             "    on error\n"
                             "        try\n"
-                            "            set t to (some track of library playlist 1 whose location is POSIX file \"%@\")\n"
+                            "            set t to (some track of library playlist 1 whose location is POSIX file %@)\n"
                             "            %@\n"
                             "        end try\n"
                             "    end try\n"
-                            "end tell", fileURL.path, [updates componentsJoinedByString:@"\n"], newURL.path, [updates componentsJoinedByString:@"\n"]];
-                        [[IGiTunesService sharedService] runAppleScript:updateScript];
+                            "end tell",
+                            IGFileFixerAppleScriptLiteral(fileURL.path),
+                            [updates componentsJoinedByString:@"\n"],
+                            IGFileFixerAppleScriptLiteral(newURL.path),
+                            [updates componentsJoinedByString:@"\n"]];
+                        [[IGiTunesService sharedService] runAppleScriptNamed:@"folderFixer.updateTrack" source:updateScript];
                     }
                 } @catch (NSException *ex) {
                     NSLog(@"AppleScript write in Folder Fixer failed: %@", ex);

@@ -24,6 +24,7 @@
 
 # Xcode / Swift / Objective-C Build Artifacts
 **/build/
+**/build*/
 **/DerivedData/
 **/*.pbxuser
 **/!default.pbxuser

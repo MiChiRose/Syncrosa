@@ -11,6 +11,16 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
     }
 }
 
+static NSString *IGAITempPath(NSString *extension) {
+    NSString *baseName = [NSString stringWithFormat:@"syncrosa-curl-%@", [[NSProcessInfo processInfo] globallyUniqueString]];
+    return [NSTemporaryDirectory() stringByAppendingPathComponent:[baseName stringByAppendingPathExtension:extension]];
+}
+
+static BOOL IGAICreatePrivateFile(NSString *path) {
+    NSDictionary *attrs = @{NSFilePosixPermissions: [NSNumber numberWithUnsignedLong:0600]};
+    return [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:attrs];
+}
+
 @implementation IGAIService
 
 + (instancetype)sharedService {
@@ -68,29 +78,54 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
         [args addObject:url.absoluteString];
         [task setArguments:args];
 
-        NSPipe *pipe = [NSPipe pipe];
-        [task setStandardOutput:pipe];
+        NSString *stdoutPath = IGAITempPath(@"stdout");
+        NSString *stderrPath = IGAITempPath(@"stderr");
+        IGAICreatePrivateFile(stdoutPath);
+        IGAICreatePrivateFile(stderrPath);
+        NSFileHandle *stdoutHandle = [NSFileHandle fileHandleForWritingAtPath:stdoutPath];
+        NSFileHandle *stderrHandle = [NSFileHandle fileHandleForWritingAtPath:stderrPath];
+        [task setStandardOutput:stdoutHandle];
+        [task setStandardError:stderrHandle];
 
         @try {
             [task launch];
             [task waitUntilExit];
+            [stdoutHandle closeFile];
+            [stderrHandle closeFile];
 
-            NSData *curlData = [[pipe fileHandleForReading] readDataToEndOfFile];
+            NSData *curlData = [NSData dataWithContentsOfFile:stdoutPath];
+            NSData *stderrData = [NSData dataWithContentsOfFile:stderrPath];
+            NSString *stderrText = @"";
+            if (stderrData.length > 0) {
+                NSString *decoded = [[NSString alloc] initWithData:stderrData encoding:NSUTF8StringEncoding];
+                stderrText = decoded ?: @"";
+#if !__has_feature(objc_arc)
+                [decoded autorelease];
+#endif
+            }
             if (tmpFile) {
                 [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
             }
+            [[NSFileManager defaultManager] removeItemAtPath:stdoutPath error:nil];
+            [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
 
             if ([task terminationStatus] == 0 && curlData.length > 0) {
                 completionBlock(curlData, nil);
             } else {
-                NSString *errDesc = [NSString stringWithFormat:@"Curl failed with status %d", [task terminationStatus]];
+                NSString *errDesc = stderrText.length > 0 ?
+                    [NSString stringWithFormat:@"Curl failed with status %d: %@", [task terminationStatus], stderrText] :
+                    [NSString stringWithFormat:@"Curl failed with status %d", [task terminationStatus]];
                 NSError *curlError = [NSError errorWithDomain:@"IGCurlError" code:[task terminationStatus] userInfo:@{NSLocalizedDescriptionKey: errDesc}];
                 completionBlock(nil, curlError);
             }
         } @catch (NSException *exception) {
+            [stdoutHandle closeFile];
+            [stderrHandle closeFile];
             if (tmpFile) {
                 [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
             }
+            [[NSFileManager defaultManager] removeItemAtPath:stdoutPath error:nil];
+            [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
             NSString *reason = exception.reason ?: @"Curl exception";
             NSError *curlException = [NSError errorWithDomain:@"IGCurlException" code:-1 userInfo:@{NSLocalizedDescriptionKey: reason}];
             completionBlock(nil, curlException);
@@ -139,7 +174,11 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
     NSDictionary *bodyDict = nil;
     NSMutableDictionary *headers = [NSMutableDictionary dictionary];
 
-    if ([self.provider isEqualToString:@"Groq"]) {
+    BOOL isGroq = ([self.provider caseInsensitiveCompare:@"Groq"] == NSOrderedSame);
+    BOOL isOpenRouter = ([self.provider caseInsensitiveCompare:@"OpenRouter"] == NSOrderedSame);
+    BOOL isGemini = ([self.provider caseInsensitiveCompare:@"Gemini"] == NSOrderedSame);
+
+    if (isGroq) {
         url = [NSURL URLWithString:@"https://api.groq.com/openai/v1/chat/completions"];
         bodyDict = @{
             @"model": self.model,
@@ -147,7 +186,7 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
             @"max_tokens": @10
         };
         headers[@"Authorization"] = [NSString stringWithFormat:@"Bearer %@", self.apiKey];
-    } else if ([self.provider isEqualToString:@"OpenRouter"]) {
+    } else if (isOpenRouter) {
         url = [NSURL URLWithString:@"https://openrouter.ai/api/v1/chat/completions"];
         bodyDict = @{
             @"model": self.model,
@@ -179,7 +218,7 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
 
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         BOOL success = NO;
-        if ([self.provider isEqualToString:@"Gemini"]) {
+        if (isGemini || (!isGroq && !isOpenRouter)) {
             success = (json[@"candidates"] != nil);
         } else {
             success = (json[@"choices"] != nil);
@@ -217,8 +256,12 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
     NSDictionary *bodyDict = nil;
     NSMutableDictionary *headers = [NSMutableDictionary dictionary];
 
-    if ([self.provider isEqualToString:@"Groq"] || [self.provider isEqualToString:@"OpenRouter"]) {
-        url = [NSURL URLWithString:[self.provider isEqualToString:@"Groq"] ? @"https://api.groq.com/openai/v1/chat/completions" : @"https://openrouter.ai/api/v1/chat/completions"];
+    BOOL isGroq = ([self.provider caseInsensitiveCompare:@"Groq"] == NSOrderedSame);
+    BOOL isOpenRouter = ([self.provider caseInsensitiveCompare:@"OpenRouter"] == NSOrderedSame);
+    BOOL isGemini = ([self.provider caseInsensitiveCompare:@"Gemini"] == NSOrderedSame);
+
+    if (isGroq || isOpenRouter) {
+        url = [NSURL URLWithString:isGroq ? @"https://api.groq.com/openai/v1/chat/completions" : @"https://openrouter.ai/api/v1/chat/completions"];
         bodyDict = @{
             @"model": self.model,
             @"messages": @[
@@ -228,7 +271,7 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
             @"temperature": @0.3
         };
         headers[@"Authorization"] = [NSString stringWithFormat:@"Bearer %@", self.apiKey];
-        if ([self.provider isEqualToString:@"OpenRouter"]) {
+        if (isOpenRouter) {
             headers[@"HTTP-Referer"] = @"https://github.com/MiChiRose/Syncrosa";
             headers[@"X-Title"] = @"Syncrosa-Legacy";
         }
@@ -260,7 +303,7 @@ static void IGAddCACertIfAvailable(NSMutableArray *args) {
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         NSString *text = @"";
 
-        if ([self.provider isEqualToString:@"Gemini"]) {
+        if (isGemini || (!isGroq && !isOpenRouter)) {
             NSArray *candidates = json[@"candidates"];
             if (candidates.count > 0) {
                 text = candidates[0][@"content"][@"parts"][0][@"text"];

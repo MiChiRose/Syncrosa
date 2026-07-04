@@ -5,6 +5,17 @@
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
 #import "IGiTunesService.h"
+#import "IGLogger.h"
+
+static NSString *IGSettingsCanonicalProvider(NSString *provider) {
+    if ([provider caseInsensitiveCompare:@"Groq"] == NSOrderedSame) {
+        return @"Groq";
+    }
+    if ([provider caseInsensitiveCompare:@"OpenRouter"] == NSOrderedSame) {
+        return @"OpenRouter";
+    }
+    return @"Gemini";
+}
 
 @interface IGSettingsViewController () <NSComboBoxDelegate>
 
@@ -125,6 +136,8 @@
     // Logging Checkbox
     self.enableLoggingCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
     self.enableLoggingCheckbox.buttonType = NSSwitchButton;
+    self.enableLoggingCheckbox.hidden = ![IGLogger desktopDiagnosticsEnabled];
+    self.enableLoggingCheckbox.enabled = [IGLogger desktopDiagnosticsEnabled];
     [self.view addSubview:self.enableLoggingCheckbox];
     
     y -= 45;
@@ -301,6 +314,7 @@
 
 - (void)updateModelAndKeyForProvider:(NSString *)provider {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    provider = IGSettingsCanonicalProvider(provider);
     [self.modelCombo removeAllItems];
     
     // Load Key
@@ -342,14 +356,19 @@
     }
     
     // 2. Provider
-    NSString *provider = [defaults stringForKey:@"provider"] ?: @"Gemini";
+    NSString *storedProvider = [defaults stringForKey:@"provider"];
+    NSString *provider = IGSettingsCanonicalProvider(storedProvider);
+    if (![storedProvider isEqualToString:provider]) {
+        [defaults setObject:provider forKey:@"provider"];
+        [defaults synchronize];
+    }
     self.providerCombo.stringValue = provider;
     
     // 3. Key & Model
     [self updateModelAndKeyForProvider:provider];
     
     // 4. Logging
-    self.enableLoggingCheckbox.state = [defaults boolForKey:@"enable_logging"] ? NSOnState : NSOffState;
+    self.enableLoggingCheckbox.state = ([IGLogger desktopDiagnosticsEnabled] && [defaults boolForKey:@"enable_logging"]) ? NSOnState : NSOffState;
     
     // Sync AIService state
     [IGAIService sharedService].provider = provider;
@@ -362,7 +381,7 @@
     NSString *legacyKey = [defaults stringForKey:@"api_key"];
     
     if (legacyKey && legacyKey.length > 0) {
-        NSString *provider = [[defaults stringForKey:@"provider"] lowercaseString] ?: @"gemini";
+        NSString *provider = [IGSettingsCanonicalProvider([defaults stringForKey:@"provider"]) lowercaseString];
         BOOL success = [[IGKeychainHelper sharedHelper] saveString:legacyKey forAccount:provider];
         if (success) {
             [defaults removeObjectForKey:@"api_key"];
@@ -419,7 +438,7 @@
     self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"checking"];
     self.saveButton.enabled = NO;
     
-    NSString *currentProvider = self.providerCombo.stringValue;
+    NSString *currentProvider = IGSettingsCanonicalProvider(self.providerCombo.stringValue);
     NSString *currentModel = self.modelCombo.stringValue;
     NSString *currentKey = self.apiKeyField.stringValue;
     
@@ -439,7 +458,7 @@
             NSString *providerKey = [NSString stringWithFormat:@"model_%@", [currentProvider lowercaseString]];
             [defaults setObject:currentModel forKey:providerKey];
             
-            [defaults setBool:(self.enableLoggingCheckbox.state == NSOnState) forKey:@"enable_logging"];
+            [defaults setBool:([IGLogger desktopDiagnosticsEnabled] && self.enableLoggingCheckbox.state == NSOnState) forKey:@"enable_logging"];
             [defaults synchronize];
             
             // Securely save API Key to Keychain
