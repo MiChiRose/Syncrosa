@@ -30,14 +30,20 @@
     self = [super init];
     if (self) {
         NSString *savedLang = [[NSUserDefaults standardUserDefaults] stringForKey:@"selected_language"];
-        _selectedLanguage = savedLang ? [savedLang copy] : @"en";
+        _selectedLanguage = [savedLang ? savedLang : @"en" copy];
         [self setupDictionaries];
     }
     return self;
 }
 
 - (void)setSelectedLanguage:(NSString *)selectedLanguage {
+    if (!selectedLanguage || selectedLanguage.length == 0) {
+        selectedLanguage = @"en";
+    }
     if (![_selectedLanguage isEqualToString:selectedLanguage]) {
+#if !__has_feature(objc_arc)
+        [_selectedLanguage release];
+#endif
         _selectedLanguage = [selectedLanguage copy];
         [[NSUserDefaults standardUserDefaults] setObject:_selectedLanguage forKey:@"selected_language"];
         [[NSUserDefaults standardUserDefaults] synchronize];
@@ -892,7 +898,15 @@
             [formattedText replaceCharactersInRange:range withString:argStr];
         }
     }
-    return formattedText;
+    return [formattedText autorelease];
+}
+
+- (void)dealloc {
+#if !__has_feature(objc_arc)
+    [_selectedLanguage release];
+    [_languages release];
+    [super dealloc];
+#endif
 }
 
 @end

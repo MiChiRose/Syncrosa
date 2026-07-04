@@ -20,4 +20,15 @@
     return self;
 }
 
+- (void)dealloc {
+#if !__has_feature(objc_arc)
+    [_persistentID release];
+    [_name release];
+    [_artist release];
+    [_album release];
+    [_genre release];
+    [super dealloc];
+#endif
+}
+
 @end

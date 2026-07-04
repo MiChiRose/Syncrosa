@@ -1,9 +1,15 @@
 #import "IGAIService.h"
 #import "IGLogger.h"
 
-@interface IGAIService () <NSURLSessionDelegate>
-@property (nonatomic, strong) NSURLSession *session;
+@interface IGAIService ()
 @end
+
+static void IGAddCACertIfAvailable(NSMutableArray *args) {
+    NSString *caPath = [[NSBundle mainBundle] pathForResource:@"cacert" ofType:@"pem"];
+    if (caPath.length > 0) {
+        [args addObjectsFromArray:@[@"--cacert", caPath]];
+    }
+}
 
 @implementation IGAIService
 
@@ -14,123 +20,82 @@
         sharedInstance = [[self alloc] init];
         sharedInstance.provider = @"Gemini";
         sharedInstance.model = @"google/gemini-2.0-flash-exp:free";
-        
-        // Initialize session with self as delegate to handle legacy SSL issues
-        NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
-        sharedInstance.session = [NSURLSession sessionWithConfiguration:config 
-                                                               delegate:sharedInstance 
-                                                          delegateQueue:[NSOperationQueue mainQueue]];
     });
     return sharedInstance;
 }
 
-#pragma mark - NSURLSessionDelegate (Secure SSL Support)
+#pragma mark - Network Helper
 
-- (void)URLSession:(NSURLSession *)session 
-              task:(NSURLSessionTask *)task 
-didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge 
- completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
-    
-    NSString *host = challenge.protectionSpace.host;
-    NSArray *trustedHosts = @[@"generativelanguage.googleapis.com", @"api.groq.com", @"openrouter.ai", @"itunes.apple.com"];
-    
-    BOOL isTrusted = NO;
-    for (NSString *h in trustedHosts) {
-        if ([host rangeOfString:h].location != NSNotFound) {
-            isTrusted = YES;
-            break;
-        }
-    }
-
-    if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
-        if (isTrusted) {
-            // For older macOS, we still might need to help it with the trust if root certs are expired,
-            // but we only do this for our known AI providers.
-            completionHandler(NSURLSessionAuthChallengeUseCredential, [[NSURLCredential alloc] initWithTrust:challenge.protectionSpace.serverTrust]);
-        } else {
-            // Default handling for other hosts (more secure)
-            completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
-        }
-    } else {
-        completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
-    }
-}
-
-#pragma mark - Network Helper with Curl Fallback
-
-- (void)makeRequestToURL:(NSURL *)url 
-                  method:(NSString *)method 
-                 headers:(NSDictionary *)headers 
-                    body:(NSData *)body 
+- (void)makeRequestToURL:(NSURL *)url
+                  method:(NSString *)method
+                 headers:(NSDictionary *)headers
+                    body:(NSData *)body
               completion:(void(^)(NSData *data, NSError *error))completionBlock {
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-    request.HTTPMethod = method;
-    [request addValue:@"Syncrosa/1.0 (macOS)" forHTTPHeaderField:@"User-Agent"];
-    for (NSString *key in headers) {
-        [request addValue:headers[key] forHTTPHeaderField:key];
-    }
-    if (body) {
-        request.HTTPBody = body;
-        [request addValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-    }
-    
-    [[self.session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        if (!error && data) {
-            completionBlock(data, nil);
-            return;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSTask *task = [[[NSTask alloc] init] autorelease];
+        [task setLaunchPath:@"/usr/bin/curl"];
+
+        NSString *requestMethod = method.length > 0 ? method : @"GET";
+        NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"60", @"-X", requestMethod]];
+        IGAddCACertIfAvailable(args);
+        [args addObjectsFromArray:@[@"-H", @"User-Agent: Syncrosa/1.0 (macOS)"]];
+
+        BOOL hasContentType = NO;
+        for (NSString *key in headers) {
+            NSString *value = headers[key];
+            if ([[key lowercaseString] isEqualToString:@"content-type"]) {
+                hasContentType = YES;
+            }
+            [args addObjectsFromArray:@[@"-H", [NSString stringWithFormat:@"%@: %@", key, value]]];
         }
-        
-        // Fallback to curl on network error (likely SSL/TLS failure on 10.9)
-        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"NSURLSession failed: %@. Falling back to curl...", error.localizedDescription]];
-        
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            NSTask *task = [[NSTask alloc] init];
-            [task setLaunchPath:@"/usr/bin/curl"];
-            
-            NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"60"]];
-            [args addObjectsFromArray:@[@"-H", @"User-Agent: Syncrosa/1.0 (macOS)"]];
-            
-            for (NSString *key in headers) {
-                [args addObjectsFromArray:@[@"-H", [NSString stringWithFormat:@"%@: %@", key, headers[key]]]];
-            }
-            
-            NSString *tmpFile = nil;
-            if (body) {
+
+        NSString *tmpFile = nil;
+        if (body) {
+            if (!hasContentType) {
                 [args addObjectsFromArray:@[@"-H", @"Content-Type: application/json"]];
-                tmpFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
-                [body writeToFile:tmpFile atomically:YES];
-                [args addObjectsFromArray:@[@"-d", [NSString stringWithFormat:@"@%@", tmpFile]]];
             }
-            
-            [args addObject:url.absoluteString];
-            [task setArguments:args];
-            
-            NSPipe *pipe = [NSPipe pipe];
-            [task setStandardOutput:pipe];
-            
-            @try {
-                [task launch];
-                [task waitUntilExit];
-                
-                if (tmpFile) {
-                    [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
-                }
-                
-                NSData *curlData = [[pipe fileHandleForReading] readDataToEndOfFile];
-                if ([task terminationStatus] == 0 && curlData.length > 0) {
-                    completionBlock(curlData, nil);
-                } else {
-                    NSString *errDesc = [NSString stringWithFormat:@"Curl failed with status %d", [task terminationStatus]];
-                    completionBlock(nil, [NSError errorWithDomain:@"IGCurlError" code:[task terminationStatus] userInfo:@{NSLocalizedDescriptionKey: errDesc}]);
-                }
-            } @catch (NSException *exception) {
-                if (tmpFile) {
-                    [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
-                }
-                completionBlock(nil, [NSError errorWithDomain:@"IGCurlException" code:-1 userInfo:@{NSLocalizedDescriptionKey: exception.reason}]);
+
+            tmpFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+            if (![body writeToFile:tmpFile atomically:YES]) {
+                NSString *errDesc = @"Failed to write temporary request body";
+                NSError *writeError = [NSError errorWithDomain:@"IGCurlError" code:-2 userInfo:@{NSLocalizedDescriptionKey: errDesc}];
+                completionBlock(nil, writeError);
+                return;
             }
-        });
-    }] resume];
+            [args addObjectsFromArray:@[@"--data-binary", [NSString stringWithFormat:@"@%@", tmpFile]]];
+        }
+
+        [args addObject:url.absoluteString];
+        [task setArguments:args];
+
+        NSPipe *pipe = [NSPipe pipe];
+        [task setStandardOutput:pipe];
+
+        @try {
+            [task launch];
+            [task waitUntilExit];
+
+            NSData *curlData = [[pipe fileHandleForReading] readDataToEndOfFile];
+            if (tmpFile) {
+                [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
+            }
+
+            if ([task terminationStatus] == 0 && curlData.length > 0) {
+                completionBlock(curlData, nil);
+            } else {
+                NSString *errDesc = [NSString stringWithFormat:@"Curl failed with status %d", [task terminationStatus]];
+                NSError *curlError = [NSError errorWithDomain:@"IGCurlError" code:[task terminationStatus] userInfo:@{NSLocalizedDescriptionKey: errDesc}];
+                completionBlock(nil, curlError);
+            }
+        } @catch (NSException *exception) {
+            if (tmpFile) {
+                [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
+            }
+            NSString *reason = exception.reason ?: @"Curl exception";
+            NSError *curlException = [NSError errorWithDomain:@"IGCurlException" code:-1 userInfo:@{NSLocalizedDescriptionKey: reason}];
+            completionBlock(nil, curlException);
+        }
+    });
 }
 
 - (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock {
@@ -139,7 +104,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         @"HTTP-Referer": @"https://github.com/MiChiRose/Syncrosa",
         @"X-Title": @"Syncrosa-Legacy"
     };
-    
+
     [self makeRequestToURL:url method:@"GET" headers:headers body:nil completion:^(NSData *data, NSError *error) {
         if (data && !error) {
             NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
@@ -169,11 +134,11 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         completionBlock(NO, @"API Key is empty");
         return;
     }
-    
+
     NSURL *url = nil;
     NSDictionary *bodyDict = nil;
     NSMutableDictionary *headers = [NSMutableDictionary dictionary];
-    
+
     if ([self.provider isEqualToString:@"Groq"]) {
         url = [NSURL URLWithString:@"https://api.groq.com/openai/v1/chat/completions"];
         bodyDict = @{
@@ -201,9 +166,9 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             @"generationConfig": @{@"maxOutputTokens": @10}
         };
     }
-    
+
     NSData *body = [NSJSONSerialization dataWithJSONObject:bodyDict options:0 error:nil];
-    
+
     [self makeRequestToURL:url method:@"POST" headers:headers body:body completion:^(NSData *data, NSError *error) {
         if (error || !data) {
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -211,7 +176,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             });
             return;
         }
-        
+
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         BOOL success = NO;
         if ([self.provider isEqualToString:@"Gemini"]) {
@@ -219,18 +184,18 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         } else {
             success = (json[@"choices"] != nil);
         }
-        
+
         dispatch_async(dispatch_get_main_queue(), ^{
             completionBlock(success, success ? @"OK" : @"Invalid Response");
         });
     }];
 }
 
-- (void)generatePlaylistWithPrompt:(NSString *)prompt 
-                             count:(NSInteger)count 
-                     librarySample:(NSArray *)sample 
+- (void)generatePlaylistWithPrompt:(NSString *)prompt
+                             count:(NSInteger)count
+                     librarySample:(NSArray *)sample
                         completion:(void(^)(NSArray *suggestedIDs))completionBlock {
-    
+
     NSString *libraryText = [sample componentsJoinedByString:@"\\n"];
     NSString *systemPrompt = [NSString stringWithFormat:
         @"You are an expert DJ AI.\n"
@@ -245,13 +210,13 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         "3. DO NOT return track titles or artist names. Only the IDs (the first part of each line).\n"
         "4. Your ENTIRE output MUST BE ONLY a single, flat JSON array of these ID strings.\n"
         "5. DO NOT add explanations, notes, or markdown.\n"
-        "CORRECT OUTPUT FORMAT: [\"A1B2C3D4E5F67890\", \"0987654321ABCDEF\"]", 
+        "CORRECT OUTPUT FORMAT: [\"A1B2C3D4E5F67890\", \"0987654321ABCDEF\"]",
         prompt, (long)count, libraryText, (long)count];
 
     NSURL *url = nil;
     NSDictionary *bodyDict = nil;
     NSMutableDictionary *headers = [NSMutableDictionary dictionary];
-    
+
     if ([self.provider isEqualToString:@"Groq"] || [self.provider isEqualToString:@"OpenRouter"]) {
         url = [NSURL URLWithString:[self.provider isEqualToString:@"Groq"] ? @"https://api.groq.com/openai/v1/chat/completions" : @"https://openrouter.ai/api/v1/chat/completions"];
         bodyDict = @{
@@ -277,7 +242,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     }
 
     NSData *body = [NSJSONSerialization dataWithJSONObject:bodyDict options:0 error:nil];
-    
+
     [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Sending request to %@ (Model: %@)", self.provider, self.model]];
 
     [self makeRequestToURL:url method:@"POST" headers:headers body:body completion:^(NSData *data, NSError *error) {
@@ -287,11 +252,14 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             dispatch_async(dispatch_get_main_queue(), ^{ completionBlock(nil); });
             return;
         }
-        
+
         NSString *rawText = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+#if !__has_feature(objc_arc)
+        [rawText autorelease];
+#endif
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         NSString *text = @"";
-        
+
         if ([self.provider isEqualToString:@"Gemini"]) {
             NSArray *candidates = json[@"candidates"];
             if (candidates.count > 0) {
@@ -303,7 +271,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                 text = choices[0][@"message"][@"content"];
             }
         }
-        
+
         if (text.length == 0) {
             [[IGLogger sharedLogger] log:@"Error: AI returned empty response or invalid format."];
             [[IGLogger sharedLogger] saveLogToDesktopWithRawResponse:rawText];
@@ -313,7 +281,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         NSError *regError = nil;
         NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"([a-fA-F0-9]{16})" options:0 error:&regError];
         NSArray *matches = [regex matchesInString:text options:0 range:NSMakeRange(0, text.length)];
-        
+
         NSMutableArray *ids = [NSMutableArray array];
         for (NSTextCheckingResult *match in matches) {
             NSString *matchStr = [text substringWithRange:[match rangeAtIndex:1]];
@@ -321,7 +289,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                 [ids addObject:matchStr];
             }
         }
-        
+
         dispatch_async(dispatch_get_main_queue(), ^{
             if (ids.count > count) {
                 completionBlock([ids subarrayWithRange:NSMakeRange(0, count)]);

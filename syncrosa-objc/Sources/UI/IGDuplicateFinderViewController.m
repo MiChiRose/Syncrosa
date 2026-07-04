@@ -129,12 +129,20 @@
     [sheet.contentView addSubview:closeButton];
     
     self.helpSheetWindow = sheet;
-    [self.view.window beginSheet:sheet completionHandler:nil];
+    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
+        [self.view.window beginSheet:sheet completionHandler:nil];
+    } else {
+        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
+    }
 }
 
 - (void)closeHelpSheet:(id)sender {
     if (self.helpSheetWindow) {
-        [self.view.window endSheet:self.helpSheetWindow];
+        if ([self.view.window respondsToSelector:@selector(endSheet:)]) {
+            [self.view.window endSheet:self.helpSheetWindow];
+        } else {
+            [NSApp endSheet:self.helpSheetWindow];
+        }
         [self.helpSheetWindow orderOut:nil];
         self.helpSheetWindow = nil;
     }

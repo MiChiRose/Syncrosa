@@ -48,8 +48,13 @@
     OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
     
     if (status == errSecSuccess && result != NULL) {
-        NSData *data = (__bridge_transfer NSData *)result;
+#if __has_feature(objc_arc)
+        NSData *data = CFBridgingRelease(result);
         return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+#else
+        NSData *data = [(NSData *)result autorelease];
+        return [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+#endif
     }
     return nil;
 }

@@ -12,27 +12,36 @@
 }
 
 - (NSString *)runAppleScript:(NSString *)source {
+    if (![source isKindOfClass:[NSString class]] || source.length == 0) {
+        return @"";
+    }
+
     __block NSString *result = nil;
-    if ([NSThread isMainThread]) {
+    void (^executeScript)(void) = ^{
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         NSAppleScript *script = [[NSAppleScript alloc] initWithSource:source];
         NSDictionary *error = nil;
         NSAppleEventDescriptor *descriptor = [script executeAndReturnError:&error];
         if (error) {
             NSLog(@"AppleScript Error: %@", error);
         }
-        result = [descriptor stringValue];
+
+        NSString *value = [descriptor stringValue];
+        if ([value isKindOfClass:[NSString class]]) {
+            result = [value copy];
+        }
+
+        [script release];
+        [pool drain];
+    };
+
+    if ([NSThread isMainThread]) {
+        executeScript();
     } else {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            NSAppleScript *script = [[NSAppleScript alloc] initWithSource:source];
-            NSDictionary *error = nil;
-            NSAppleEventDescriptor *descriptor = [script executeAndReturnError:&error];
-            if (error) {
-                NSLog(@"AppleScript Error: %@", error);
-            }
-            result = [descriptor stringValue];
-        });
+        dispatch_sync(dispatch_get_main_queue(), executeScript);
     }
-    return result;
+
+    return [result autorelease];
 }
 
 - (void)fetchAllTracksWithProgress:(void(^)(NSInteger current, NSInteger total))progressBlock 
@@ -84,6 +93,9 @@
                                                                              genre:parts[4]
                                                                               year:[parts[5] integerValue]];
                             [allTracks addObject:track];
+#if !__has_feature(objc_arc)
+                            [track release];
+#endif
                         }
                     }
                 }

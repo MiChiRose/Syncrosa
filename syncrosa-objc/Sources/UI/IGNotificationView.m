@@ -1,4 +1,5 @@
 #import "IGNotificationView.h"
+#import <QuartzCore/QuartzCore.h>
 
 @interface IGNotificationView ()
 @property (nonatomic, strong) NSTextField *label;
@@ -32,16 +33,16 @@
     hud.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin;
     [parentView addSubview:hud];
     
-    [NSAnimationContext runAnimationGroup:^(NSAnimationContext * _Nonnull context) {
+    [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
         context.duration = 0.3;
         hud.animator.alphaValue = 1.0;
     } completionHandler:nil];
     
     // Auto dismiss after 3 seconds if not a loading/progress indicator (i.e. doesn't contain "...")
-    if (![message containsString:@"..."]) {
+    if ([message rangeOfString:@"..."].location == NSNotFound) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             if (hud.superview) {
-                [NSAnimationContext runAnimationGroup:^(NSAnimationContext * _Nonnull context) {
+                [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
                     context.duration = 0.3;
                     hud.animator.alphaValue = 0.0;
                 } completionHandler:^{
@@ -55,7 +56,7 @@
 + (void)dismissInView:(NSView *)parentView {
     for (NSView *subview in [parentView.subviews copy]) {
         if ([subview isKindOfClass:[IGNotificationView class]]) {
-            [NSAnimationContext runAnimationGroup:^(NSAnimationContext * _Nonnull context) {
+            [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
                 context.duration = 0.2;
                 subview.animator.alphaValue = 0.0;
             } completionHandler:^{
@@ -80,11 +81,7 @@
         _label.bordered = NO;
         _label.drawsBackground = NO;
         _label.alignment = NSCenterTextAlignment;
-        if ([NSFont respondsToSelector:@selector(systemFontOfSize:weight:)]) {
-            _label.font = [NSFont systemFontOfSize:11 weight:0.0]; // Regular weight
-        } else {
-            _label.font = [NSFont systemFontOfSize:11];
-        }
+        _label.font = [NSFont systemFontOfSize:11];
         [self addSubview:_label];
         
         // Close Button
@@ -106,7 +103,7 @@
 }
 
 - (void)closeClicked:(id)sender {
-    [NSAnimationContext runAnimationGroup:^(NSAnimationContext * _Nonnull context) {
+    [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
         context.duration = 0.2;
         self.animator.alphaValue = 0.0;
     } completionHandler:^{

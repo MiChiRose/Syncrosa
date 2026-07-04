@@ -7,11 +7,11 @@
 - (BOOL)isAndroidCompatible {
     NSString *typeLower = [self.filesystemType lowercaseString];
     NSString *labelLower = [self.filesystemLabel lowercaseString];
-    return [typeLower containsString:@"msdos"] ||
-           [typeLower containsString:@"fat"] ||
-           [typeLower containsString:@"exfat"] ||
-           [labelLower containsString:@"fat32"] ||
-           [labelLower containsString:@"exfat"];
+    return [typeLower rangeOfString:@"msdos"].location != NSNotFound ||
+           [typeLower rangeOfString:@"fat"].location != NSNotFound ||
+           [typeLower rangeOfString:@"exfat"].location != NSNotFound ||
+           [labelLower rangeOfString:@"fat32"].location != NSNotFound ||
+           [labelLower rangeOfString:@"exfat"].location != NSNotFound;
 }
 
 @end
@@ -35,9 +35,16 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        _availableDrives = @[];
+        self.availableDrives = @[];
     }
     return self;
+}
+
+- (void)dealloc {
+#if !__has_feature(objc_arc)
+    [_availableDrives release];
+    [super dealloc];
+#endif
 }
 
 - (void)startMonitoring {
@@ -107,6 +114,9 @@
                 if (!exists) {
                     [drives addObject:drive];
                 }
+#if !__has_feature(objc_arc)
+                [drive release];
+#endif
             }
         }
         

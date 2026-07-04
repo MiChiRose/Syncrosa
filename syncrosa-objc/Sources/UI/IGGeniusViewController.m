@@ -30,10 +30,6 @@
 - (void)loadView {
     self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)];
     [self setupUI];
-}
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(localizationChanged:)
@@ -49,6 +45,9 @@
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
 }
 
 - (void)setupUI {
@@ -354,12 +353,20 @@
     [sheet.contentView addSubview:closeButton];
     
     self.helpSheetWindow = sheet;
-    [self.view.window beginSheet:sheet completionHandler:nil];
+    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
+        [self.view.window beginSheet:sheet completionHandler:nil];
+    } else {
+        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
+    }
 }
 
 - (void)closeHelpSheet:(id)sender {
     if (self.helpSheetWindow) {
-        [self.view.window endSheet:self.helpSheetWindow];
+        if ([self.view.window respondsToSelector:@selector(endSheet:)]) {
+            [self.view.window endSheet:self.helpSheetWindow];
+        } else {
+            [NSApp endSheet:self.helpSheetWindow];
+        }
         [self.helpSheetWindow orderOut:nil];
         self.helpSheetWindow = nil;
     }
