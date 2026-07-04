@@ -49,6 +49,18 @@ def load_config():
 
 CONFIG_DATA = load_config()
 
+def _flag_value_enabled(value):
+    if not value:
+        return False
+    return str(value).strip().lower() in ("1", "yes", "true", "on", "debug")
+
+def desktop_debug_logs_enabled():
+    return (
+        _flag_value_enabled(os.environ.get("SYNCROSA_DESKTOP_DEBUG")) or
+        _flag_value_enabled(os.environ.get("SYNCROSA_DEV_LOGS")) or
+        bool(CONFIG_DATA.get("developer_desktop_logs", False))
+    )
+
 def save_config(config):
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f)
@@ -946,8 +958,9 @@ class SetupWindow(tk.Toplevel):
         pref_frame = tk.Frame(main_frame, bg="#ECECEC")
         pref_frame.pack(fill=tk.X)
         
-        self.log_pref_var = tk.BooleanVar(value=CONFIG_DATA.get("prompt_logs", True))
-        tk.Checkbutton(pref_frame, text=_(u"setup_log_pref") if "setup_log_pref" in LANGUAGES["en"] else "Ask to save text logs", variable=self.log_pref_var, bg="#ECECEC", font=("system", 12), command=self.save_log_pref).pack(side=tk.LEFT, anchor="w", padx=10, pady=0)
+        self.log_pref_var = tk.BooleanVar(value=desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False))
+        if desktop_debug_logs_enabled():
+            tk.Checkbutton(pref_frame, text=_(u"setup_log_pref") if "setup_log_pref" in LANGUAGES["en"] else "Ask to save text logs", variable=self.log_pref_var, bg="#ECECEC", font=("system", 12), command=self.save_log_pref).pack(side=tk.LEFT, anchor="w", padx=10, pady=0)
         
         # --- FOOTER SECTION ---
         bottom_frame = tk.Frame(main_frame, bg="#ECECEC")
@@ -977,6 +990,8 @@ class SetupWindow(tk.Toplevel):
             self.help_canvas.config(cursor="")
 
     def save_log_pref(self):
+        if not desktop_debug_logs_enabled():
+            return
         CONFIG_DATA["prompt_logs"] = self.log_pref_var.get()
         save_config(CONFIG_DATA)
         
@@ -1128,7 +1143,7 @@ class SetupWindow(tk.Toplevel):
             elif "429" in msg or "overloaded" in msg.lower() or "Provider returned error" in msg:
                 user_msg = _(u"err_429")
             
-            if CONFIG_DATA.get("prompt_logs", True):
+            if desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False):
                 save_log = tkMessageBox.askyesno("Connection Error", user_msg + "\n\n" + _(u"ask_save_log"))
                 if save_log:
                     desktop = os.path.join(os.path.expanduser("~"), "Desktop")
@@ -1504,7 +1519,7 @@ CORRECT OUTPUT FORMAT: ["A1B2C3D4E5F67890", "0987654321ABCDEF"]
             
             def show_success():
                 msg = _(u"msg_success", name, added_count)
-                if CONFIG_DATA.get("prompt_logs", True):
+                if desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False):
                     save_log = tkMessageBox.askyesno("Success", msg + "\n\n" + _(u"ask_success_log"))
                     if save_log:
                         desktop = os.path.join(os.path.expanduser("~"), "Desktop")
@@ -1534,7 +1549,7 @@ CORRECT OUTPUT FORMAT: ["A1B2C3D4E5F67890", "0987654321ABCDEF"]
             self.after(0, self.prog_win.destroy)
             
             def show_error_and_ask_log():
-                if CONFIG_DATA.get("prompt_logs", True):
+                if desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False):
                     save_log = tkMessageBox.askyesno("Generation Error", short_msg + "\n\n" + _(u"ask_save_log"))
                     if save_log:
                         desktop = os.path.join(os.path.expanduser("~"), "Desktop")

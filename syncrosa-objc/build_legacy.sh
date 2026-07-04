@@ -8,14 +8,15 @@ echo "🛠 Building Syncrosa legacy Objective-C..."
 PROJECT="Syncrosa.xcodeproj"
 TARGET="Syncrosa"
 TEST_TARGET="SyncrosaTests"
+SCHEME="${SYNCROSA_SCHEME:-$TARGET}"
 APP_NAME="Syncrosa.app"
 EXECUTABLE_NAME="Syncrosa"
 DEPLOYMENT_TARGET="10.9"
 ARCH="x86_64"
 BUILD_ROOT="build-legacy"
-DIST_ZIP="$HOME/Desktop/Syncrosa_Cocoa_v3.2.0.zip"
-UNSIGNED_DIST_ZIP="$HOME/Desktop/Syncrosa_Cocoa_v3.2.0_unsigned.zip"
-UNSIGNED_ROOT="$BUILD_ROOT/UnsignedDist"
+DERIVED_DATA_PATH="$BUILD_ROOT/DerivedData"
+DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"
+DIST_ZIP="$DIST_DIR/Syncrosa_Cocoa_v3.2.0.zip"
 
 if [ -z "${DEVELOPER_DIR:-}" ] && [ -d "/Applications/Xcode_6.2.app/Contents/Developer" ]; then
     export DEVELOPER_DIR="/Applications/Xcode_6.2.app/Contents/Developer"
@@ -45,6 +46,7 @@ COMMON_SETTINGS=(
     "ENABLE_CODE_COVERAGE=NO"
     "CLANG_ENABLE_CODE_COVERAGE=NO"
     "CLANG_COVERAGE_MAPPING=NO"
+    "CLANG_MODULE_CACHE_PATH=$BUILD_ROOT/ModuleCache.noindex"
     "CLANG_PROFILE_GENERATE=NO"
     "CLANG_INSTRUMENT_FOR_OPTIMIZATION_PROFILING=NO"
     "GCC_PROFILE_GENERATE=NO"
@@ -65,8 +67,9 @@ echo "⚙️ Legacy mode disables ARC runtime autolinking to avoid modern Xcode 
 set +e
 "$XCODEBUILD" \
     -project "$PROJECT" \
-    -target "$TARGET" \
+    -scheme "$SCHEME" \
     -configuration Release \
+    -derivedDataPath "$DERIVED_DATA_PATH" \
     "${SDK_ARGS[@]}" \
     -arch "$ARCH" \
     build \
@@ -121,49 +124,33 @@ if strings -a "$BINARY_PATH" | grep -E -q "__llvm_prf|libclang_rt\\.profile|defa
     exit 1
 fi
 
-mkdir -p "$UNSIGNED_ROOT"
-ditto "$APP_NAME" "$UNSIGNED_ROOT/$APP_NAME"
-codesign --remove-signature "$UNSIGNED_ROOT/$APP_NAME" 2>/dev/null || true
-rm -rf "$UNSIGNED_ROOT/$APP_NAME/Contents/_CodeSignature"
-
-UNSIGNED_BINARY_PATH="$UNSIGNED_ROOT/$APP_NAME/Contents/MacOS/$EXECUTABLE_NAME"
-if otool -l "$UNSIGNED_BINARY_PATH" | grep -q "LC_CODE_SIGNATURE"; then
-    echo "❌ Unsigned fallback still contains an LC_CODE_SIGNATURE load command."
-    exit 1
-fi
-
 echo "🔒 Re-signing application bundle..."
 xattr -cr "$APP_NAME" 2>/dev/null || true
 codesign --force --deep --sign - "$APP_NAME"
 codesign --verify --deep --strict "$APP_NAME"
 
 echo "📦 Creating distribution ZIP..."
+mkdir -p "$DIST_DIR"
 rm -f "$DIST_ZIP"
 ditto -c -k --norsrc --keepParent "$APP_NAME" "$DIST_ZIP"
 
-echo "📦 Creating unsigned fallback ZIP for OS X 10.9..."
-rm -f "$UNSIGNED_DIST_ZIP"
-(
-    cd "$UNSIGNED_ROOT"
-    ditto -c -k --norsrc --keepParent "$APP_NAME" "$UNSIGNED_DIST_ZIP"
-)
-rm -rf "$APP_NAME" "$UNSIGNED_ROOT"
+rm -rf "$APP_NAME"
 
 echo "✅ Syncrosa_Cocoa_v3.2.0.zip successfully created on Desktop!"
-echo "✅ Syncrosa_Cocoa_v3.2.0_unsigned.zip fallback created on Desktop!"
 
 echo "🧪 Compiling tests..."
 set +e
 "$XCODEBUILD" \
     -project "$PROJECT" \
-    -target "$TEST_TARGET" \
+    -scheme "$SCHEME" \
     -configuration Debug \
+    -derivedDataPath "$DERIVED_DATA_PATH/tests" \
     "${SDK_ARGS[@]}" \
     -arch "$ARCH" \
     "${COMMON_SETTINGS[@]}" \
     "SYMROOT=$BUILD_ROOT/tests" \
     "OBJROOT=$BUILD_ROOT/tests/Intermediates" \
-    build 2>&1 | tee test.log
+    build-for-testing 2>&1 | tee test.log
 TEST_STATUS=${PIPESTATUS[0]}
 set -e
 

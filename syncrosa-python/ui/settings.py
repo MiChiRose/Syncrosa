@@ -19,7 +19,7 @@ import threading
 import json
 
 from core.localization import _, LANGUAGES
-from core.config import CONFIG_DATA, save_config
+from core.config import CONFIG_DATA, save_config, desktop_debug_logs_enabled
 from core.network import test_api_key, make_request
 from ui.components import ProgressWindow
 
@@ -132,8 +132,9 @@ class SetupWindow(tk.Toplevel):
         pref_frame = tk.Frame(main_frame, bg="#ECECEC")
         pref_frame.pack(fill=tk.X)
         
-        self.log_pref_var = tk.BooleanVar(value=CONFIG_DATA.get("prompt_logs", True))
-        tk.Checkbutton(pref_frame, text=_(u"setup_log_pref"), variable=self.log_pref_var, bg="#ECECEC", font=("system", 12), command=self.save_log_pref).pack(side=tk.LEFT, anchor="w", padx=10, pady=0)
+        self.log_pref_var = tk.BooleanVar(value=desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False))
+        if desktop_debug_logs_enabled():
+            tk.Checkbutton(pref_frame, text=_(u"setup_log_pref"), variable=self.log_pref_var, bg="#ECECEC", font=("system", 12), command=self.save_log_pref).pack(side=tk.LEFT, anchor="w", padx=10, pady=0)
         
         # --- FOOTER SECTION ---
         bottom_frame = tk.Frame(main_frame, bg="#ECECEC")
@@ -163,6 +164,8 @@ class SetupWindow(tk.Toplevel):
             self.help_canvas.config(cursor="")
 
     def save_log_pref(self):
+        if not desktop_debug_logs_enabled():
+            return
         CONFIG_DATA["prompt_logs"] = self.log_pref_var.get()
         save_config(CONFIG_DATA)
         
@@ -322,7 +325,7 @@ class SetupWindow(tk.Toplevel):
             elif "429" in msg or "overloaded" in msg.lower() or "Provider returned error" in msg:
                 user_msg = _(u"err_429")
             
-            if CONFIG_DATA.get("prompt_logs", True):
+            if desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False):
                 save_log = tkMessageBox.askyesno("Connection Error", user_msg + "\n\n" + _(u"ask_save_log"))
                 if save_log:
                     desktop = os.path.join(os.path.expanduser("~"), "Desktop")

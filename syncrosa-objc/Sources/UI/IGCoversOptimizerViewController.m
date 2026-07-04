@@ -1,6 +1,32 @@
 #import "IGCoversOptimizerViewController.h"
 #import "IGLocalizationService.h"
 #import "IGiTunesService.h"
+#import "IGLogger.h"
+
+static NSString *IGCoverAppleScriptLiteral(NSString *value) {
+    if (![value isKindOfClass:[NSString class]]) {
+        return @"\"\"";
+    }
+
+    NSMutableString *escaped = [value mutableCopy];
+    [escaped replaceOccurrencesOfString:@"\\" withString:@"\\\\" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\"" withString:@"\\\"" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r\n" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\r" withString:@"\n" options:0 range:NSMakeRange(0, escaped.length)];
+    NSString *literal = [NSString stringWithFormat:@"\"%@\"", escaped];
+#if !__has_feature(objc_arc)
+    [escaped release];
+#endif
+    return literal;
+}
+
+static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
+    NSMutableArray *parts = [NSMutableArray arrayWithCapacity:values.count];
+    for (id value in values) {
+        [parts addObject:IGCoverAppleScriptLiteral([value isKindOfClass:[NSString class]] ? value : @"")];
+    }
+    return [NSString stringWithFormat:@"{%@}", [parts componentsJoinedByString:@", "]];
+}
 
 @interface IGCoversOptimizerViewController ()
 
@@ -138,6 +164,7 @@
 }
 
 - (void)log:(NSString *)message {
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Covers: %@", message ?: @""]];
     dispatch_async(dispatch_get_main_queue(), ^{
         NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
         formatter.dateFormat = @"HH:mm:ss";
@@ -181,7 +208,104 @@
 }
 
 - (NSString *)runAppleScript:(NSString *)source {
-    return [[IGiTunesService sharedService] runAppleScript:source];
+    return [[IGiTunesService sharedService] runAppleScriptNamed:@"covers.generic" source:source];
+}
+
+- (NSInteger)libraryTrackCount {
+    NSString *script = [NSString stringWithFormat:
+        @"on recordCandidate(labelText, countText, playlistName, modeText)\n"
+        "    return \"COUNT\" & tab & labelText & tab & countText & tab & playlistName & tab & modeText & linefeed\n"
+        "end recordCandidate\n"
+        @"set out to \"\"\n"
+        @"tell application \"%@\"\n"
+        "    set bestCount to 0\n"
+        "    set bestName to \"\"\n"
+        "    set bestMode to \"none\"\n"
+        "    try\n"
+        "        set c to count of every track\n"
+        "        set out to out & my recordCandidate(\"every track\", c as text, \"application\", \"app_tracks\")\n"
+        "        if c > bestCount then\n"
+        "            set bestCount to c\n"
+        "            set bestName to \"application\"\n"
+        "            set bestMode to \"app_tracks\"\n"
+        "        end if\n"
+        "    on error errMsg number errNum\n"
+        "        set out to out & \"ERROR\" & tab & \"every track\" & tab & (errNum as text) & tab & errMsg & linefeed\n"
+        "    end try\n"
+        "    try\n"
+        "        set c to count of every track of library playlist 1\n"
+        "        set out to out & my recordCandidate(\"library playlist 1 tracks\", c as text, name of library playlist 1 as text, \"library_tracks\")\n"
+        "        if c > bestCount then\n"
+        "            set bestCount to c\n"
+        "            set bestName to name of library playlist 1 as text\n"
+        "            set bestMode to \"library_tracks\"\n"
+        "        end if\n"
+        "    on error errMsg number errNum\n"
+        "        set out to out & \"ERROR\" & tab & \"library playlist 1 tracks\" & tab & (errNum as text) & tab & errMsg & linefeed\n"
+        "    end try\n"
+        "    try\n"
+        "        set c to count of every file track of library playlist 1\n"
+        "        set out to out & my recordCandidate(\"library playlist 1 file tracks\", c as text, name of library playlist 1 as text, \"library_file_tracks\")\n"
+        "        if c > bestCount then\n"
+        "            set bestCount to c\n"
+        "            set bestName to name of library playlist 1 as text\n"
+        "            set bestMode to \"library_file_tracks\"\n"
+        "        end if\n"
+        "    on error errMsg number errNum\n"
+        "        set out to out & \"ERROR\" & tab & \"library playlist 1 file tracks\" & tab & (errNum as text) & tab & errMsg & linefeed\n"
+        "    end try\n"
+        "    try\n"
+        "        repeat with s in sources\n"
+        "            repeat with p in playlists of s\n"
+        "                set plName to \"\"\n"
+        "                try\n"
+        "                    set plName to (name of s as text) & \"/\" & (name of p as text)\n"
+        "                end try\n"
+        "                try\n"
+        "                    set c to count of file tracks of p\n"
+        "                    set out to out & my recordCandidate(\"playlist file tracks\", c as text, plName, \"playlist_file_tracks\")\n"
+        "                    if c > bestCount then\n"
+        "                        set bestCount to c\n"
+        "                        set bestName to plName\n"
+        "                        set bestMode to \"playlist_file_tracks\"\n"
+        "                    end if\n"
+        "                end try\n"
+        "                try\n"
+        "                    set c to count of tracks of p\n"
+        "                    set out to out & my recordCandidate(\"playlist tracks\", c as text, plName, \"playlist_tracks\")\n"
+        "                    if c > bestCount then\n"
+        "                        set bestCount to c\n"
+        "                        set bestName to plName\n"
+        "                        set bestMode to \"playlist_tracks\"\n"
+        "                    end if\n"
+        "                end try\n"
+        "            end repeat\n"
+        "        end repeat\n"
+        "    on error errMsg number errNum\n"
+        "        set out to out & \"ERROR\" & tab & \"sources playlists\" & tab & (errNum as text) & tab & errMsg & linefeed\n"
+        "    end try\n"
+        "end tell\n"
+        "return \"BEST\" & tab & (bestCount as text) & tab & bestName & tab & bestMode & linefeed & out", [self appName]];
+
+    NSString *raw = [[IGiTunesService sharedService] runAppleScriptNamed:@"covers.resolveLibrary" source:script];
+    NSInteger count = 0;
+    if (raw.length > 0) {
+        NSArray *lines = [raw componentsSeparatedByString:@"\n"];
+        if (lines.count > 0) {
+            NSArray *parts = [[lines objectAtIndex:0] componentsSeparatedByString:@"\t"];
+            if (parts.count >= 4 && [[parts objectAtIndex:0] isEqualToString:@"BEST"]) {
+                count = [[parts objectAtIndex:1] integerValue];
+                [self log:[NSString stringWithFormat:@"Resolved iTunes library: %@ tracks via %@ (%@).",
+                           [parts objectAtIndex:1],
+                           [parts objectAtIndex:3],
+                           [parts objectAtIndex:2]]];
+            }
+        }
+    }
+    if (count <= 0) {
+        [self log:@"Could not resolve a non-empty iTunes library playlist. Try syncing the library cache from Settings and run the operation again."];
+    }
+    return count;
 }
 
 - (NSMutableDictionary *)loadManifest {
@@ -243,92 +367,366 @@
 }
 
 - (NSArray *)getTracksWithCovers {
-    NSString *script = [NSString stringWithFormat:
-        @"set out to \"\"\n"
-        "tell application \"%@\"\n"
+    return [self getTracksWithCoversWithProgress:nil];
+}
+
+- (NSArray *)getTracksWithCoversWithProgress:(void(^)(NSInteger current, NSInteger total))progressBlock {
+    NSInteger total = [self libraryTrackCount];
+    if (total <= 0) return @[];
+
+    NSMutableArray *list = [NSMutableArray array];
+    NSInteger chunkSize = 100;
+    NSString *appName = [self appName];
+
+    for (NSInteger start = 1; start <= total; start += chunkSize) {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        NSInteger end = MIN(start + chunkSize - 1, total);
+        NSString *script = [NSString stringWithFormat:
+        @"on replaceText(theText, oldText, newText)\n"
+        "    set AppleScript's text item delimiters to oldText\n"
+        "    set textItems to every text item of theText\n"
+        "    set AppleScript's text item delimiters to newText\n"
+        "    set newString to textItems as text\n"
+        "    set AppleScript's text item delimiters to \"\"\n"
+        "    return newString\n"
+        "end replaceText\n"
+        "on textValue(v)\n"
         "    try\n"
-        "        set trks to every track of library playlist 1\n"
+        "        if v is missing value then return \"\"\n"
+        "        set s to v as text\n"
+        "        set s to my replaceText(s, tab, \" \")\n"
+        "        set s to my replaceText(s, linefeed, \" \")\n"
+        "        set s to my replaceText(s, return, \" \")\n"
+        "        return s\n"
+        "    on error\n"
+        "        return \"\"\n"
+        "    end try\n"
+        "end textValue\n"
+        "on considerCandidate(candidateCount, candidatePlaylist, candidateMode, candidateName, currentBestCount, currentBestPlaylist, currentBestMode, currentBestName)\n"
+        "    if candidateCount > currentBestCount then\n"
+        "        return {candidateCount, candidatePlaylist, candidateMode, candidateName}\n"
+        "    end if\n"
+        "    return {currentBestCount, currentBestPlaylist, currentBestMode, currentBestName}\n"
+        "end considerCandidate\n"
+        @"set out to \"\"\n"
+        "set startIndex to %ld\n"
+        "set endIndex to %ld\n"
+        "tell application \"%@\"\n"
+        "    set bestCount to 0\n"
+        "    set bestPlaylist to missing value\n"
+        "    set bestMode to \"none\"\n"
+        "    set bestName to \"\"\n"
+        "    try\n"
+        "        set c to count of every track\n"
+        "        if c > bestCount then\n"
+        "            set bestCount to c\n"
+        "            set bestMode to \"app_tracks\"\n"
+        "            set bestName to \"application\"\n"
+        "        end if\n"
+        "    end try\n"
+        "    try\n"
+        "        set c to count of every track of library playlist 1\n"
+        "        if c > bestCount then\n"
+        "            set bestCount to c\n"
+        "            set bestPlaylist to library playlist 1\n"
+        "            set bestMode to \"playlist_tracks\"\n"
+        "            set bestName to name of library playlist 1 as text\n"
+        "        end if\n"
+        "    end try\n"
+        "    try\n"
+        "        set c to count of every file track of library playlist 1\n"
+        "        if c > bestCount then\n"
+        "            set bestCount to c\n"
+        "            set bestPlaylist to library playlist 1\n"
+        "            set bestMode to \"playlist_file_tracks\"\n"
+        "            set bestName to name of library playlist 1 as text\n"
+        "        end if\n"
+        "    end try\n"
+        "    try\n"
+        "        repeat with s in sources\n"
+        "            repeat with p in playlists of s\n"
+        "                set plName to \"\"\n"
+        "                try\n"
+        "                    set plName to (name of s as text) & \"/\" & (name of p as text)\n"
+        "                end try\n"
+        "                try\n"
+        "                    set c to count of file tracks of p\n"
+        "                    if c > bestCount then\n"
+        "                        set bestCount to c\n"
+        "                        set bestPlaylist to p\n"
+        "                        set bestMode to \"playlist_file_tracks\"\n"
+        "                        set bestName to plName\n"
+        "                    end if\n"
+        "                end try\n"
+        "                try\n"
+        "                    set c to count of tracks of p\n"
+        "                    if c > bestCount then\n"
+        "                        set bestCount to c\n"
+        "                        set bestPlaylist to p\n"
+        "                        set bestMode to \"playlist_tracks\"\n"
+        "                        set bestName to plName\n"
+        "                    end if\n"
+        "                end try\n"
+        "            end repeat\n"
+        "        end repeat\n"
+        "    end try\n"
+        "    if bestCount <= 0 then return \"RESOLVED\" & tab & \"0\" & tab & bestMode & tab & bestName & linefeed\n"
+        "    if endIndex > bestCount then set endIndex to bestCount\n"
+        "    set out to out & \"RESOLVED\" & tab & (bestCount as text) & tab & bestMode & tab & bestName & linefeed\n"
+        "    try\n"
+        "        if bestMode is \"app_tracks\" then\n"
+        "            set trks to (tracks startIndex thru endIndex)\n"
+        "        else if bestMode is \"playlist_file_tracks\" then\n"
+        "            set trks to (file tracks startIndex thru endIndex of bestPlaylist)\n"
+        "        else\n"
+        "            set trks to (tracks startIndex thru endIndex of bestPlaylist)\n"
+        "        end if\n"
         "        repeat with t in trks\n"
         "            try\n"
-        "                if exists artwork 1 of t then\n"
-        "                    set pid to persistent ID of t\n"
-        "                    set nm to name of t\n"
-        "                    set art to artist of t\n"
-        "                    set out to out & pid & \"|\" & nm & \"|\" & art & \"\\n\"\n"
+        "                set pid to my textValue(persistent ID of t)\n"
+        "                if pid is not \"\" then\n"
+        "                    set nm to my textValue(name of t)\n"
+        "                    set artName to my textValue(artist of t)\n"
+        "                    try\n"
+        "                        set aw to artwork 1 of t\n"
+        "                        set hasCover to \"YES\"\n"
+        "                    on error\n"
+        "                        set hasCover to \"NO\"\n"
+        "                    end try\n"
+        "                    set out to out & pid & tab & nm & tab & artName & tab & hasCover & linefeed\n"
         "                end if\n"
         "            end try\n"
         "        end repeat\n"
+        "    on error errMsg number errNum\n"
+        "        set out to out & \"ERROR\" & tab & (errNum as text) & tab & errMsg & linefeed\n"
         "    end try\n"
         "end tell\n"
-        "return out", [self appName]];
+        "return out", (long)start, (long)end, appName];
 
-    NSString *res = [self runAppleScript:script];
-    if (!res || res.length == 0) return @[];
+        NSString *res = [[IGiTunesService sharedService] runAppleScriptNamed:@"covers.scanChunk" source:script];
+        NSInteger parsedRows = 0;
+        if (res.length > 0) {
+            NSArray *lines = [res componentsSeparatedByString:@"\n"];
+            for (NSString *line in lines) {
+                if (line.length == 0) continue;
 
-    NSMutableArray *list = [NSMutableArray array];
-    NSArray *lines = [res componentsSeparatedByString:@"\n"];
-    for (NSString *line in lines) {
-        if ([line rangeOfString:@"|"].location != NSNotFound) {
-            NSArray *parts = [line componentsSeparatedByString:@"|"];
-            if (parts.count >= 3) {
-                [list addObject:@{@"pid": parts[0], @"title": parts[1], @"artist": parts[2]}];
+                NSArray *parts = [line componentsSeparatedByString:@"\t"];
+                if (parts.count > 0 && ([[parts objectAtIndex:0] isEqualToString:@"RESOLVED"] || [[parts objectAtIndex:0] isEqualToString:@"ERROR"])) {
+                    continue;
+                }
+                if (parts.count >= 3 && [parts[0] length] > 0) {
+                    NSString *hasCover = parts.count >= 4 ? parts[3] : @"UNKNOWN";
+                    NSDictionary *trackInfo = @{
+                        @"pid": parts[0],
+                        @"title": parts[1],
+                        @"artist": parts[2],
+                        @"hasCover": hasCover
+                    };
+                    [list addObject:trackInfo];
+                    parsedRows++;
+                }
             }
         }
+        [self log:[NSString stringWithFormat:@"Scanned iTunes chunk %ld-%ld, parsed %ld tracks.", (long)start, (long)end, (long)parsedRows]];
+
+        if (progressBlock) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                progressBlock(end, total);
+            });
+        }
+#if !__has_feature(objc_arc)
+        [pool drain];
+#endif
     }
     return list;
 }
 
-- (BOOL)backupCoverForPID:(NSString *)pid title:(NSString *)title artist:(NSString *)artist {
+- (NSInteger)backupCoversForTracks:(NSArray *)tracks progress:(void(^)(NSInteger current, NSInteger total))progressBlock {
+    if (tracks.count == 0) return 0;
+
     NSString *backupFolder = [self backupFolderPath];
-    NSString *escPath = [[backupFolder stringByAppendingPathComponent:pid] stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-    escPath = [escPath stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
-
-    NSString *script = [NSString stringWithFormat:
-        @"tell application \"%@\"\n"
-        "    try\n"
-        "        set t to (some track whose persistent ID is \"%@\")\n"
-        "        if exists artwork 1 of t then\n"
-        "            tell artwork 1 of t\n"
-        "                set rawData to raw data\n"
-        "                if format is JPEG picture then\n"
-        "                    set ext to \"jpg\"\n"
-        "                else\n"
-        "                    set ext to \"png\"\n"
-        "                end if\n"
-        "                set w to width\n"
-        "                set h to height\n"
-        "            end tell\n"
-        "            set destFile to POSIX file (\"%@.\" & ext)\n"
-        "            set fileRef to open for access destFile with write permission\n"
-        "            set eof fileRef to 0\n"
-        "            write rawData to fileRef starting at 0\n"
-        "            close access fileRef\n"
-        "            return ext & \"|\" & w & \"|\" & h\n"
-        "        else\n"
-        "            return \"NO_ARTWORK\"\n"
-        "        end if\n"
-        "    on error errMsg number errNum\n"
-        "        try\n"
-        "            close access fileRef\n"
-        "        end try\n"
-        "        return \"ERROR: \" & errNum & \" - \" & errMsg\n"
-        "    end try\n"
-        "end tell", [self appName], pid, escPath];
-
-    NSString *res = [self runAppleScript:script];
-    if (!res || [res isEqualToString:@"NO_ARTWORK"] || [res hasPrefix:@"ERROR"]) {
-        return NO;
+    NSMutableDictionary *trackByPID = [NSMutableDictionary dictionaryWithCapacity:tracks.count];
+    for (NSDictionary *track in tracks) {
+        NSString *pid = track[@"pid"];
+        if (pid.length > 0) {
+            trackByPID[pid] = track;
+        }
     }
 
-    NSArray *parts = [res componentsSeparatedByString:@"|"];
-    if (parts.count >= 3) {
-        NSString *ext = parts[0];
-        NSInteger w = [parts[1] integerValue];
-        NSInteger h = [parts[2] integerValue];
-        [self updateManifestWithPID:pid title:title artist:artist ext:ext width:w height:h];
-        return YES;
+    NSInteger successCount = 0;
+    NSInteger chunkSize = 50;
+    NSInteger total = tracks.count;
+
+    for (NSInteger start = 0; start < total; start += chunkSize) {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        NSInteger length = MIN(chunkSize, total - start);
+        NSArray *chunk = [tracks subarrayWithRange:NSMakeRange(start, length)];
+        NSMutableArray *pids = [NSMutableArray arrayWithCapacity:chunk.count];
+
+        for (NSDictionary *track in chunk) {
+            NSString *pid = track[@"pid"];
+            if (pid.length > 0) {
+                [pids addObject:pid];
+            }
+        }
+
+        if (pids.count == 0) {
+            if (progressBlock) progressBlock(start + length, total);
+#if !__has_feature(objc_arc)
+            [pool drain];
+#endif
+            continue;
+        }
+
+        NSString *script = [NSString stringWithFormat:
+            @"on writeArtwork(imageData, destPath)\n"
+            "    set fileRef to missing value\n"
+            "    try\n"
+            "        set destFile to POSIX file destPath\n"
+            "        set fileRef to open for access destFile with write permission\n"
+            "        set eof fileRef to 0\n"
+            "        write imageData to fileRef\n"
+            "        close access fileRef\n"
+            "    on error errMsg number errNum\n"
+            "        try\n"
+            "            if fileRef is not missing value then close access fileRef\n"
+            "        end try\n"
+            "        error errMsg number errNum\n"
+            "    end try\n"
+            "end writeArtwork\n"
+            "set backupFolder to %@\n"
+            "set pidList to %@\n"
+            "set out to \"\"\n"
+            "with timeout of 600 seconds\n"
+            "tell application \"%@\"\n"
+            "    repeat with pidItem in pidList\n"
+            "        set pidText to (contents of pidItem) as text\n"
+            "        set stageText to \"start\"\n"
+            "        try\n"
+            "            set stageText to \"resolve track\"\n"
+            "            set t to (some track of library playlist 1 whose persistent ID is pidText)\n"
+            "            if not (exists artwork 1 of t) then\n"
+            "                set out to out & \"NO_ARTWORK\" & tab & pidText & linefeed\n"
+            "            else\n"
+            "                set stageText to \"read artwork\"\n"
+            "                set aw to artwork 1 of t\n"
+            "                tell aw\n"
+            "                    try\n"
+            "                        set imageData to raw data\n"
+            "                    on error\n"
+            "                        set imageData to data\n"
+            "                    end try\n"
+            "                    set fmtText to \"\"\n"
+            "                    try\n"
+            "                        set fmtText to format as text\n"
+            "                    end try\n"
+            "                    set ext to \"jpg\"\n"
+            "                    if fmtText contains \"PNG\" or fmtText contains \"png\" then set ext to \"png\"\n"
+            "                    if fmtText contains \"JPEG\" or fmtText contains \"jpeg\" or fmtText contains \"JPG\" or fmtText contains \"jpg\" then set ext to \"jpg\"\n"
+            "                    set w to 0\n"
+            "                    set h to 0\n"
+            "                    try\n"
+            "                        set w to width as integer\n"
+            "                    end try\n"
+            "                    try\n"
+            "                        set h to height as integer\n"
+            "                    end try\n"
+            "                end tell\n"
+            "                set stageText to \"write file\"\n"
+            "                set destPath to backupFolder & \"/\" & pidText & \".\" & ext\n"
+            "                my writeArtwork(imageData, destPath)\n"
+            "                set out to out & \"OK\" & tab & pidText & tab & ext & tab & (w as text) & tab & (h as text) & linefeed\n"
+            "            end if\n"
+            "        on error errMsg number errNum\n"
+            "            set out to out & \"ERROR\" & tab & pidText & tab & stageText & tab & (errNum as text) & tab & errMsg & linefeed\n"
+            "        end try\n"
+            "    end repeat\n"
+            "end tell\n"
+            "end timeout\n"
+            "return out",
+            IGCoverAppleScriptLiteral(backupFolder),
+            IGCoverAppleScriptListLiteral(pids),
+            [self appName]];
+
+        NSString *res = [[IGiTunesService sharedService] runAppleScriptNamed:@"covers.backupBatch" source:script];
+        NSInteger chunkSaved = 0;
+        NSInteger chunkErrors = 0;
+
+        if (res.length > 0) {
+            NSArray *lines = [res componentsSeparatedByString:@"\n"];
+            for (NSString *line in lines) {
+                if (line.length == 0) continue;
+
+                NSArray *parts = [line componentsSeparatedByString:@"\t"];
+                if (parts.count >= 5 && [parts[0] isEqualToString:@"OK"]) {
+                    NSString *pid = parts[1];
+                    NSString *rawExt = parts[2];
+                    NSString *ext = rawExt.length > 0 ? rawExt : @"jpg";
+                    NSInteger w = [parts[3] integerValue];
+                    NSInteger h = [parts[4] integerValue];
+                    NSString *savedPath = [[backupFolder stringByAppendingPathComponent:pid] stringByAppendingPathExtension:ext];
+                    NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:savedPath error:nil];
+
+                    unsigned long long fileSize = [[attrs objectForKey:NSFileSize] unsignedLongLongValue];
+                    if (fileSize == 0) {
+                        chunkErrors++;
+                        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Covers batch backup wrote empty file pid=%@ path=%@", pid ?: @"", savedPath ?: @""]];
+                        continue;
+                    }
+
+                    if (w <= 0 || h <= 0) {
+                        NSImage *image = [[NSImage alloc] initWithContentsOfFile:savedPath];
+                        if (image) {
+                            w = (NSInteger)image.size.width;
+                            h = (NSInteger)image.size.height;
+#if !__has_feature(objc_arc)
+                            [image release];
+#endif
+                        }
+                    }
+
+                    NSDictionary *track = trackByPID[pid];
+                    [self updateManifestWithPID:pid
+                                          title:track[@"title"]
+                                         artist:track[@"artist"]
+                                            ext:ext
+                                          width:w
+                                         height:h];
+                    successCount++;
+                    chunkSaved++;
+                } else if (parts.count >= 2) {
+                    chunkErrors++;
+                    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Covers batch backup result: %@", line]];
+                }
+            }
+        }
+
+        [self log:[NSString stringWithFormat:@"Backed up covers chunk %ld-%ld: saved %ld, errors %ld.",
+                   (long)(start + 1),
+                   (long)(start + length),
+                   (long)chunkSaved,
+                   (long)chunkErrors]];
+
+        if (progressBlock) {
+            progressBlock(start + length, total);
+        }
+#if !__has_feature(objc_arc)
+        [pool drain];
+#endif
     }
-    return NO;
+
+    return successCount;
+}
+
+- (BOOL)backupCoverForPID:(NSString *)pid title:(NSString *)title artist:(NSString *)artist {
+    if (pid.length == 0) return NO;
+    NSDictionary *track = @{
+        @"pid": pid,
+        @"title": title ?: @"",
+        @"artist": artist ?: @"",
+        @"hasCover": @"YES"
+    };
+    return [self backupCoversForTracks:@[track] progress:nil] > 0;
 }
 
 - (NSData *)resizeImageAtPath:(NSString *)sourcePath targetSize:(CGFloat)targetSize {
@@ -391,26 +789,34 @@
 }
 
 - (BOOL)setTrackArtworkForPID:(NSString *)pid imagePath:(NSString *)imagePath {
-    NSString *escPath = [imagePath stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-    escPath = [escPath stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
-
     NSString *script = [NSString stringWithFormat:
+        @"on readArtworkFile(imagePath)\n"
+        "    set fileAlias to (POSIX file imagePath) as alias\n"
+        "    return read fileAlias as picture\n"
+        "end readArtworkFile\n"
+        "set pidText to %@\n"
+        "set imagePath to %@\n"
+        "set imgData to my readArtworkFile(imagePath)\n"
+        "with timeout of 180 seconds\n"
         @"tell application \"%@\"\n"
         "    try\n"
-        "        set t to (some track whose persistent ID is \"%@\")\n"
-        "        set fileAlias to (POSIX file \"%@\") as alias\n"
-        "        set imgData to read fileAlias as picture\n"
-        "        tell t\n"
-        "            delete every artwork\n"
-        "            set data of artwork 1 to imgData\n"
-        "        end tell\n"
+        "        set t to (some track of library playlist 1 whose persistent ID is pidText)\n"
+        "        try\n"
+        "            set data of artwork 1 of t to imgData\n"
+        "        on error\n"
+        "            make new artwork at t with properties {data:imgData}\n"
+        "        end try\n"
         "        return \"SUCCESS\"\n"
         "    on error errMsg number errNum\n"
         "        return \"ERROR: \" & errNum & \" - \" & errMsg\n"
         "    end try\n"
-        "end tell", [self appName], pid, escPath];
+        "end tell\n"
+        "end timeout",
+        IGCoverAppleScriptLiteral(pid),
+        IGCoverAppleScriptLiteral(imagePath),
+        [self appName]];
 
-    NSString *res = [self runAppleScript:script];
+    NSString *res = [[IGiTunesService sharedService] runAppleScriptNamed:@"covers.setArtwork" source:script];
     return [res isEqualToString:@"SUCCESS"];
 }
 
@@ -436,8 +842,11 @@
     NSData *resized = [self resizeImageAtPath:origPath targetSize:targetSize];
     if (!resized) return NO;
 
-    NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"%@_temp.jpg", pid]];
-    [resized writeToFile:tempPath atomically:YES];
+    NSString *tempName = [NSString stringWithFormat:@"syncrosa-cover-%@-%@.jpg", pid ?: @"track", [[NSProcessInfo processInfo] globallyUniqueString]];
+    NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:tempName];
+    if (![resized writeToFile:tempPath atomically:YES]) {
+        return NO;
+    }
 
     BOOL success = [self setTrackArtworkForPID:pid imagePath:tempPath];
     [[NSFileManager defaultManager] removeItemAtPath:tempPath error:nil];
@@ -462,40 +871,61 @@
 
 // Action handlers
 - (void)backupClicked:(NSButton *)sender {
+    if (self.isProcessing) {
+        [self log:@"Ignored Backup click because another Covers operation is already running."];
+        return;
+    }
+    IGLocalizationService *lang = [IGLocalizationService sharedService];
     self.isProcessing = YES;
+    self.progressIndicator.indeterminate = YES;
     [self.progressIndicator setDoubleValue:0];
+    [self.progressIndicator startAnimation:nil];
+    self.statusLabel.stringValue = @"Scanning iTunes library for covers...";
     [self.logView setString:@""];
-    [self log:[[IGLocalizationService sharedService] t:@"log_backup_started"]];
+    [self log:[lang t:@"log_backup_started"]];
+    [self log:@"If iTunes is closed, Syncrosa will launch it and wait for the library to become ready."];
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSArray *tracks = [self getTracksWithCovers];
+        NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
+            self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
+        }];
         if (tracks.count == 0) {
-            [self log:[[IGLocalizationService sharedService] t:@"no_covers_found"]];
+            [self log:@"iTunes returned no library tracks to scan."];
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.isProcessing = NO;
+                self.progressIndicator.indeterminate = NO;
+                self.progressIndicator.doubleValue = 0;
+                self.statusLabel.stringValue = @"";
             });
             return;
         }
 
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.progressIndicator setMaxValue:tracks.count];
-        });
-
-        NSInteger successCount = 0;
-        for (NSInteger i = 0; i < tracks.count; i++) {
-            NSDictionary *t = tracks[i];
-            NSString *status = [NSString stringWithFormat:@"%@ - %@", t[@"artist"], t[@"title"]];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                self.statusLabel.stringValue = status;
-                [self.progressIndicator setDoubleValue:i + 1];
-            });
-
-            if ([self backupCoverForPID:t[@"pid"] title:t[@"title"] artist:t[@"artist"]]) {
-                successCount++;
+        NSInteger artworkHintCount = 0;
+        for (NSDictionary *track in tracks) {
+            if ([track[@"hasCover"] isEqualToString:@"YES"]) {
+                artworkHintCount++;
             }
         }
+        [self log:[NSString stringWithFormat:@"iTunes returned %ld tracks; AppleScript sees artwork on %ld of them.", (long)tracks.count, (long)artworkHintCount]];
 
-        [self log:[[IGLocalizationService sharedService] t:@"log_backup_finished" args:@[@(successCount)]]];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.progressIndicator.indeterminate = NO;
+            [self.progressIndicator setMaxValue:tracks.count];
+            [self.progressIndicator setDoubleValue:0];
+        });
+
+        NSInteger successCount = [self backupCoversForTracks:tracks progress:^(NSInteger current, NSInteger total) {
+            NSString *status = [NSString stringWithFormat:@"Backing up covers %ld of %ld...", (long)current, (long)total];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.statusLabel.stringValue = status;
+                [self.progressIndicator setDoubleValue:current];
+            });
+        }];
+
+        if (successCount == 0) {
+            [self log:@"No cover files were written. iTunes may expose cached artwork visually without embeddable artwork data in the track files."];
+        }
+        [self log:[lang t:@"log_backup_finished" args:@[@(successCount)]]];
         dispatch_async(dispatch_get_main_queue(), ^{
             self.isProcessing = NO;
             self.statusLabel.stringValue = @"";
@@ -504,6 +934,10 @@
 }
 
 - (void)optimizeClicked:(NSButton *)sender {
+    if (self.isProcessing) {
+        [self log:@"Ignored Optimize click because another Covers operation is already running."];
+        return;
+    }
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     NSAlert *alert = [[NSAlert alloc] init];
     [alert setMessageText:[lang t:@"confirm_backup_title"]];
@@ -516,7 +950,10 @@
     }
 
     self.isProcessing = YES;
+    self.progressIndicator.indeterminate = YES;
     [self.progressIndicator setDoubleValue:0];
+    [self.progressIndicator startAnimation:nil];
+    self.statusLabel.stringValue = @"Scanning iTunes library for covers...";
     [self.logView setString:@""];
 
     NSInteger index = [self.devicePopup indexOfSelectedItem];
@@ -527,18 +964,34 @@
     [self log:[lang t:@"log_optimize_started" args:@[@(targetSize)]]];
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSArray *tracks = [self getTracksWithCovers];
+        NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
+            self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
+        }];
         if (tracks.count == 0) {
             [self log:[lang t:@"no_covers_found"]];
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.isProcessing = NO;
+                self.progressIndicator.indeterminate = NO;
+                self.progressIndicator.doubleValue = 0;
+                self.statusLabel.stringValue = @"";
             });
             return;
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
+            self.progressIndicator.indeterminate = NO;
             [self.progressIndicator setMaxValue:tracks.count];
+            [self.progressIndicator setDoubleValue:0];
         });
+
+        NSInteger backupCount = [self backupCoversForTracks:tracks progress:^(NSInteger current, NSInteger total) {
+            NSString *status = [NSString stringWithFormat:@"Backing up originals %ld of %ld...", (long)current, (long)total];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.statusLabel.stringValue = status;
+                [self.progressIndicator setDoubleValue:current];
+            });
+        }];
+        [self log:[NSString stringWithFormat:@"Backup pass before optimization saved/updated %ld covers.", (long)backupCount]];
 
         NSInteger successCount = 0;
         for (NSInteger i = 0; i < tracks.count; i++) {
@@ -548,9 +1001,6 @@
                 self.statusLabel.stringValue = status;
                 [self.progressIndicator setDoubleValue:i + 1];
             });
-
-            // Backup first if not backed up
-            [self backupCoverForPID:t[@"pid"] title:t[@"title"] artist:t[@"artist"]];
 
             if ([self optimizeCoverForPID:t[@"pid"] targetSize:targetSize]) {
                 successCount++;
@@ -569,24 +1019,38 @@
 }
 
 - (void)restoreClicked:(NSButton *)sender {
+    if (self.isProcessing) {
+        [self log:@"Ignored Restore click because another Covers operation is already running."];
+        return;
+    }
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     self.isProcessing = YES;
+    self.progressIndicator.indeterminate = YES;
     [self.progressIndicator setDoubleValue:0];
+    [self.progressIndicator startAnimation:nil];
+    self.statusLabel.stringValue = @"Scanning iTunes library for covers...";
     [self.logView setString:@""];
     [self log:[lang t:@"log_restore_started"]];
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSArray *tracks = [self getTracksWithCovers];
+        NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
+            self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
+        }];
         if (tracks.count == 0) {
             [self log:[lang t:@"no_covers_found"]];
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.isProcessing = NO;
+                self.progressIndicator.indeterminate = NO;
+                self.progressIndicator.doubleValue = 0;
+                self.statusLabel.stringValue = @"";
             });
             return;
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
+            self.progressIndicator.indeterminate = NO;
             [self.progressIndicator setMaxValue:tracks.count];
+            [self.progressIndicator setDoubleValue:0];
         });
 
         NSInteger successCount = 0;

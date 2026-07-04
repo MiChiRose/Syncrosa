@@ -1,9 +1,13 @@
 #!/bin/bash
+set -euo pipefail
 
 # Переходим в папку проекта
 cd "$(dirname "$0")"
 
 echo "🛠 Building Syncrosa (SwiftUI)..."
+
+DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"
+DIST_ZIP="$DIST_DIR/Syncrosa_SwiftUI_v3.2.0.zip"
 
 # Удаляем старую сборку если есть
 rm -rf Syncrosa.app
@@ -64,7 +68,8 @@ else
 fi
 
 echo "Creating distribution ZIP..."
-rm -f "$HOME/Desktop/Syncrosa_SwiftUI_v3.2.0.zip"
-zip -ry "$HOME/Desktop/Syncrosa_SwiftUI_v3.2.0.zip" Syncrosa.app
+mkdir -p "$DIST_DIR"
+rm -f "$DIST_ZIP"
+zip -ry "$DIST_ZIP" Syncrosa.app
 
-echo "✅ Syncrosa_SwiftUI_v3.2.0.zip successfully created on Desktop!"
+echo "✅ Syncrosa_SwiftUI_v3.2.0.zip successfully created at $DIST_ZIP"

@@ -33,6 +33,18 @@ def load_config():
 
 CONFIG_DATA = load_config()
 
+def _flag_value_enabled(value):
+    if not value:
+        return False
+    return str(value).strip().lower() in ("1", "yes", "true", "on", "debug")
+
+def desktop_debug_logs_enabled():
+    return (
+        _flag_value_enabled(os.environ.get("SYNCROSA_DESKTOP_DEBUG")) or
+        _flag_value_enabled(os.environ.get("SYNCROSA_DEV_LOGS")) or
+        bool(CONFIG_DATA.get("developer_desktop_logs", False))
+    )
+
 def save_config(config):
     global CONFIG_DATA
     CONFIG_DATA = config

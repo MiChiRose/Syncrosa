@@ -9,6 +9,7 @@
 #import "IGAIService.h"
 #import "IGKeychainHelper.h"
 #import "IGLocalizationService.h"
+#import "IGLogger.h"
 
 @interface IGMainWindowController () <NSSplitViewDelegate>
 @property (nonatomic, strong) NSSplitView *splitView;
@@ -36,31 +37,51 @@
     [window center];
     window.title = @"Syncrosa";
     
-    self = [super initWithWindow:window];
-    if (self) {
-        [self setupUI];
-    }
+	    self = [super initWithWindow:window];
+#if !__has_feature(objc_arc)
+	    [window release];
+#endif
+	    if (self) {
+	        [self setupUI];
+	    }
     return self;
 }
 
-- (void)dealloc {
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
-#if !__has_feature(objc_arc)
-    [super dealloc];
-#endif
-}
+	- (void)dealloc {
+	    [[NSNotificationCenter defaultCenter] removeObserver:self];
+	#if !__has_feature(objc_arc)
+	    [_splitView release];
+	    [_sidebarContainer release];
+	    [_contentContainer release];
+	    [_sidebarButtons release];
+	    [_geniusVC release];
+	    [_fixerVC release];
+	    [_fileFixerVC release];
+	    [_usbExportVC release];
+	    [_coversOptimizerVC release];
+	    [_duplicateFinderVC release];
+	    [_offlinePlaylistVC release];
+	    [_settingsVC release];
+	    [super dealloc];
+	#endif
+	}
 
 - (void)setupUI {
     NSView *rootView = self.window.contentView;
     
-    self.splitView = [[NSSplitView alloc] initWithFrame:rootView.bounds];
+	    self.splitView = [[NSSplitView alloc] initWithFrame:rootView.bounds];
     self.splitView.vertical = YES;
     self.splitView.dividerStyle = NSSplitViewDividerStyleThin;
     self.splitView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     self.splitView.delegate = self;
     
-    self.sidebarContainer = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 180, 500)];
-    self.contentContainer = [[NSView alloc] initWithFrame:NSMakeRect(180, 0, 620, 500)];
+	    self.sidebarContainer = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 180, 500)];
+	    self.contentContainer = [[NSView alloc] initWithFrame:NSMakeRect(180, 0, 620, 500)];
+#if !__has_feature(objc_arc)
+	    [self.splitView release];
+	    [self.sidebarContainer release];
+	    [self.contentContainer release];
+#endif
     
     // Add a classic textured background to the sidebar
     NSBox *sidebarBackground = [[NSBox alloc] initWithFrame:self.sidebarContainer.bounds];
@@ -68,7 +89,10 @@
     sidebarBackground.borderType = NSNoBorder;
     sidebarBackground.fillColor = [NSColor colorWithCalibratedWhite:0.92 alpha:1.0];
     sidebarBackground.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [self.sidebarContainer addSubview:sidebarBackground];
+	    [self.sidebarContainer addSubview:sidebarBackground];
+#if !__has_feature(objc_arc)
+	    [sidebarBackground release];
+#endif
     
     [self.splitView addSubview:self.sidebarContainer];
     [self.splitView addSubview:self.contentContainer];
@@ -91,7 +115,7 @@
                                                object:nil];
     
     // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
-    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
+	    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"Gemini";
     NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     if (apiKey && apiKey.length > 0) {
         [self switchViewToIndex:0];
@@ -105,7 +129,7 @@
 }
 
 - (void)updateButtonStates {
-    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
+	    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"Gemini";
     NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     BOOL hasKey = (apiKey && apiKey.length > 0);
     BOOL isUSBSearching = [IGUSBService sharedService].isSearching;
@@ -150,10 +174,13 @@
         btn.action = @selector(sidebarClicked:);
         btn.tag = i;
         btn.autoresizingMask = NSViewWidthSizable;
-        [self.sidebarContainer addSubview:btn];
-        [self.sidebarButtons addObject:btn];
-        y -= 38;
-    }
+	        [self.sidebarContainer addSubview:btn];
+	        [self.sidebarButtons addObject:btn];
+#if !__has_feature(objc_arc)
+	        [btn release];
+#endif
+	        y -= 38;
+	    }
 }
 
 - (void)localizationChanged:(NSNotification *)notification {
@@ -176,11 +203,13 @@
 }
 
 - (void)sidebarClicked:(NSButton *)sender {
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Sidebar clicked index=%ld title=%@", (long)sender.tag, sender.title ?: @""]];
     [self switchViewToIndex:sender.tag];
 }
 
 - (void)switchViewToIndex:(NSInteger)index {
-    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"gemini";
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view requested index=%ld", (long)index]];
+	    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"Gemini";
     NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     BOOL hasKey = (apiKey && apiKey.length > 0);
     
@@ -202,48 +231,101 @@
         }
     }
 
-    // Clear content
-    for (NSView *v in self.contentContainer.subviews) {
-        [v removeFromSuperview];
-    }
+	    // Clear content
+	    NSArray *contentSubviews = [self.contentContainer.subviews copy];
+	    for (NSView *v in contentSubviews) {
+	        [v removeFromSuperview];
+	    }
+#if !__has_feature(objc_arc)
+	    [contentSubviews release];
+#endif
     
     NSViewController *targetVC = nil;
     switch (index) {
-        case 0:
-            if (!self.geniusVC) self.geniusVC = [[IGGeniusViewController alloc] init];
-            targetVC = self.geniusVC;
-            break;
-        case 1:
-            if (!self.fixerVC) self.fixerVC = [[IGFixerViewController alloc] init];
-            targetVC = self.fixerVC;
-            break;
-        case 2:
-            if (!self.fileFixerVC) self.fileFixerVC = [[IGFileFixerViewController alloc] init];
-            targetVC = self.fileFixerVC;
-            break;
-        case 3:
-            if (!self.usbExportVC) self.usbExportVC = [[IGUSBExportViewController alloc] init];
-            targetVC = self.usbExportVC;
-            break;
-        case 4:
-            if (!self.coversOptimizerVC) self.coversOptimizerVC = [[IGCoversOptimizerViewController alloc] init];
-            targetVC = self.coversOptimizerVC;
-            break;
-        case 5:
-            if (!self.duplicateFinderVC) self.duplicateFinderVC = [[IGDuplicateFinderViewController alloc] init];
-            targetVC = self.duplicateFinderVC;
-            break;
-        case 6:
-            if (!self.offlinePlaylistVC) self.offlinePlaylistVC = [[IGOfflinePlaylistViewController alloc] init];
-            targetVC = self.offlinePlaylistVC;
-            break;
-        case 7:
-            if (!self.settingsVC) self.settingsVC = [[IGSettingsViewController alloc] init];
-            targetVC = self.settingsVC;
-            break;
+	        case 0:
+	            if (!self.geniusVC) {
+	                IGGeniusViewController *vc = [[IGGeniusViewController alloc] init];
+	                self.geniusVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.geniusVC;
+	            break;
+	        case 1:
+	            if (!self.fixerVC) {
+	                IGFixerViewController *vc = [[IGFixerViewController alloc] init];
+	                self.fixerVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.fixerVC;
+	            break;
+	        case 2:
+	            if (!self.fileFixerVC) {
+	                IGFileFixerViewController *vc = [[IGFileFixerViewController alloc] init];
+	                self.fileFixerVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.fileFixerVC;
+	            break;
+	        case 3:
+	            if (!self.usbExportVC) {
+	                IGUSBExportViewController *vc = [[IGUSBExportViewController alloc] init];
+	                self.usbExportVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.usbExportVC;
+	            break;
+	        case 4:
+	            if (!self.coversOptimizerVC) {
+	                IGCoversOptimizerViewController *vc = [[IGCoversOptimizerViewController alloc] init];
+	                self.coversOptimizerVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.coversOptimizerVC;
+	            break;
+	        case 5:
+	            if (!self.duplicateFinderVC) {
+	                IGDuplicateFinderViewController *vc = [[IGDuplicateFinderViewController alloc] init];
+	                self.duplicateFinderVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.duplicateFinderVC;
+	            break;
+	        case 6:
+	            if (!self.offlinePlaylistVC) {
+	                IGOfflinePlaylistViewController *vc = [[IGOfflinePlaylistViewController alloc] init];
+	                self.offlinePlaylistVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.offlinePlaylistVC;
+	            break;
+	        case 7:
+	            if (!self.settingsVC) {
+	                IGSettingsViewController *vc = [[IGSettingsViewController alloc] init];
+	                self.settingsVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.settingsVC;
+	            break;
     }
     
     if (targetVC) {
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view showing %@ for index=%ld", NSStringFromClass([targetVC class]), (long)index]];
         targetVC.view.frame = self.contentContainer.bounds;
         targetVC.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         [self.contentContainer addSubview:targetVC.view];

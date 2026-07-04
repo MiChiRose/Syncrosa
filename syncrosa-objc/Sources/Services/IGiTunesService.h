@@ -35,5 +35,7 @@
  * Executes an AppleScript command on the main thread and returns the string result.
  */
 - (NSString *)runAppleScript:(NSString *)source;
+- (NSString *)runAppleScriptNamed:(NSString *)name source:(NSString *)source;
+- (void)writeStartupDiagnostics;
 
 @end

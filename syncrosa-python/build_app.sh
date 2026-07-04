@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # --- ИНСТРУКЦИЯ ---
 # ЗАПУСКАТЬ СТРОГО НА СТАРОМ MAC (10.9 - 10.13)
@@ -7,6 +8,8 @@
 APP_NAME="Syncrosa"
 WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 APP_PATH="$WORK_DIR/$APP_NAME.app"
+DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"
+DIST_ZIP="$DIST_DIR/Syncrosa_Python_v3.2.0.zip"
 
 echo "--- Building Native $APP_NAME PRO (AI + Fixer) for Mavericks ---"
 
@@ -103,14 +106,15 @@ echo "Refreshing Finder icon cache..."
 /usr/bin/touch "$APP_PATH/Contents/Resources/AppIcon.icns"
 
 # Force Mac OS to reload the app bundle metadata
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH" || true
 
 # 9. УПАКОВКА В ZIP
 echo "Creating distribution ZIP..."
-rm -f "$HOME/Desktop/Syncrosa_Python_v3.2.0.zip"
+mkdir -p "$DIST_DIR"
+rm -f "$DIST_ZIP"
 cd "$WORK_DIR"
-zip -ry "$HOME/Desktop/Syncrosa_Python_v3.2.0.zip" "$APP_NAME.app"
+zip -ry "$DIST_ZIP" "$APP_NAME.app"
 rm -rf "$APP_PATH"
 
 echo "--- SUCCESS! ---"
-echo "Ready: Syncrosa_Python_v3.2.0.zip on your Desktop."
+echo "Ready: $DIST_ZIP"
