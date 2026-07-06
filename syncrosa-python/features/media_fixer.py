@@ -6,6 +6,7 @@ import time
 from collections import Counter
 from core.itunes_bridge import FIELD_SEP, SAFE_FIELD_HANDLER, run_as, get_library_track_count
 from core.network import make_request
+from core.config import CONFIG_DATA
 import sys
 try:
     from urllib import quote as q_f
@@ -20,6 +21,9 @@ def norm_text(t):
     return u' '.join(re.sub(r'[^a-zA-Z0-9а-яА-ЯёЁ\s]', u' ', t).lower().split())
 
 def find_apple_metadata(artist, title):
+    if CONFIG_DATA.get("only_local_mode"):
+        return None
+
     clean_t = re.sub(r'[\(\[].*?[\)\]]', '', title).strip()
     try:
         search_term = u"{0} {1}".format(artist, clean_t).encode('utf-8')
@@ -200,12 +204,14 @@ def run_metadata_fix(progress_cb, status_cb, check_run, checked_tags):
                 if "artist" in checked_tags and info.get('artist') and (not artist or artist.lower() in ["unknown artist", "unknown"]):
                     updates.append(u'set artist of t to "{0}"'.format(info['artist'].replace('"', '\\"')))
                     
-            if "lyrics" in checked_tags and has_lyr == "0":
+            if "lyrics" in checked_tags and has_lyr == "0" and not CONFIG_DATA.get("only_local_mode"):
                 from features.lyrics_service import fetch_lyrics
                 lyrics_text = fetch_lyrics(artist, title)
                 if lyrics_text:
                     escaped_lyr = lyrics_text.replace('\\', '\\\\').replace('"', '\\"').replace('\r', '\\r').replace('\n', '\\r')
                     updates.append(u'set lyrics of t to "{0}"'.format(escaped_lyr))
+            elif "lyrics" in checked_tags and has_lyr == "0" and CONFIG_DATA.get("only_local_mode"):
+                status_cb("Only Local Mode enabled: skipping online lyrics lookup.")
                     
             if updates:
                 u_s = u'tell application "iTunes"\ntry\nset t to (some track whose persistent ID is "{0}")\n{1}\nreturn "OK"\nend try\nend tell'.format(pid, u"\n".join(updates))

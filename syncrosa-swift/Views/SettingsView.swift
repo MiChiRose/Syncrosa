@@ -13,6 +13,7 @@ struct SettingsView: View {
     
     @AppStorage("selected_provider") private var selectedProvider: String = "Gemini"
     @AppStorage("is_key_validated") private var isKeyValidated: Bool = false
+    @AppStorage("only_local_mode") private var onlyLocalMode: Bool = false
     
     @State private var activeNotification: NotificationMessage? = nil
     @State private var isValidating: Bool = false
@@ -24,6 +25,7 @@ struct SettingsView: View {
     @State private var openRouterModels: [String] = AIService.shared.cachedOpenRouterModels
     @State private var isSyncingModels: Bool = false
     @State private var isSyncingLibrary: Bool = false
+    @State private var showHistory: Bool = false
     
     var isKeyEmpty: Bool {
         switch selectedProvider {
@@ -75,7 +77,33 @@ struct SettingsView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
+                .cornerRadius(12)
+
+                // Group 1a: Safety
+                VStack(alignment: .leading, spacing: 10) {
+                    Label(lang.selectedLanguage == "ru" ? "Безопасность процессов" : "Process Safety", systemImage: "shield.lefthalf.filled")
+                        .font(.headline)
+
+                    Toggle(isOn: $onlyLocalMode) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Only Local Mode")
+                                .fontWeight(.semibold)
+                            Text(lang.selectedLanguage == "ru" ? "Пропускать сетевые запросы метаданных и работать только с локальными файлами/медиатекой." : "Skip online metadata lookups and work only with local files/library data.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+
+                    Button(action: { showHistory = true }) {
+                        Label(lang.selectedLanguage == "ru" ? "Открыть историю операций" : "Open Operation History", systemImage: "clock.arrow.circlepath")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Group 1: iTunes Library
@@ -99,7 +127,7 @@ struct SettingsView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Group 2: AI Configuration
@@ -169,7 +197,7 @@ struct SettingsView: View {
                     .disabled(isValidating || isKeyEmpty)
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 Spacer()
@@ -184,6 +212,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showHelp) {
             helpSheetView
+        }
+        .sheet(isPresented: $showHistory) {
+            OperationHistoryView()
         }
     }
     

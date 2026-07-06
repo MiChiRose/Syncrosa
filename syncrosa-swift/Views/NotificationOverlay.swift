@@ -51,9 +51,9 @@ struct NotificationModifier: ViewModifier {
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                .stroke(SyncrosaTheme.panelBorder, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .shadow(color: SyncrosaTheme.softShadow, radius: 10, x: 0, y: 5)
         .buttonStyle(.plain)
         .onAppear {
             // Auto-hide short status messages; progress messages keep updating until the task finishes.

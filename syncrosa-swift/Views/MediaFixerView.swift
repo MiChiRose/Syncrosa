@@ -86,7 +86,7 @@ struct MediaFixerView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Card 1: Controls
@@ -121,7 +121,7 @@ struct MediaFixerView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Card 2: Split Album Results
@@ -134,7 +134,7 @@ struct MediaFixerView: View {
                         VStack(spacing: 15) {
                             Image(systemName: "music.note.list")
                                 .font(.system(size: 40))
-                                .foregroundColor(.gray.opacity(0.3))
+                                .foregroundColor(SyncrosaTheme.placeholderIcon)
                             Text(lang.selectedLanguage == "ru" ? "Проблем с разбитыми альбомами не обнаружено." : "No split album issues detected yet.")
                                 .foregroundColor(.secondary)
                         }
@@ -163,7 +163,7 @@ struct MediaFixerView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 Spacer()
@@ -333,6 +333,19 @@ struct MediaFixerView: View {
     }
     
     func updateMetadata() {
+        if UserDefaults.standard.bool(forKey: "only_local_mode") {
+            alertMessage = lang.selectedLanguage == "ru" ? "Only Local Mode включён. Сетевое обновление метаданных пропущено." : "Only Local Mode is enabled. Online metadata update was skipped."
+            showAlert = true
+            OperationHistoryService.shared.record(
+                tool: "Media Fixer",
+                title: "Update Metadata",
+                status: "WARN",
+                message: alertMessage,
+                affectedCount: 0
+            )
+            return
+        }
+
         isAnalyzing = true
         activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Загрузка списка треков..." : "Loading track list...", isError: false)
         
@@ -430,6 +443,13 @@ struct MediaFixerView: View {
                 alertMessage = lang.selectedLanguage == "ru" ? "Обновление метаданных завершено!" : "Metadata update complete!"
                 showAlert = true
                 activeNotification = nil
+                OperationHistoryService.shared.record(
+                    tool: "Media Fixer",
+                    title: "Update Metadata",
+                    status: "OK",
+                    message: alertMessage,
+                    affectedCount: total
+                )
             }
         }
     }

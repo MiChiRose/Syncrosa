@@ -7,6 +7,8 @@ import struct
 import time
 import uuid
 
+from core.storage_paths import tool_backup_dir
+
 MUSIC_EXTENSIONS = set(["mp3", "m4a", "mp4", "aac", "flac", "wav", "aiff", "alac"])
 MP4_EXTENSIONS = set(["m4a", "mp4", "aac", "alac"])
 BACKUP_DIR_NAME = "SyncrosaInfoEraserBackup"
@@ -34,6 +36,39 @@ def find_music_files(folder):
                 results.append(os.path.join(root, name))
     results.sort()
     return results
+
+
+def _prune_mirrored_backups(root, keep=10):
+    try:
+        items = []
+        for name in os.listdir(root):
+            path = os.path.join(root, name)
+            if os.path.isdir(path):
+                items.append((os.path.getmtime(path), path))
+        items.sort(reverse=True)
+        for _mtime, path in items[keep:]:
+            shutil.rmtree(path)
+    except Exception:
+        pass
+
+
+def _restore_backup_dir(folder):
+    local_dir = os.path.join(folder, BACKUP_DIR_NAME)
+    if os.path.exists(os.path.join(local_dir, MANIFEST_NAME)):
+        return local_dir
+    try:
+        root = tool_backup_dir("InfoEraser")
+        items = []
+        for name in os.listdir(root):
+            path = os.path.join(root, name)
+            if os.path.isdir(path) and os.path.exists(os.path.join(path, MANIFEST_NAME)):
+                items.append((os.path.getmtime(path), path))
+        items.sort(reverse=True)
+        if items:
+            return items[0][1]
+    except Exception:
+        pass
+    return local_dir
 
 
 def _relpath(path, folder):
@@ -274,6 +309,15 @@ def backup_original_info(folder, files, progress_cb=None):
     with open(tmp_path, "w") as f:
         json.dump(manifest, f, indent=2, sort_keys=True)
     os.rename(tmp_path, manifest_path)
+    try:
+        mirror_root = tool_backup_dir("InfoEraser")
+        mirror_dir = os.path.join(mirror_root, "backup-{}-{}".format(int(time.time()), uuid.uuid4().hex[:8]))
+        if os.path.exists(mirror_dir):
+            shutil.rmtree(mirror_dir)
+        shutil.copytree(backup_dir, mirror_dir)
+        _prune_mirrored_backups(mirror_root, 10)
+    except Exception:
+        pass
     return manifest_path, len([i for i in manifest["items"] if i.get("supported")])
 
 
@@ -304,7 +348,7 @@ def erase_info(files, progress_cb=None):
 
 
 def restore_info(folder, progress_cb=None):
-    backup_dir = os.path.join(folder, BACKUP_DIR_NAME)
+    backup_dir = _restore_backup_dir(folder)
     manifest_path = os.path.join(backup_dir, MANIFEST_NAME)
     with open(manifest_path, "r") as f:
         manifest = json.load(f)

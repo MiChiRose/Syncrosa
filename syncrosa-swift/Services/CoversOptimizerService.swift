@@ -8,6 +8,11 @@ class CoversOptimizerService {
     private let scriptQueue = DispatchQueue(label: "com.michirose.syncrosa.optimizerQueue")
     
     var backupFolder: URL {
+        (try? SyncrosaStorage.backupDirectory(for: "AlbumCovers")) ??
+        fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("Syncrosa/Backups/AlbumCovers")
+    }
+
+    private var legacyBackupFolder: URL {
         let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         return docs.appendingPathComponent("AlbumCovers")
     }
@@ -27,6 +32,18 @@ class CoversOptimizerService {
     func createBackupFolderIfNeeded() {
         if !fileManager.fileExists(atPath: backupFolder.path) {
             try? fileManager.createDirectory(at: backupFolder, withIntermediateDirectories: true, attributes: nil)
+        }
+        let legacyManifest = legacyBackupFolder.appendingPathComponent("manifest.json")
+        if !fileManager.fileExists(atPath: manifestURL.path),
+           fileManager.fileExists(atPath: legacyManifest.path) {
+            if let files = try? fileManager.contentsOfDirectory(at: legacyBackupFolder, includingPropertiesForKeys: nil) {
+                for file in files {
+                    let destination = backupFolder.appendingPathComponent(file.lastPathComponent)
+                    if !fileManager.fileExists(atPath: destination.path) {
+                        try? fileManager.copyItem(at: file, to: destination)
+                    }
+                }
+            }
         }
     }
     
@@ -73,6 +90,20 @@ class CoversOptimizerService {
     private func saveManifest(_ manifest: CoversManifest) {
         if let data = try? JSONEncoder().encode(manifest) {
             try? data.write(to: manifestURL, options: .atomic)
+        }
+    }
+
+    func backupManifestCount() -> Int {
+        return loadManifest().backups.count
+    }
+
+    func backupManifestEntries() -> [(pid: String, title: String, artist: String)] {
+        return loadManifest().backups.map { key, info in
+            (pid: key, title: info.title, artist: info.artist)
+        }.sorted { lhs, rhs in
+            let left = "\(lhs.artist) \(lhs.title)"
+            let right = "\(rhs.artist) \(rhs.title)"
+            return left.localizedStandardCompare(right) == .orderedAscending
         }
     }
     

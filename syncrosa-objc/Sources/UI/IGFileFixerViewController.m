@@ -78,11 +78,44 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     return data;
 }
 
+static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *status, NSString *message, NSInteger affectedCount) {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    NSString *dir = [base stringByAppendingPathComponent:@"Syncrosa"];
+    NSString *path = [dir stringByAppendingPathComponent:@"operation-history.json"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+
+    NSMutableArray *entries = [NSMutableArray array];
+    NSData *existingData = [NSData dataWithContentsOfFile:path];
+    if (existingData.length > 0) {
+        id json = [NSJSONSerialization JSONObjectWithData:existingData options:0 error:nil];
+        if ([json isKindOfClass:[NSArray class]]) {
+            [entries addObjectsFromArray:(NSArray *)json];
+        }
+    }
+    NSDictionary *entry = @{
+        @"id": [[NSProcessInfo processInfo] globallyUniqueString],
+        @"tool": tool ?: @"",
+        @"title": title ?: @"",
+        @"status": status ?: @"",
+        @"message": message ?: @"",
+        @"createdAt": @([[NSDate date] timeIntervalSince1970]),
+        @"affectedCount": @(affectedCount),
+        @"backupPath": @""
+    };
+    [entries insertObject:entry atIndex:0];
+    while (entries.count > 250) {
+        [entries removeLastObject];
+    }
+    NSData *data = [NSJSONSerialization dataWithJSONObject:entries options:NSJSONWritingPrettyPrinted error:nil];
+    [data writeToFile:path atomically:YES];
+}
+
 @interface IGFileFixerViewController ()
 @property (nonatomic, strong) NSTextField *folderPathField;
 @property (nonatomic, strong) NSButton *selectFolderButton;
 @property (nonatomic, strong) NSButton *downloadCoversButton;
-@property (nonatomic, strong) NSButton *normalizeUnderscoresButton;
+@property (nonatomic, strong) NSButton *cleanFilenamesButton;
 @property (nonatomic, strong) NSButton *fixButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
@@ -90,6 +123,8 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
 @property (nonatomic, strong) NSArray *foundFiles;
 @property (nonatomic, assign) BOOL isProcessing;
 @property (nonatomic, assign) BOOL underscoreNormalizationEnabledForRun;
+@property (nonatomic, assign) NSInteger folderFixSuccessCount;
+@property (nonatomic, assign) NSInteger folderFixFailureCount;
 
 @property (nonatomic, strong) NSButton *selectAllCheckbox;
 @property (nonatomic, strong) NSButton *albumCheckbox;
@@ -208,11 +243,13 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     [self.view addSubview:self.downloadCoversButton];
 
     y -= 24;
-    self.normalizeUnderscoresButton = [[NSButton alloc] initWithFrame:NSMakeRect(110, y, 360, 20)];
-    [self.normalizeUnderscoresButton setButtonType:NSSwitchButton];
-    self.normalizeUnderscoresButton.title = [lang t:@"replace_underscores"];
-    self.normalizeUnderscoresButton.state = NSOffState;
-    [self.view addSubview:self.normalizeUnderscoresButton];
+    self.cleanFilenamesButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y - 4, 200, 30)];
+    self.cleanFilenamesButton.title = @"Clean Filenames";
+    self.cleanFilenamesButton.bezelStyle = NSRoundedBezelStyle;
+    self.cleanFilenamesButton.enabled = NO;
+    self.cleanFilenamesButton.target = self;
+    self.cleanFilenamesButton.action = @selector(cleanFilenamesClicked:);
+    [self.view addSubview:self.cleanFilenamesButton];
 
     y -= 42;
     self.fixButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
@@ -391,6 +428,7 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
             self.statusLabel.stringValue = [lang t:@"files_to_process" args:@[@([result count])]];
             [self log:[NSString stringWithFormat:@"Scanned folder recursively: Found %ld music files.", (long)result.count]];
             self.fixButton.enabled = (result.count > 0);
+            self.cleanFilenamesButton.enabled = (result.count > 0);
 #if !__has_feature(objc_arc)
             [result release];
 #endif
@@ -405,11 +443,13 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     if (self.isProcessing) return;
 
     self.isProcessing = YES;
-    self.underscoreNormalizationEnabledForRun = (self.normalizeUnderscoresButton.state == NSOnState);
+    self.underscoreNormalizationEnabledForRun = NO;
+    self.folderFixSuccessCount = 0;
+    self.folderFixFailureCount = 0;
     self.fixButton.enabled = NO;
     self.selectFolderButton.enabled = NO;
     self.downloadCoversButton.enabled = NO;
-    self.normalizeUnderscoresButton.enabled = NO;
+    self.cleanFilenamesButton.enabled = NO;
 
     [self clearLogView];
     [self log:@"Starting folder fix process..."];
@@ -419,6 +459,84 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     [self processFileAtIndex:0];
 }
 
+- (void)cleanFilenamesClicked:(id)sender {
+    if (self.isProcessing || self.foundFiles.count == 0) return;
+
+    self.isProcessing = YES;
+    self.fixButton.enabled = NO;
+    self.cleanFilenamesButton.enabled = NO;
+    self.selectFolderButton.enabled = NO;
+    self.downloadCoversButton.enabled = NO;
+
+    [self clearLogView];
+    [self log:@"Starting filename cleaner..."];
+    self.statusLabel.stringValue = @"Cleaning filenames...";
+    self.progressIndicator.maxValue = self.foundFiles.count;
+    self.progressIndicator.doubleValue = 0;
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        NSMutableArray *updatedFiles = [NSMutableArray arrayWithCapacity:self.foundFiles.count];
+        __block BOOL failed = NO;
+        __block NSInteger renamed = 0;
+        NSInteger currentIndex = 0;
+
+        for (NSURL *fileURL in self.foundFiles) {
+            if (failed) break;
+            currentIndex++;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.progressIndicator.doubleValue = currentIndex;
+                [self log:[NSString stringWithFormat:@"Checking: %@", fileURL.lastPathComponent ?: @""]];
+            });
+
+            NSError *error = nil;
+            NSURL *newURL = [self URLByReplacingUnderscoresInFilenameForURL:fileURL error:&error];
+            if (!newURL) {
+                failed = YES;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self log:[NSString stringWithFormat:@"ERROR: %@", error.localizedDescription ?: @"Could not rename file."]];
+                });
+                break;
+            }
+
+            if (![newURL.path isEqualToString:fileURL.path]) {
+                renamed++;
+            }
+            [updatedFiles addObject:newURL];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self log:[NSString stringWithFormat:@"OK: %@", newURL.lastPathComponent ?: @""]];
+            });
+        }
+
+        if (failed && currentIndex > 0 && currentIndex - 1 < self.foundFiles.count) {
+            NSInteger remainingIndex = currentIndex - 1;
+            while (remainingIndex < self.foundFiles.count) {
+                [updatedFiles addObject:[self.foundFiles objectAtIndex:remainingIndex]];
+                remainingIndex++;
+            }
+        }
+
+        NSArray *finalFiles = [updatedFiles copy];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.foundFiles = finalFiles;
+            self.isProcessing = NO;
+            self.fixButton.enabled = (self.foundFiles.count > 0);
+            self.cleanFilenamesButton.enabled = (self.foundFiles.count > 0);
+            self.selectFolderButton.enabled = YES;
+            self.downloadCoversButton.enabled = YES;
+            self.statusLabel.stringValue = failed ? @"Filename Cleaner stopped after an error." : [NSString stringWithFormat:@"Filename Cleaner finished. Renamed: %ld.", (long)renamed];
+            [self log:self.statusLabel.stringValue];
+            IGFileFixerRecordHistory(@"Filename Cleaner", @"Clean Filenames", failed ? @"FAIL" : @"OK", self.statusLabel.stringValue, renamed);
+#if !__has_feature(objc_arc)
+            [finalFiles release];
+#endif
+        });
+#if !__has_feature(objc_arc)
+        [pool drain];
+#endif
+    });
+}
+
 - (void)processFileAtIndex:(NSInteger)index {
     if (index >= self.foundFiles.count) {
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -426,9 +544,14 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
             self.fixButton.enabled = YES;
             self.selectFolderButton.enabled = YES;
             self.downloadCoversButton.enabled = YES;
-            self.normalizeUnderscoresButton.enabled = YES;
+            self.cleanFilenamesButton.enabled = (self.foundFiles.count > 0);
+            NSString *historyStatus = self.folderFixFailureCount > 0 ? @"WARN" : @"OK";
+            NSString *historyMessage = self.folderFixFailureCount > 0 ?
+                [NSString stringWithFormat:@"Process finished with %ld failed files and %ld successful files.", (long)self.folderFixFailureCount, (long)self.folderFixSuccessCount] :
+                @"Process finished successfully.";
             self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"done"];
-            [self log:@"Process finished successfully."];
+            [self log:historyMessage];
+            IGFileFixerRecordHistory(@"Folder Fixer", @"Fix Folder Metadata", historyStatus, historyMessage, self.folderFixSuccessCount);
 
             [IGNotificationView showInView:self.view message:[[IGLocalizationService sharedService] t:@"done"] isError:NO];
         });
@@ -452,6 +575,10 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     BOOL updateTrackNumber = (self.trackNumberCheckbox.state == NSOnState);
     BOOL updateLyrics = (self.lyricsCheckbox.state == NSOnState);
     BOOL normalizeUnderscores = self.underscoreNormalizationEnabledForRun;
+    if (updateLyrics && [[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
+        updateLyrics = NO;
+        [self log:@"Only Local Mode enabled: skipping lyrics request."];
+    }
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         [self fixFileAtURL:fileUrl
@@ -467,12 +594,13 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (underscoreNormalizationFailed) {
                     self.underscoreNormalizationEnabledForRun = NO;
-                    self.normalizeUnderscoresButton.state = NSOffState;
                     [self log:@"Underscore replacement stopped after a safe failure. Other Folder Fixer actions will continue."];
                 }
                 if (success) {
+                    self.folderFixSuccessCount++;
                     [self log:[NSString stringWithFormat:@"Successfully fixed: %@", fileName]];
                 } else {
+                    self.folderFixFailureCount++;
                     [self log:[NSString stringWithFormat:@"Failed to fix: %@", fileName]];
                 }
 
@@ -586,6 +714,12 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
 - (void)fetchITunesMetadataForTitle:(NSString *)title
                              artist:(NSString *)artist
                          completion:(void(^)(NSDictionary *result))completionBlock {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
+        [self log:@"Only Local Mode enabled: skipping iTunes Search metadata request."];
+        completionBlock(nil);
+        return;
+    }
+
     NSString *query = [NSString stringWithFormat:@"%@ %@", title, artist];
     NSString *encodedQuery = [query stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
     NSString *urlString = [NSString stringWithFormat:@"https://itunes.apple.com/search?term=%@&entity=song&limit=1", encodedQuery];
@@ -857,7 +991,16 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
 
 - (NSURL *)URLByReplacingUnderscoresInFilenameForURL:(NSURL *)fileURL error:(NSError **)error {
     NSString *baseName = [[fileURL lastPathComponent] stringByDeletingPathExtension];
-    if ([baseName rangeOfString:@"_"].location == NSNotFound) {
+    NSUInteger underscoreCount = 0;
+    NSUInteger pos = 0;
+    while (pos < baseName.length) {
+        unichar ch = [baseName characterAtIndex:pos];
+        if (ch == '_') underscoreCount++;
+        pos++;
+    }
+    if (underscoreCount < 2 &&
+        [baseName rangeOfString:@"_-_"].location == NSNotFound &&
+        [baseName rangeOfString:@"__"].location == NSNotFound) {
         return fileURL;
     }
 

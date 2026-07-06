@@ -29,6 +29,9 @@ from ui.tabs.tab_optimizer import OptimizerTab
 from ui.tabs.tab_duplicate_finder import DuplicateFinderTab
 from ui.tabs.tab_offline_playlist import OfflinePlaylistTab
 from ui.tabs.tab_info_eraser import InfoEraserTab
+from ui.tabs.tab_overview import OverviewTab
+from ui.tabs.tab_library_doctor import LibraryDoctorTab
+from ui.tabs.tab_filename_cleaner import FilenameCleanerTab
 
 if sys.version_info[0] < 3:
     reload(sys)
@@ -38,13 +41,13 @@ class App(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.title(_(u"main_title"))
-        self.geometry("600x550")
-        self.resizable(False, False)
+        self.geometry("760x560")
+        self.resizable(True, True)
         self.configure(bg="#ECECEC")
         
         # We handle the icon via Info.plist for stability on old macOS
         
-        w, h = 600, 550
+        w, h = 760, 560
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         self.geometry("{}x{}+{}+{}".format(w, h, int(sw/2 - w/2), int(sh/2 - h/2)))
@@ -63,27 +66,34 @@ class App(tk.Tk):
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
 
+        self.tab_overview = OverviewTab(self.notebook, self)
         self.tab_genius = GeniusTab(self.notebook, self)
         self.tab_fixer = FixerTab(self.notebook, self)
         self.tab_optimizer = OptimizerTab(self.notebook, self)
         self.tab_duplicate_finder = DuplicateFinderTab(self.notebook, self)
         self.tab_offline_playlist = OfflinePlaylistTab(self.notebook, self)
         self.tab_info_eraser = InfoEraserTab(self.notebook, self)
+        self.tab_library_doctor = LibraryDoctorTab(self.notebook, self)
+        self.tab_filename_cleaner = FilenameCleanerTab(self.notebook, self)
         self.tab_library_status = self._build_library_status_tab()
 
+        self.notebook.add(self.tab_overview, text="Overview")
         self.notebook.add(self.tab_genius, text="Genius")
         self.notebook.add(self.tab_fixer, text="Media Fixer")
         self.notebook.add(self.tab_optimizer, text="Covers Optimizer")
-        self.notebook.add(self.tab_duplicate_finder, text="Duplicate Finder")
-        self.notebook.add(self.tab_offline_playlist, text="Offline Playlist")
+        self.notebook.add(self.tab_duplicate_finder, text="Duplicates")
+        self.notebook.add(self.tab_offline_playlist, text="Offline")
         self.notebook.add(self.tab_info_eraser, text="Info Eraser")
-        self.notebook.add(self.tab_library_status, text="Library Status")
+        self.notebook.add(self.tab_library_doctor, text="Doctor")
+        self.notebook.add(self.tab_filename_cleaner, text="Filenames")
+        self.notebook.add(self.tab_library_status, text="Status")
         self.music_tabs = [
             self.tab_genius,
             self.tab_fixer,
             self.tab_optimizer,
             self.tab_duplicate_finder,
-            self.tab_offline_playlist
+            self.tab_offline_playlist,
+            self.tab_library_doctor
         ]
         self._show_library_status_tab(False)
         
@@ -197,7 +207,7 @@ class App(tk.Tk):
             self._show_library_status_tab(False)
             if current_tab == str(self.tab_library_status):
                 try:
-                    self.notebook.select(self.tab_genius)
+                    self.notebook.select(self.tab_overview)
                 except Exception:
                     pass
         else:
@@ -209,6 +219,8 @@ class App(tk.Tk):
 
         if hasattr(self, 'tab_genius'):
             self.tab_genius._update_library_info()
+        if hasattr(self, 'tab_overview'):
+            self.tab_overview.update_library_status()
 
     def refresh_library_status_async(self):
         if self.library_status_refreshing:
