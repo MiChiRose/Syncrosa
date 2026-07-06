@@ -218,7 +218,7 @@ struct PlaylistGeneratorView: View {
                 DispatchQueue.main.async {
                     isGenerating = false
                     activeNotification = NotificationMessage(
-                        text: lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library.",
+                        text: lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty.",
                         isError: true
                     )
                 }
@@ -245,7 +245,10 @@ struct PlaylistGeneratorView: View {
             guard !tracks.isEmpty else {
                 DispatchQueue.main.async {
                     isGenerating = false
-                    activeNotification = NotificationMessage(text: "Library is empty.", isError: true)
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru" ? "Music прочитан, но доступных треков не вернул." : "Music was read, but no usable tracks were returned.",
+                        isError: true
+                    )
                 }
                 return
             }

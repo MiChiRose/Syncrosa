@@ -290,7 +290,7 @@ struct DuplicateFinderView: View {
                     self.duplicatePairs = []
                     self.isScanning = false
                     self.activeNotification = nil
-                    self.alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    self.alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty."
                     self.showAlert = true
                 }
                 return

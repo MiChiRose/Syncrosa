@@ -276,7 +276,7 @@ struct SettingsView: View {
             guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
                 DispatchQueue.main.async {
                     isSyncingLibrary = false
-                    self.activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library.", isError: true)
+                    self.activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty.", isError: true)
                 }
                 return
             }
