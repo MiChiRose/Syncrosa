@@ -110,6 +110,41 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     return [self runAppleScriptNamed:@"generic" source:source];
 }
 
+- (void)fetchLibraryTrackCountWithCompletion:(void(^)(NSInteger trackCount, NSString *errorMessage))completionBlock {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *script =
+            @"tell application \"iTunes\"\n"
+            "    try\n"
+            "        set c to count every track of library playlist 1\n"
+            "        return \"OK\" & tab & (c as text)\n"
+            "    on error errMsg number errNum\n"
+            "        return \"ERROR\" & tab & (errNum as text) & tab & errMsg\n"
+            "    end try\n"
+            "end tell";
+        NSString *raw = [self runAppleScriptNamed:@"library.count" source:script];
+        NSInteger count = -1;
+        NSString *errorMessage = nil;
+
+        if (raw.length > 0) {
+            NSArray *parts = [raw componentsSeparatedByString:@"\t"];
+            if (parts.count >= 2 && [parts[0] isEqualToString:@"OK"]) {
+                count = [parts[1] integerValue];
+            } else if (parts.count >= 3 && [parts[0] isEqualToString:@"ERROR"]) {
+                errorMessage = [NSString stringWithFormat:@"%@ %@", parts[1], parts[2]];
+            }
+        }
+        if (count < 0 && errorMessage.length == 0) {
+            errorMessage = @"Could not read iTunes library.";
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) {
+                completionBlock(count, errorMessage);
+            }
+        });
+    });
+}
+
 - (NSString *)runAppleScriptNamed:(NSString *)name source:(NSString *)source {
     if (![source isKindOfClass:[NSString class]] || source.length == 0) {
         return @"";
@@ -399,6 +434,15 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
 - (void)createPlaylistWithName:(NSString *)name 
                  persistentIDs:(NSArray *)pids 
                     completion:(void(^)(NSInteger addedCount))completionBlock {
+    if (pids.count == 0) {
+        if (completionBlock) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completionBlock(0);
+            });
+        }
+        return;
+    }
+
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSString *idsString = IGAppleScriptListLiteral(pids);
         NSString *playlistLiteral = IGAppleScriptLiteral(name);
@@ -406,20 +450,29 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
         NSString *scriptSource = [NSString stringWithFormat:
             @"tell application \"iTunes\"\n"
             "    set plName to %@\n"
+            "    set addedCount to 0\n"
+            "    set idList to %@\n"
+            "    set tracksToAdd to {}\n"
+            "    \n"
+            "    repeat with tid in idList\n"
+            "        set tidText to (contents of tid) as text\n"
+            "        try\n"
+            "            set trk to (some track of library playlist 1 whose persistent ID is tidText)\n"
+            "            set end of tracksToAdd to trk\n"
+            "        end try\n"
+            "    end repeat\n"
+            "    \n"
+            "    if (count of tracksToAdd) is 0 then return \"0\"\n"
+            "    \n"
             "    if not (exists user playlist plName) then\n"
             "        make new user playlist with properties {name:plName}\n"
             "    end if\n"
             "    set pl to user playlist plName\n"
             "    delete every track of pl\n"
             "    \n"
-            "    set addedCount to 0\n"
-            "    set idList to %@\n"
-            "    \n"
-            "    repeat with tid in idList\n"
-            "        set tidText to (contents of tid) as text\n"
+            "    repeat with trk in tracksToAdd\n"
             "        try\n"
-            "            set trk to (some track of library playlist 1 whose persistent ID is tidText)\n"
-            "            duplicate trk to pl\n"
+            "            duplicate (contents of trk) to pl\n"
             "            set addedCount to addedCount + 1\n"
             "        end try\n"
             "    end repeat\n"

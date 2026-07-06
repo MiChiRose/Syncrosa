@@ -48,6 +48,7 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
 @property (nonatomic, strong) NSTextView *logView;
 
 @property (nonatomic, assign) BOOL isProcessing;
+@property (nonatomic, assign) NSInteger lastResolvedLibraryTrackCount;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 
 @end
@@ -197,7 +198,12 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
 
 // Helpers
 - (NSString *)appName {
-    if ([[NSFileManager defaultManager] fileExistsAtPath:@"/System/Applications/Music.app"]) {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    if ([fm fileExistsAtPath:@"/Applications/iTunes.app"] ||
+        [fm fileExistsAtPath:@"/System/Applications/iTunes.app"]) {
+        return @"iTunes";
+    }
+    if ([fm fileExistsAtPath:@"/System/Applications/Music.app"]) {
         return @"Music";
     }
     return @"iTunes";
@@ -296,7 +302,9 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
         "return \"BEST\" & tab & (bestCount as text) & tab & bestName & tab & bestMode & linefeed & out", [self appName]];
 
     NSString *raw = [[IGiTunesService sharedService] runAppleScriptNamed:@"covers.resolveLibrary" source:script];
-    NSInteger count = 0;
+    NSInteger count = -1;
+    BOOL hasSuccessfulCountProbe = NO;
+    BOOL hasReadError = NO;
     if (raw.length > 0) {
         NSArray *lines = [raw componentsSeparatedByString:@"\n"];
         if (lines.count > 0) {
@@ -309,11 +317,35 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
                            [parts objectAtIndex:2]]];
             }
         }
+        for (NSUInteger idx = 1; idx < lines.count; idx++) {
+            NSString *line = [lines objectAtIndex:idx];
+            if (line.length == 0) continue;
+            NSArray *lineParts = [line componentsSeparatedByString:@"\t"];
+            if (lineParts.count > 0 && [[lineParts objectAtIndex:0] isEqualToString:@"COUNT"]) {
+                hasSuccessfulCountProbe = YES;
+            } else if (lineParts.count > 0 && [[lineParts objectAtIndex:0] isEqualToString:@"ERROR"]) {
+                hasReadError = YES;
+            }
+        }
     }
-    if (count <= 0) {
+    if (count == 0 && hasReadError && !hasSuccessfulCountProbe) {
+        count = -1;
+    }
+    self.lastResolvedLibraryTrackCount = count;
+    if (count == 0) {
+        [self log:@"iTunes library is readable, but it has 0 tracks. Covers operation stopped before changing files."];
+    } else if (count < 0) {
         [self log:@"Could not resolve a non-empty iTunes library playlist. Try syncing the library cache from Settings and run the operation again."];
     }
     return count;
+}
+
+- (NSString *)emptyCoverScanMessage {
+    NSString *appName = [self appName];
+    if (self.lastResolvedLibraryTrackCount == 0) {
+        return [NSString stringWithFormat:@"%@ library has no tracks. There is no cover artwork to process.", appName];
+    }
+    return [NSString stringWithFormat:@"Could not read %@ library tracks. Covers operation stopped before changing files.", appName];
 }
 
 - (NSMutableDictionary *)loadManifest {
@@ -941,12 +973,13 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
             self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
         }];
         if (tracks.count == 0) {
-            [self log:@"iTunes returned no library tracks to scan."];
+            NSString *message = [self emptyCoverScanMessage];
+            [self log:message];
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.isProcessing = NO;
                 self.progressIndicator.indeterminate = NO;
                 self.progressIndicator.doubleValue = 0;
-                self.statusLabel.stringValue = @"";
+                self.statusLabel.stringValue = message;
             });
             return;
         }
@@ -1019,12 +1052,13 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
             self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
         }];
         if (tracks.count == 0) {
-            [self log:[lang t:@"no_covers_found"]];
+            NSString *message = [self emptyCoverScanMessage];
+            [self log:message];
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.isProcessing = NO;
                 self.progressIndicator.indeterminate = NO;
                 self.progressIndicator.doubleValue = 0;
-                self.statusLabel.stringValue = @"";
+                self.statusLabel.stringValue = message;
             });
             return;
         }
@@ -1089,12 +1123,13 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
             self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
         }];
         if (tracks.count == 0) {
-            [self log:[lang t:@"no_covers_found"]];
+            NSString *message = [self emptyCoverScanMessage];
+            [self log:message];
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.isProcessing = NO;
                 self.progressIndicator.indeterminate = NO;
                 self.progressIndicator.doubleValue = 0;
-                self.statusLabel.stringValue = @"";
+                self.statusLabel.stringValue = message;
             });
             return;
         }

@@ -238,8 +238,15 @@ struct CoversOptimizerView: View {
             let tracks = service.getTracksWithCovers()
             
             if tracks.isEmpty {
+                let libraryCount = MusicService.shared.getLibraryTrackCount()
                 DispatchQueue.main.async {
-                    log(lang.t("no_covers_found"))
+                    if let count = libraryCount, count == 0 {
+                        log(lang.selectedLanguage == "ru" ? "В Music нет треков. Резервировать обложки не из чего." : "Music has no tracks. There are no covers to back up.")
+                    } else if libraryCount == nil {
+                        log(lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library.")
+                    } else {
+                        log(lang.t("no_covers_found"))
+                    }
                     isProcessing = false
                 }
                 return
@@ -289,8 +296,15 @@ struct CoversOptimizerView: View {
             let tracks = service.getTracksWithCovers()
             
             if tracks.isEmpty {
+                let libraryCount = MusicService.shared.getLibraryTrackCount()
                 DispatchQueue.main.async {
-                    log(lang.t("no_covers_found"))
+                    if let count = libraryCount, count == 0 {
+                        log(lang.selectedLanguage == "ru" ? "В Music нет треков. Оптимизировать обложки не из чего." : "Music has no tracks. There are no covers to optimize.")
+                    } else if libraryCount == nil {
+                        log(lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library.")
+                    } else {
+                        log(lang.t("no_covers_found"))
+                    }
                     isProcessing = false
                 }
                 return
@@ -350,8 +364,15 @@ struct CoversOptimizerView: View {
             let tracks = service.getTracksWithCovers()
             
             if tracks.isEmpty {
+                let libraryCount = MusicService.shared.getLibraryTrackCount()
                 DispatchQueue.main.async {
-                    log(lang.t("no_covers_found"))
+                    if let count = libraryCount, count == 0 {
+                        log(lang.selectedLanguage == "ru" ? "В Music нет треков. Восстанавливать обложки некуда." : "Music has no tracks. There are no covers to restore into.")
+                    } else if libraryCount == nil {
+                        log(lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library.")
+                    } else {
+                        log(lang.t("no_covers_found"))
+                    }
                     isProcessing = false
                 }
                 return

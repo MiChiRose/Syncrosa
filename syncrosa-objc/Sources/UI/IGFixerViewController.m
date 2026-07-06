@@ -281,20 +281,40 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
                                   (long)self.genreCheckbox.state,
                                   (long)self.trackNumberCheckbox.state,
                                   (long)self.lyricsCheckbox.state]];
-    self.startButton.enabled = NO;
-    [self log:@"Phase 1: Scanning for split albums..."];
-    self.statusLabel.stringValue = @"Scanning for merge candidates...";
-    self.progressIndicator.indeterminate = YES;
-    [self.progressIndicator startAnimation:nil];
 
-    [[IGMediaFixerManager sharedManager] getMergeCandidatesWithCompletion:^(NSArray *candidates) {
-        if (candidates.count > 0) {
-            [self log:[NSString stringWithFormat:@"Found %ld split albums to merge.", (long)candidates.count]];
-            [self runMergePhase:candidates];
-        } else {
-            [self log:@"No split albums found. Proceeding to metadata check."];
-            [self runMetadataPhase];
+    self.startButton.enabled = NO;
+    self.statusLabel.stringValue = @"Checking iTunes library...";
+
+    [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
+        if (trackCount < 0) {
+            self.statusLabel.stringValue = errorMessage ?: @"Could not read iTunes library.";
+            [self log:self.statusLabel.stringValue];
+            self.startButton.enabled = YES;
+            [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            return;
         }
+        if (trackCount == 0) {
+            self.statusLabel.stringValue = @"iTunes has no tracks. There is no metadata to update.";
+            [self log:self.statusLabel.stringValue];
+            self.startButton.enabled = YES;
+            [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            return;
+        }
+
+        [self log:@"Phase 1: Scanning for split albums..."];
+        self.statusLabel.stringValue = @"Scanning for merge candidates...";
+        self.progressIndicator.indeterminate = YES;
+        [self.progressIndicator startAnimation:nil];
+
+        [[IGMediaFixerManager sharedManager] getMergeCandidatesWithCompletion:^(NSArray *candidates) {
+            if (candidates.count > 0) {
+                [self log:[NSString stringWithFormat:@"Found %ld split albums to merge.", (long)candidates.count]];
+                [self runMergePhase:candidates];
+            } else {
+                [self log:@"No split albums found. Proceeding to metadata check."];
+                [self runMetadataPhase];
+            }
+        }];
     }];
 }
 

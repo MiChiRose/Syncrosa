@@ -263,14 +263,33 @@
     self.progressIndicator.hidden = NO;
     self.progressIndicator.doubleValue = 0;
     self.statusLabel.stringValue = @"Reading iTunes Library...";
-    
-    [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
+
+    [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
+        if (trackCount < 0) {
+            self.statusLabel.stringValue = errorMessage ?: @"Could not read iTunes library.";
+            self.generateButton.enabled = YES;
+            self.progressIndicator.hidden = YES;
+            [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            return;
+        }
+        if (trackCount == 0) {
+            self.statusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
+                @"В iTunes нет треков. Создавать ИИ-плейлист пока не из чего." :
+                @"iTunes has no tracks. There is nothing to use for an AI playlist.";
+            self.generateButton.enabled = YES;
+            self.progressIndicator.hidden = YES;
+            [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            return;
+        }
+
+        [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
         self.progressIndicator.maxValue = total;
         self.progressIndicator.doubleValue = current;
-    } completion:^(NSArray *tracks) {
+        } completion:^(NSArray *tracks) {
         if (tracks.count == 0) {
             self.statusLabel.stringValue = [lang t:@"lib_empty"];
             self.generateButton.enabled = YES;
+            self.progressIndicator.hidden = YES;
             [IGNotificationView showInView:self.view message:[lang t:@"lib_empty"] isError:YES];
             return;
         }
@@ -310,6 +329,15 @@
             [[IGiTunesService sharedService] createPlaylistWithName:self.playlistNameField.stringValue
                                                       persistentIDs:suggestedIDs
                                                          completion:^(NSInteger addedCount) {
+                if (addedCount <= 0) {
+                    self.statusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
+                        @"Плейлист не создан: iTunes не добавил ни одного трека." :
+                        @"Playlist was not created: iTunes added zero tracks.";
+                    self.generateButton.enabled = YES;
+                    self.progressIndicator.hidden = YES;
+                    [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+                    return;
+                }
                 NSString *successMsg = [lang t:@"success_added" args:@[@((long)addedCount)]];
                 self.statusLabel.stringValue = successMsg;
                 self.generateButton.enabled = YES;
@@ -318,6 +346,7 @@
                 [IGNotificationView showInView:self.view message:successMsg isError:NO];
             }];
         }];
+    }];
     }];
 }
 

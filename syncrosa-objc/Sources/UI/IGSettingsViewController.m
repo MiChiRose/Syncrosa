@@ -423,14 +423,36 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
 - (void)syncLibClicked:(id)sender {
     self.syncLibStatusLabel.stringValue = @"Syncing iTunes tracks...";
     self.syncLibButton.enabled = NO;
-    
-    [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
-        self.syncLibStatusLabel.stringValue = [NSString stringWithFormat:@"Synced %ld / %ld tracks...", (long)current, (long)total];
-    } completion:^(NSArray *tracks) {
-        self.syncLibStatusLabel.stringValue = [[IGLocalizationService sharedService] t:@"msg_lib_synced"];
-        self.syncLibButton.enabled = YES;
-        
-        [IGNotificationView showInView:self.view message:[[IGLocalizationService sharedService] t:@"msg_lib_synced"] isError:NO];
+
+    [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
+        if (trackCount < 0) {
+            self.syncLibStatusLabel.stringValue = errorMessage ?: @"Could not read iTunes library.";
+            self.syncLibButton.enabled = YES;
+            [IGNotificationView showInView:self.view message:self.syncLibStatusLabel.stringValue isError:YES];
+            return;
+        }
+        if (trackCount == 0) {
+            self.syncLibStatusLabel.stringValue = @"iTunes library is readable, but it has no tracks.";
+            self.syncLibButton.enabled = YES;
+            [IGNotificationView showInView:self.view message:self.syncLibStatusLabel.stringValue isError:YES];
+            return;
+        }
+
+        [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
+            self.syncLibStatusLabel.stringValue = [NSString stringWithFormat:@"Synced %ld / %ld tracks...", (long)current, (long)total];
+        } completion:^(NSArray *tracks) {
+            if (tracks.count == 0) {
+                self.syncLibStatusLabel.stringValue = @"No readable iTunes tracks were returned.";
+                self.syncLibButton.enabled = YES;
+                [IGNotificationView showInView:self.view message:self.syncLibStatusLabel.stringValue isError:YES];
+                return;
+            }
+
+            self.syncLibStatusLabel.stringValue = [[IGLocalizationService sharedService] t:@"msg_lib_synced"];
+            self.syncLibButton.enabled = YES;
+
+            [IGNotificationView showInView:self.view message:[[IGLocalizationService sharedService] t:@"msg_lib_synced"] isError:NO];
+        }];
     }];
 }
 

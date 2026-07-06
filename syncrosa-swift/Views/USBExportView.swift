@@ -26,6 +26,7 @@ struct USBExportView: View {
     @State private var showFSWarning: Bool = false
     @State private var showResultAlert: Bool = false
     @State private var resultMessage: String = ""
+    @State private var playlistMessage: String? = nil
     
     var selectedDrive: USBDrive? {
         usbService.availableDrives.first { $0.id == selectedDriveId }
@@ -117,7 +118,7 @@ struct USBExportView: View {
                             HStack {
                                 Image(systemName: "music.note.list")
                                     .foregroundColor(.gray)
-                                Text(lang.t("no_playlists"))
+                                Text(playlistMessage ?? lang.t("no_playlists"))
                                     .foregroundColor(.secondary)
                             }
                             .padding(.vertical, 8)
@@ -229,6 +230,9 @@ struct USBExportView: View {
         .sheet(isPresented: $showHelp) {
             helpSheetView
         }
+        .onAppear {
+            loadPlaylists()
+        }
     }
     
     var helpSheetView: some View {
@@ -272,10 +276,23 @@ struct USBExportView: View {
 
     
     private func loadPlaylists() {
+        playlistMessage = lang.selectedLanguage == "ru" ? "Загрузка плейлистов..." : "Loading playlists..."
         DispatchQueue.global(qos: .userInitiated).async {
             let list = MusicService.shared.getUserPlaylists()
+            let libraryCount = list.isEmpty ? MusicService.shared.getLibraryTrackCount() : nil
             DispatchQueue.main.async {
                 self.playlists = list
+                if list.isEmpty {
+                    if let count = libraryCount, count == 0 {
+                        self.playlistMessage = self.lang.selectedLanguage == "ru" ? "В Music нет треков и доступных плейлистов." : "Music has no tracks or playlists to export."
+                    } else if libraryCount == nil {
+                        self.playlistMessage = self.lang.selectedLanguage == "ru" ? "Не удалось прочитать плейлисты Music." : "Could not read Music playlists."
+                    } else {
+                        self.playlistMessage = self.lang.t("no_playlists")
+                    }
+                } else {
+                    self.playlistMessage = nil
+                }
             }
         }
     }
@@ -314,6 +331,10 @@ struct USBExportView: View {
     
     private func startExportProcess() {
         guard let drive = selectedDrive else { return }
+        guard !tracksToExport.isEmpty else {
+            activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "В выбранном плейлисте нет доступных файлов для экспорта." : "The selected playlist has no available files to export.", isError: true)
+            return
+        }
         
         // 1. Check space
         let totalDRMSize = tracksToExport.filter { $0.isDRM }.reduce(0) { $0 + $1.fileSize }

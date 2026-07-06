@@ -175,12 +175,26 @@ class SetupWindow(tk.Toplevel):
         self.after(0, self.prog_win.start_timer)
         
         def task():
-            from core.itunes_bridge import get_library
+            from core.itunes_bridge import get_library, get_library_track_count
             try:
                 def update_progress(curr, total):
                     self.after(0, lambda: self.prog_win.progress.config(value=curr, maximum=total))
                     self.after(0, lambda: self.prog_win.lbl.config(text=_(u"prog_read", curr, total)))
-                    
+
+                track_count, count_error = get_library_track_count()
+                if track_count < 0:
+                    raise Exception("Could not read iTunes library. " + (count_error or ""))
+                if track_count == 0:
+                    self.master.cached_library = []
+                    self.master.total_tracks = 0
+                    if hasattr(self.master, 'tab_genius'):
+                        self.after(0, self.master.tab_genius._update_library_info)
+                    self.after(0, self.prog_win.stop_timer)
+                    self.after(0, self.prog_win.destroy)
+                    self.after(0, lambda: tkMessageBox.showwarning("Sync", "iTunes library has no tracks. Nothing was cached."))
+                    self.after(0, lambda: self.btn_sync_lib.config(state="normal"))
+                    return
+
                 lib = get_library(update_progress, lambda: self.prog_win.running)
                 
                 if not self.prog_win.running:
@@ -198,7 +212,10 @@ class SetupWindow(tk.Toplevel):
                 
                 self.after(0, self.prog_win.stop_timer)
                 self.after(0, self.prog_win.destroy)
-                self.after(0, lambda: tkMessageBox.showinfo("Sync", _(u"msg_lib_synced")))
+                if len(lib) == 0:
+                    self.after(0, lambda: tkMessageBox.showwarning("Sync", "iTunes library was readable, but no usable tracks were returned."))
+                else:
+                    self.after(0, lambda: tkMessageBox.showinfo("Sync", _(u"msg_lib_synced")))
                 self.after(0, lambda: self.btn_sync_lib.config(state="normal"))
             except Exception as e:
                 self.after(0, self.prog_win.stop_timer)
