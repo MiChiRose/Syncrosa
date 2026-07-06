@@ -106,36 +106,57 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     return YES;
 }
 
+- (NSInteger)readLibraryTrackCountSyncWithErrorMessage:(NSString **)errorMessage {
+    if (errorMessage) {
+        *errorMessage = nil;
+    }
+
+    NSString *script =
+        @"tell application \"iTunes\"\n"
+        "    set trackCount to -1\n"
+        "    set fileTrackCount to -1\n"
+        "    set lastError to \"\"\n"
+        "    try\n"
+        "        set trackCount to count every track of library playlist 1\n"
+        "    on error errMsg number errNum\n"
+        "        set lastError to (errNum as text) & \" \" & errMsg\n"
+        "    end try\n"
+        "    try\n"
+        "        set fileTrackCount to count every file track of library playlist 1\n"
+        "    on error errMsg number errNum\n"
+        "        if lastError is \"\" then set lastError to (errNum as text) & \" \" & errMsg\n"
+        "    end try\n"
+        "    if trackCount < 0 and fileTrackCount < 0 then\n"
+        "        return \"ERROR\" & tab & lastError\n"
+        "    end if\n"
+        "    if fileTrackCount > trackCount then set trackCount to fileTrackCount\n"
+        "    return \"OK\" & tab & (trackCount as text)\n"
+        "end tell";
+
+    NSString *raw = [self runAppleScriptNamed:@"library.count" source:script];
+    NSArray *parts = raw.length > 0 ? [raw componentsSeparatedByString:@"\t"] : nil;
+    if (parts.count >= 2 && [[parts objectAtIndex:0] isEqualToString:@"OK"]) {
+        return [[parts objectAtIndex:1] integerValue];
+    }
+
+    if (errorMessage) {
+        if (parts.count >= 2 && [[parts objectAtIndex:0] isEqualToString:@"ERROR"]) {
+            *errorMessage = [parts objectAtIndex:1];
+        } else {
+            *errorMessage = @"Could not read iTunes library.";
+        }
+    }
+    return -1;
+}
+
 - (NSString *)runAppleScript:(NSString *)source {
     return [self runAppleScriptNamed:@"generic" source:source];
 }
 
 - (void)fetchLibraryTrackCountWithCompletion:(void(^)(NSInteger trackCount, NSString *errorMessage))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *script =
-            @"tell application \"iTunes\"\n"
-            "    try\n"
-            "        set c to count every track of library playlist 1\n"
-            "        return \"OK\" & tab & (c as text)\n"
-            "    on error errMsg number errNum\n"
-            "        return \"ERROR\" & tab & (errNum as text) & tab & errMsg\n"
-            "    end try\n"
-            "end tell";
-        NSString *raw = [self runAppleScriptNamed:@"library.count" source:script];
-        NSInteger count = -1;
         NSString *errorMessage = nil;
-
-        if (raw.length > 0) {
-            NSArray *parts = [raw componentsSeparatedByString:@"\t"];
-            if (parts.count >= 2 && [parts[0] isEqualToString:@"OK"]) {
-                count = [parts[1] integerValue];
-            } else if (parts.count >= 3 && [parts[0] isEqualToString:@"ERROR"]) {
-                errorMessage = [NSString stringWithFormat:@"%@ %@", parts[1], parts[2]];
-            }
-        }
-        if (count < 0 && errorMessage.length == 0) {
-            errorMessage = @"Could not read iTunes library.";
-        }
+        NSInteger count = [self readLibraryTrackCountSyncWithErrorMessage:&errorMessage];
 
         dispatch_async(dispatch_get_main_queue(), ^{
             if (completionBlock) {
@@ -344,8 +365,8 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
 - (void)fetchAllTracksWithProgress:(void(^)(NSInteger current, NSInteger total))progressBlock 
                         completion:(void(^)(NSArray *tracks))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *countStr = [self runAppleScriptNamed:@"library.fetchAll.count" source:@"tell application \"iTunes\" to count every track of library playlist 1"];
-        NSInteger total = [countStr integerValue];
+        NSString *errorMessage = nil;
+        NSInteger total = [self readLibraryTrackCountSyncWithErrorMessage:&errorMessage];
         if (total <= 0) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 completionBlock(@[]);

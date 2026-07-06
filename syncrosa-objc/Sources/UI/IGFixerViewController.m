@@ -62,7 +62,6 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 }
 
 - (void)setupUI {
-    IGLocalizationService *lang = [IGLocalizationService sharedService];
     CGFloat y = 430;
     
     self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)];
@@ -214,6 +213,10 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     });
 }
 
+- (void)clearLogView {
+    [self.logView setString:@""];
+}
+
 - (void)selectAllClicked:(id)sender {
     NSInteger state = self.selectAllCheckbox.state;
     self.albumCheckbox.state = state;
@@ -274,6 +277,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 }
 
 - (void)startClicked:(id)sender {
+    [self clearLogView];
     [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer start options album=%ld title=%ld artist=%ld genre=%ld trackNumber=%ld lyrics=%ld",
                                   (long)self.albumCheckbox.state,
                                   (long)self.titleCheckbox.state,

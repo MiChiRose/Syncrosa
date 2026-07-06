@@ -126,7 +126,11 @@ class GeniusTab(tk.Frame):
             if not self.master_app.cached_library:
                 track_count, count_error = get_library_track_count()
                 if track_count < 0:
+                    if hasattr(self.master_app, 'apply_library_status'):
+                        self.after(0, lambda: self.master_app.apply_library_status(track_count, count_error))
                     raise Exception("Could not read iTunes library. " + (count_error or ""))
+                if hasattr(self.master_app, 'apply_library_status'):
+                    self.after(0, lambda: self.master_app.apply_library_status(track_count, None))
                 if track_count == 0:
                     self.master_app.total_tracks = 0
                     self.master_app.cached_library = []

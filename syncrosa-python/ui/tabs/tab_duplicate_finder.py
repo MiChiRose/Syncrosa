@@ -106,7 +106,11 @@ class DuplicateFinderTab(tk.Frame):
 
                 track_count, count_error = get_library_track_count()
                 if track_count < 0:
+                    if hasattr(self.master_app, 'apply_library_status'):
+                        self.after(0, lambda: self.master_app.apply_library_status(track_count, count_error))
                     raise Exception("Could not read iTunes library. " + (count_error or ""))
+                if hasattr(self.master_app, 'apply_library_status'):
+                    self.after(0, lambda: self.master_app.apply_library_status(track_count, None))
                 if track_count == 0:
                     self.after(0, self.prog_win.destroy)
                     self.after(0, lambda: self.render_pairs([], True))

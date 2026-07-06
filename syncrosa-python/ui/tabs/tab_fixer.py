@@ -189,10 +189,14 @@ class FixerTab(tk.Frame):
         try:
             track_count, count_error = get_library_track_count()
             if track_count < 0:
+                if hasattr(self.master_app, 'apply_library_status'):
+                    self.after(0, lambda: self.master_app.apply_library_status(track_count, count_error))
                 message = "Could not read iTunes library. " + (count_error or "")
                 self.log(message)
                 self.after(0, lambda m=message: self.status.config(text=m[:80]))
                 return
+            if hasattr(self.master_app, 'apply_library_status'):
+                self.after(0, lambda: self.master_app.apply_library_status(track_count, None))
             if track_count == 0:
                 message = "iTunes library has no tracks. There is no metadata to update."
                 self.log(message)
