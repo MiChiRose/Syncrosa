@@ -52,6 +52,39 @@ static NSData *IGInfoEraserFreeAtomData(NSUInteger size, NSUInteger headerSize) 
     return data;
 }
 
+static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSString *message, NSInteger affectedCount, NSString *backupPath) {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    NSString *dir = [base stringByAppendingPathComponent:@"Syncrosa"];
+    NSString *path = [dir stringByAppendingPathComponent:@"operation-history.json"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+
+    NSMutableArray *entries = [NSMutableArray array];
+    NSData *existingData = [NSData dataWithContentsOfFile:path];
+    if (existingData.length > 0) {
+        id json = [NSJSONSerialization JSONObjectWithData:existingData options:0 error:nil];
+        if ([json isKindOfClass:[NSArray class]]) {
+            [entries addObjectsFromArray:(NSArray *)json];
+        }
+    }
+    NSDictionary *entry = @{
+        @"id": [[NSProcessInfo processInfo] globallyUniqueString],
+        @"tool": @"Info Eraser",
+        @"title": title ?: @"",
+        @"status": status ?: @"",
+        @"message": message ?: @"",
+        @"createdAt": @([[NSDate date] timeIntervalSince1970]),
+        @"affectedCount": @(affectedCount),
+        @"backupPath": backupPath ?: @""
+    };
+    [entries insertObject:entry atIndex:0];
+    while (entries.count > 250) {
+        [entries removeLastObject];
+    }
+    NSData *data = [NSJSONSerialization dataWithJSONObject:entries options:NSJSONWritingPrettyPrinted error:nil];
+    [data writeToFile:path atomically:YES];
+}
+
 @interface IGInfoEraserViewController ()
 @property (nonatomic, strong) NSTextField *folderPathField;
 @property (nonatomic, strong) NSButton *selectFolderButton;
@@ -354,6 +387,7 @@ static NSData *IGInfoEraserFreeAtomData(NSUInteger size, NSUInteger headerSize) 
         dispatch_async(dispatch_get_main_queue(), ^{
             self.statusLabel.stringValue = message ?: @"Done";
             [self log:message ?: @"Done"];
+            IGInfoEraserRecordHistory(status, [message hasPrefix:@"ERROR:"] ? @"FAIL" : @"OK", message ?: @"Done", self.foundFiles.count, [self backupDirectoryPath]);
             [self setControlsBusy:NO];
             [IGNotificationView showInView:self.view message:message ?: @"Done" isError:[message hasPrefix:@"ERROR:"]];
         });
@@ -370,6 +404,40 @@ static NSData *IGInfoEraserFreeAtomData(NSUInteger size, NSUInteger headerSize) 
 
 - (NSString *)backupDirectoryPath {
     return [self.selectedFolderURL.path stringByAppendingPathComponent:IGInfoEraserBackupDirName];
+}
+
+- (NSString *)applicationSupportInfoEraserBackupRoot {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    return [[[base stringByAppendingPathComponent:@"Syncrosa"] stringByAppendingPathComponent:@"Backups"] stringByAppendingPathComponent:@"InfoEraser"];
+}
+
+- (NSString *)restoreBackupDirectoryPath {
+    NSString *localBackupDir = [self backupDirectoryPath];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:[localBackupDir stringByAppendingPathComponent:@"manifest.json"]]) {
+        return localBackupDir;
+    }
+    NSString *root = [self applicationSupportInfoEraserBackupRoot];
+    NSArray *contents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:root error:nil];
+    NSMutableArray *candidates = [NSMutableArray array];
+    for (NSString *name in contents) {
+        NSString *path = [root stringByAppendingPathComponent:name];
+        BOOL isDir = NO;
+        if ([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDir] &&
+            isDir &&
+            [[NSFileManager defaultManager] fileExistsAtPath:[path stringByAppendingPathComponent:@"manifest.json"]]) {
+            NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil];
+            NSDate *date = [attrs objectForKey:NSFileModificationDate] ?: [NSDate distantPast];
+            [candidates addObject:@{@"path": path, @"date": date}];
+        }
+    }
+    [candidates sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        return [[b objectForKey:@"date"] compare:[a objectForKey:@"date"]];
+    }];
+    if (candidates.count > 0) {
+        return [[candidates objectAtIndex:0] objectForKey:@"path"];
+    }
+    return localBackupDir;
 }
 
 - (NSInteger)backupOriginalInfoWithProgress:(void(^)(NSInteger current, NSInteger total))progress manifestPath:(NSString **)manifestPath {
@@ -457,8 +525,38 @@ static NSData *IGInfoEraserFreeAtomData(NSUInteger size, NSUInteger headerSize) 
     NSData *json = [NSJSONSerialization dataWithJSONObject:manifest options:NSJSONWritingPrettyPrinted error:nil];
     NSString *path = [backupDir stringByAppendingPathComponent:@"manifest.json"];
     [json writeToFile:path atomically:YES];
+    [self mirrorBackupDirectoryToApplicationSupport:backupDir];
     if (manifestPath) *manifestPath = path;
     return supported;
+}
+
+- (void)mirrorBackupDirectoryToApplicationSupport:(NSString *)backupDir {
+    NSString *root = [self applicationSupportInfoEraserBackupRoot];
+    [[NSFileManager defaultManager] createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *name = [NSString stringWithFormat:@"backup-%ld-%@", (long)[[NSDate date] timeIntervalSince1970], [[[NSProcessInfo processInfo] globallyUniqueString] stringByReplacingOccurrencesOfString:@"." withString:@"-"]];
+    NSString *destination = [root stringByAppendingPathComponent:name];
+    [[NSFileManager defaultManager] copyItemAtPath:backupDir toPath:destination error:nil];
+    [self pruneApplicationSupportInfoEraserBackupsAtRoot:root keep:10];
+}
+
+- (void)pruneApplicationSupportInfoEraserBackupsAtRoot:(NSString *)root keep:(NSUInteger)keep {
+    NSArray *contents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:root error:nil];
+    NSMutableArray *candidates = [NSMutableArray array];
+    for (NSString *name in contents) {
+        NSString *path = [root stringByAppendingPathComponent:name];
+        BOOL isDir = NO;
+        if ([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDir] && isDir) {
+            NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil];
+            NSDate *date = [attrs objectForKey:NSFileModificationDate] ?: [NSDate distantPast];
+            [candidates addObject:@{@"path": path, @"date": date}];
+        }
+    }
+    [candidates sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        return [[b objectForKey:@"date"] compare:[a objectForKey:@"date"]];
+    }];
+    for (NSUInteger i = keep; i < candidates.count; i++) {
+        [[NSFileManager defaultManager] removeItemAtPath:[[candidates objectAtIndex:i] objectForKey:@"path"] error:nil];
+    }
 }
 
 - (NSInteger)eraseInfoWithProgress:(void(^)(NSInteger current, NSInteger total))progress unsupported:(NSInteger *)unsupportedOut {
@@ -503,7 +601,7 @@ static NSData *IGInfoEraserFreeAtomData(NSUInteger size, NSUInteger headerSize) 
 }
 
 - (NSInteger)restoreInfoWithProgress:(void(^)(NSInteger current, NSInteger total))progress missing:(NSInteger *)missingOut {
-    NSString *backupDir = [self backupDirectoryPath];
+    NSString *backupDir = [self restoreBackupDirectoryPath];
     NSString *manifestPath = [backupDir stringByAppendingPathComponent:@"manifest.json"];
     NSData *json = [NSData dataWithContentsOfFile:manifestPath];
     if (!json) {

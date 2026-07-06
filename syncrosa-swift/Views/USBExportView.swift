@@ -117,7 +117,7 @@ struct USBExportView: View {
                         if playlists.isEmpty {
                             HStack {
                                 Image(systemName: "music.note.list")
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(SyncrosaTheme.placeholderIcon)
                                 Text(playlistMessage ?? lang.t("no_playlists"))
                                     .foregroundColor(.secondary)
                             }
@@ -138,7 +138,7 @@ struct USBExportView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Card 2: Playlist Info & Export Button
@@ -177,7 +177,7 @@ struct USBExportView: View {
                         }
                     }
                     .padding()
-                    .background(Color.gray.opacity(0.05))
+                    .background(SyncrosaTheme.panelBackground)
                     .cornerRadius(12)
                 }
                 

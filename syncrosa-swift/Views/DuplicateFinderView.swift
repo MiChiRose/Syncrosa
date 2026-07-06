@@ -93,7 +93,7 @@ struct DuplicateFinderView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Card 2: Duplicate Pairs List
@@ -106,7 +106,7 @@ struct DuplicateFinderView: View {
                         VStack(spacing: 15) {
                             Image(systemName: "square.on.square.dashed")
                                 .font(.system(size: 40))
-                                .foregroundColor(.gray.opacity(0.3))
+                                .foregroundColor(SyncrosaTheme.placeholderIcon)
                             Text(lang.selectedLanguage == "ru" ? "Нет дубликатов для показа. Нажмите сканировать." : "No duplicates to show. Click scan to begin.")
                                 .foregroundColor(.secondary)
                         }
@@ -122,11 +122,11 @@ struct DuplicateFinderView: View {
                                     trackColumn(pair.track2, sideNumber: 2)
                                 }
                                 .padding()
-                                .background(Color.white.opacity(0.05))
+                                .background(SyncrosaTheme.subtleBackground)
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+                                        .stroke(SyncrosaTheme.panelBorder, lineWidth: 1)
                                 )
                                 
                                 Picker("", selection: actionBinding(for: pair.pairKey)) {
@@ -146,7 +146,7 @@ struct DuplicateFinderView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 Spacer()

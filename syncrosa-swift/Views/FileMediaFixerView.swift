@@ -21,7 +21,7 @@ struct FileMediaFixerView: View {
     @State private var isProcessing: Bool = false
     @State private var activeNotification: NotificationMessage? = nil
     @State private var downloadCovers: Bool = true
-    @State private var normalizeUnderscores: Bool = false
+    @State private var logLines: [String] = []
     @State private var showHelp: Bool = false
     
     // Checkbox checklist states
@@ -94,7 +94,7 @@ struct FileMediaFixerView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Card 1: Folder Selection & Controls
@@ -118,7 +118,13 @@ struct FileMediaFixerView: View {
                             Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(fileItems.isEmpty || isProcessing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics && !normalizeUnderscores))
+                        .disabled(fileItems.isEmpty || isProcessing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics))
+
+                        Button(action: cleanFilenames) {
+                            Label(lang.selectedLanguage == "ru" ? "Clean Filenames" : "Clean Filenames", systemImage: "textformat")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(fileItems.isEmpty || isProcessing)
                     }
                     
                     Toggle(isOn: $downloadCovers) {
@@ -126,17 +132,10 @@ struct FileMediaFixerView: View {
                             .font(.caption)
                     }
                     .toggleStyle(.checkbox)
-
-                    Toggle(isOn: $normalizeUnderscores) {
-                        Text(lang.t("replace_underscores"))
-                            .font(.caption)
-                    }
-                    .toggleStyle(.checkbox)
-                    .disabled(isProcessing)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Card 2: File List
@@ -149,7 +148,7 @@ struct FileMediaFixerView: View {
                         VStack(spacing: 15) {
                             Image(systemName: "music.note.list")
                                 .font(.system(size: 40))
-                                .foregroundColor(.gray.opacity(0.3))
+                                .foregroundColor(SyncrosaTheme.placeholderIcon)
                             Text(lang.t("select_folder_msg"))
                                 .foregroundColor(.secondary)
                         }
@@ -173,8 +172,30 @@ struct FileMediaFixerView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("LOG")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(logLines.enumerated()), id: \.offset) { _, line in
+                                Text(line)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(.green)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 120)
+                    .background(Color.black)
+                    .cornerRadius(8)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Spacer()
             }
@@ -207,19 +228,17 @@ struct FileMediaFixerView: View {
                          "Инструкция по использованию:\n" +
                          "1. Выберите в панели тегов те свойства, которые вы хотите применить к переименованию файлов.\n" +
                          "2. Укажите, нужно ли автоматически скачивать обложку альбома в ту же папку.\n" +
-                         "3. При необходимости включите замену подчёркиваний в имени файла на пробелы.\n" +
-                         "4. Нажмите «Выбрать папку» и укажите директорию с вашей музыкой.\n" +
-                         "5. Программа отсканирует все поддерживаемые файлы и выведет их список.\n" +
-                         "6. Нажмите «Исправить все файлы». Программа запросит корректные данные из iTunes Search API и переименует файлы по шаблону «Исполнитель - Название.расширение», применяя только выбранные теги." :
+                         "3. Нажмите «Выбрать папку» и укажите директорию с вашей музыкой.\n" +
+                         "4. Для отдельной чистки имён файлов используйте кнопку Clean Filenames. Она заменяет подчёркивания на пробелы отдельным процессом.\n" +
+                         "5. Нажмите «Исправить все файлы». Программа запросит корректные данные из iTunes Search API и переименует файлы по шаблону «Исполнитель - Название.расширение», применяя только выбранные теги." :
                          
                          "This tool is designed to directly rename and organize music files (MP3, FLAC, M4A, etc.) in a folder on your disk.\n\n" +
                          "How to use:\n" +
                          "1. Select the specific tags in the tags panel that you wish to apply to the file processing/renaming.\n" +
                          "2. Select whether to download album covers to the folder.\n" +
-                         "3. Optionally replace underscores in filenames with spaces.\n" +
-                         "4. Click 'Select Folder' and choose the directory containing your music files.\n" +
-                         "5. The program will scan the directory and list all supported files.\n" +
-                         "6. Click 'Fix All Files' to process the files. The app will search iTunes Search API and rename files to '[Artist] - [Title].[ext]' based only on the checked tags."
+                         "3. Click 'Select Folder' and choose the directory containing your music files.\n" +
+                         "4. Use Clean Filenames as a separate process when you only want underscores converted to spaces.\n" +
+                         "5. Click 'Fix All Files' to process the files. The app will search iTunes Search API and rename files to '[Artist] - [Title].[ext]' based only on the checked tags."
                     )
                     .font(.body)
                 }
@@ -237,7 +256,7 @@ struct FileMediaFixerView: View {
                 .font(.system(size: 9, weight: .bold))
                 .foregroundColor(.secondary)
                 .padding(4)
-                .background(Color.gray.opacity(0.1))
+                .background(SyncrosaTheme.subtleBackground)
                 .cornerRadius(4)
         case .processing:
             ProgressView()
@@ -286,6 +305,8 @@ struct FileMediaFixerView: View {
         }
         
         self.fileItems = matches
+        logLines.removeAll()
+        appendLog("Scanned folder recursively: \(matches.count) music files.")
         
         if fileItems.isEmpty {
             activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.", isError: true)
@@ -296,6 +317,8 @@ struct FileMediaFixerView: View {
     
     func fixFolderMetadata() {
         isProcessing = true
+        logLines.removeAll()
+        appendLog("Starting Folder Fixer metadata process...")
         activeNotification = NotificationMessage(text: lang.t("processing_files"), isError: false)
         
         for i in fileItems.indices {
@@ -310,42 +333,146 @@ struct FileMediaFixerView: View {
             "trackNumber": fixTrackNumber,
             "lyrics": fixLyrics
         ]
-        var underscoreNormalizationEnabled = normalizeUnderscores
-        var underscoreNormalizationStopped = false
-        
         DispatchQueue.global().async {
             for index in fileItems.indices {
                 DispatchQueue.main.async {
                     fileItems[index].status = .processing
+                    appendLog("Processing: \(fileItems[index].url.lastPathComponent)")
                 }
                 
                 let result = FileMetadataService.shared.fixFile(
                     url: fileItems[index].url,
                     downloadCover: downloadCovers,
                     checkedTags: tagsMap,
-                    normalizeUnderscores: underscoreNormalizationEnabled
+                    normalizeUnderscores: false
                 )
-
-                if result.underscoreNormalizationFailed {
-                    underscoreNormalizationEnabled = false
-                    underscoreNormalizationStopped = true
-                    DispatchQueue.main.async {
-                        normalizeUnderscores = false
-                    }
-                }
                 
                 DispatchQueue.main.async {
                     fileItems[index].status = result.success ? .done : .error
+                    appendLog(result.success ? "OK: \(fileItems[index].url.lastPathComponent)" : "ERROR: \(fileItems[index].url.lastPathComponent)")
                 }
             }
             
             DispatchQueue.main.async {
                 isProcessing = false
-                let message = underscoreNormalizationStopped
-                    ? (lang.selectedLanguage == "ru" ? "Готово. Замена _ была остановлена после ошибки, остальные функции продолжили работу." : "Done. Underscore replacement stopped after a safe failure; other fixes continued.")
-                    : lang.t("done")
+                let message = lang.t("done")
+                appendLog(message)
                 activeNotification = NotificationMessage(text: message, isError: false)
+                OperationHistoryService.shared.record(
+                    tool: "Folder Fixer",
+                    title: "Fix Folder Metadata",
+                    status: "OK",
+                    message: message,
+                    affectedCount: fileItems.count
+                )
             }
+        }
+    }
+
+    func cleanFilenames() {
+        isProcessing = true
+        logLines.removeAll()
+        appendLog("Starting filename cleaner...")
+        activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Чищу имена файлов..." : "Cleaning filenames...", isError: false)
+        for i in fileItems.indices {
+            fileItems[i].status = .pending
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            var renamed = 0
+            var failed = false
+            var updatedItems = fileItems
+
+            for index in updatedItems.indices {
+                if failed { break }
+                DispatchQueue.main.async {
+                    fileItems[index].status = .processing
+                    appendLog("Checking: \(fileItems[index].url.lastPathComponent)")
+                }
+
+                do {
+                    let newURL = try cleanFilenameURL(updatedItems[index].url)
+                    if newURL.path != updatedItems[index].url.path {
+                        renamed += 1
+                        updatedItems[index] = FileItem(url: newURL, status: .done)
+                    } else {
+                        updatedItems[index].status = .done
+                    }
+                    DispatchQueue.main.async {
+                        fileItems[index].status = .done
+                        appendLog("OK: \(newURL.lastPathComponent)")
+                    }
+                } catch {
+                    failed = true
+                    DispatchQueue.main.async {
+                        fileItems[index].status = .error
+                        appendLog("ERROR: \(error.localizedDescription)")
+                    }
+                }
+            }
+
+            DispatchQueue.main.async {
+                fileItems = updatedItems
+                isProcessing = false
+                let message = failed
+                    ? (lang.selectedLanguage == "ru" ? "Filename Cleaner остановлен после ошибки. Остальные функции вкладки не затронуты." : "Filename Cleaner stopped after an error. Other tab functions were not affected.")
+                    : (lang.selectedLanguage == "ru" ? "Filename Cleaner завершён. Переименовано: \(renamed)." : "Filename Cleaner finished. Renamed: \(renamed).")
+                appendLog(message)
+                activeNotification = NotificationMessage(text: message, isError: failed)
+                OperationHistoryService.shared.record(
+                    tool: "Filename Cleaner",
+                    title: "Clean Filenames",
+                    status: failed ? "FAIL" : "OK",
+                    message: message,
+                    affectedCount: renamed
+                )
+            }
+        }
+    }
+
+    private func cleanFilenameURL(_ url: URL) throws -> URL {
+        let baseName = url.deletingPathExtension().lastPathComponent
+        let underscoreCount = baseName.filter { $0 == "_" }.count
+        guard underscoreCount >= 2 || baseName.contains("_-_") || baseName.contains("__") else { return url }
+        let cleanedBase = baseName
+            .replacingOccurrences(of: "_+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedBase.isEmpty, cleanedBase != baseName else { return url }
+        let newName = url.pathExtension.isEmpty ? cleanedBase : "\(cleanedBase).\(url.pathExtension)"
+        let desiredURL = url.deletingLastPathComponent().appendingPathComponent(newName)
+        let destination = uniqueDestinationURL(for: desiredURL, originalURL: url)
+        if destination.standardized.path == url.standardized.path { return url }
+        try FileManager.default.moveItem(at: url, to: destination)
+        return destination
+    }
+
+    private func uniqueDestinationURL(for desiredURL: URL, originalURL: URL) -> URL {
+        if originalURL.standardized.path == desiredURL.standardized.path ||
+            originalURL.path.lowercased() == desiredURL.path.lowercased() {
+            return desiredURL
+        }
+        if !FileManager.default.fileExists(atPath: desiredURL.path) {
+            return desiredURL
+        }
+        let folder = desiredURL.deletingLastPathComponent()
+        let base = desiredURL.deletingPathExtension().lastPathComponent
+        let ext = desiredURL.pathExtension
+        var suffix = 2
+        while true {
+            let candidateName = ext.isEmpty ? "\(base) \(suffix)" : "\(base) \(suffix).\(ext)"
+            let candidate = folder.appendingPathComponent(candidateName)
+            if !FileManager.default.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+            suffix += 1
+        }
+    }
+
+    private func appendLog(_ line: String) {
+        logLines.append("> \(line)")
+        if logLines.count > 250 {
+            logLines.removeFirst(logLines.count - 250)
         }
     }
 }

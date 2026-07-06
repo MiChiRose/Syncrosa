@@ -1,6 +1,19 @@
 import SwiftUI
 import AppKit
 
+enum SyncrosaTheme {
+    static let pageBackground = Color(nsColor: .windowBackgroundColor)
+    static let panelBackground = Color(nsColor: .controlBackgroundColor)
+    static let textBackground = Color(nsColor: .textBackgroundColor)
+    static let subtleBackground = Color(nsColor: .separatorColor).opacity(0.10)
+    static let panelBorder = Color(nsColor: .separatorColor)
+    static let placeholderIcon = Color(nsColor: .tertiaryLabelColor)
+    static let warningForeground = Color(nsColor: .systemRed)
+    static let warningBackground = Color(nsColor: .systemRed).opacity(0.12)
+    static let warningBorder = Color(nsColor: .systemRed).opacity(0.38)
+    static let softShadow = Color.black.opacity(0.10)
+}
+
 enum MusicLibraryStatus: Equatable {
     case checking
     case available(Int)
@@ -45,11 +58,13 @@ struct ContentView: View {
     @State private var isRefreshingLibraryStatus: Bool = false
     
     enum Tab: Hashable {
+        case overview
         case playlist
         case offlinePlaylist
         case fixer
         case folderFix
         case infoEraser
+        case libraryDoctor
         case duplicateFinder
         case usbExport
         case coversOptimizer
@@ -60,6 +75,10 @@ struct ContentView: View {
         NavigationSplitView {
             List(selection: $selectedTab) {
                 Group {
+                    NavigationLink(value: Tab.overview) {
+                        Label("Overview", systemImage: "gauge.with.dots.needle.33percent")
+                    }
+
                     NavigationLink(value: Tab.playlist) {
                         Label(lang.t("ai_playlist"), systemImage: "music.note.list")
                     }
@@ -85,6 +104,12 @@ struct ContentView: View {
                     NavigationLink(value: Tab.infoEraser) {
                         Label("Info Eraser", systemImage: "eraser.line.dashed")
                     }
+
+                    NavigationLink(value: Tab.libraryDoctor) {
+                        Label("Library Doctor", systemImage: "stethoscope")
+                    }
+                    .disabled(musicLibraryStatus.shouldBlockLibraryTools)
+                    .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
                     
                     NavigationLink(value: Tab.duplicateFinder) {
                         Label(lang.selectedLanguage == "ru" ? "Поиск дубликатов" : "Duplicate Finder", systemImage: "arrow.2.squarepath")
@@ -136,13 +161,26 @@ struct ContentView: View {
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
                             case .infoEraser: InfoEraserView()
+                            case .libraryDoctor: LibraryDoctorView()
                             case .duplicateFinder: DuplicateFinderView()
                             case .usbExport: USBExportView()
                             case .coversOptimizer: CoversOptimizerView()
+                            case .overview:
+                                OverviewView(
+                                    libraryStatus: musicLibraryStatus,
+                                    isRefreshingLibraryStatus: isRefreshingLibraryStatus,
+                                    refreshLibraryStatus: refreshMusicLibraryStatus,
+                                    openLibraryDoctor: openLibraryDoctorIfAvailable
+                                )
                             case .settings: SettingsView()
                             case .none:
                                 if musicLibraryStatus.isAvailable {
-                                    Text(lang.t("select_folder_msg")).foregroundColor(.secondary)
+                                    OverviewView(
+                                        libraryStatus: musicLibraryStatus,
+                                        isRefreshingLibraryStatus: isRefreshingLibraryStatus,
+                                        refreshLibraryStatus: refreshMusicLibraryStatus,
+                                        openLibraryDoctor: openLibraryDoctorIfAvailable
+                                    )
                                 } else {
                                     MusicLibraryUnavailableView(
                                         status: musicLibraryStatus,
@@ -182,6 +220,7 @@ struct ContentView: View {
                     }
                 }
             }
+            .background(SyncrosaTheme.pageBackground)
         }
         .onAppear {
             refreshMusicLibraryStatus()
@@ -215,17 +254,25 @@ struct ContentView: View {
                 if requiresMusicLibrary(selectedTab) && newStatus == .empty {
                     selectedTab = nil
                 } else if selectedTab == nil && newStatus.isAvailable && isKeyValidated {
-                    selectedTab = .playlist
+                    selectedTab = .overview
                 }
             }
         }
     }
 
+    private func openLibraryDoctorIfAvailable() {
+        if musicLibraryStatus.shouldBlockLibraryTools {
+            refreshMusicLibraryStatus()
+            return
+        }
+        selectedTab = .libraryDoctor
+    }
+
     private func requiresMusicLibrary(_ tab: Tab?) -> Bool {
         switch tab {
-        case .playlist, .offlinePlaylist, .fixer, .duplicateFinder, .usbExport, .coversOptimizer:
+        case .playlist, .offlinePlaylist, .fixer, .libraryDoctor, .duplicateFinder, .usbExport, .coversOptimizer:
             return true
-        case .folderFix, .infoEraser, .settings, .none:
+        case .overview, .folderFix, .infoEraser, .settings, .none:
             return false
         }
     }
@@ -304,7 +351,7 @@ struct MusicLibraryUnavailableView: View {
             } else {
                 Image(systemName: status == .empty ? "tray" : "music.note.list")
                     .font(.system(size: 54))
-                    .foregroundColor(.gray.opacity(0.35))
+                    .foregroundColor(SyncrosaTheme.placeholderIcon)
             }
 
             Text(title)

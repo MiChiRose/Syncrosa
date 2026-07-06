@@ -21,6 +21,7 @@ import json
 from core.localization import _, LANGUAGES
 from core.config import CONFIG_DATA, save_config, desktop_debug_logs_enabled
 from core.network import test_api_key, make_request
+from core.operation_history import read_history
 from ui.components import ProgressWindow
 
 class SetupWindow(tk.Toplevel):
@@ -135,6 +136,10 @@ class SetupWindow(tk.Toplevel):
         self.log_pref_var = tk.BooleanVar(value=desktop_debug_logs_enabled() and CONFIG_DATA.get("prompt_logs", False))
         if desktop_debug_logs_enabled():
             tk.Checkbutton(pref_frame, text=_(u"setup_log_pref"), variable=self.log_pref_var, bg="#ECECEC", font=("system", 12), command=self.save_log_pref).pack(side=tk.LEFT, anchor="w", padx=10, pady=0)
+
+        self.only_local_var = tk.BooleanVar(value=bool(CONFIG_DATA.get("only_local_mode", False)))
+        tk.Checkbutton(pref_frame, text="Only Local Mode", variable=self.only_local_var, bg="#ECECEC", font=("system", 12), command=self.save_only_local).pack(side=tk.LEFT, anchor="w", padx=10, pady=0)
+        ttk.Button(pref_frame, text="Operation History", command=self.show_history, width=18).pack(side=tk.LEFT, padx=10)
         
         # --- FOOTER SECTION ---
         bottom_frame = tk.Frame(main_frame, bg="#ECECEC")
@@ -168,6 +173,44 @@ class SetupWindow(tk.Toplevel):
             return
         CONFIG_DATA["prompt_logs"] = self.log_pref_var.get()
         save_config(CONFIG_DATA)
+
+    def save_only_local(self):
+        CONFIG_DATA["only_local_mode"] = self.only_local_var.get()
+        save_config(CONFIG_DATA)
+
+    def show_history(self):
+        win = tk.Toplevel(self)
+        win.title("Operation History")
+        win.geometry("620x420")
+        top = tk.Frame(win)
+        top.pack(fill=tk.X, padx=10, pady=8)
+        tools = ["All", "Overview", "Library Doctor", "Filename Cleaner", "Info Eraser", "Media Fixer", "Covers Optimizer"]
+        selected_tool = tk.StringVar(value="All")
+        combo = ttk.Combobox(top, textvariable=selected_tool, values=tools, state="readonly", width=24)
+        combo.pack(side=tk.LEFT)
+        text = tk.Text(win, bg="#000000", fg="#00FF55", font=("Monaco", 10), state="disabled")
+        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+
+        def reload_history(event=None):
+            entries = read_history(selected_tool.get())
+            text.config(state="normal")
+            text.delete("1.0", tk.END)
+            if not entries:
+                text.insert(tk.END, "No history yet.\n")
+            for entry in entries:
+                backup = entry.get("backupPath", "")
+                backup_line = "\nBackup: " + backup if backup else ""
+                text.insert(tk.END, "[{0}] {1} / {2}\n{3}{4}\n\n".format(
+                    entry.get("status", ""),
+                    entry.get("tool", ""),
+                    entry.get("title", ""),
+                    entry.get("message", ""),
+                    backup_line
+                ))
+            text.config(state="disabled")
+
+        combo.bind("<<ComboboxSelected>>", reload_history)
+        reload_history()
         
     def clear_lib_cache(self):
         self.btn_sync_lib.config(state="disabled")

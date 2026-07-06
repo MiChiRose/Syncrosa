@@ -49,11 +49,11 @@ struct InfoEraserView: View {
                     Text(lang.selectedLanguage == "ru" ? "Эта вкладка окончательно удаляет встроенную информацию и обложки из локальных музыкальных файлов. Работайте только с копией папки или сначала сохраните резервную копию." : "This tab permanently removes embedded song information and artwork from local music files. Work on a copied folder or create a backup first.")
                         .font(.subheadline)
                 }
-                .foregroundColor(Color(red: 0.55, green: 0, blue: 0.06))
+                .foregroundColor(SyncrosaTheme.warningForeground)
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.red.opacity(0.10))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.35), lineWidth: 1))
+                .background(SyncrosaTheme.warningBackground)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(SyncrosaTheme.warningBorder, lineWidth: 1))
                 .cornerRadius(8)
 
                 VStack(alignment: .leading, spacing: 14) {
@@ -93,7 +93,7 @@ struct InfoEraserView: View {
                         .opacity(isProcessing || progressValue > 0 ? 1 : 0.35)
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(8)
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -105,7 +105,7 @@ struct InfoEraserView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "music.note.list")
                                 .font(.system(size: 38))
-                                .foregroundColor(.gray.opacity(0.35))
+                                .foregroundColor(SyncrosaTheme.placeholderIcon)
                             Text(lang.selectedLanguage == "ru" ? "Выберите папку с музыкой." : "Select a folder with music files.")
                                 .foregroundColor(.secondary)
                         }
@@ -126,7 +126,7 @@ struct InfoEraserView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(8)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -252,7 +252,8 @@ struct InfoEraserView: View {
     private func backupOriginalInfo() {
         runOperation(title: lang.selectedLanguage == "ru" ? "Сохраняю исходную информацию..." : "Backing up original info...") { folder, files, progress in
             let result = try InfoEraserService.shared.backupOriginalInfo(folder: folder, files: files, progress: progress)
-            return lang.selectedLanguage == "ru" ? "Backup сохранён: \(result.manifestURL.path). Поддерживаемых файлов: \(result.supportedCount)." : "Backup saved: \(result.manifestURL.path). Supported files: \(result.supportedCount)."
+            let supportPath = result.appSupportManifestURL?.path ?? ""
+            return lang.selectedLanguage == "ru" ? "Backup сохранён: \(result.manifestURL.path). Копия: \(supportPath). Поддерживаемых файлов: \(result.supportedCount)." : "Backup saved: \(result.manifestURL.path). Copy: \(supportPath). Supported files: \(result.supportedCount)."
         }
     }
 
@@ -299,12 +300,28 @@ struct InfoEraserView: View {
                     isProcessing = false
                     appendLog(message)
                     activeNotification = NotificationMessage(text: message, isError: false)
+                    OperationHistoryService.shared.record(
+                        tool: "Info Eraser",
+                        title: title,
+                        status: "OK",
+                        message: message,
+                        affectedCount: files.count,
+                        backupPath: folder.appendingPathComponent(InfoEraserService.shared.backupDirectoryName).path
+                    )
                 }
             } catch {
                 DispatchQueue.main.async {
                     isProcessing = false
                     appendLog("ERROR: \(error.localizedDescription)")
                     activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
+                    OperationHistoryService.shared.record(
+                        tool: "Info Eraser",
+                        title: title,
+                        status: "FAIL",
+                        message: error.localizedDescription,
+                        affectedCount: files.count,
+                        backupPath: folder.appendingPathComponent(InfoEraserService.shared.backupDirectoryName).path
+                    )
                 }
             }
         }

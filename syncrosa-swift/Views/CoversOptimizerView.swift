@@ -104,9 +104,9 @@ struct CoversOptimizerView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(NSColor.controlBackgroundColor))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(10)
-                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                .shadow(color: SyncrosaTheme.softShadow, radius: 5, x: 0, y: 2)
                 
                 // Current track/status
                 if isProcessing {
@@ -121,9 +121,9 @@ struct CoversOptimizerView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(NSColor.controlBackgroundColor))
+                    .background(SyncrosaTheme.panelBackground)
                     .cornerRadius(10)
-                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    .shadow(color: SyncrosaTheme.softShadow, radius: 5, x: 0, y: 2)
                 }
                 
                 // Terminal Console Logs
@@ -193,14 +193,14 @@ struct CoversOptimizerView: View {
                     Text(lang.selectedLanguage == "ru" ?
                          "Этот инструмент оптимизирует размер обложек ваших музыкальных альбомов для старых или портативных устройств (например, iPod Classic, iPhone 4s).\n\n" +
                          "Шаги использования:\n" +
-                         "1. Сделайте резервную копию ваших обложек, нажав «Резервная копия обложек» (сохранит в Documents/AlbumCovers).\n" +
+                         "1. Сделайте резервную копию ваших обложек, нажав «Резервная копия обложек» (сохранит в Library/Application Support/Syncrosa/Backups/AlbumCovers).\n" +
                          "2. Выберите целевой размер обложки из выпадающего списка.\n" +
                          "3. Нажмите «Оптимизировать обложки» для запуска процесса сжатия.\n" +
                          "4. Если что-то пойдет не так, вы всегда сможете восстановить исходные обложки, нажав «Восстановить обложки»." :
                          
                          "This tool optimizes the size of your album cover art for older or vintage portable devices (like iPod Classic, iPhone 4s).\n\n" +
                          "How to use:\n" +
-                         "1. Backup your original cover arts first by clicking 'Backup Original Covers' (saves them to Documents/AlbumCovers).\n" +
+                         "1. Backup your original cover arts first by clicking 'Backup Original Covers' (saves them to Library/Application Support/Syncrosa/Backups/AlbumCovers).\n" +
                          "2. Select the target cover size from the dropdown.\n" +
                          "3. Click 'Optimize Covers' to compress the artwork for all tracks.\n" +
                          "4. If needed, restore the original high-resolution cover art by clicking 'Restore Original Covers'."
@@ -275,6 +275,14 @@ struct CoversOptimizerView: View {
                     log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
                 } else {
                     log(lang.t("log_backup_finished", successCount))
+                    OperationHistoryService.shared.record(
+                        tool: "Covers Optimizer",
+                        title: "Backup Original Covers",
+                        status: "OK",
+                        message: lang.t("log_backup_finished", successCount),
+                        affectedCount: successCount,
+                        backupPath: service.backupFolder.path
+                    )
                 }
                 isProcessing = false
                 currentTrackName = ""
@@ -343,6 +351,14 @@ struct CoversOptimizerView: View {
                     log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
                 } else {
                     log(lang.t("log_optimize_finished", successCount))
+                    OperationHistoryService.shared.record(
+                        tool: "Covers Optimizer",
+                        title: "Optimize Covers",
+                        status: "OK",
+                        message: lang.t("log_optimize_finished", successCount),
+                        affectedCount: successCount,
+                        backupPath: service.backupFolder.path
+                    )
                 }
                 isProcessing = false
                 currentTrackName = ""
@@ -404,6 +420,14 @@ struct CoversOptimizerView: View {
                     log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
                 } else {
                     log(lang.t("log_restore_finished", successCount))
+                    OperationHistoryService.shared.record(
+                        tool: "Covers Optimizer",
+                        title: "Restore Original Covers",
+                        status: "OK",
+                        message: lang.t("log_restore_finished", successCount),
+                        affectedCount: successCount,
+                        backupPath: service.backupFolder.path
+                    )
                 }
                 isProcessing = false
                 currentTrackName = ""

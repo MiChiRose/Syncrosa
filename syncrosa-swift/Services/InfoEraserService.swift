@@ -60,7 +60,7 @@ final class InfoEraserService {
         return results.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
 
-    func backupOriginalInfo(folder: URL, files: [URL], progress: (Int, Int) -> Void) throws -> (manifestURL: URL, supportedCount: Int) {
+    func backupOriginalInfo(folder: URL, files: [URL], progress: (Int, Int) -> Void) throws -> (manifestURL: URL, supportedCount: Int, appSupportManifestURL: URL?) {
         let backupDir = folder.appendingPathComponent(backupDirectoryName, isDirectory: true)
         let tagsDir = backupDir.appendingPathComponent("tags", isDirectory: true)
         try FileManager.default.createDirectory(at: tagsDir, withIntermediateDirectories: true)
@@ -129,7 +129,8 @@ final class InfoEraserService {
         let data = try JSONEncoder.prettySorted.encode(manifest)
         try data.write(to: manifestURL, options: .atomic)
         let supported = manifest.items.filter { $0.supported }.count
-        return (manifestURL, supported)
+        let mirroredManifest = try mirrorBackupToApplicationSupport(backupDir: backupDir)
+        return (manifestURL, supported, mirroredManifest)
     }
 
     func eraseInfo(files: [URL], progress: (Int, Int) -> Void) throws -> (erased: Int, unsupported: Int) {
@@ -159,7 +160,7 @@ final class InfoEraserService {
     }
 
     func restoreInfo(folder: URL, progress: (Int, Int) -> Void) throws -> (restored: Int, missing: Int) {
-        let backupDir = folder.appendingPathComponent(backupDirectoryName, isDirectory: true)
+        let backupDir = restoreBackupDirectory(for: folder)
         let manifestURL = backupDir.appendingPathComponent(manifestName)
         let manifest = try JSONDecoder().decode(InfoEraserManifest.self, from: Data(contentsOf: manifestURL))
 
@@ -217,6 +218,65 @@ final class InfoEraserService {
 
     private func isSupportedExtension(_ ext: String) -> Bool {
         ext == "mp3" || mp4Extensions.contains(ext)
+    }
+
+    private func mirrorBackupToApplicationSupport(backupDir: URL) throws -> URL? {
+        do {
+            let root = try SyncrosaStorage.backupDirectory(for: "InfoEraser")
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyyMMdd-HHmmss"
+            let folderName = "backup-\(formatter.string(from: Date()))-\(UUID().uuidString.prefix(8))"
+            let destination = root.appendingPathComponent(folderName, isDirectory: true)
+            try FileManager.default.copyItem(at: backupDir, to: destination)
+            pruneMirroredBackups(root: root, keep: 10)
+            return destination.appendingPathComponent(manifestName)
+        } catch {
+            print("Info Eraser backup mirror failed: \(error)")
+            return nil
+        }
+    }
+
+    private func restoreBackupDirectory(for folder: URL) -> URL {
+        let localBackupDir = folder.appendingPathComponent(backupDirectoryName, isDirectory: true)
+        if FileManager.default.fileExists(atPath: localBackupDir.appendingPathComponent(manifestName).path) {
+            return localBackupDir
+        }
+        guard let root = try? SyncrosaStorage.backupDirectory(for: "InfoEraser"),
+              let candidates = try? FileManager.default.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
+                options: [.skipsHiddenFiles]
+              ) else {
+            return localBackupDir
+        }
+        let sorted = candidates.filter { url in
+            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
+            return values?.isDirectory == true && FileManager.default.fileExists(atPath: url.appendingPathComponent(manifestName).path)
+        }.sorted { lhs, rhs in
+            let left = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let right = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return left > right
+        }
+        return sorted.first ?? localBackupDir
+    }
+
+    private func pruneMirroredBackups(root: URL, keep: Int) {
+        guard let candidates = try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+        let sorted = candidates.filter { url in
+            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
+            return values?.isDirectory == true
+        }.sorted { lhs, rhs in
+            let left = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let right = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return left > right
+        }
+        for stale in sorted.dropFirst(keep) {
+            try? FileManager.default.removeItem(at: stale)
+        }
     }
 
     private func readOptionalTag(base: URL, relativePath: String) throws -> Data? {

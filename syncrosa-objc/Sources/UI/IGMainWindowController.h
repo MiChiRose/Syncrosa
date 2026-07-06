@@ -5,5 +5,7 @@
 @interface IGMainWindowController : NSWindowController
 
 - (void)updateButtonStates;
+- (void)switchViewToIndex:(NSInteger)index;
+- (void)refreshLibraryStatusWithCompletion:(void(^)(void))completionBlock;
 
 @end
