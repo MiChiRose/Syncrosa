@@ -10,17 +10,23 @@
 !/.gitignore
 !/README.md
 !/LICENSE
-!/VERSION
-!/CHANGELOG.md
 !/app_logo.png
-!/.github/
-!/.github/**
-!/scripts/
-!/scripts/**
 
 # ==========================================
 # Rules for ignored files inside directories
 # ==========================================
+
+# Local-only project files that should not be published accidentally
+/.github/
+/.agents/
+/.codex/
+/docs/
+/mcp/
+/scripts/
+/tools/
+/VERSION
+/CHANGELOG.md
+/syncrosa-objc/dump_itunes_library.py
 
 # macOS General
 **/.DS_Store
@@ -73,3 +79,11 @@
 
 # Logs
 **/*.log
+
+# MCP / Node generated files
+**/node_modules/
+**/dist/
+**/coverage/
+**/.turbo/
+**/.env
+**/.env.*

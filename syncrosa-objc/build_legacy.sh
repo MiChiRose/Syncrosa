@@ -18,15 +18,17 @@ DERIVED_DATA_PATH="$BUILD_ROOT/DerivedData"
 VERSION_FILE="../VERSION"
 if [ -n "${SYNCROSA_VERSION:-}" ]; then
     APP_VERSION="$SYNCROSA_VERSION"
-else
-    if [ ! -f "$VERSION_FILE" ]; then
-        echo "❌ VERSION file not found at $VERSION_FILE"
-        exit 1
-    fi
+elif [ -f "$VERSION_FILE" ]; then
     APP_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+elif [ -f "Sources/Info.plist" ]; then
+    APP_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "Sources/Info.plist" 2>/dev/null || true)"
+elif command -v git >/dev/null 2>&1; then
+    APP_VERSION="$(cd .. && git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
+else
+    APP_VERSION=""
 fi
 if [ -z "$APP_VERSION" ]; then
-    echo "❌ VERSION is empty."
+    echo "❌ Syncrosa version is not set. Export SYNCROSA_VERSION=3.2.1 before building."
     exit 1
 fi
 DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"

@@ -11,15 +11,15 @@ APP_PATH="$WORK_DIR/$APP_NAME.app"
 VERSION_FILE="$WORK_DIR/../VERSION"
 if [ -n "${SYNCROSA_VERSION:-}" ]; then
     APP_VERSION="$SYNCROSA_VERSION"
-else
-    if [ ! -f "$VERSION_FILE" ]; then
-        echo "❌ VERSION file not found at $VERSION_FILE"
-        exit 1
-    fi
+elif [ -f "$VERSION_FILE" ]; then
     APP_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+elif command -v git >/dev/null 2>&1; then
+    APP_VERSION="$(cd "$WORK_DIR/.." && git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
+else
+    APP_VERSION=""
 fi
 if [ -z "$APP_VERSION" ]; then
-    echo "❌ VERSION is empty."
+    echo "❌ Syncrosa version is not set. Export SYNCROSA_VERSION=3.2.1 before building."
     exit 1
 fi
 DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"
