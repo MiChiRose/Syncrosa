@@ -82,6 +82,84 @@ Because the application is distributed directly without an Apple Developer certi
 
 ---
 
+## ✨ Modern SwiftUI App Guide
+
+The SwiftUI build is the modern Syncrosa experience for macOS 14+ on Apple Silicon. Screenshots below use the English interface; you can switch the app language at any time in **Settings**.
+
+<details>
+<summary><b>1. Overview & Library Status</b></summary>
+
+Open **Overview** first to check the current Music library state and the safety mode before starting any operation.
+
+1. **Library** shows how many tracks Syncrosa can currently read from Music.app.
+2. **Only Local Mode** lets you skip online metadata lookups and work only with local files/library data.
+3. **Quick Actions** can refresh Music.app detection, open Library Doctor, or reopen the first-launch setup.
+4. **Current Safeguards** summarizes protections such as empty-library blocking and chunked long-running scans.
+
+<img src="readme-assets/swiftui/overview.jpeg" alt="Syncrosa SwiftUI Overview" width="820" />
+
+</details>
+
+<details>
+<summary><b>2. Language, API Provider & Safe Defaults</b></summary>
+
+Use **Settings** to choose the interface language, configure an AI provider, and control safer offline behavior.
+
+1. Select your preferred language from **Select Language**.
+2. Choose **Gemini**, **Groq**, or **OpenRouter** as the AI provider.
+3. Select a model, paste your API key, then click **Validate & Save Key**.
+4. Enable **Only Local Mode** when you want Syncrosa to avoid online metadata lookups.
+5. Open **Operation History** when you want to review previous operations by feature.
+
+<img src="readme-assets/swiftui/settings.jpeg" alt="Syncrosa SwiftUI Settings" width="820" />
+
+</details>
+
+<details>
+<summary><b>3. AI Playlist Access</b></summary>
+
+The **AI Playlist** tab requires a validated API key and a readable Music library. If the app cannot safely start playlist generation yet, it blocks the tab and tells you what to fix first.
+
+1. If you see **API Key Required**, open **Settings** and validate a provider key.
+2. If Music.app has no readable tracks, refresh Music from **Overview** or add tracks to the library first.
+3. After setup is complete, enter a playlist name, describe the mood, choose the track count, and generate the playlist.
+
+<img src="readme-assets/swiftui/api-key-required.jpeg" alt="Syncrosa SwiftUI API Key Required screen" width="820" />
+
+</details>
+
+<details>
+<summary><b>4. Folder Fixer & Filename Cleanup</b></summary>
+
+Use **Folder Fixer** for music files on disk. It works on a selected folder rather than directly inside Music.app.
+
+1. Choose which tags Syncrosa is allowed to update.
+2. Click **Select Folder** and pick the folder containing your music files.
+3. Use **Fix All Files** to restore selected metadata fields.
+4. Use **Clean Filenames** as a separate process when you want filename cleanup, including underscore-to-space normalization.
+5. Keep **Download album covers into the folder** enabled when cover files should be saved next to the tracks.
+
+<img src="readme-assets/swiftui/folder-fixer.jpeg" alt="Syncrosa SwiftUI Folder Fixer" width="820" />
+
+</details>
+
+<details>
+<summary><b>5. Info Eraser</b></summary>
+
+**Info Eraser** is intentionally separate because it is destructive. It removes embedded song information and artwork from local music files only; it does not operate directly on Music.app or iTunes libraries.
+
+1. Work on a copied folder whenever possible.
+2. Click **Select Folder** and review the detected supported files.
+3. Click **Backup Original Info** before erasing metadata.
+4. Click **Erase Info** only after confirming the warning dialog.
+5. Use **Restore Info** if you need to restore metadata from the sidecar backup created by Syncrosa.
+
+<img src="readme-assets/swiftui/info-eraser.jpeg" alt="Syncrosa SwiftUI Info Eraser" width="820" />
+
+</details>
+
+---
+
 ## 🌟 Legacy App Features Guide
 
 Below is a detailed guide on how to set up and use the legacy Syncrosa application. 

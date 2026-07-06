@@ -5,6 +5,9 @@
 !/syncrosa-objc/
 !/syncrosa-python/
 !/syncrosa-swift/
+!/readme-assets/
+!/readme-assets/swiftui/
+!/readme-assets/swiftui/*.jpeg
 
 # Whitelist allowed root files
 !/.gitignore
