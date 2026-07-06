@@ -55,6 +55,16 @@ class FileMetadataService {
             if title.isEmpty { title = parsed.title }
         }
         
+        if UserDefaults.standard.bool(forKey: "only_local_mode") {
+            let shouldRenameFromLocalMetadata = checkedTags["artist"] == true || checkedTags["title"] == true
+            if shouldRenameFromLocalMetadata, !artist.isEmpty, !title.isEmpty {
+                success = renameLocalFile(url: &workingURL, artist: artist, title: title)
+            } else {
+                success = true
+            }
+            return FileMetadataFixResult(success: success, underscoreNormalizationFailed: underscoreNormalizationFailed)
+        }
+
         // 3. Search iTunes for better metadata
         MetadataService.shared.fetchMetadata(for: title, artist: artist) { result in
             defer { semaphore.signal() }
@@ -126,9 +136,36 @@ class FileMetadataService {
         return FileMetadataFixResult(success: success, underscoreNormalizationFailed: underscoreNormalizationFailed)
     }
 
+    private func renameLocalFile(url workingURL: inout URL, artist: String, title: String) -> Bool {
+        guard !artist.isEmpty, !title.isEmpty else { return true }
+        let sanitizedArtist = sanitizeFilename(artist)
+        let sanitizedTitle = sanitizeFilename(title)
+        let newFilename = "\(sanitizedArtist) - \(sanitizedTitle).\(workingURL.pathExtension)"
+        let desiredUrl = workingURL.deletingLastPathComponent().appendingPathComponent(newFilename)
+        let newUrl = uniqueDestinationURL(for: desiredUrl, originalURL: workingURL)
+
+        do {
+            if workingURL.standardized.path != newUrl.standardized.path {
+                if workingURL.path.lowercased() == newUrl.path.lowercased() {
+                    let tempUrl = workingURL.deletingLastPathComponent().appendingPathComponent("temp_\(UUID().uuidString)_\(workingURL.lastPathComponent)")
+                    try FileManager.default.moveItem(at: workingURL, to: tempUrl)
+                    try FileManager.default.moveItem(at: tempUrl, to: newUrl)
+                } else {
+                    try FileManager.default.moveItem(at: workingURL, to: newUrl)
+                }
+                workingURL = newUrl
+            }
+            return true
+        } catch {
+            print("Local rename failed: \(error)")
+            return false
+        }
+    }
+
     private func normalizeUnderscoresInFilename(_ url: URL) throws -> URL {
         let baseName = url.deletingPathExtension().lastPathComponent
-        guard baseName.contains("_") else { return url }
+        let underscoreCount = baseName.filter { $0 == "_" }.count
+        guard underscoreCount >= 2 || baseName.contains("_-_") || baseName.contains("__") else { return url }
 
         let normalizedBase = baseName
             .replacingOccurrences(of: "_+", with: " ", options: .regularExpression)

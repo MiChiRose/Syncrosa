@@ -10,6 +10,7 @@
  * trackCount is -1 when the library cannot be read.
  */
 - (void)fetchLibraryTrackCountWithCompletion:(void(^)(NSInteger trackCount, NSString *errorMessage))completionBlock;
+- (NSInteger)readLibraryTrackCountSyncWithErrorMessage:(NSString **)errorMessage;
 
 /**
  * Fetches all tracks from iTunes library playlist 1.

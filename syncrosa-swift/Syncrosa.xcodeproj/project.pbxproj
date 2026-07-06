@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D3E1A2B3C4D5E6F700000001 /* iGeniusAI-armApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000101 /* iGeniusAI-armApp.swift */; };
+		D3E1A2B3C4D5E6F700000001 /* SyncrosaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000101 /* SyncrosaApp.swift */; };
 		D3E1A2B3C4D5E6F700000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000102 /* ContentView.swift */; };
 		D3E1A2B3C4D5E6F700000003 /* PlaylistGeneratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */; };
 		D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */; };
@@ -19,11 +19,27 @@
 		D3E1A2B3C4D5E6F70000000A /* MetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */; };
 		D3E1A2B3C4D5E6F70000000B /* LocalizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */; };
 		D3E1A2B3C4D5E6F70000000C /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */; };
-		D3E1A2B3C4D5E6F70000000D /* genius_atom.icns in Resources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */; };
+		D3E1A2B3C4D5E6F70000000D /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000010D /* AppIcon.icns */; };
+		D3E1A2B3C4D5E6F700001001 /* InfoEraserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001101 /* InfoEraserView.swift */; };
+		D3E1A2B3C4D5E6F700001002 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001102 /* OverviewView.swift */; };
+		D3E1A2B3C4D5E6F700001003 /* LibraryDoctorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001103 /* LibraryDoctorView.swift */; };
+		D3E1A2B3C4D5E6F700001004 /* OperationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001104 /* OperationHistoryView.swift */; };
+		D3E1A2B3C4D5E6F700001005 /* USBExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001105 /* USBExportView.swift */; };
+		D3E1A2B3C4D5E6F700001006 /* CoversOptimizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001106 /* CoversOptimizerView.swift */; };
+		D3E1A2B3C4D5E6F700001007 /* DuplicateFinderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001107 /* DuplicateFinderView.swift */; };
+		D3E1A2B3C4D5E6F700001008 /* OfflinePlaylistGeneratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001108 /* OfflinePlaylistGeneratorView.swift */; };
+		D3E1A2B3C4D5E6F700001009 /* FileMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001109 /* FileMetadataService.swift */; };
+		D3E1A2B3C4D5E6F70000100A /* InfoEraserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110A /* InfoEraserService.swift */; };
+		D3E1A2B3C4D5E6F70000100B /* SyncrosaStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */; };
+		D3E1A2B3C4D5E6F70000100C /* OperationHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */; };
+		D3E1A2B3C4D5E6F70000100D /* USBService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110D /* USBService.swift */; };
+		D3E1A2B3C4D5E6F70000100E /* PlaylistExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110E /* PlaylistExportService.swift */; };
+		D3E1A2B3C4D5E6F70000100F /* CoversOptimizerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110F /* CoversOptimizerService.swift */; };
+		D3E1A2B3C4D5E6F700001010 /* LyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001110 /* LyricsService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		D3E1A2B3C4D5E6F700000101 /* iGeniusAI-armApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iGeniusAI-armApp.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700000101 /* SyncrosaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncrosaApp.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistGeneratorView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFixerView.swift; sourceTree = "<group>"; };
@@ -35,9 +51,25 @@
 		D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataService.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationService.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
-		D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = genius_atom.icns; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000010D /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700000201 /* iGeniusAI-arm.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iGeniusAI-arm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3E1A2B3C4D5E6F7000001FF /* iGeniusAI-arm.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "iGeniusAI-arm.entitlements"; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001101 /* InfoEraserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoEraserView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001102 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001103 /* LibraryDoctorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDoctorView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001104 /* OperationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationHistoryView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001105 /* USBExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBExportView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001106 /* CoversOptimizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoversOptimizerView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001107 /* DuplicateFinderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateFinderView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001108 /* OfflinePlaylistGeneratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflinePlaylistGeneratorView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001109 /* FileMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000110A /* InfoEraserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoEraserService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncrosaStorage.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationHistoryService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000110D /* USBService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000110E /* PlaylistExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistExportService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F70000110F /* CoversOptimizerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoversOptimizerService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001110 /* LyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,12 +86,12 @@
 		D3E1A2B3C4D5E6F700000401 /* iGeniusAI-arm */ = {
 			isa = PBXGroup;
 			children = (
-				D3E1A2B3C4D5E6F700000101 /* iGeniusAI-armApp.swift */,
+					D3E1A2B3C4D5E6F700000101 /* SyncrosaApp.swift */,
 				D3E1A2B3C4D5E6F700000102 /* ContentView.swift */,
 				D3E1A2B3C4D5E6F700000402 /* Views */,
 				D3E1A2B3C4D5E6F700000403 /* Services */,
 				D3E1A2B3C4D5E6F700000404 /* Products */,
-				D3E1A2B3C4D5E6F70000010D /* genius_atom.icns */,
+					D3E1A2B3C4D5E6F70000010D /* AppIcon.icns */,
 				);
 				sourceTree = "<group>";
 
@@ -68,10 +100,18 @@
 			isa = PBXGroup;
 			children = (
 				D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */,
-				D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */,
-				D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */,
-				D3E1A2B3C4D5E6F700000106 /* SettingsView.swift */,
-				D3E1A2B3C4D5E6F700000107 /* NotificationOverlay.swift */,
+					D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */,
+					D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */,
+					D3E1A2B3C4D5E6F700001101 /* InfoEraserView.swift */,
+					D3E1A2B3C4D5E6F700001102 /* OverviewView.swift */,
+					D3E1A2B3C4D5E6F700001103 /* LibraryDoctorView.swift */,
+					D3E1A2B3C4D5E6F700001104 /* OperationHistoryView.swift */,
+					D3E1A2B3C4D5E6F700001105 /* USBExportView.swift */,
+					D3E1A2B3C4D5E6F700001106 /* CoversOptimizerView.swift */,
+					D3E1A2B3C4D5E6F700001107 /* DuplicateFinderView.swift */,
+					D3E1A2B3C4D5E6F700001108 /* OfflinePlaylistGeneratorView.swift */,
+					D3E1A2B3C4D5E6F700000106 /* SettingsView.swift */,
+					D3E1A2B3C4D5E6F700000107 /* NotificationOverlay.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -80,10 +120,18 @@
 			isa = PBXGroup;
 			children = (
 				D3E1A2B3C4D5E6F700000108 /* MusicService.swift */,
-				D3E1A2B3C4D5E6F700000109 /* AIService.swift */,
-				D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */,
-				D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */,
-				D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */,
+					D3E1A2B3C4D5E6F700000109 /* AIService.swift */,
+					D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */,
+					D3E1A2B3C4D5E6F700001109 /* FileMetadataService.swift */,
+					D3E1A2B3C4D5E6F70000110A /* InfoEraserService.swift */,
+					D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */,
+					D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */,
+					D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */,
+					D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */,
+					D3E1A2B3C4D5E6F70000110D /* USBService.swift */,
+					D3E1A2B3C4D5E6F70000110E /* PlaylistExportService.swift */,
+					D3E1A2B3C4D5E6F70000110F /* CoversOptimizerService.swift */,
+					D3E1A2B3C4D5E6F700001110 /* LyricsService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -153,7 +201,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D3E1A2B3C4D5E6F70000000D /* genius_atom.icns in Resources */,
+				D3E1A2B3C4D5E6F70000000D /* AppIcon.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -164,18 +212,34 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D3E1A2B3C4D5E6F700000001 /* iGeniusAI-armApp.swift in Sources */,
+				D3E1A2B3C4D5E6F700000001 /* SyncrosaApp.swift in Sources */,
 				D3E1A2B3C4D5E6F700000002 /* ContentView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000003 /* PlaylistGeneratorView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000005 /* FileMediaFixerView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001001 /* InfoEraserView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001002 /* OverviewView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001003 /* LibraryDoctorView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001004 /* OperationHistoryView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001005 /* USBExportView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001006 /* CoversOptimizerView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001007 /* DuplicateFinderView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001008 /* OfflinePlaylistGeneratorView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000006 /* SettingsView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000007 /* NotificationOverlay.swift in Sources */,
 				D3E1A2B3C4D5E6F700000008 /* MusicService.swift in Sources */,
 				D3E1A2B3C4D5E6F700000009 /* AIService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000A /* MetadataService.swift in Sources */,
+				D3E1A2B3C4D5E6F700001009 /* FileMetadataService.swift in Sources */,
+				D3E1A2B3C4D5E6F70000100A /* InfoEraserService.swift in Sources */,
+				D3E1A2B3C4D5E6F70000100B /* SyncrosaStorage.swift in Sources */,
+				D3E1A2B3C4D5E6F70000100C /* OperationHistoryService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000B /* LocalizationService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000C /* KeychainHelper.swift in Sources */,
+				D3E1A2B3C4D5E6F70000100D /* USBService.swift in Sources */,
+				D3E1A2B3C4D5E6F70000100E /* PlaylistExportService.swift in Sources */,
+				D3E1A2B3C4D5E6F70000100F /* CoversOptimizerService.swift in Sources */,
+				D3E1A2B3C4D5E6F700001010 /* LyricsService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

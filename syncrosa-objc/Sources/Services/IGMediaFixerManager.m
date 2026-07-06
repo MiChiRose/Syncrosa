@@ -120,6 +120,12 @@ static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
 }
 
 - (void)fetchAppleMetadataForArtist:(NSString *)artist title:(NSString *)title completion:(void(^)(NSDictionary *info))completionBlock {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
+        [[IGLogger sharedLogger] log:@"Only Local Mode enabled: skipping Apple metadata request."];
+        completionBlock(nil);
+        return;
+    }
+
     NSString *cleanTitle = title;
     NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"[\\(\\[].*?[\\)\\]]" options:0 error:nil];
     cleanTitle = [regex stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
@@ -309,6 +315,10 @@ static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
         BOOL fixGenre = [options[@"genre"] boolValue];
         BOOL fixTrackNumber = [options[@"trackNumber"] boolValue];
         BOOL fixLyrics = [options[@"lyrics"] boolValue];
+        if (fixLyrics && [[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
+            fixLyrics = NO;
+            [[IGLogger sharedLogger] log:@"Only Local Mode enabled: skipping lyrics requests."];
+        }
 
         void (^reportProgress)(NSInteger) = ^(NSInteger current) {
             if (progressBlock) {

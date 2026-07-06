@@ -76,7 +76,7 @@ struct OfflinePlaylistGeneratorView: View {
                     VStack(spacing: 15) {
                         Image(systemName: "music.note.list")
                             .font(.system(size: 42))
-                            .foregroundColor(.gray.opacity(0.35))
+                            .foregroundColor(SyncrosaTheme.placeholderIcon)
                         Text(emptyLibraryMessage)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -211,7 +211,7 @@ struct OfflinePlaylistGeneratorView: View {
                         .disabled(allTracks.isEmpty || isCreatingPlaylist || playlistName.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                     .padding()
-                    .background(Color.gray.opacity(0.05))
+                    .background(SyncrosaTheme.panelBackground)
                     .cornerRadius(12)
                     
                     // Card 2: Decades Section
@@ -246,7 +246,7 @@ struct OfflinePlaylistGeneratorView: View {
                         .disabled(allTracks.isEmpty || isGeneratingEpochs || !checkedDecades.values.contains(true))
                     }
                     .padding()
-                    .background(Color.gray.opacity(0.05))
+                    .background(SyncrosaTheme.panelBackground)
                     .cornerRadius(12)
                 }
                 

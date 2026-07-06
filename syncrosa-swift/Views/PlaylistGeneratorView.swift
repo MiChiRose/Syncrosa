@@ -76,11 +76,11 @@ struct PlaylistGeneratorView: View {
                             .font(.system(size: 14))
                             .padding(8)
                             .frame(height: 80)
-                            .background(Color(NSColor.textBackgroundColor))
+                            .background(SyncrosaTheme.textBackground)
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                    .stroke(SyncrosaTheme.panelBorder, lineWidth: 1)
                             )
                             .onChange(of: prompt) { oldValue, newValue in
                                 if newValue.count > promptLimit {
@@ -132,7 +132,7 @@ struct PlaylistGeneratorView: View {
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
+                .background(SyncrosaTheme.panelBackground)
                 .cornerRadius(12)
                 
                 // Action Button

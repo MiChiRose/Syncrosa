@@ -30,6 +30,8 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
 @property (nonatomic, strong) NSTextField *apiKeyLabel;
 @property (nonatomic, strong) NSSecureTextField *apiKeyField;
 @property (nonatomic, strong) NSButton *enableLoggingCheckbox;
+@property (nonatomic, strong) NSButton *onlyLocalCheckbox;
+@property (nonatomic, strong) NSButton *historyButton;
 @property (nonatomic, strong) NSButton *syncLibButton;
 @property (nonatomic, strong) NSTextField *syncLibStatusLabel;
 @property (nonatomic, strong) NSButton *saveButton;
@@ -139,8 +141,21 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     self.enableLoggingCheckbox.hidden = ![IGLogger desktopDiagnosticsEnabled];
     self.enableLoggingCheckbox.enabled = [IGLogger desktopDiagnosticsEnabled];
     [self.view addSubview:self.enableLoggingCheckbox];
+
+    y -= 25;
+    self.onlyLocalCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)];
+    self.onlyLocalCheckbox.buttonType = NSSwitchButton;
+    self.onlyLocalCheckbox.title = @"Only Local Mode";
+    [self.view addSubview:self.onlyLocalCheckbox];
+
+    self.historyButton = [[NSButton alloc] initWithFrame:NSMakeRect(300, y - 4, 180, 28)];
+    self.historyButton.bezelStyle = NSRoundedBezelStyle;
+    self.historyButton.title = @"Operation History";
+    self.historyButton.target = self;
+    self.historyButton.action = @selector(historyClicked:);
+    [self.view addSubview:self.historyButton];
     
-    y -= 45;
+    y -= 35;
     // Library Sync Section
     self.syncLibButton = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 200, 30)];
     self.syncLibButton.bezelStyle = NSRoundedBezelStyle;
@@ -210,6 +225,8 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     self.enableLoggingCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? 
         @"Запрашивать сохранение логов при генерации и ошибках" : 
         @"Prompt to save text logs for errors and successful generation";
+    self.onlyLocalCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Only Local Mode (без сетевых метаданных)" : @"Only Local Mode (skip online metadata)";
+    self.historyButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"История операций" : @"Operation History";
     
     if (self.syncLibStatusLabel.stringValue.length == 0 || 
         [self.syncLibStatusLabel.stringValue isEqualToString:@"Refresh your local music database cache."] ||
@@ -302,6 +319,48 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     }
 }
 
+- (NSString *)operationHistoryPath {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    return [[base stringByAppendingPathComponent:@"Syncrosa"] stringByAppendingPathComponent:@"operation-history.json"];
+}
+
+- (void)historyClicked:(id)sender {
+    NSString *path = [self operationHistoryPath];
+    NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+    if (text.length == 0) {
+        text = [NSString stringWithFormat:@"No history file found yet.\n\nExpected path:\n%@", path];
+    }
+
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 520, 360)
+                                                  styleMask:NSTitledWindowMask
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 480, 280)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = text;
+    textView.font = [NSFont fontWithName:@"Monaco" size:10] ?: [NSFont systemFontOfSize:10];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(210, 15, 100, 30)];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+
+    self.helpSheetWindow = sheet;
+    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
+        [self.view.window beginSheet:sheet completionHandler:nil];
+    } else {
+        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
+    }
+}
+
 - (void)comboBoxSelectionDidChange:(NSNotification *)notification {
     if (notification.object == self.providerCombo) {
         NSInteger index = [self.providerCombo indexOfSelectedItem];
@@ -369,6 +428,7 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     
     // 4. Logging
     self.enableLoggingCheckbox.state = ([IGLogger desktopDiagnosticsEnabled] && [defaults boolForKey:@"enable_logging"]) ? NSOnState : NSOffState;
+    self.onlyLocalCheckbox.state = [defaults boolForKey:@"only_local_mode"] ? NSOnState : NSOffState;
     
     // Sync AIService state
     [IGAIService sharedService].provider = provider;
@@ -463,6 +523,10 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     NSString *currentProvider = IGSettingsCanonicalProvider(self.providerCombo.stringValue);
     NSString *currentModel = self.modelCombo.stringValue;
     NSString *currentKey = self.apiKeyField.stringValue;
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setBool:(self.onlyLocalCheckbox.state == NSOnState) forKey:@"only_local_mode"];
+    [defaults synchronize];
     
     [IGAIService sharedService].provider = currentProvider;
     [IGAIService sharedService].model = currentModel;
@@ -472,7 +536,6 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
         if (success) {
             self.statusLabel.stringValue = @"Settings saved successfully!";
             
-            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
             [defaults setObject:currentProvider forKey:@"provider"];
             [defaults setObject:currentModel forKey:@"model"];
             
@@ -481,6 +544,7 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
             [defaults setObject:currentModel forKey:providerKey];
             
             [defaults setBool:([IGLogger desktopDiagnosticsEnabled] && self.enableLoggingCheckbox.state == NSOnState) forKey:@"enable_logging"];
+            [defaults setBool:(self.onlyLocalCheckbox.state == NSOnState) forKey:@"only_local_mode"];
             [defaults synchronize];
             
             // Securely save API Key to Keychain
