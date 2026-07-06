@@ -96,25 +96,26 @@ struct LibraryDoctorView: View {
     }
 
     private func runSelectedTool() {
+        let selectedToolIndex = selectedTool
         logs.removeAll()
         progress = 0
         progressMax = 1
         isRunning = true
-        appendLog("[start] \(toolNames[selectedTool])")
+        appendLog("[start] \(toolNames[selectedToolIndex])")
 
         DispatchQueue.global(qos: .userInitiated).async {
-            switch selectedTool {
+            switch selectedToolIndex {
             case 0:
-                runCoverRestore()
+                runCoverRestore(selectedToolIndex: selectedToolIndex)
             case 1:
-                runCoverAudit()
+                runCoverAudit(selectedToolIndex: selectedToolIndex)
             default:
-                runLibraryAudit()
+                runLibraryAudit(selectedToolIndex: selectedToolIndex)
             }
         }
     }
 
-    private func runCoverRestore() {
+    private func runCoverRestore(selectedToolIndex: Int) {
         let service = CoversOptimizerService.shared
         let tracks = service.backupManifestEntries()
         DispatchQueue.main.async {
@@ -133,10 +134,10 @@ struct LibraryDoctorView: View {
                 appendLog("restore \(index + 1)/\(tracks.count): \(track.artist) - \(track.title)")
             }
         }
-        finish(status: "OK", message: "Restored \(restored) covers.", affectedCount: restored)
+        finish(selectedToolIndex: selectedToolIndex, status: "OK", message: "Restored \(restored) covers.", affectedCount: restored)
     }
 
-    private func runCoverAudit() {
+    private func runCoverAudit(selectedToolIndex: Int) {
         let service = CoversOptimizerService.shared
         let coveredTracks = service.getTracksWithCovers()
         let backupCount = service.backupManifestCount()
@@ -146,12 +147,12 @@ struct LibraryDoctorView: View {
             appendLog("tracks with embedded covers: \(coveredTracks.count)")
             appendLog("cover backup manifest entries: \(backupCount)")
         }
-        finish(status: "OK", message: "Cover audit complete. Tracks with covers: \(coveredTracks.count). Backup entries: \(backupCount).", affectedCount: coveredTracks.count)
+        finish(selectedToolIndex: selectedToolIndex, status: "OK", message: "Cover audit complete. Tracks with covers: \(coveredTracks.count). Backup entries: \(backupCount).", affectedCount: coveredTracks.count)
     }
 
-    private func runLibraryAudit() {
+    private func runLibraryAudit(selectedToolIndex: Int) {
         guard let count = MusicService.shared.getLibraryTrackCount() else {
-            finish(status: "WARN", message: "Music library could not be read.", affectedCount: 0)
+            finish(selectedToolIndex: selectedToolIndex, status: "WARN", message: "Music library could not be read.", affectedCount: 0)
             return
         }
         DispatchQueue.main.async {
@@ -166,16 +167,16 @@ struct LibraryDoctorView: View {
         DispatchQueue.main.async {
             appendLog("readable track rows: \(sample.count)")
         }
-        finish(status: "OK", message: "Library audit complete. Count: \(count). Readable rows: \(sample.count).", affectedCount: sample.count)
+        finish(selectedToolIndex: selectedToolIndex, status: "OK", message: "Library audit complete. Count: \(count). Readable rows: \(sample.count).", affectedCount: sample.count)
     }
 
-    private func finish(status: String, message: String, affectedCount: Int) {
+    private func finish(selectedToolIndex: Int, status: String, message: String, affectedCount: Int) {
         DispatchQueue.main.async {
             appendLog("[finish] \(message)")
             isRunning = false
             OperationHistoryService.shared.record(
                 tool: "Library Doctor",
-                title: toolNames[selectedTool],
+                title: toolNames[selectedToolIndex],
                 status: status,
                 message: message,
                 affectedCount: affectedCount
