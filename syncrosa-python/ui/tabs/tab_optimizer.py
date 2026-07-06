@@ -17,6 +17,8 @@ from features.covers_optimizer import (
     backup_cover,
     optimize_cover,
     restore_cover,
+    load_manifest,
+    save_manifest,
     HAS_PIL
 )
 
@@ -26,6 +28,8 @@ class OptimizerTab(tk.Frame):
         self.master_app = master_app
         self.running = False
         self.action = None
+        self._ui_thread = threading.current_thread()
+        self._log_lines = 0
         self.build_ui()
 
     def build_ui(self):
@@ -91,16 +95,30 @@ class OptimizerTab(tk.Frame):
         self.restore_btn = ttk.Button(self.btn_frame, text=_(u"btn_restore_covers"), command=self.start_restore, width=18)
         self.restore_btn.pack(side=tk.LEFT, padx=5)
 
-    def log(self, text):
+        self.stop_btn = ttk.Button(self.btn_frame, text="Stop", command=self.stop_process, width=10, state="disabled")
+        self.stop_btn.pack(side=tk.LEFT, padx=5)
+
+    def _append_log(self, text):
+        if not self.winfo_exists():
+            return
         # Format with timestamp
         stamp = time.strftime("%H:%M:%S")
         line = "[{0}] {1}".format(stamp, text)
         
         self.console.config(state="normal")
         self.console.insert("end", line + "\n")
+        self._log_lines += 1
+        while self._log_lines > 500:
+            self.console.delete("1.0", "2.0")
+            self._log_lines -= 1
         self.console.see("end")
         self.console.config(state="disabled")
-        self.update_idletasks()
+
+    def log(self, text):
+        if threading.current_thread() is self._ui_thread:
+            self._append_log(text)
+        else:
+            self.after(0, lambda t=text: self._append_log(t))
 
     def set_controls_state(self, enabled):
         state = "normal" if enabled else "disabled"
@@ -108,18 +126,31 @@ class OptimizerTab(tk.Frame):
         self.backup_btn.config(state=state)
         self.optimize_btn.config(state=state)
         self.restore_btn.config(state=state)
+        self.stop_btn.config(state="disabled" if enabled else "normal")
+
+    def clear_console(self):
+        self.console.config(state="normal")
+        self.console.delete("1.0", tk.END)
+        self.console.config(state="disabled")
+        self._log_lines = 0
+
+    def stop_process(self):
+        self.running = False
+        self.stop_btn.config(state="disabled")
+        self.status.config(text="Stopping after current track...")
+        self.log("Stopping after current track...")
 
     def start_backup(self):
         self.running = True
         self.action = "backup"
         self.set_controls_state(False)
         self.progress["value"] = 0
-        self.console.config(state="normal")
-        self.console.delete("1.0", tk.END)
-        self.console.config(state="disabled")
+        self.clear_console()
         
         self.log(_(u"log_backup_started"))
-        threading.Thread(target=self.worker).start()
+        worker = threading.Thread(target=self.worker)
+        worker.daemon = True
+        worker.start()
 
     def confirm_optimize(self):
         if not HAS_PIL:
@@ -132,9 +163,7 @@ class OptimizerTab(tk.Frame):
             self.action = "optimize"
             self.set_controls_state(False)
             self.progress["value"] = 0
-            self.console.config(state="normal")
-            self.console.delete("1.0", tk.END)
-            self.console.config(state="disabled")
+            self.clear_console()
             
             idx = self.device_combo.current()
             target_size = 300
@@ -144,24 +173,29 @@ class OptimizerTab(tk.Frame):
                 target_size = 1000
                 
             self.log(_(u"log_optimize_started", target_size))
-            threading.Thread(target=self.worker).start()
+            worker = threading.Thread(target=self.worker)
+            worker.daemon = True
+            worker.start()
 
     def start_restore(self):
         self.running = True
         self.action = "restore"
         self.set_controls_state(False)
         self.progress["value"] = 0
-        self.console.config(state="normal")
-        self.console.delete("1.0", tk.END)
-        self.console.config(state="disabled")
+        self.clear_console()
         
         self.log(_(u"log_restore_started"))
-        threading.Thread(target=self.worker).start()
+        worker = threading.Thread(target=self.worker)
+        worker.daemon = True
+        worker.start()
 
     def worker(self):
         try:
             self.after(0, lambda: self.status.config(text="Scanning tracks..."))
-            tracks = get_tracks_with_covers()
+            def scan_progress(curr, total):
+                self.after(0, lambda c=curr, t=total: self.status.config(text="Scanning tracks... ({}/{})".format(c, t)))
+
+            tracks = get_tracks_with_covers(scan_progress, lambda: self.running)
             if not tracks:
                 self.log(_(u"no_covers_found"))
                 self.after(0, lambda: self.status.config(text="No covers found."))
@@ -171,6 +205,7 @@ class OptimizerTab(tk.Frame):
             self.after(0, lambda: self.progress.config(value=0, maximum=total))
             
             success_count = 0
+            manifest = load_manifest()
             idx = self.device_combo.current()
             target_size = 300
             if idx == 1:
@@ -187,20 +222,25 @@ class OptimizerTab(tk.Frame):
                 self.after(0, lambda val=i+1: self.progress.config(value=val))
                 
                 if self.action == "backup":
-                    if backup_cover(t["pid"], t["title"], t["artist"]):
+                    if backup_cover(t["pid"], t["title"], t["artist"], manifest=manifest, save=False):
                         success_count += 1
+                        if success_count % 25 == 0:
+                            save_manifest(manifest)
                 elif self.action == "optimize":
                     # Backup first to protect
-                    backup_cover(t["pid"], t["title"], t["artist"])
-                    if optimize_cover(t["pid"], target_size):
+                    if backup_cover(t["pid"], t["title"], t["artist"], manifest=manifest, save=False) and (i + 1) % 25 == 0:
+                        save_manifest(manifest)
+                    if optimize_cover(t["pid"], target_size, manifest=manifest):
                         success_count += 1
                         self.log("Optimized: {0}".format(t["title"]))
                     else:
                         self.log(_(u"error_processing", t["title"]))
                 elif self.action == "restore":
-                    if restore_cover(t["pid"]):
+                    if restore_cover(t["pid"], manifest=manifest):
                         success_count += 1
                         self.log("Restored: {0}".format(t["title"]))
+
+            save_manifest(manifest)
 
             if self.running:
                 if self.action == "backup":

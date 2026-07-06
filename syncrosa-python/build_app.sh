@@ -8,8 +8,22 @@ set -euo pipefail
 APP_NAME="Syncrosa"
 WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 APP_PATH="$WORK_DIR/$APP_NAME.app"
+VERSION_FILE="$WORK_DIR/../VERSION"
+if [ -n "${SYNCROSA_VERSION:-}" ]; then
+    APP_VERSION="$SYNCROSA_VERSION"
+else
+    if [ ! -f "$VERSION_FILE" ]; then
+        echo "❌ VERSION file not found at $VERSION_FILE"
+        exit 1
+    fi
+    APP_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+fi
+if [ -z "$APP_VERSION" ]; then
+    echo "❌ VERSION is empty."
+    exit 1
+fi
 DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"
-DIST_ZIP="$DIST_DIR/Syncrosa_Python_v3.2.0.zip"
+DIST_ZIP="$DIST_DIR/Syncrosa_Python_v${APP_VERSION}.zip"
 
 echo "--- Building Native $APP_NAME PRO (AI + Fixer) for Mavericks ---"
 
@@ -37,14 +51,16 @@ cat << 'EOF' > "$APP_PATH/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.2.0</string>
+    <string>__SYNCROSA_VERSION__</string>
     <key>CFBundleVersion</key>
-    <string>3.2.0</string>
+    <string>__SYNCROSA_VERSION__</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.9</string>
 </dict>
 </plist>
 EOF
+
+perl -pi -e "s/__SYNCROSA_VERSION__/$APP_VERSION/g" "$APP_PATH/Contents/Info.plist"
 
 # 4. СОЗДАЕМ ИСПОЛНЯЕМЫЙ ФАЙЛ (МАГИЯ ПИТОНА)
 cat << 'EOF' > "$APP_PATH/Contents/MacOS/$APP_NAME"
@@ -113,7 +129,7 @@ echo "Creating distribution ZIP..."
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_ZIP"
 cd "$WORK_DIR"
-zip -ry "$DIST_ZIP" "$APP_NAME.app"
+ditto -c -k --norsrc --keepParent "$APP_NAME.app" "$DIST_ZIP"
 rm -rf "$APP_PATH"
 
 echo "--- SUCCESS! ---"

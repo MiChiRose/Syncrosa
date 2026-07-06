@@ -1,4 +1,23 @@
 import SwiftUI
+import Foundation
+
+final class CoversProcessingCancelToken {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        lock.unlock()
+    }
+
+    var isCancelled: Bool {
+        lock.lock()
+        let value = cancelled
+        lock.unlock()
+        return value
+    }
+}
 
 struct CoversOptimizerView: View {
     @ObservedObject var lang = LocalizationService.shared
@@ -8,6 +27,7 @@ struct CoversOptimizerView: View {
     @State private var progressValue: Double = 0.0
     @State private var progressMax: Double = 1.0
     @State private var isProcessing = false
+    @State private var cancelToken = CoversProcessingCancelToken()
     @State private var showBackupAlert = false
     @State private var currentTrackName = ""
     @State private var showHelp = false
@@ -70,6 +90,16 @@ struct CoversOptimizerView: View {
                                 .frame(minWidth: 160)
                         }
                         .disabled(isProcessing)
+
+                        if isProcessing {
+                            Button(action: {
+                                cancelToken.cancel()
+                                log(lang.selectedLanguage == "ru" ? "Остановка после текущего трека..." : "Stopping after current track...")
+                            }) {
+                                Label(lang.selectedLanguage == "ru" ? "Стоп" : "Stop", systemImage: "stop.circle")
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
                 }
                 .padding()
@@ -189,10 +219,15 @@ struct CoversOptimizerView: View {
         formatter.dateFormat = "HH:mm:ss"
         let stamp = formatter.string(from: Date())
         logs.append("[\(stamp)] \(message)")
+        if logs.count > 500 {
+            logs.removeFirst(logs.count - 500)
+        }
     }
     
     private func runBackup() {
         isProcessing = true
+        let token = CoversProcessingCancelToken()
+        cancelToken = token
         progressValue = 0
         progressMax = 1
         logs.removeAll()
@@ -216,6 +251,7 @@ struct CoversOptimizerView: View {
             
             var successCount = 0
             for (idx, track) in tracks.enumerated() {
+                if token.isCancelled { break }
                 DispatchQueue.main.async {
                     currentTrackName = "\(track.artist) - \(track.title)"
                     progressValue = Double(idx + 1)
@@ -228,7 +264,11 @@ struct CoversOptimizerView: View {
             }
             
             DispatchQueue.main.async {
-                log(lang.t("log_backup_finished", successCount))
+                if token.isCancelled {
+                    log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
+                } else {
+                    log(lang.t("log_backup_finished", successCount))
+                }
                 isProcessing = false
                 currentTrackName = ""
             }
@@ -237,6 +277,8 @@ struct CoversOptimizerView: View {
     
     private func runOptimize() {
         isProcessing = true
+        let token = CoversProcessingCancelToken()
+        cancelToken = token
         progressValue = 0
         progressMax = 1
         logs.removeAll()
@@ -260,6 +302,7 @@ struct CoversOptimizerView: View {
             
             var successCount = 0
             for (idx, track) in tracks.enumerated() {
+                if token.isCancelled { break }
                 DispatchQueue.main.async {
                     currentTrackName = "\(track.artist) - \(track.title)"
                     progressValue = Double(idx + 1)
@@ -282,7 +325,11 @@ struct CoversOptimizerView: View {
             }
             
             DispatchQueue.main.async {
-                log(lang.t("log_optimize_finished", successCount))
+                if token.isCancelled {
+                    log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
+                } else {
+                    log(lang.t("log_optimize_finished", successCount))
+                }
                 isProcessing = false
                 currentTrackName = ""
             }
@@ -291,6 +338,8 @@ struct CoversOptimizerView: View {
     
     private func runRestore() {
         isProcessing = true
+        let token = CoversProcessingCancelToken()
+        cancelToken = token
         progressValue = 0
         progressMax = 1
         logs.removeAll()
@@ -314,6 +363,7 @@ struct CoversOptimizerView: View {
             
             var successCount = 0
             for (idx, track) in tracks.enumerated() {
+                if token.isCancelled { break }
                 DispatchQueue.main.async {
                     currentTrackName = "\(track.artist) - \(track.title)"
                     progressValue = Double(idx + 1)
@@ -329,7 +379,11 @@ struct CoversOptimizerView: View {
             }
             
             DispatchQueue.main.async {
-                log(lang.t("log_restore_finished", successCount))
+                if token.isCancelled {
+                    log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
+                } else {
+                    log(lang.t("log_restore_finished", successCount))
+                }
                 isProcessing = false
                 currentTrackName = ""
             }

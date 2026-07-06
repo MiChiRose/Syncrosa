@@ -319,11 +319,15 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text];
         NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}];
-        [self.logView.textStorage appendAttributedString:attrLine];
+        NSTextStorage *storage = self.logView.textStorage;
+        [storage appendAttributedString:attrLine];
+        if (storage.length > 30000) {
+            [storage deleteCharactersInRange:NSMakeRange(0, storage.length - 30000)];
+        }
 #if !__has_feature(objc_arc)
         [attrLine release];
 #endif
-        [self.logView scrollRangeToVisible:NSMakeRange(self.logView.string.length, 0)];
+        [self.logView scrollRangeToVisible:NSMakeRange(storage.length, 0)];
     });
 }
 

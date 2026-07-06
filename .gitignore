@@ -9,7 +9,14 @@
 # Whitelist allowed root files
 !/.gitignore
 !/README.md
+!/LICENSE
+!/VERSION
+!/CHANGELOG.md
 !/app_logo.png
+!/.github/
+!/.github/**
+!/scripts/
+!/scripts/**
 
 # ==========================================
 # Rules for ignored files inside directories

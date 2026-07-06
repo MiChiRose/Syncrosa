@@ -4,7 +4,7 @@ import re
 import json
 import time
 from collections import Counter
-from core.itunes_bridge import run_as
+from core.itunes_bridge import FIELD_SEP, SAFE_FIELD_HANDLER, run_as
 from core.network import make_request
 import sys
 try:
@@ -39,15 +39,39 @@ def find_apple_metadata(artist, title):
     return None
 
 def get_merge_candidates(progress_cb, check_run):
-    script = 'set out to ""\ntell application "iTunes"\nset trks to every track of library playlist 1\nrepeat with t in trks\ntry\nset out to out & (persistent ID of t) & "|" & (artist of t) & "|" & (album of t) & "\n"\nend try\nend repeat\nend tell\nreturn out'
-    raw = run_as(script)
-    
+    try:
+        total = int(run_as('tell application "iTunes" to count every track of library playlist 1', timeout_sec=45))
+    except:
+        total = 0
+
+    raw_lines = []
+    chunk_size = 200
+    for start_idx in range(1, total + 1, chunk_size):
+        if not check_run():
+            return []
+        end_idx = min(start_idx + chunk_size - 1, total)
+        script = SAFE_FIELD_HANDLER + u'''
+set out to ""
+tell application "iTunes"
+    set trks to (tracks {0} thru {1} of library playlist 1)
+    repeat with t in trks
+        try
+            set out to out & (persistent ID of t) & tab & my syncrosaCleanField(artist of t) & tab & my syncrosaCleanField(album of t) & linefeed
+        end try
+    end repeat
+end tell
+return out
+'''.format(start_idx, end_idx)
+        raw = run_as(script, timeout_sec=180)
+        raw_lines.extend(raw.split('\n'))
+        if progress_cb:
+            progress_cb(end_idx, total)
+
     groups = {}
-    lines = raw.split('\n')
-    for line in lines:
+    for line in raw_lines:
         if not check_run(): return []
-        if '|' in line:
-            parts = line.split('|')
+        if FIELD_SEP in line:
+            parts = line.split(FIELD_SEP)
             if len(parts) < 3: continue
             p, art, alb = parts[0], parts[1], parts[2]
             if not alb: continue
@@ -75,7 +99,7 @@ def apply_merge(to_fix, progress_cb, status_cb, check_run, checked_tags):
         for t in item['targets']:
             if not check_run(): break
             try:
-                run_as(u'tell application "iTunes" to set album of (some track whose persistent ID is "{0}") to "{1}"'.format(t['pid'], item['main'].replace('"', '\\"')).encode('utf-8'))
+                run_as(u'tell application "iTunes" to set album of (some track whose persistent ID is "{0}") to "{1}"'.format(t['pid'], item['main'].replace('"', '\\"')), timeout_sec=120)
             except Exception as e:
                 print("Error merging track:", t['pid'], e)
         progress_cb(i + 1, len(to_fix))
@@ -83,7 +107,7 @@ def apply_merge(to_fix, progress_cb, status_cb, check_run, checked_tags):
 def run_metadata_fix(progress_cb, status_cb, check_run, checked_tags):
     count_script = 'tell application "iTunes" to count tracks of library playlist 1'
     try:
-        total = int(run_as(count_script))
+        total = int(run_as(count_script, timeout_sec=45))
     except:
         total = 0
             
@@ -91,7 +115,7 @@ def run_metadata_fix(progress_cb, status_cb, check_run, checked_tags):
         if not check_run(): break
         
         try:
-            get_script = u'''tell application "iTunes"
+            get_script = SAFE_FIELD_HANDLER + u'''tell application "iTunes"
                 try
                     set t to track {0} of library playlist 1
                     set pid to persistent ID of t
@@ -121,17 +145,17 @@ def run_metadata_fix(progress_cb, status_cb, check_run, checked_tags):
                         end if
                     end try
                     
-                    return pid & "|" & art & "|" & nm & "|" & alb & "|" & gen & "|" & trkNum & "|" & hasLyr
+                    return pid & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(alb) & tab & my syncrosaCleanField(gen) & tab & trkNum & tab & hasLyr
                 end try
             end tell
             return "SKIP"'''.format(i)
             
-            track_raw = run_as(get_script.encode('utf-8'))
-            if track_raw == "SKIP" or "|" not in track_raw: 
+            track_raw = run_as(get_script, timeout_sec=120)
+            if track_raw == "SKIP" or FIELD_SEP not in track_raw:
                 progress_cb(i, total)
                 continue
             
-            parts = track_raw.split("|")
+            parts = track_raw.split(FIELD_SEP)
             if len(parts) < 7:
                 progress_cb(i, total)
                 continue
@@ -184,11 +208,10 @@ def run_metadata_fix(progress_cb, status_cb, check_run, checked_tags):
                     
             if updates:
                 u_s = u'tell application "iTunes"\ntry\nset t to (some track whose persistent ID is "{0}")\n{1}\nreturn "OK"\nend try\nend tell'.format(pid, u"\n".join(updates))
-                run_as(u_s.encode('utf-8'))
+                run_as(u_s, timeout_sec=120)
                 
         except Exception as e:
             print("Error fixing track metadata for index {}: {}".format(i, e))
             
         progress_cb(i, total)
         time.sleep(0.05)
-

@@ -78,7 +78,8 @@ class FileMetadataService {
             let sanitizedArtist = self.sanitizeFilename(newArtist)
             let sanitizedTitle = self.sanitizeFilename(newTitle)
             let newFilename = "\(sanitizedArtist) - \(sanitizedTitle).\(url.pathExtension)"
-            let newUrl = url.deletingLastPathComponent().appendingPathComponent(newFilename)
+            let desiredUrl = url.deletingLastPathComponent().appendingPathComponent(newFilename)
+            let newUrl = self.uniqueDestinationURL(for: desiredUrl, originalURL: url)
             
             do {
                 if url.standardized.path != newUrl.standardized.path {
@@ -88,9 +89,6 @@ class FileMetadataService {
                         try FileManager.default.moveItem(at: url, to: tempUrl)
                         try FileManager.default.moveItem(at: tempUrl, to: newUrl)
                     } else {
-                        if FileManager.default.fileExists(atPath: newUrl.path) {
-                            try FileManager.default.removeItem(at: newUrl)
-                        }
                         try FileManager.default.moveItem(at: url, to: newUrl)
                     }
                 }
@@ -129,13 +127,39 @@ class FileMetadataService {
         let invalidCharacters = CharacterSet(charactersIn: "/\\?%*|\"<>")
         return name.components(separatedBy: invalidCharacters).joined(separator: "_")
     }
+
+    private func uniqueDestinationURL(for desiredURL: URL, originalURL: URL? = nil) -> URL {
+        let fm = FileManager.default
+        if let originalURL = originalURL {
+            if originalURL.standardized.path == desiredURL.standardized.path ||
+                originalURL.path.lowercased() == desiredURL.path.lowercased() {
+                return desiredURL
+            }
+        }
+        if !fm.fileExists(atPath: desiredURL.path) {
+            return desiredURL
+        }
+
+        let folder = desiredURL.deletingLastPathComponent()
+        let baseName = desiredURL.deletingPathExtension().lastPathComponent
+        let ext = desiredURL.pathExtension
+        var suffix = 2
+        while true {
+            let candidateName = ext.isEmpty ? "\(baseName) \(suffix)" : "\(baseName) \(suffix).\(ext)"
+            let candidate = folder.appendingPathComponent(candidateName)
+            if !fm.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+            suffix += 1
+        }
+    }
     
     private func downloadCover(url artworkUrl: String, destinationFolder: URL, baseName: String) {
         guard let url = URL(string: artworkUrl.replacingOccurrences(of: "100x100bb", with: "600x600bb")) else { return }
         
         let task = URLSession.shared.downloadTask(with: url) { localURL, response, error in
             guard let localURL = localURL, error == nil else { return }
-            let destURL = destinationFolder.appendingPathComponent("\(baseName).jpg")
+            let destURL = self.uniqueDestinationURL(for: destinationFolder.appendingPathComponent("\(baseName).jpg"))
             try? FileManager.default.moveItem(at: localURL, to: destURL)
         }
         task.resume()

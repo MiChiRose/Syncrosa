@@ -13,6 +13,31 @@ struct MusicTrack: Identifiable, Codable, Equatable {
 class MusicService {
     static let shared = MusicService()
     private let scriptQueue = DispatchQueue(label: "com.michirose.syncrosa.scriptQueue")
+    private let fieldSeparator = "\t"
+    private let cleanFieldHandler = """
+    on syncrosaCleanField(v)
+        try
+            set s to v as text
+        on error
+            set s to ""
+        end try
+        set oldDelims to AppleScript's text item delimiters
+        set AppleScript's text item delimiters to tab
+        set parts to text items of s
+        set AppleScript's text item delimiters to " "
+        set s to parts as text
+        set AppleScript's text item delimiters to return
+        set parts to text items of s
+        set AppleScript's text item delimiters to " "
+        set s to parts as text
+        set AppleScript's text item delimiters to linefeed
+        set parts to text items of s
+        set AppleScript's text item delimiters to " "
+        set s to parts as text
+        set AppleScript's text item delimiters to oldDelims
+        return s
+    end syncrosaCleanField
+    """
     
     func runAppleScript(_ scriptSource: String) -> String? {
         var result: String?
@@ -41,6 +66,7 @@ class MusicService {
         for i in stride(from: 1, through: total, by: chunkSize) {
             let end = min(i + chunkSize - 1, total)
             let script = """
+            \(cleanFieldHandler)
             set out to ""
             tell application "Music"
                 set trks to (tracks \(i) thru \(end) of library playlist 1)
@@ -52,7 +78,7 @@ class MusicService {
                         set alb to album of t
                         set gen to genre of t
                         set yr to year of t
-                        set out to out & pid & "|" & art & "|" & nm & "|" & alb & "|" & gen & "|" & yr & "\\n"
+                        set out to out & pid & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(alb) & tab & my syncrosaCleanField(gen) & tab & yr & linefeed
                     end try
                 end repeat
             end tell
@@ -61,8 +87,8 @@ class MusicService {
             
             if let result = runAppleScript(script) {
                 let lines = result.components(separatedBy: .newlines)
-                for line in lines where line.contains("|") {
-                    let parts = line.components(separatedBy: "|")
+                for line in lines where line.contains(fieldSeparator) {
+                    let parts = line.components(separatedBy: fieldSeparator)
                     if parts.count >= 6 {
                         let track = MusicTrack(
                             persistentID: parts[0],
@@ -111,12 +137,13 @@ class MusicService {
     
     func getUserPlaylists() -> [(name: String, trackCount: Int)] {
         let script = """
+        \(cleanFieldHandler)
         tell application "Music"
             set output to ""
             repeat with pl in (every user playlist whose special kind is none)
                 set plName to name of pl
                 set plCount to count of tracks of pl
-                set output to output & plName & "|" & plCount & "\\n"
+                set output to output & my syncrosaCleanField(plName) & tab & plCount & linefeed
             end repeat
             return output
         end tell
@@ -124,8 +151,8 @@ class MusicService {
         guard let result = runAppleScript(script) else { return [] }
         var playlists: [(name: String, trackCount: Int)] = []
         let lines = result.components(separatedBy: .newlines)
-        for line in lines where line.contains("|") {
-            let parts = line.components(separatedBy: "|")
+        for line in lines where line.contains(fieldSeparator) {
+            let parts = line.components(separatedBy: fieldSeparator)
             if parts.count >= 2 {
                 let name = parts[0]
                 let count = Int(parts[1]) ?? 0
@@ -138,6 +165,7 @@ class MusicService {
     func getPlaylistTrackPaths(playlistName: String) -> [(name: String, artist: String, path: String, size: Int64)] {
         let escapedName = playlistName.replacingOccurrences(of: "\"", with: "\\\"")
         let script = """
+        \(cleanFieldHandler)
         tell application "Music"
             set output to ""
             try
@@ -146,7 +174,7 @@ class MusicService {
                     try
                         set loc to location of t
                         if loc is not missing value then
-                            set output to output & (name of t) & "|" & (artist of t) & "|" & (POSIX path of loc) & "\\n"
+                            set output to output & my syncrosaCleanField(name of t) & tab & my syncrosaCleanField(artist of t) & tab & my syncrosaCleanField(POSIX path of loc) & linefeed
                         end if
                     end try
                 end repeat
@@ -158,8 +186,8 @@ class MusicService {
         var tracks: [(name: String, artist: String, path: String, size: Int64)] = []
         let lines = result.components(separatedBy: .newlines)
         let fm = FileManager.default
-        for line in lines where line.contains("|") {
-            let parts = line.components(separatedBy: "|")
+        for line in lines where line.contains(fieldSeparator) {
+            let parts = line.components(separatedBy: fieldSeparator)
             if parts.count >= 3 {
                 let name = parts[0]
                 let artist = parts[1]
@@ -249,6 +277,7 @@ class MusicService {
     
     func getTrackDetails(persistentID: String) -> (format: String, size: Int64)? {
         let script = """
+        \(cleanFieldHandler)
         tell application "Music"
             try
                 set t to (some track of library playlist 1 whose persistent ID is "\(persistentID)")
@@ -258,17 +287,17 @@ class MusicService {
                     set loc to location of t
                     if loc is not missing value then
                         set pth to POSIX path of loc
-                        return (sz as string) & "|" & k & "|" & pth
+                        return (sz as string) & tab & my syncrosaCleanField(k) & tab & my syncrosaCleanField(pth)
                     end if
                 end try
-                return (sz as string) & "|" & k & "|"
+                return (sz as string) & tab & my syncrosaCleanField(k) & tab
             on error
                 return ""
             end try
         end tell
         """
         guard let res = runAppleScript(script), !res.isEmpty else { return nil }
-        let parts = res.components(separatedBy: "|")
+        let parts = res.components(separatedBy: fieldSeparator)
         guard parts.count >= 2 else { return nil }
         
         let size = Int64(parts[0]) ?? 0
@@ -306,19 +335,18 @@ class MusicService {
                     end if
                 end try
                 set rt to rating of t as string
-                return hasArt & "|" & rt
+                return hasArt & tab & rt
             on error
                 return ""
             end try
         end tell
         """
         guard let res = runAppleScript(script), !res.isEmpty else { return nil }
-        let parts = res.components(separatedBy: "|")
+        let parts = res.components(separatedBy: fieldSeparator)
         guard parts.count >= 2 else { return nil }
         let hasArtwork = (parts[0] == "true")
         let rating = Int(parts[1]) ?? 0
         return (hasArtwork: hasArtwork, rating: rating)
     }
 }
-
 

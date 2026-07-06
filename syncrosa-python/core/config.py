@@ -2,6 +2,12 @@
 import json
 import os
 import locale
+import tempfile
+
+try:
+    unicode
+except NameError:
+    unicode = str
 
 CONFIG_FILE = os.path.expanduser("~/.syncrosa.json")
 
@@ -48,5 +54,32 @@ def desktop_debug_logs_enabled():
 def save_config(config):
     global CONFIG_DATA
     CONFIG_DATA = config
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f)
+    directory = os.path.dirname(CONFIG_FILE) or "."
+    fd, tmp_path = tempfile.mkstemp(prefix=".syncrosa.", suffix=".tmp", dir=directory)
+    try:
+        try:
+            os.chmod(tmp_path, 0o600)
+        except:
+            pass
+        data = json.dumps(config, ensure_ascii=False, indent=2)
+        if isinstance(data, unicode):
+            data = data.encode("utf-8")
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.rename(tmp_path, CONFIG_FILE)
+        try:
+            os.chmod(CONFIG_FILE, 0o600)
+        except:
+            pass
+    except:
+        try:
+            os.close(fd)
+        except:
+            pass
+        try:
+            os.remove(tmp_path)
+        except:
+            pass
+        raise

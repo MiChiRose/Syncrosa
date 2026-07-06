@@ -28,6 +28,13 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
     return [NSString stringWithFormat:@"{%@}", [parts componentsJoinedByString:@", "]];
 }
 
+static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
+    NSTextStorage *storage = textView.textStorage;
+    if (storage.length <= maxCharacters) return;
+    NSUInteger extra = storage.length - maxCharacters;
+    [storage deleteCharactersInRange:NSMakeRange(0, extra)];
+}
+
 @interface IGCoversOptimizerViewController ()
 
 @property (nonatomic, strong) NSTextField *titleLabel;
@@ -178,6 +185,7 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
             NSFontAttributeName: [NSFont fontWithName:@"Monaco" size:10]
         }];
         [storage appendAttributedString:attrLine];
+        IGTrimLogTextView(self.logView, 30000);
 #if !__has_feature(objc_arc)
         [attrLine release];
         [formatter release];
@@ -546,6 +554,17 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
 
     NSString *backupFolder = [self backupFolderPath];
     NSMutableDictionary *trackByPID = [NSMutableDictionary dictionaryWithCapacity:tracks.count];
+    NSMutableDictionary *manifest = [self loadManifest];
+    NSMutableDictionary *backups = [manifest[@"backups"] mutableCopy];
+    BOOL ownsBackups = (backups != nil);
+    if (!backups) {
+        backups = [NSMutableDictionary dictionary];
+    }
+    manifest[@"backups"] = backups;
+
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ssZ";
+
     for (NSDictionary *track in tracks) {
         NSString *pid = track[@"pid"];
         if (pid.length > 0) {
@@ -566,11 +585,21 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
         for (NSDictionary *track in chunk) {
             NSString *pid = track[@"pid"];
             if (pid.length > 0) {
+                NSDictionary *existing = backups[pid];
+                NSString *existingExt = existing[@"original_format"] ?: @"jpg";
+                NSString *existingPath = [[backupFolder stringByAppendingPathComponent:pid] stringByAppendingPathExtension:existingExt];
+                if (existing && [[NSFileManager defaultManager] fileExistsAtPath:existingPath]) {
+                    successCount++;
+                    continue;
+                }
                 [pids addObject:pid];
             }
         }
 
         if (pids.count == 0) {
+            [self log:[NSString stringWithFormat:@"Backed up covers chunk %ld-%ld: already had backups.",
+                       (long)(start + 1),
+                       (long)(start + length)]];
             if (progressBlock) progressBlock(start + length, total);
 #if !__has_feature(objc_arc)
             [pool drain];
@@ -686,12 +715,15 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
                     }
 
                     NSDictionary *track = trackByPID[pid];
-                    [self updateManifestWithPID:pid
-                                          title:track[@"title"]
-                                         artist:track[@"artist"]
-                                            ext:ext
-                                          width:w
-                                         height:h];
+                    NSString *dateStr = [formatter stringFromDate:[NSDate date]];
+                    backups[pid] = @{
+                        @"title": track[@"title"] ?: @"",
+                        @"artist": track[@"artist"] ?: @"",
+                        @"original_format": ext ?: @"jpg",
+                        @"original_width": @(w),
+                        @"original_height": @(h),
+                        @"backup_date": dateStr ?: @""
+                    };
                     successCount++;
                     chunkSaved++;
                 } else if (parts.count >= 2) {
@@ -710,10 +742,21 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
         if (progressBlock) {
             progressBlock(start + length, total);
         }
+        if (chunkSaved > 0) {
+            [self saveManifest:manifest];
+        }
 #if !__has_feature(objc_arc)
         [pool drain];
 #endif
     }
+
+    [self saveManifest:manifest];
+#if !__has_feature(objc_arc)
+    if (ownsBackups) {
+        [backups release];
+    }
+    [formatter release];
+#endif
 
     return successCount;
 }
@@ -822,6 +865,10 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
 
 - (BOOL)optimizeCoverForPID:(NSString *)pid targetSize:(NSInteger)targetSize {
     NSDictionary *manifest = [self loadManifest];
+    return [self optimizeCoverForPID:pid targetSize:targetSize manifest:manifest];
+}
+
+- (BOOL)optimizeCoverForPID:(NSString *)pid targetSize:(NSInteger)targetSize manifest:(NSDictionary *)manifest {
     NSDictionary *backups = manifest[@"backups"];
     NSDictionary *info = backups[pid];
     if (!info) return NO;
@@ -855,6 +902,10 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
 
 - (BOOL)restoreCoverForPID:(NSString *)pid {
     NSDictionary *manifest = [self loadManifest];
+    return [self restoreCoverForPID:pid manifest:manifest];
+}
+
+- (BOOL)restoreCoverForPID:(NSString *)pid manifest:(NSDictionary *)manifest {
     NSDictionary *backups = manifest[@"backups"];
     NSDictionary *info = backups[pid];
     if (!info) return NO;
@@ -994,6 +1045,7 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
         [self log:[NSString stringWithFormat:@"Backup pass before optimization saved/updated %ld covers.", (long)backupCount]];
 
         NSInteger successCount = 0;
+        NSDictionary *manifest = [self loadManifest];
         for (NSInteger i = 0; i < tracks.count; i++) {
             NSDictionary *t = tracks[i];
             NSString *status = [NSString stringWithFormat:@"%@ - %@", t[@"artist"], t[@"title"]];
@@ -1002,7 +1054,7 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
                 [self.progressIndicator setDoubleValue:i + 1];
             });
 
-            if ([self optimizeCoverForPID:t[@"pid"] targetSize:targetSize]) {
+            if ([self optimizeCoverForPID:t[@"pid"] targetSize:targetSize manifest:manifest]) {
                 successCount++;
                 [self log:[NSString stringWithFormat:@"Optimized: %@", t[@"title"]]];
             } else {
@@ -1054,6 +1106,7 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
         });
 
         NSInteger successCount = 0;
+        NSDictionary *manifest = [self loadManifest];
         for (NSInteger i = 0; i < tracks.count; i++) {
             NSDictionary *t = tracks[i];
             NSString *status = [NSString stringWithFormat:@"%@ - %@", t[@"artist"], t[@"title"]];
@@ -1062,7 +1115,7 @@ static NSString *IGCoverAppleScriptListLiteral(NSArray *values) {
                 [self.progressIndicator setDoubleValue:i + 1];
             });
 
-            if ([self restoreCoverForPID:t[@"pid"]]) {
+            if ([self restoreCoverForPID:t[@"pid"] manifest:manifest]) {
                 successCount++;
                 [self log:[NSString stringWithFormat:@"Restored: %@", t[@"title"]]];
             }

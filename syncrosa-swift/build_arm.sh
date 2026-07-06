@@ -6,11 +6,25 @@ cd "$(dirname "$0")"
 
 echo "🛠 Building Syncrosa (SwiftUI)..."
 
+VERSION_FILE="../VERSION"
+if [ -n "${SYNCROSA_VERSION:-}" ]; then
+    APP_VERSION="$SYNCROSA_VERSION"
+else
+    if [ ! -f "$VERSION_FILE" ]; then
+        echo "❌ VERSION file not found at $VERSION_FILE"
+        exit 1
+    fi
+    APP_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+fi
+if [ -z "$APP_VERSION" ]; then
+    echo "❌ VERSION is empty."
+    exit 1
+fi
 DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"
-DIST_ZIP="$DIST_DIR/Syncrosa_SwiftUI_v3.2.0.zip"
+DIST_ZIP="$DIST_DIR/Syncrosa_SwiftUI_v${APP_VERSION}.zip"
 
 # Удаляем старую сборку если есть
-rm -rf Syncrosa.app
+rm -rf Syncrosa.app libSyncrosa.dylib libSyncrosa.dylib.dSYM
 
 # Собираем исполняемый файл для Apple Silicon
 swift build -c release --arch arm64
@@ -47,7 +61,9 @@ cat > Syncrosa.app/Contents/Info.plist <<EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.2.0</string>
+    <string>$APP_VERSION</string>
+    <key>CFBundleVersion</key>
+    <string>$APP_VERSION</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
@@ -70,6 +86,7 @@ fi
 echo "Creating distribution ZIP..."
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_ZIP"
-zip -ry "$DIST_ZIP" Syncrosa.app
+ditto -c -k --norsrc --keepParent Syncrosa.app "$DIST_ZIP"
+rm -rf Syncrosa.app libSyncrosa.dylib libSyncrosa.dylib.dSYM
 
-echo "✅ Syncrosa_SwiftUI_v3.2.0.zip successfully created at $DIST_ZIP"
+echo "✅ $(basename "$DIST_ZIP") successfully created at $DIST_ZIP"

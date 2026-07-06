@@ -9,7 +9,7 @@ except ImportError:
     HAS_PIL = False
     Image = None
 
-from core.itunes_bridge import run_as
+from core.itunes_bridge import FIELD_SEP, SAFE_FIELD_HANDLER, run_as
 
 def get_app_name():
     return "Music" if os.path.exists("/System/Applications/Music.app") else "iTunes"
@@ -36,44 +36,78 @@ def load_manifest():
 
 def save_manifest(manifest):
     path = os.path.join(get_backup_folder(), "manifest.json")
+    tmp_path = path + ".tmp"
     try:
-        with open(path, "w") as f:
+        with open(tmp_path, "w") as f:
             json.dump(manifest, f, indent=2)
+        os.rename(tmp_path, path)
     except:
+        try:
+            os.remove(tmp_path)
+        except:
+            pass
         pass
 
-def get_tracks_with_covers():
-    script = u'''
+def get_tracks_with_covers(progress_cb=None, check_run=None):
+    if check_run is None:
+        check_run = lambda: True
+    app_name = get_app_name()
+    try:
+        total = int(run_as('tell application "{0}" to count every track of library playlist 1'.format(app_name), timeout_sec=45))
+    except:
+        total = 0
+
+    tracks = []
+    if total <= 0:
+        return tracks
+
+    chunk_size = 100
+    for start_idx in range(1, total + 1, chunk_size):
+        if not check_run():
+            break
+        end_idx = min(start_idx + chunk_size - 1, total)
+        script = SAFE_FIELD_HANDLER + u'''
     set out to ""
     tell application "{0}"
         try
-            set trks to every track of library playlist 1
+            set trks to (tracks {1} thru {2} of library playlist 1)
             repeat with t in trks
                 try
                     if exists artwork 1 of t then
                         set pid to persistent ID of t
                         set nm to name of t
                         set art to artist of t
-                        set out to out & pid & "|" & nm & "|" & art & "\\n"
+                        set out to out & pid & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(art) & linefeed
                     end if
                 end try
             end repeat
         end try
     end tell
     return out
-    '''.format(get_app_name())
-    
-    res = run_as(script.encode('utf-8'))
-    tracks = []
-    for line in res.split('\n'):
-        if "|" in line:
-            parts = line.strip().split("|", 2)
-            if len(parts) >= 3:
-                tracks.append({"pid": parts[0], "title": parts[1], "artist": parts[2]})
+    '''.format(app_name, start_idx, end_idx)
+
+        res = run_as(script, timeout_sec=180)
+        for line in res.split('\n'):
+            if FIELD_SEP in line:
+                parts = line.strip().split(FIELD_SEP, 2)
+                if len(parts) >= 3:
+                    tracks.append({"pid": parts[0], "title": parts[1], "artist": parts[2]})
+        if progress_cb:
+            progress_cb(end_idx, total)
     return tracks
 
-def backup_cover(pid, title, artist):
+def backup_cover(pid, title, artist, manifest=None, save=True):
     folder = get_backup_folder()
+    owns_manifest = manifest is None
+    if manifest is None:
+        manifest = load_manifest()
+
+    existing = manifest.get("backups", {}).get(pid)
+    if existing:
+        existing_path = os.path.join(folder, "{0}.{1}".format(pid, existing.get("original_format", "jpg")))
+        if os.path.exists(existing_path):
+            return True
+
     path_without_ext = os.path.join(folder, pid).replace('\\', '\\\\').replace('"', '\\"')
     
     script = u'''
@@ -110,18 +144,20 @@ def backup_cover(pid, title, artist):
     end tell
     '''.format(get_app_name(), pid, path_without_ext)
     
-    res = run_as(script.encode('utf-8'))
+    res = run_as(script, timeout_sec=180)
     if not res or res == "NO_ARTWORK" or res.startswith("ERROR"):
         return False
         
     parts = res.split("|")
     if len(parts) >= 3:
         ext, w, h = parts[0], int(parts[1]), int(parts[2])
-        
-        manifest = load_manifest()
         date_str = datetime.now().isoformat()
+        backups = manifest.get("backups")
+        if backups is None:
+            backups = {}
+            manifest["backups"] = backups
         
-        manifest["backups"][pid] = {
+        backups[pid] = {
             "title": title,
             "artist": artist,
             "original_format": ext,
@@ -129,7 +165,8 @@ def backup_cover(pid, title, artist):
             "original_height": h,
             "backup_date": date_str
         }
-        save_manifest(manifest)
+        if save or owns_manifest:
+            save_manifest(manifest)
         return True
     return False
 
@@ -164,8 +201,11 @@ def set_track_artwork(pid, image_path):
             set imgData to read fileAlias as picture
             
             tell t
-                delete every artwork
-                set data of artwork 1 to imgData
+                try
+                    set data of artwork 1 to imgData
+                on error
+                    make new artwork at t with properties {{data:imgData}}
+                end try
             end tell
             return "SUCCESS"
         on error errMsg number errNum
@@ -174,11 +214,12 @@ def set_track_artwork(pid, image_path):
     end tell
     '''.format(get_app_name(), pid, esc_path)
     
-    res = run_as(script.encode('utf-8'))
+    res = run_as(script, timeout_sec=180)
     return res == "SUCCESS"
 
-def optimize_cover(pid, target_size):
-    manifest = load_manifest()
+def optimize_cover(pid, target_size, manifest=None):
+    if manifest is None:
+        manifest = load_manifest()
     info = manifest["backups"].get(pid)
     if not info:
         return False
@@ -205,8 +246,9 @@ def optimize_cover(pid, target_size):
         pass
     return success
 
-def restore_cover(pid):
-    manifest = load_manifest()
+def restore_cover(pid, manifest=None):
+    if manifest is None:
+        manifest = load_manifest()
     info = manifest["backups"].get(pid)
     if not info:
         return False

@@ -15,8 +15,22 @@ DEPLOYMENT_TARGET="10.9"
 ARCH="x86_64"
 BUILD_ROOT="build-legacy"
 DERIVED_DATA_PATH="$BUILD_ROOT/DerivedData"
+VERSION_FILE="../VERSION"
+if [ -n "${SYNCROSA_VERSION:-}" ]; then
+    APP_VERSION="$SYNCROSA_VERSION"
+else
+    if [ ! -f "$VERSION_FILE" ]; then
+        echo "❌ VERSION file not found at $VERSION_FILE"
+        exit 1
+    fi
+    APP_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+fi
+if [ -z "$APP_VERSION" ]; then
+    echo "❌ VERSION is empty."
+    exit 1
+fi
 DIST_DIR="${SYNCROSA_DIST_DIR:-$HOME/Desktop}"
-DIST_ZIP="$DIST_DIR/Syncrosa_Cocoa_v3.2.0.zip"
+DIST_ZIP="$DIST_DIR/Syncrosa_Cocoa_v${APP_VERSION}.zip"
 
 if [ -z "${DEVELOPER_DIR:-}" ] && [ -d "/Applications/Xcode_6.2.app/Contents/Developer" ]; then
     export DEVELOPER_DIR="/Applications/Xcode_6.2.app/Contents/Developer"
@@ -95,6 +109,10 @@ BINARY_PATH="$APP_NAME/Contents/MacOS/$EXECUTABLE_NAME"
 
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $DEPLOYMENT_TARGET" "$INFO_PLIST" 2>/dev/null || \
     /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $DEPLOYMENT_TARGET" "$INFO_PLIST"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$INFO_PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $APP_VERSION" "$INFO_PLIST"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$INFO_PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $APP_VERSION" "$INFO_PLIST"
 
 MIN_PLIST=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$INFO_PLIST")
 MIN_MACHO=$(otool -l "$BINARY_PATH" | awk '/LC_VERSION_MIN_MACOSX/{found=1} found && /version /{print $2; exit}')
@@ -129,17 +147,7 @@ xattr -cr "$APP_NAME" 2>/dev/null || true
 codesign --force --deep --sign - "$APP_NAME"
 codesign --verify --deep --strict "$APP_NAME"
 
-echo "📦 Creating distribution ZIP..."
-mkdir -p "$DIST_DIR"
-rm -f "$DIST_ZIP"
-ditto -c -k --norsrc --keepParent "$APP_NAME" "$DIST_ZIP"
-
-rm -rf "$APP_NAME"
-
-echo "✅ Syncrosa_Cocoa_v3.2.0.zip successfully created on Desktop!"
-
 echo "🧪 Compiling tests..."
-set +e
 "$XCODEBUILD" \
     -project "$PROJECT" \
     -scheme "$SCHEME" \
@@ -151,11 +159,14 @@ set +e
     "SYMROOT=$BUILD_ROOT/tests" \
     "OBJROOT=$BUILD_ROOT/tests/Intermediates" \
     build-for-testing 2>&1 | tee test.log
-TEST_STATUS=${PIPESTATUS[0]}
-set -e
 
-if [ "$TEST_STATUS" -ne 0 ]; then
-    echo "⚠️ Test target did not compile. App ZIP was still created."
-else
-    echo "✅ Tests compiled."
-fi
+echo "✅ Tests compiled."
+
+echo "📦 Creating distribution ZIP..."
+mkdir -p "$DIST_DIR"
+rm -f "$DIST_ZIP"
+ditto -c -k --norsrc --keepParent "$APP_NAME" "$DIST_ZIP"
+
+rm -rf "$APP_NAME"
+
+echo "✅ $(basename "$DIST_ZIP") successfully created at $DIST_ZIP"

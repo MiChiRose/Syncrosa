@@ -11,7 +11,7 @@ except ImportError:
 import threading
 from core.localization import _
 from core.config import CONFIG_DATA, save_config
-from core.itunes_bridge import get_library_for_duplicates, delete_track_by_id
+from core.itunes_bridge import FIELD_SEP, get_library_for_duplicates, delete_track_by_id
 from ui.components import HelpDialog, ProgressWindow
 
 class ScrollableFrame(tk.Frame):
@@ -44,6 +44,7 @@ class DuplicateFinderTab(tk.Frame):
     def __init__(self, parent, master_app):
         tk.Frame.__init__(self, parent, bg="#ECECEC", borderwidth=0, highlightthickness=0)
         self.master_app = master_app
+        self.pending_actions = {}
         self.build_ui()
 
     def build_ui(self):
@@ -63,6 +64,9 @@ class DuplicateFinderTab(tk.Frame):
         # Scan Button
         self.scan_btn = ttk.Button(self, text="Show Duplicates", command=self.start_scan, width=20)
         self.scan_btn.pack(pady=5)
+
+        self.apply_btn = ttk.Button(self, text="Apply Selected", command=self.apply_selected, width=20, state="disabled")
+        self.apply_btn.pack(pady=(0, 5))
         
         # Scrollable Frame for pairs
         self.scroll_frame = ScrollableFrame(self)
@@ -121,9 +125,11 @@ class DuplicateFinderTab(tk.Frame):
         lbl.pack(pady=40)
 
     def render_pairs(self, raw_library):
+        self.pending_actions = {}
+        self.apply_btn.config(state="disabled")
         groups = {}
         for track_line in raw_library:
-            parts = track_line.split('|')
+            parts = track_line.split(FIELD_SEP)
             if len(parts) < 11: continue
             pid, art, nm, knd, sz, alb, gen, yr, trkNum, hasLyr, hasArt = parts[:11]
             k = (art.lower().strip(), nm.strip().lower())
@@ -166,6 +172,16 @@ class DuplicateFinderTab(tk.Frame):
         card.columnconfigure(0, weight=1)
         card.columnconfigure(1, weight=1)
         
+        action_var = tk.StringVar(value="none")
+        pair_key = "-".join(sorted([t1['pid'], t2['pid']]))
+        self.pending_actions[pair_key] = {
+            "var": action_var,
+            "t1": t1,
+            "t2": t2,
+            "card": card
+        }
+        action_var.trace("w", lambda *args: self.update_apply_state())
+
         # Col 0 (Left track)
         col0 = tk.Frame(card, bg="#ECECEC")
         col0.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
@@ -176,11 +192,7 @@ class DuplicateFinderTab(tk.Frame):
         comp1 = self.get_completeness(t1['alb'], t1['gen'], t1['yr'], t1['trkNum'], t1['hasLyr'], t1['hasArt'])
         tk.Label(col0, text=u"Completeness: {}".format(comp1), bg="#ECECEC", font=("system", 9)).pack()
         
-        btn_del1 = ttk.Button(
-            col0, text="Delete Copy A",
-            command=lambda pid=t1['pid'], card_widget=card: self.delete_copy(pid, card_widget)
-        )
-        btn_del1.pack(pady=5)
+        tk.Radiobutton(col0, text="Delete A", variable=action_var, value="delete_a", bg="#ECECEC", activebackground="#ECECEC").pack(pady=5)
         
         # Col 1 (Right track)
         col1 = tk.Frame(card, bg="#ECECEC")
@@ -192,18 +204,12 @@ class DuplicateFinderTab(tk.Frame):
         comp2 = self.get_completeness(t2['alb'], t2['gen'], t2['yr'], t2['trkNum'], t2['hasLyr'], t2['hasArt'])
         tk.Label(col1, text=u"Completeness: {}".format(comp2), bg="#ECECEC", font=("system", 9)).pack()
         
-        btn_del2 = ttk.Button(
-            col1, text="Delete Copy B",
-            command=lambda pid=t2['pid'], card_widget=card: self.delete_copy(pid, card_widget)
-        )
-        btn_del2.pack(pady=5)
+        tk.Radiobutton(col1, text="Delete B", variable=action_var, value="delete_b", bg="#ECECEC", activebackground="#ECECEC").pack(pady=5)
         
-        # Row 1 (Center bottom) - Ignore Button
-        btn_ignore = ttk.Button(
-            card, text="Ignore Pair",
-            command=lambda pid1=t1['pid'], pid2=t2['pid'], card_widget=card: self.ignore_pair(pid1, pid2, card_widget)
-        )
-        btn_ignore.grid(row=1, column=0, columnspan=2, pady=(0, 5))
+        action_row = tk.Frame(card, bg="#ECECEC")
+        action_row.grid(row=1, column=0, columnspan=2, pady=(0, 5))
+        tk.Radiobutton(action_row, text="No action", variable=action_var, value="none", bg="#ECECEC", activebackground="#ECECEC").pack(side=tk.LEFT, padx=8)
+        tk.Radiobutton(action_row, text="Ignore pair", variable=action_var, value="ignore", bg="#ECECEC", activebackground="#ECECEC").pack(side=tk.LEFT, padx=8)
 
     def format_size(self, sz_bytes):
         try:
@@ -245,3 +251,66 @@ class DuplicateFinderTab(tk.Frame):
                 card_widget.destroy()
             else:
                 tkMessageBox.showerror("Error", "Failed to delete track copy: " + str(res))
+
+    def update_apply_state(self):
+        has_selection = any(item["var"].get() != "none" for item in self.pending_actions.values())
+        self.apply_btn.config(state="normal" if has_selection else "disabled")
+
+    def apply_selected(self):
+        selected = []
+        for pair_key, item in self.pending_actions.items():
+            action = item["var"].get()
+            if action != "none":
+                selected.append((pair_key, action, item))
+        if not selected:
+            tkMessageBox.showinfo("Nothing Selected", "Choose Ignore or Delete for at least one duplicate pair.")
+            return
+
+        delete_count = len([x for x in selected if x[1].startswith("delete")])
+        if delete_count > 0:
+            msg = "Delete {} selected track copy/copies from iTunes? This action cannot be undone.".format(delete_count)
+            if not tkMessageBox.askyesno("Confirm Delete", msg):
+                return
+
+        self.apply_btn.config(state="disabled")
+        self.scan_btn.config(state="disabled")
+        self.prog_win = ProgressWindow(self)
+        self.prog_win.start_timer()
+
+        def task():
+            ignored = CONFIG_DATA.get("ignored_duplicates", [])
+            errors = []
+            applied = 0
+            total = len(selected)
+            try:
+                for idx, (pair_key, action, item) in enumerate(selected, 1):
+                    if not self.prog_win.running:
+                        break
+                    self.after(0, lambda i=idx, t=total: self.prog_win.progress.config(value=i, maximum=t))
+                    self.after(0, lambda i=idx, t=total: self.prog_win.lbl.config(text="Applying... ({}/{})".format(i, t)))
+                    if action == "ignore":
+                        if pair_key not in ignored:
+                            ignored.append(pair_key)
+                        applied += 1
+                    else:
+                        pid = item["t1"]["pid"] if action == "delete_a" else item["t2"]["pid"]
+                        res = delete_track_by_id(pid)
+                        if res == "OK":
+                            applied += 1
+                        else:
+                            errors.append(str(res))
+
+                CONFIG_DATA["ignored_duplicates"] = ignored
+                save_config(CONFIG_DATA)
+            finally:
+                self.after(0, self.prog_win.stop_timer)
+                self.after(0, self.prog_win.destroy)
+                self.after(0, lambda: self.scan_btn.config(state="normal"))
+                if errors:
+                    self.after(0, lambda: tkMessageBox.showerror("Apply Finished With Errors", "\n".join(errors[:8])))
+                    self.after(0, self.update_apply_state)
+                else:
+                    self.after(0, lambda: tkMessageBox.showinfo("Applied", "Applied {} duplicate action(s). Rescanning library now.".format(applied)))
+                    self.after(0, self.start_scan)
+
+        threading.Thread(target=task).start()

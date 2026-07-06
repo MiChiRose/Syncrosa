@@ -82,10 +82,11 @@ class AIService {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         } else {
             // Gemini
-            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
+            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
             request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.addValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
             let body: [String: Any] = [
                 "contents": [["parts": [["text": "Say 'OK'"]]]],
                 "generationConfig": ["maxOutputTokens": 10]
@@ -130,7 +131,7 @@ class AIService {
         Event/Mood requested: \(prompt)
         Target Track Count: \(count)
 
-        Library format: PersistentID|Artist|Title|Genre|Year
+        Library format: PersistentID<TAB>Artist<TAB>Title<TAB>Album<TAB>Genre<TAB>Year
         \(libraryText)
 
         CRITICAL RULES:
@@ -176,10 +177,11 @@ class AIService {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         } else {
             // Gemini
-            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
+            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
             request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.addValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
             let body: [String: Any] = [
                 "contents": [["parts": [["text": systemPrompt]]]]
             ]

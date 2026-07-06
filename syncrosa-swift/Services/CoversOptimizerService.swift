@@ -72,12 +72,34 @@ class CoversOptimizerService {
     
     private func saveManifest(_ manifest: CoversManifest) {
         if let data = try? JSONEncoder().encode(manifest) {
-            try? data.write(to: manifestURL)
+            try? data.write(to: manifestURL, options: .atomic)
         }
     }
     
     func getTracksWithCovers() -> [(pid: String, title: String, artist: String)] {
         let script = """
+        on syncrosaCleanField(v)
+            try
+                set s to v as text
+            on error
+                set s to ""
+            end try
+            set oldDelims to AppleScript's text item delimiters
+            set AppleScript's text item delimiters to tab
+            set parts to text items of s
+            set AppleScript's text item delimiters to " "
+            set s to parts as text
+            set AppleScript's text item delimiters to return
+            set parts to text items of s
+            set AppleScript's text item delimiters to " "
+            set s to parts as text
+            set AppleScript's text item delimiters to linefeed
+            set parts to text items of s
+            set AppleScript's text item delimiters to " "
+            set s to parts as text
+            set AppleScript's text item delimiters to oldDelims
+            return s
+        end syncrosaCleanField
         set out to ""
         tell application "\(appName)"
             try
@@ -88,7 +110,7 @@ class CoversOptimizerService {
                             set pid to persistent ID of t
                             set nm to name of t
                             set art to artist of t
-                            set out to out & pid & "|" & nm & "|" & art & "\\n"
+                            set out to out & pid & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(art) & linefeed
                         end if
                     end try
                 end repeat
@@ -100,8 +122,8 @@ class CoversOptimizerService {
         guard let res = runScript(script) else { return [] }
         var list: [(pid: String, title: String, artist: String)] = []
         let lines = res.components(separatedBy: .newlines)
-        for line in lines where line.contains("|") {
-            let parts = line.components(separatedBy: "|")
+        for line in lines where line.contains("\t") {
+            let parts = line.components(separatedBy: "\t")
             if parts.count >= 3 {
                 list.append((pid: parts[0], title: parts[1], artist: parts[2]))
             }
@@ -111,6 +133,13 @@ class CoversOptimizerService {
     
     func backupCover(pid: String, title: String, artist: String) -> Bool {
         createBackupFolderIfNeeded()
+        var manifest = loadManifest()
+        if let existing = manifest.backups[pid] {
+            let existingFile = backupFolder.appendingPathComponent("\(pid).\(existing.originalFormat)")
+            if fileManager.fileExists(atPath: existingFile.path) {
+                return true
+            }
+        }
         
         let pathWithoutExt = backupFolder.appendingPathComponent(pid).path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         
@@ -160,8 +189,6 @@ class CoversOptimizerService {
             let w = Int(parts[1]) ?? 0
             let h = Int(parts[2]) ?? 0
             
-            // Update manifest
-            var manifest = loadManifest()
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
             let dateStr = formatter.string(from: Date())
@@ -252,10 +279,7 @@ class CoversOptimizerService {
                     try
                         set data of artwork 1 to imgData
                     on error
-                        try
-                            delete every artwork
-                        end try
-                        set data of artwork 1 to imgData
+                        make new artwork at t with properties {data:imgData}
                     end try
                 end tell
                 return "SUCCESS"

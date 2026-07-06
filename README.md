@@ -61,6 +61,16 @@ The original stable version designed for vintage Macs running OS X 10.9 Maverick
 
 You can find the compiled release versions in the [Releases](https://github.com/MiChiRose/Syncrosa/releases) section of this repository.
 
+### Release Assets
+
+| Archive | Best for | Minimum macOS | Notes |
+| --- | --- | --- | --- |
+| `Syncrosa_Cocoa_v3.2.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines. |
+| `Syncrosa_Python_v3.2.1.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available. |
+| `Syncrosa_SwiftUI_v3.2.1.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build; not intended for vintage Macs. |
+
+Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
+
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
 
@@ -105,9 +115,8 @@ When you open the application for the first time, you will be greeted by the **A
  * **Success:** You will see a *"Success! Welcome"* message, and the window will close.
  * **Error:** If validation fails, double-check your key, ensure the selected model is currently available, and check your internet connection.
 
-5. **Error Logging:**
- * There is a checkbox labeled **"Prompt to save text logs..."**. I recommend keeping this enabled. If the app crashes or behaves unexpectedly, these logs help me (the developer) understand exactly what went wrong.
- * <img width="751" height="564" alt="4th" src="https://github.com/user-attachments/assets/8de2b188-5ad0-4584-a5c1-b4b3064401a7" />
+5. **Diagnostics:**
+ * Normal release builds keep developer diagnostics hidden so users do not get extra log files on the Desktop. When deeper debugging is needed, diagnostics can be enabled explicitly during development.
 
 
 </details>

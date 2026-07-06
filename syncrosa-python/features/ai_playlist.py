@@ -41,7 +41,7 @@ Create a playlist from the provided library sample.
 Event/Mood requested: {mood}
 Target Track Count for this sample: {chunk_count}
 
-Library format: PersistentID|Artist|Title|Genre|Year
+Library format: PersistentID<TAB>Artist<TAB>Title<TAB>Genre<TAB>Year
 {library}
 
 CRITICAL RULES:
@@ -87,4 +87,3 @@ CRITICAL RULES:
     print("Final playlist will contain {} tracks (trimmed if needed).".format(len(final_list)))
     
     return True, final_list
-

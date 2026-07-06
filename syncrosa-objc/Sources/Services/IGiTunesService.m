@@ -202,6 +202,9 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
 }
 
 - (void)writeStartupDiagnostics {
+    if (![IGLogger desktopDiagnosticsEnabled]) {
+        return;
+    }
     [[IGLogger sharedLogger] log:@"Startup iTunes diagnostics begin"];
 
     NSArray *runningApps = [[NSWorkspace sharedWorkspace] launchedApplications];

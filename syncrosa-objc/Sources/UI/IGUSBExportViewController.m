@@ -34,6 +34,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 @property (nonatomic, strong) NSArray *playlists;
 @property (nonatomic, strong) NSArray *currentPlaylistTracks;
 @property (nonatomic, assign) BOOL isExporting;
+@property (nonatomic, assign) BOOL shouldCancelExport;
 
 @end
 
@@ -295,7 +296,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 - (void)updateExportButtonState {
     BOOL hasDrive = (self.drives.count > 0);
     BOOL hasPlaylist = (self.currentPlaylistTracks.count > 0);
-    self.exportButton.enabled = hasDrive && hasPlaylist && !self.isExporting;
+    self.exportButton.enabled = self.isExporting || (hasDrive && hasPlaylist);
 }
 
 - (void)updateLocalization {
@@ -321,7 +322,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         [self.modePopup selectItemAtIndex:selectedIdx];
     }
 
-    self.exportButton.title = [lang t:@"export_button"];
+    self.exportButton.title = self.isExporting ?
+        ([lang.selectedLanguage isEqualToString:@"ru"] ? @"Остановить" : @"Stop") :
+        [lang t:@"export_button"];
     [self.refreshBtn setToolTip:[lang.selectedLanguage isEqualToString:@"ru"] ? @"Обновить" : @"Refresh"];
 
     self.footerLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
@@ -346,7 +349,14 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 }
 
 - (void)exportClicked:(id)sender {
-    if (self.isExporting) return;
+    if (self.isExporting) {
+        self.shouldCancelExport = YES;
+        self.exportButton.enabled = NO;
+        self.statusLabel.stringValue = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+            @"Остановка после текущего файла..." :
+            @"Stopping after the current file...";
+        return;
+    }
 
     NSInteger driveIdx = [self.drivePopup indexOfSelectedItem];
     if (driveIdx < 0 || driveIdx >= self.drives.count) return;
@@ -361,7 +371,8 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     IGExportMode mode = (IGExportMode)[self.modePopup indexOfSelectedItem];
 
     // Check space
-    if (drive.freeSpace < totalBytes && mode == IGExportModeAll) {
+    int64_t safetyMargin = MAX((int64_t)(64 * 1024 * 1024), drive.freeSpace / 100);
+    if (drive.freeSpace < totalBytes + safetyMargin && mode == IGExportModeAll) {
         NSAlert *alert = [[NSAlert alloc] init];
         [alert setMessageText:[[IGLocalizationService sharedService] t:@"disk_full_title"]];
 
@@ -382,7 +393,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     }
 
     self.isExporting = YES;
-    self.exportButton.enabled = NO;
+    self.shouldCancelExport = NO;
+    self.exportButton.enabled = YES;
+    self.exportButton.title = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ? @"Остановить" : @"Stop";
     self.drivePopup.enabled = NO;
     self.playlistPopup.enabled = NO;
     self.modePopup.enabled = NO;
@@ -406,9 +419,11 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             // Filter to fit available space
             NSMutableArray *filtered = [NSMutableArray array];
             int64_t accumulatedSize = 0;
+            int64_t safetyMargin = MAX((int64_t)(64 * 1024 * 1024), drive.freeSpace / 100);
+            int64_t usableSpace = MAX((int64_t)0, drive.freeSpace - safetyMargin);
             for (NSDictionary *t in shuffled) {
                 int64_t fileSize = [t[@"size"] longLongValue];
-                if (accumulatedSize + fileSize < drive.freeSpace) {
+                if (accumulatedSize + fileSize < usableSpace) {
                     accumulatedSize += fileSize;
                     [filtered addObject:t];
                 }
@@ -428,6 +443,13 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         NSFileManager *fm = [NSFileManager defaultManager];
 
         for (NSInteger i = 0; i < totalTracks; i++) {
+            if (self.shouldCancelExport) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self finishExportCanceledWithCopiedCount:copiedCount totalRequested:totalTracks skippedDRM:skippedDRM bytes:totalBytesCopied];
+                });
+                return;
+            }
+
             // Check if drive is still mounted
             if (![fm fileExistsAtPath:drive.volumeURL.path]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -469,11 +491,40 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             }
 
             NSError *copyError = nil;
-            BOOL success = [self copyFileFrom:sourceURL to:destURL error:&copyError];
+            __block int64_t currentFileBytes = 0;
+            BOOL success = [self copyFileFrom:sourceURL
+                                           to:destURL
+                                  cancelBlock:^BOOL{
+                                      return self.shouldCancelExport;
+                                  }
+                                progressBlock:^(int64_t copiedBytes) {
+                                    currentFileBytes = copiedBytes;
+                                    double fraction = fileSize > 0 ? MIN(0.99, (double)copiedBytes / (double)fileSize) : 0;
+                                    NSString *copiedStr = [NSByteCountFormatter stringFromByteCount:copiedBytes countStyle:NSByteCountFormatterCountStyleFile];
+                                    NSString *fileStr = [NSByteCountFormatter stringFromByteCount:fileSize countStyle:NSByteCountFormatterCountStyleFile];
+                                    dispatch_async(dispatch_get_main_queue(), ^{
+                                        self.progressIndicator.doubleValue = (double)i + fraction;
+                                        self.statusLabel.stringValue = [NSString stringWithFormat:@"Copying %ld/%ld: %@ / %@",
+                                                                        (long)(i + 1),
+                                                                        (long)totalTracks,
+                                                                        copiedStr,
+                                                                        fileStr];
+                                    });
+                                }
+                                        error:&copyError];
             if (success) {
                 copiedCount++;
                 totalBytesCopied += fileSize;
             } else {
+                if (currentFileBytes > 0 && [fm fileExistsAtPath:destURL.path]) {
+                    [fm removeItemAtURL:destURL error:nil];
+                }
+                if (self.shouldCancelExport) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self finishExportCanceledWithCopiedCount:copiedCount totalRequested:totalTracks skippedDRM:skippedDRM bytes:totalBytesCopied];
+                    });
+                    return;
+                }
                 NSLog(@"Failed to copy %@: %@", destName, copyError.localizedDescription);
             }
         }
@@ -490,23 +541,52 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     return [parts componentsJoinedByString:@"_"];
 }
 
-- (BOOL)copyFileFrom:(NSURL *)source to:(NSURL *)destination error:(NSError **)outError {
+- (BOOL)copyFileFrom:(NSURL *)source
+                  to:(NSURL *)destination
+         cancelBlock:(BOOL(^)(void))cancelBlock
+       progressBlock:(void(^)(int64_t copiedBytes))progressBlock
+               error:(NSError **)outError {
     NSFileHandle *srcHandle = [NSFileHandle fileHandleForReadingFromURL:source error:outError];
     if (!srcHandle) return NO;
 
-    [[NSFileManager defaultManager] createFileAtPath:destination.path contents:nil attributes:nil];
+    if (![[NSFileManager defaultManager] createFileAtPath:destination.path contents:nil attributes:nil]) {
+        [srcHandle closeFile];
+        if (outError) {
+            *outError = [NSError errorWithDomain:@"IGCopyError" code:-3
+                                        userInfo:@{NSLocalizedDescriptionKey: @"Could not create destination file"}];
+        }
+        return NO;
+    }
     NSFileHandle *dstHandle = [NSFileHandle fileHandleForWritingToURL:destination error:outError];
     if (!dstHandle) {
         [srcHandle closeFile];
+        [[NSFileManager defaultManager] removeItemAtURL:destination error:nil];
         return NO;
     }
 
-    NSUInteger chunkSize = 1024 * 1024; // 1 MB chunks
+    NSUInteger chunkSize = 512 * 1024; // Gentle chunks for old HDD/USB media
+    int64_t copiedBytes = 0;
     @try {
         while (YES) {
+            if (cancelBlock && cancelBlock()) {
+                if (outError) {
+                    *outError = [NSError errorWithDomain:@"IGCopyError" code:-2 userInfo:@{NSLocalizedDescriptionKey: @"Copy canceled"}];
+                }
+                [srcHandle closeFile];
+                [dstHandle closeFile];
+                [[NSFileManager defaultManager] removeItemAtURL:destination error:nil];
+                return NO;
+            }
             NSData *data = [srcHandle readDataOfLength:chunkSize];
             if (data.length == 0) break;
             [dstHandle writeData:data];
+            copiedBytes += data.length;
+            if (progressBlock) {
+                progressBlock(copiedBytes);
+            }
+            if (copiedBytes > 0 && copiedBytes % (16 * 1024 * 1024) == 0) {
+                [NSThread sleepForTimeInterval:0.005];
+            }
         }
     } @catch (NSException *e) {
         [srcHandle closeFile];
@@ -525,15 +605,42 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
 - (void)finishExportWithError:(NSString *)errorMsg {
     self.isExporting = NO;
+    self.shouldCancelExport = NO;
     self.progressIndicator.hidden = YES;
     self.statusLabel.stringValue = errorMsg;
 
     [self.drivePopup setEnabled:YES];
     [self.playlistPopup setEnabled:YES];
     [self.modePopup setEnabled:YES];
+    self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
     [self updateExportButtonState];
 
     [IGNotificationView showInView:self.view message:errorMsg isError:YES];
+}
+
+- (void)finishExportCanceledWithCopiedCount:(NSInteger)copied
+                             totalRequested:(NSInteger)total
+                                 skippedDRM:(NSInteger)skippedDRM
+                                      bytes:(int64_t)bytes {
+    self.isExporting = NO;
+    self.shouldCancelExport = NO;
+    self.progressIndicator.hidden = YES;
+
+    [self.drivePopup setEnabled:YES];
+    [self.playlistPopup setEnabled:YES];
+    [self.modePopup setEnabled:YES];
+    self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
+    [self updateExportButtonState];
+    [self reloadDrives];
+
+    NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:bytes countStyle:NSByteCountFormatterCountStyleFile];
+    NSString *message = [NSString stringWithFormat:@"Export canceled. Copied %ld of %ld tracks (%@). Skipped DRM: %ld.",
+                         (long)copied,
+                         (long)total,
+                         sizeStr,
+                         (long)skippedDRM];
+    self.statusLabel.stringValue = message;
+    [IGNotificationView showInView:self.view message:@"Export canceled." isError:NO];
 }
 
 - (void)finishExportWithCopiedCount:(NSInteger)copied
@@ -541,11 +648,13 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
                           skippedDRM:(NSInteger)skippedDRM
                                bytes:(int64_t)bytes {
     self.isExporting = NO;
+    self.shouldCancelExport = NO;
     self.progressIndicator.hidden = YES;
 
     [self.drivePopup setEnabled:YES];
     [self.playlistPopup setEnabled:YES];
     [self.modePopup setEnabled:YES];
+    self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
     [self updateExportButtonState];
     [self reloadDrives]; // Refresh free space info
 

@@ -640,58 +640,100 @@ def run_as(s):
     p = subprocess.Popen(['osascript', '-e', s], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return p.communicate()[0].decode('utf-8').strip()
 
+def _network_flag_enabled(value):
+    if not value:
+        return False
+    return str(value).strip().lower() in ("1", "yes", "true", "on", "debug")
+
+def _insecure_tls_allowed():
+    return _network_flag_enabled(os.environ.get("SYNCROSA_ALLOW_INSECURE_TLS"))
+
+def _curl_quote(value):
+    if value is None:
+        value = u""
+    if not isinstance(value, unicode):
+        value = unicode(value)
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
 def make_request(url, headers_dict, payload_dict=None, timeout_sec=90):
     req = urllib2.Request(url)
     req.add_header("User-Agent", "Syncrosa/1.0 (macOS)")
-    
-    curl_headers = ["-H", "User-Agent: Syncrosa/1.0 (macOS)"]
+    curl_header_items = [("User-Agent", "Syncrosa/1.0 (macOS)")]
     
     for k, v in headers_dict.items():
         if isinstance(k, unicode): k = k.encode('utf-8')
         if isinstance(v, unicode): v = v.encode('utf-8')
         req.add_header(k, v)
-        curl_headers.extend(["-H", "{}: {}".format(k, v)])
+        curl_header_items.append((k, v))
         
     data = None
     if payload_dict:
         data = json.dumps(payload_dict, ensure_ascii=False).encode('utf-8')
         req.add_header('Content-Type', 'application/json')
-        curl_headers.extend(["-H", "Content-Type: application/json"])
+        curl_header_items.append(("Content-Type", "application/json"))
         
     def do_curl():
-        cmd = ["curl", "-sSL", "-m", str(timeout_sec)] + curl_headers
+        import tempfile
+        cmd = ["curl", "-q", "-K"]
         tmp_path = None
+        cfg_path = None
         if data:
-            import tempfile
             tmp_fd, tmp_path = tempfile.mkstemp(suffix=".json")
+            try: os.chmod(tmp_path, 0600)
+            except: pass
             with os.fdopen(tmp_fd, 'wb') as f:
                 f.write(data)
-            cmd.extend(["-d", "@" + tmp_path])
-            
-        cmd.append(url)
+        cfg_fd, cfg_path = tempfile.mkstemp(prefix="syncrosa-curl-", suffix=".conf")
         try:
+            try: os.chmod(cfg_path, 0600)
+            except: pass
+            lines = [
+                'silent',
+                'show-error',
+                'location',
+                'max-time = "{0}"'.format(int(timeout_sec)),
+                'url = "{0}"'.format(_curl_quote(url))
+            ]
+            for hk, hv in curl_header_items:
+                lines.append('header = "{0}: {1}"'.format(_curl_quote(hk), _curl_quote(hv)))
+            if data:
+                lines.append('data-binary = "@{0}"'.format(_curl_quote(tmp_path)))
+            os.write(cfg_fd, ("\n".join(lines) + "\n").encode("utf-8"))
+            os.close(cfg_fd)
+            cfg_fd = None
+            cmd.append(cfg_path)
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             out, err = p.communicate()
-            if tmp_path:
-                try: os.remove(tmp_path)
-                except: pass
             if p.returncode == 0:
                 return True, out
             return False, "Curl Error: " + err
         except Exception as ce:
+            return False, "Curl Exception: " + str(ce)
+        finally:
+            if cfg_fd is not None:
+                try: os.close(cfg_fd)
+                except: pass
+            if cfg_path:
+                try: os.remove(cfg_path)
+                except: pass
             if tmp_path:
                 try: os.remove(tmp_path)
                 except: pass
-            return False, "Curl Exception: " + str(ce)
 
     try:
         try:
             ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
             response = urllib2.urlopen(req, data=data, context=ctx, timeout=timeout_sec)
         except AttributeError:
             response = urllib2.urlopen(req, data=data, timeout=timeout_sec)
+        except ssl.SSLError:
+            if _insecure_tls_allowed():
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                response = urllib2.urlopen(req, data=data, context=ctx, timeout=timeout_sec)
+            else:
+                raise
         return True, response.read()
     except urllib2.HTTPError as e:
         if e.code in [401, 403]: 
@@ -717,9 +759,9 @@ def test_api_key(provider, api_key, model):
             "X-Title": "Syncrosa"
         }
     else:
-        url = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}".format(model.strip(), api_key.strip())
+        url = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent".format(model.strip())
         payload = {"contents": [{"parts": [{"text": "Say 'OK'"}]}], "generationConfig": {"maxOutputTokens": 10}}
-        headers = {}
+        headers = {"x-goog-api-key": api_key.strip()}
 
     ok, result = make_request(url, headers, payload, timeout_sec=120)
     if not ok: return False, result
@@ -765,9 +807,9 @@ def call_ai_for_playlist(provider, api_key, model, prompt_text):
             "X-Title": "Syncrosa"
         }
     else:
-        url = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}".format(model.strip(), api_key.strip())
+        url = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent".format(model.strip())
         payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-        headers = {}
+        headers = {"x-goog-api-key": api_key.strip()}
 
     ok, result = make_request(url, headers, payload, timeout_sec=120)
     if not ok: return False, result

@@ -6,6 +6,8 @@
 
 @implementation IGLogger
 
+static NSUInteger const IGLoggerMaxInMemoryLines = 1000;
+
 static NSString *IGLoggerTrimForFile(NSString *value, NSUInteger maxLength) {
     if (!value) return @"";
     NSString *trimmed = [value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -113,6 +115,9 @@ static BOOL IGLoggerFlagValueEnabled(NSString *value) {
     NSString *line = [NSString stringWithFormat:@"[%@][%@] %@", timestamp, IGLoggerThreadLabel(), message ?: @""];
     @synchronized (self) {
         [self.logLines addObject:line];
+        while (self.logLines.count > IGLoggerMaxInMemoryLines) {
+            [self.logLines removeObjectAtIndex:0];
+        }
     }
     NSLog(@"%@", line);
     if ([IGLogger desktopDiagnosticsEnabled]) {

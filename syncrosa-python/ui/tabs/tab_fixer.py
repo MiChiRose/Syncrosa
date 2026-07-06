@@ -19,6 +19,8 @@ class FixerTab(tk.Frame):
         tk.Frame.__init__(self, parent, bg="#ECECEC", borderwidth=0, highlightthickness=0)
         self.master_app = master_app
         self.running = False
+        self._ui_thread = threading.current_thread()
+        self._log_lines = 0
         self.build_ui()
 
     def build_ui(self):
@@ -140,12 +142,23 @@ class FixerTab(tk.Frame):
         all_checked = all(v.get() for v in self.vars.values())
         self.select_all_var.set(all_checked)
 
-    def log(self, text):
+    def _append_log(self, text):
+        if not self.winfo_exists():
+            return
         self.console.config(state="normal")
         self.console.insert("end", "> " + text + "\n")
+        self._log_lines += 1
+        while self._log_lines > 500:
+            self.console.delete("1.0", "2.0")
+            self._log_lines -= 1
         self.console.see("end")
         self.console.config(state="disabled")
-        self.update_idletasks()
+
+    def log(self, text):
+        if threading.current_thread() is self._ui_thread:
+            self._append_log(text)
+        else:
+            self.after(0, lambda t=text: self._append_log(t))
 
     def stop(self):
         self.running = False
@@ -165,8 +178,11 @@ class FixerTab(tk.Frame):
         self.console.config(state="normal")
         self.console.delete("1.0", tk.END)
         self.console.config(state="disabled")
+        self._log_lines = 0
         
-        threading.Thread(target=self.worker, args=(checked_tags,)).start()
+        worker = threading.Thread(target=self.worker, args=(checked_tags,))
+        worker.daemon = True
+        worker.start()
 
     def worker(self, checked_tags):
         try:

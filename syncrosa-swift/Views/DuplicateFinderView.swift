@@ -15,10 +15,19 @@ struct DuplicatePair: Identifiable, Equatable {
     let pairKey: String
 }
 
+enum DuplicateAction: String, Hashable {
+    case none
+    case ignore
+    case deleteTrack1
+    case deleteTrack2
+}
+
 struct DuplicateFinderView: View {
     @ObservedObject var lang = LocalizationService.shared
     @State private var isScanning: Bool = false
+    @State private var isApplying: Bool = false
     @State private var duplicatePairs: [DuplicatePair] = []
+    @State private var pendingActions: [String: DuplicateAction] = [:]
     @State private var activeNotification: NotificationMessage? = nil
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
@@ -56,14 +65,29 @@ struct DuplicateFinderView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(isScanning)
+                        .disabled(isScanning || isApplying)
+
+                        if !duplicatePairs.isEmpty {
+                            Button(action: applySelectedActions) {
+                                if isApplying {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Label(lang.selectedLanguage == "ru" ? "Применить" : "Apply Selected", systemImage: "checkmark.circle")
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(isScanning || isApplying || selectedActionCount == 0)
+                        }
                         
                         if !duplicatePairs.isEmpty {
-                            Button(action: { duplicatePairs.removeAll() }) {
+                            Button(action: {
+                                duplicatePairs.removeAll()
+                                pendingActions.removeAll()
+                            }) {
                                 Text(lang.selectedLanguage == "ru" ? "Очистить список" : "Clear List")
                             }
                             .buttonStyle(.bordered)
-                            .disabled(isScanning)
+                            .disabled(isScanning || isApplying)
                         }
                     }
                 }
@@ -93,9 +117,9 @@ struct DuplicateFinderView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 // Track info comparison side by side
                                 HStack(alignment: .top, spacing: 15) {
-                                    trackColumn(pair.track1, sideNumber: 1, pairKey: pair.pairKey)
+                                    trackColumn(pair.track1, sideNumber: 1)
                                     Divider()
-                                    trackColumn(pair.track2, sideNumber: 2, pairKey: pair.pairKey)
+                                    trackColumn(pair.track2, sideNumber: 2)
                                 }
                                 .padding()
                                 .background(Color.white.opacity(0.05))
@@ -105,16 +129,14 @@ struct DuplicateFinderView: View {
                                         .stroke(Color.gray.opacity(0.15), lineWidth: 1)
                                 )
                                 
-                                // Ignore pair button
-                                HStack {
-                                    Spacer()
-                                    Button(action: { ignorePair(pair) }) {
-                                        Label(lang.selectedLanguage == "ru" ? "Игнорировать пару" : "Ignore Pair", systemImage: "eye.slash")
-                                            .font(.caption)
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
+                                Picker("", selection: actionBinding(for: pair.pairKey)) {
+                                    Text(lang.selectedLanguage == "ru" ? "Не трогать" : "No Action").tag(DuplicateAction.none)
+                                    Text(lang.selectedLanguage == "ru" ? "Игнор" : "Ignore").tag(DuplicateAction.ignore)
+                                    Text(lang.selectedLanguage == "ru" ? "Удалить 1" : "Delete 1").tag(DuplicateAction.deleteTrack1)
+                                    Text(lang.selectedLanguage == "ru" ? "Удалить 2" : "Delete 2").tag(DuplicateAction.deleteTrack2)
                                 }
+                                .pickerStyle(.segmented)
+                                .disabled(isScanning || isApplying)
                                 .padding(.horizontal, 5)
                                 
                                 Divider()
@@ -145,7 +167,7 @@ struct DuplicateFinderView: View {
     }
     
     @ViewBuilder
-    func trackColumn(_ detailedTrack: DetailedTrack, sideNumber: Int, pairKey: String) -> some View {
+    func trackColumn(_ detailedTrack: DetailedTrack, sideNumber: Int) -> some View {
         let t = detailedTrack.track
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -155,13 +177,6 @@ struct DuplicateFinderView: View {
                     .foregroundColor(.blue)
                 
                 Spacer()
-                
-                Button(action: { deleteTrackCopy(detailedTrack.id, pairKey: pairKey) }) {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red)
-                }
-                .buttonStyle(.plain)
-                .help(lang.selectedLanguage == "ru" ? "Удалить эту копию" : "Delete this copy")
             }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -216,16 +231,16 @@ struct DuplicateFinderView: View {
                          "1. Нажмите «Показать дубликаты» для сканирования вашей библиотеки.\n" +
                          "2. Просмотрите найденные пары дубликатов side-by-side.\n" +
                          "3. Вы можете сравнить размер, формат файлов и полноту метаданных.\n" +
-                         "4. Нажмите «Игнорировать пару», чтобы скрыть данную пару из будущих сканирований.\n" +
-                         "5. Нажмите иконку корзины, чтобы удалить конкретную копию трека из приложения «Музыка»." :
+                         "4. Для каждой пары выберите «Игнор», «Удалить 1» или «Удалить 2».\n" +
+                         "5. Нажмите «Применить», чтобы выполнить выбранные действия одной пачкой и обновить список." :
                          
                          "This module helps you find and resolve duplicate tracks in your Apple Music library.\n\n" +
                          "How to use:\n" +
                          "1. Click 'Show Duplicates' to scan your library.\n" +
                          "2. View the duplicate pairs side-by-side.\n" +
                          "3. Compare the file format, size, and metadata completeness percentages.\n" +
-                         "4. Click 'Ignore Pair' to remove a pair from the results and prevent it from appearing again.\n" +
-                         "5. Click the trash icon to delete a specific track copy from your Music application."
+                         "4. Select 'Ignore', 'Delete 1', or 'Delete 2' for each pair.\n" +
+                         "5. Click 'Apply Selected' to run all chosen actions in one batch and refresh the list."
                     )
                     .font(.body)
                 }
@@ -241,6 +256,17 @@ struct DuplicateFinderView: View {
         formatter.countStyle = .file
         return formatter.string(fromByteCount: bytes)
     }
+
+    var selectedActionCount: Int {
+        pendingActions.values.filter { $0 != .none }.count
+    }
+
+    func actionBinding(for pairKey: String) -> Binding<DuplicateAction> {
+        Binding(
+            get: { pendingActions[pairKey] ?? .none },
+            set: { pendingActions[pairKey] = $0 }
+        )
+    }
     
     func calculateCompleteness(_ track: MusicTrack) -> Int {
         var score = 0
@@ -253,7 +279,9 @@ struct DuplicateFinderView: View {
     }
     
     func scanForDuplicates() {
+        if isApplying { return }
         isScanning = true
+        pendingActions.removeAll()
         activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Сканирование медиатеки..." : "Scanning Music library...", isError: false)
         
         DispatchQueue.global().async {
@@ -314,6 +342,67 @@ struct DuplicateFinderView: View {
                     self.alertMessage = lang.selectedLanguage == "ru" ? "Дубликаты не найдены." : "No duplicate pairs found."
                     self.showAlert = true
                 }
+            }
+        }
+    }
+
+    func applySelectedActions() {
+        let selected = pendingActions.filter { $0.value != .none }
+        guard !selected.isEmpty else { return }
+        let pairsByKey = Dictionary(uniqueKeysWithValues: duplicatePairs.map { ($0.pairKey, $0) })
+
+        isApplying = true
+        activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Применение действий..." : "Applying duplicate actions...", isError: false)
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            var ignoredList = UserDefaults.standard.stringArray(forKey: "SyncrosaIgnoredDuplicates") ?? []
+            var ignoredSet = Set(ignoredList)
+            var applied = 0
+            var failed = 0
+
+            for (pairKey, action) in selected {
+                guard let pair = pairsByKey[pairKey] else { continue }
+                switch action {
+                case .none:
+                    continue
+                case .ignore:
+                    if !ignoredSet.contains(pairKey) {
+                        ignoredSet.insert(pairKey)
+                        ignoredList.append(pairKey)
+                    }
+                    applied += 1
+                case .deleteTrack1:
+                    if MusicService.shared.deleteTrack(persistentID: pair.track1.id) {
+                        applied += 1
+                    } else {
+                        failed += 1
+                    }
+                case .deleteTrack2:
+                    if MusicService.shared.deleteTrack(persistentID: pair.track2.id) {
+                        applied += 1
+                    } else {
+                        failed += 1
+                    }
+                }
+            }
+
+            UserDefaults.standard.set(ignoredList, forKey: "SyncrosaIgnoredDuplicates")
+
+            DispatchQueue.main.async {
+                self.pendingActions.removeAll()
+                self.isApplying = false
+                if failed > 0 {
+                    self.activeNotification = NotificationMessage(
+                        text: self.lang.selectedLanguage == "ru" ? "Применено: \(applied), ошибок: \(failed)" : "Applied: \(applied), failed: \(failed)",
+                        isError: true
+                    )
+                } else {
+                    self.activeNotification = NotificationMessage(
+                        text: self.lang.selectedLanguage == "ru" ? "Применено: \(applied). Обновляю список..." : "Applied \(applied). Refreshing...",
+                        isError: false
+                    )
+                }
+                self.scanForDuplicates()
             }
         }
     }

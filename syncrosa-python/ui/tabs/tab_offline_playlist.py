@@ -11,7 +11,7 @@ except ImportError:
 import datetime
 import threading
 from core.localization import _
-from core.itunes_bridge import get_library_for_offline_playlist, create_itunes_playlist
+from core.itunes_bridge import FIELD_SEP, get_library_for_offline_playlist, create_itunes_playlist
 from ui.components import HelpDialog, ProgressWindow
 
 class OfflinePlaylistTab(tk.Frame):
@@ -184,7 +184,7 @@ class OfflinePlaylistTab(tk.Frame):
         self.local_library = lib
         genres = set()
         for line in lib:
-            parts = line.split('|')
+            parts = line.split(FIELD_SEP)
             if len(parts) >= 2:
                 gen = parts[1].strip()
                 if gen:
@@ -215,7 +215,7 @@ class OfflinePlaylistTab(tk.Frame):
 
         filtered_tracks = []
         for track_line in self.local_library:
-            parts = track_line.split('|')
+            parts = track_line.split(FIELD_SEP)
             if len(parts) < 5: continue
             pid, gen, yr, rt, hasArt = parts[:5]
             
@@ -262,7 +262,7 @@ class OfflinePlaylistTab(tk.Frame):
                 # Reset filtered list to all tracks
                 filtered_tracks = []
                 for track_line in self.local_library:
-                    parts = track_line.split('|')
+                    parts = track_line.split(FIELD_SEP)
                     if len(parts) < 5: continue
                     pid, gen, yr, rt, hasArt = parts[:5]
                     filtered_tracks.append({

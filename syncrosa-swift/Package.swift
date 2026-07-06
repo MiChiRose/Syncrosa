@@ -15,6 +15,13 @@ let package = Package(
             name: "Syncrosa",
             dependencies: [],
             path: ".",
+            exclude: [
+                "README.md",
+                "build_arm.sh",
+                "Info.plist",
+                "Syncrosa.entitlements",
+                "Syncrosa.xcodeproj"
+            ],
             sources: [
                 "SyncrosaApp.swift",
                 "ContentView.swift",

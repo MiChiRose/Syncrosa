@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import sys
+import threading
 try:
     import Tkinter as tk
     import ttk
@@ -55,6 +56,8 @@ class ProgressWindow(tk.Toplevel):
         self.running = True
         self.fun_active = False
         self.fun_idx = 0
+        self._ui_thread = threading.current_thread()
+        self._log_lines = 0
         
         # Center the window
         self.update_idletasks()
@@ -84,12 +87,23 @@ class ProgressWindow(tk.Toplevel):
     def stop_timer(self):
         self.timer_active = False
 
-    def log(self, text):
+    def _append_log(self, text):
+        if not self.winfo_exists():
+            return
         self.console.config(state="normal")
         self.console.insert("end", "> " + text + "\n")
+        self._log_lines += 1
+        while self._log_lines > 500:
+            self.console.delete("1.0", "2.0")
+            self._log_lines -= 1
         self.console.see("end")
         self.console.config(state="disabled")
-        self.update_idletasks()
+
+    def log(self, text):
+        if threading.current_thread() is self._ui_thread:
+            self._append_log(text)
+        else:
+            self.after(0, lambda t=text: self._append_log(t))
         
     def start_fun_messages(self, lang):
         self.fun_active = True
@@ -165,4 +179,3 @@ class HelpDialog(tk.Toplevel):
         
         btn = ttk.Button(main_frame, text="Close", command=self.destroy)
         btn.pack(pady=(10, 0))
-

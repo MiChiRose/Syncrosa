@@ -229,10 +229,11 @@ struct PlaylistGeneratorView: View {
             }
             
             let librarySample = tracks.map { track -> String in
-                let cleanArtist = track.artist.replacingOccurrences(of: "|", with: " ")
-                let cleanName = track.name.replacingOccurrences(of: "|", with: " ")
-                let cleanAlbum = track.album.replacingOccurrences(of: "|", with: " ")
-                return "\(track.persistentID)|\(cleanArtist)|\(cleanName)|\(cleanAlbum)|\(track.genre)|\(track.year)"
+                let cleanArtist = track.artist.replacingOccurrences(of: "\t", with: " ")
+                let cleanName = track.name.replacingOccurrences(of: "\t", with: " ")
+                let cleanAlbum = track.album.replacingOccurrences(of: "\t", with: " ")
+                let cleanGenre = track.genre.replacingOccurrences(of: "\t", with: " ")
+                return "\(track.persistentID)\t\(cleanArtist)\t\(cleanName)\t\(cleanAlbum)\t\(cleanGenre)\t\(track.year)"
             }
             let limitedSample = Array(librarySample.shuffled().prefix(500))
             

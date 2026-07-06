@@ -4,13 +4,6 @@
 @interface IGAIService ()
 @end
 
-static void IGAddCACertIfAvailable(NSMutableArray *args) {
-    NSString *caPath = [[NSBundle mainBundle] pathForResource:@"cacert" ofType:@"pem"];
-    if (caPath.length > 0) {
-        [args addObjectsFromArray:@[@"--cacert", caPath]];
-    }
-}
-
 static NSString *IGAITempPath(NSString *extension) {
     NSString *baseName = [NSString stringWithFormat:@"syncrosa-curl-%@", [[NSProcessInfo processInfo] globallyUniqueString]];
     return [NSTemporaryDirectory() stringByAppendingPathComponent:[baseName stringByAppendingPathExtension:extension]];
@@ -19,6 +12,23 @@ static NSString *IGAITempPath(NSString *extension) {
 static BOOL IGAICreatePrivateFile(NSString *path) {
     NSDictionary *attrs = @{NSFilePosixPermissions: [NSNumber numberWithUnsignedLong:0600]};
     return [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:attrs];
+}
+
+static NSString *IGAICurlConfigQuote(NSString *value) {
+    NSString *source = value ? value : @"";
+    NSMutableString *escaped = [[source mutableCopy] autorelease];
+    [escaped replaceOccurrencesOfString:@"\\" withString:@"\\\\" options:0 range:NSMakeRange(0, escaped.length)];
+    [escaped replaceOccurrencesOfString:@"\"" withString:@"\\\"" options:0 range:NSMakeRange(0, escaped.length)];
+    return escaped;
+}
+
+static BOOL IGAIWritePrivateData(NSData *data, NSString *path) {
+    if (!IGAICreatePrivateFile(path)) return NO;
+    NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:path];
+    if (!handle) return NO;
+    [handle writeData:data ? data : [NSData data]];
+    [handle closeFile];
+    return YES;
 }
 
 @implementation IGAIService
@@ -46,36 +56,56 @@ static BOOL IGAICreatePrivateFile(NSString *path) {
         [task setLaunchPath:@"/usr/bin/curl"];
 
         NSString *requestMethod = method.length > 0 ? method : @"GET";
-        NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"60", @"-X", requestMethod]];
-        IGAddCACertIfAvailable(args);
-        [args addObjectsFromArray:@[@"-H", @"User-Agent: Syncrosa/1.0 (macOS)"]];
-
+        NSMutableString *curlConfig = [NSMutableString string];
+        [curlConfig appendString:@"silent\n"];
+        [curlConfig appendString:@"show-error\n"];
+        [curlConfig appendString:@"location\n"];
+        [curlConfig appendString:@"max-time = \"60\"\n"];
+        [curlConfig appendFormat:@"request = \"%@\"\n", IGAICurlConfigQuote(requestMethod)];
+        [curlConfig appendFormat:@"url = \"%@\"\n", IGAICurlConfigQuote(url.absoluteString)];
+        NSString *caPath = [[NSBundle mainBundle] pathForResource:@"cacert" ofType:@"pem"];
+        if (caPath.length > 0) {
+            [curlConfig appendFormat:@"cacert = \"%@\"\n", IGAICurlConfigQuote(caPath)];
+        }
+        [curlConfig appendString:@"header = \"User-Agent: Syncrosa/1.0 (macOS)\"\n"];
         BOOL hasContentType = NO;
         for (NSString *key in headers) {
             NSString *value = headers[key];
             if ([[key lowercaseString] isEqualToString:@"content-type"]) {
                 hasContentType = YES;
             }
-            [args addObjectsFromArray:@[@"-H", [NSString stringWithFormat:@"%@: %@", key, value]]];
+            [curlConfig appendFormat:@"header = \"%@: %@\"\n", IGAICurlConfigQuote(key), IGAICurlConfigQuote(value)];
         }
 
         NSString *tmpFile = nil;
         if (body) {
             if (!hasContentType) {
-                [args addObjectsFromArray:@[@"-H", @"Content-Type: application/json"]];
+                [curlConfig appendString:@"header = \"Content-Type: application/json\"\n"];
             }
 
-            tmpFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
-            if (![body writeToFile:tmpFile atomically:YES]) {
+            tmpFile = IGAITempPath(@"json");
+            if (!IGAIWritePrivateData(body, tmpFile)) {
                 NSString *errDesc = @"Failed to write temporary request body";
                 NSError *writeError = [NSError errorWithDomain:@"IGCurlError" code:-2 userInfo:@{NSLocalizedDescriptionKey: errDesc}];
                 completionBlock(nil, writeError);
                 return;
             }
-            [args addObjectsFromArray:@[@"--data-binary", [NSString stringWithFormat:@"@%@", tmpFile]]];
+            [curlConfig appendFormat:@"data-binary = \"@%@\"\n", IGAICurlConfigQuote(tmpFile)];
         }
 
-        [args addObject:url.absoluteString];
+        NSString *configPath = IGAITempPath(@"conf");
+        NSData *configData = [curlConfig dataUsingEncoding:NSUTF8StringEncoding];
+        if (!IGAIWritePrivateData(configData, configPath)) {
+            if (tmpFile) {
+                [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
+            }
+            NSString *errDesc = @"Failed to write temporary curl config";
+            NSError *writeError = [NSError errorWithDomain:@"IGCurlError" code:-3 userInfo:@{NSLocalizedDescriptionKey: errDesc}];
+            completionBlock(nil, writeError);
+            return;
+        }
+
+        NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-q", @"-K", configPath]];
         [task setArguments:args];
 
         NSString *stdoutPath = IGAITempPath(@"stdout");
@@ -106,6 +136,7 @@ static BOOL IGAICreatePrivateFile(NSString *path) {
             if (tmpFile) {
                 [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
             }
+            [[NSFileManager defaultManager] removeItemAtPath:configPath error:nil];
             [[NSFileManager defaultManager] removeItemAtPath:stdoutPath error:nil];
             [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
 
@@ -124,6 +155,7 @@ static BOOL IGAICreatePrivateFile(NSString *path) {
             if (tmpFile) {
                 [[NSFileManager defaultManager] removeItemAtPath:tmpFile error:nil];
             }
+            [[NSFileManager defaultManager] removeItemAtPath:configPath error:nil];
             [[NSFileManager defaultManager] removeItemAtPath:stdoutPath error:nil];
             [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
             NSString *reason = exception.reason ?: @"Curl exception";
@@ -198,8 +230,9 @@ static BOOL IGAICreatePrivateFile(NSString *path) {
         headers[@"X-Title"] = @"Syncrosa-Legacy";
     } else {
         // Gemini
-        NSString *urlStr = [NSString stringWithFormat:@"https://generativelanguage.googleapis.com/v1beta/models/%@:generateContent?key=%@", self.model, self.apiKey];
+        NSString *urlStr = [NSString stringWithFormat:@"https://generativelanguage.googleapis.com/v1beta/models/%@:generateContent", self.model];
         url = [NSURL URLWithString:urlStr];
+        headers[@"x-goog-api-key"] = self.apiKey;
         bodyDict = @{
             @"contents": @[@{@"parts": @[@{@"text": @"Say 'OK'"}]}],
             @"generationConfig": @{@"maxOutputTokens": @10}
@@ -277,8 +310,9 @@ static BOOL IGAICreatePrivateFile(NSString *path) {
         }
     } else {
         // Gemini
-        NSString *urlStr = [NSString stringWithFormat:@"https://generativelanguage.googleapis.com/v1beta/models/%@:generateContent?key=%@", self.model, self.apiKey];
+        NSString *urlStr = [NSString stringWithFormat:@"https://generativelanguage.googleapis.com/v1beta/models/%@:generateContent", self.model];
         url = [NSURL URLWithString:urlStr];
+        headers[@"x-goog-api-key"] = self.apiKey;
         bodyDict = @{
             @"contents": @[@{@"parts": @[@{@"text": systemPrompt}]}]
         };

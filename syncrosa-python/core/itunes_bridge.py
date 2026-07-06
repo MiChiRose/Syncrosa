@@ -1,15 +1,78 @@
 # -*- coding: utf-8 -*-
 import subprocess
+import sys
+import time
 
-def run_as(s):
-    if isinstance(s, bytes):
-        s = s.decode('utf-8')
-    p = subprocess.Popen(['osascript', '-e', s], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return p.communicate()[0].decode('utf-8').strip()
+try:
+    unicode
+except NameError:
+    unicode = str
+
+FIELD_SEP = "\t"
+
+SAFE_FIELD_HANDLER = u'''
+on syncrosaCleanField(v)
+    try
+        set s to v as text
+    on error
+        set s to ""
+    end try
+    set oldDelims to AppleScript's text item delimiters
+    set AppleScript's text item delimiters to tab
+    set parts to text items of s
+    set AppleScript's text item delimiters to " "
+    set s to parts as text
+    set AppleScript's text item delimiters to return
+    set parts to text items of s
+    set AppleScript's text item delimiters to " "
+    set s to parts as text
+    set AppleScript's text item delimiters to linefeed
+    set parts to text items of s
+    set AppleScript's text item delimiters to " "
+    set s to parts as text
+    set AppleScript's text item delimiters to oldDelims
+    return s
+end syncrosaCleanField
+'''
+
+class AppleScriptError(Exception):
+    pass
+
+class AppleScriptTimeout(AppleScriptError):
+    pass
+
+def _to_text(value):
+    if value is None:
+        return u""
+    if isinstance(value, unicode):
+        return value
+    return value.decode("utf-8", "replace")
+
+def run_as(s, timeout_sec=120):
+    script = _to_text(s)
+    script_arg = script.encode("utf-8") if sys.version_info[0] < 3 else script
+    p = subprocess.Popen(["osascript", "-e", script_arg], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    deadline = time.time() + timeout_sec
+    while p.poll() is None:
+        if time.time() >= deadline:
+            try:
+                p.kill()
+            except:
+                pass
+            out, err = p.communicate()
+            raise AppleScriptTimeout("osascript timed out after {0}s: {1}".format(timeout_sec, _to_text(err).strip()))
+        time.sleep(0.05)
+
+    out, err = p.communicate()
+    stdout = _to_text(out).strip()
+    stderr = _to_text(err).strip()
+    if p.returncode != 0:
+        raise AppleScriptError("osascript failed ({0}): {1}".format(p.returncode, stderr or stdout))
+    return stdout
 
 def get_library(progress_cb, check_run):
     try:
-        total = int(run_as('tell application "iTunes" to count every track'))
+        total = int(run_as('tell application "iTunes" to count every track', timeout_sec=45))
     except:
         return []
     
@@ -18,7 +81,7 @@ def get_library(progress_cb, check_run):
     for i in range(1, total + 1, chunk_size):
         if not check_run(): break
         end_idx = min(i + chunk_size - 1, total)
-        script = u'''
+        script = SAFE_FIELD_HANDLER + u'''
         set out to ""
         tell application "iTunes"
             set trks to (tracks {0} thru {1} of library playlist 1)
@@ -40,16 +103,16 @@ def get_library(progress_cb, check_run):
                     set yr to year of t
                 end try
                 if pid is not "" and art is not "" and nm is not "" then
-                    set out to out & pid & "|" & art & "|" & nm & "|" & gen & "|" & yr & "\\n"
+                    set out to out & pid & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(gen) & tab & yr & linefeed
                 end if
             end repeat
         end tell
         return out
         '''.format(i, end_idx)
         
-        res = run_as(script)
+        res = run_as(script, timeout_sec=180)
         for line in res.split('\n'):
-            if "|" in line:
+            if FIELD_SEP in line:
                 library.append(line.strip())
         progress_cb(end_idx, total)
     return library
@@ -77,11 +140,11 @@ def create_itunes_playlist(name, ids_list):
         return addedCount as string
     end tell
     '''.format(name.replace('"', '\\"'), '{"' + '", "'.join(ids_list) + '"}')
-    return run_as(script.encode('utf-8'))
+    return run_as(script, timeout_sec=300)
 
 def get_library_for_duplicates(progress_cb, check_run):
     try:
-        total = int(run_as('tell application "iTunes" to count every track'))
+        total = int(run_as('tell application "iTunes" to count every track', timeout_sec=45))
     except:
         return []
     
@@ -90,7 +153,7 @@ def get_library_for_duplicates(progress_cb, check_run):
     for i in range(1, total + 1, chunk_size):
         if not check_run(): break
         end_idx = min(i + chunk_size - 1, total)
-        script = u'''
+        script = SAFE_FIELD_HANDLER + u'''
         set out to ""
         tell application "iTunes"
             set trks to (tracks {0} thru {1} of library playlist 1)
@@ -137,16 +200,16 @@ def get_library_for_duplicates(progress_cb, check_run):
                         end if
                     end try
                     
-                    set out to out & pid & "|" & art & "|" & nm & "|" & knd & "|" & sz & "|" & alb & "|" & gen & "|" & yr & "|" & trkNum & "|" & hasLyr & "|" & hasArt & "\\n"
+                    set out to out & pid & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(knd) & tab & sz & tab & my syncrosaCleanField(alb) & tab & my syncrosaCleanField(gen) & tab & yr & tab & trkNum & tab & hasLyr & tab & hasArt & linefeed
                 end try
             end repeat
         end tell
         return out
         '''.format(i, end_idx)
         
-        res = run_as(script.encode('utf-8'))
+        res = run_as(script, timeout_sec=180)
         for line in res.split('\n'):
-            if "|" in line:
+            if FIELD_SEP in line:
                 library.append(line.strip())
         progress_cb(end_idx, total)
     return library
@@ -163,11 +226,11 @@ def delete_track_by_id(pid):
         end try
     end tell
     '''.format(pid)
-    return run_as(script.encode('utf-8'))
+    return run_as(script, timeout_sec=120)
 
 def get_library_for_offline_playlist(progress_cb, check_run):
     try:
-        total = int(run_as('tell application "iTunes" to count every track'))
+        total = int(run_as('tell application "iTunes" to count every track', timeout_sec=45))
     except:
         return []
     
@@ -176,7 +239,7 @@ def get_library_for_offline_playlist(progress_cb, check_run):
     for i in range(1, total + 1, chunk_size):
         if not check_run(): break
         end_idx = min(i + chunk_size - 1, total)
-        script = u'''
+        script = SAFE_FIELD_HANDLER + u'''
         set out to ""
         tell application "iTunes"
             set trks to (tracks {0} thru {1} of library playlist 1)
@@ -206,18 +269,16 @@ def get_library_for_offline_playlist(progress_cb, check_run):
                         end if
                     end try
                     
-                    set out to out & pid & "|" & gen & "|" & yr & "|" & rt & "|" & hasArt & "\\n"
+                    set out to out & pid & tab & my syncrosaCleanField(gen) & tab & yr & tab & rt & tab & hasArt & linefeed
                 end try
             end repeat
         end tell
         return out
         '''.format(i, end_idx)
         
-        res = run_as(script.encode('utf-8'))
+        res = run_as(script, timeout_sec=180)
         for line in res.split('\n'):
-            if "|" in line:
+            if FIELD_SEP in line:
                 library.append(line.strip())
         progress_cb(end_idx, total)
     return library
-
-

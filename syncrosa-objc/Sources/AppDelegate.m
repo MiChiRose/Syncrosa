@@ -46,9 +46,11 @@ static void IGAppStartupLog(NSString *message) {
         [self.mainWindowController showWindow:self];
         [[IGLogger sharedLogger] log:@"main window shown"];
         IGAppStartupLog(@"main window shown");
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            [[IGiTunesService sharedService] writeStartupDiagnostics];
-        });
+        if ([IGLogger desktopDiagnosticsEnabled]) {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                [[IGiTunesService sharedService] writeStartupDiagnostics];
+            });
+        }
     } @catch (NSException *exception) {
         [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"launch exception: %@ - %@", exception.name, exception.reason]];
         [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"launch stack: %@", exception.callStackSymbols]];
