@@ -21,13 +21,14 @@ import ssl
 # Absolute imports from the Resources root
 from core.config import CONFIG_DATA, save_config
 from core.localization import _
-from core.itunes_bridge import run_as
+from core.itunes_bridge import get_library_track_count
 from ui.settings import SetupWindow
 from ui.tabs.tab_genius import GeniusTab
 from ui.tabs.tab_fixer import FixerTab
 from ui.tabs.tab_optimizer import OptimizerTab
 from ui.tabs.tab_duplicate_finder import DuplicateFinderTab
 from ui.tabs.tab_offline_playlist import OfflinePlaylistTab
+from ui.tabs.tab_info_eraser import InfoEraserTab
 
 if sys.version_info[0] < 3:
     reload(sys)
@@ -50,6 +51,9 @@ class App(tk.Tk):
         
         self.total_tracks = "..." # Placeholder for manual load
         self.cached_library = None
+        self.library_track_count = -1
+        self.library_status_known = False
+        self.library_status_refreshing = False
 
         self.build_menu()
 
@@ -64,12 +68,24 @@ class App(tk.Tk):
         self.tab_optimizer = OptimizerTab(self.notebook, self)
         self.tab_duplicate_finder = DuplicateFinderTab(self.notebook, self)
         self.tab_offline_playlist = OfflinePlaylistTab(self.notebook, self)
+        self.tab_info_eraser = InfoEraserTab(self.notebook, self)
+        self.tab_library_status = self._build_library_status_tab()
 
         self.notebook.add(self.tab_genius, text="Genius")
         self.notebook.add(self.tab_fixer, text="Media Fixer")
         self.notebook.add(self.tab_optimizer, text="Covers Optimizer")
         self.notebook.add(self.tab_duplicate_finder, text="Duplicate Finder")
         self.notebook.add(self.tab_offline_playlist, text="Offline Playlist")
+        self.notebook.add(self.tab_info_eraser, text="Info Eraser")
+        self.notebook.add(self.tab_library_status, text="Library Status")
+        self.music_tabs = [
+            self.tab_genius,
+            self.tab_fixer,
+            self.tab_optimizer,
+            self.tab_duplicate_finder,
+            self.tab_offline_playlist
+        ]
+        self._show_library_status_tab(False)
         
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
@@ -90,11 +106,125 @@ class App(tk.Tk):
                 webbrowser.open("https://www.python.org/ftp/python/2.7.18/python-2.7.18-macosx10.9.pkg")
                 
         if not CONFIG_DATA.get("api_key"):
-            SetupWindow(self, self.deiconify)
+            SetupWindow(self, self._show_main_window)
             self.after(1000, self._ask_sync_at_startup)
         else:
-            self.deiconify()
+            self._show_main_window()
             self.after(1000, self._ask_sync_at_startup)
+
+    def _show_main_window(self):
+        self.deiconify()
+        self.after(250, self.refresh_library_status_async)
+
+    def _build_library_status_tab(self):
+        tab = tk.Frame(self.notebook, bg="#ECECEC")
+        inner = tk.Frame(tab, bg="#ECECEC")
+        inner.pack(expand=True, fill=tk.BOTH, padx=40, pady=40)
+
+        tk.Label(
+            inner,
+            text="iTunes Library Status",
+            font=("system", 15, "bold"),
+            bg="#ECECEC"
+        ).pack(pady=(40, 12))
+
+        self.library_status_message = tk.Label(
+            inner,
+            text="Checking iTunes library...",
+            font=("system", 12),
+            bg="#ECECEC",
+            fg="#555555",
+            wraplength=440,
+            justify=tk.CENTER
+        )
+        self.library_status_message.pack(pady=(0, 18))
+
+        self.library_status_button = ttk.Button(
+            inner,
+            text="Refresh iTunes",
+            command=self.refresh_library_status_async,
+            width=24
+        )
+        self.library_status_button.pack()
+        return tab
+
+    def _set_notebook_tab_state(self, tab, state):
+        try:
+            self.notebook.tab(tab, state=state)
+        except Exception:
+            pass
+
+    def _show_library_status_tab(self, show):
+        state = "normal" if show else "hidden"
+        self._set_notebook_tab_state(self.tab_library_status, state)
+        if show:
+            try:
+                self.notebook.select(self.tab_library_status)
+            except Exception:
+                pass
+
+    def _set_music_tabs_enabled(self, enabled):
+        state = "normal" if enabled else "disabled"
+        for tab in self.music_tabs:
+            self._set_notebook_tab_state(tab, state)
+
+    def apply_library_status(self, track_count, error_message=None):
+        self.library_status_refreshing = False
+        self.library_status_known = True
+        self.library_track_count = track_count
+        try:
+            self.library_status_button.config(state="normal")
+        except Exception:
+            pass
+
+        if track_count == 0:
+            self.total_tracks = 0
+            self.cached_library = []
+            self.library_status_message.config(
+                text="iTunes library has no tracks. Add music to iTunes, then click Refresh iTunes."
+            )
+            self._show_library_status_tab(True)
+            self._set_music_tabs_enabled(False)
+        elif track_count > 0:
+            self.total_tracks = track_count
+            self.library_status_message.config(text="iTunes tracks: {}".format(track_count))
+            current_tab = ""
+            try:
+                current_tab = self.notebook.select()
+            except Exception:
+                current_tab = ""
+            self._set_music_tabs_enabled(True)
+            self._show_library_status_tab(False)
+            if current_tab == str(self.tab_library_status):
+                try:
+                    self.notebook.select(self.tab_genius)
+                except Exception:
+                    pass
+        else:
+            self.library_status_message.config(
+                text="Could not read iTunes library. {}".format(error_message or "")
+            )
+            self._set_music_tabs_enabled(True)
+            self._show_library_status_tab(False)
+
+        if hasattr(self, 'tab_genius'):
+            self.tab_genius._update_library_info()
+
+    def refresh_library_status_async(self):
+        if self.library_status_refreshing:
+            return
+        self.library_status_refreshing = True
+        try:
+            self.library_status_button.config(state="disabled")
+            self.library_status_message.config(text="Checking iTunes library...")
+        except Exception:
+            pass
+
+        def task():
+            count, err = get_library_track_count()
+            self.after(0, lambda: self.apply_library_status(count, err))
+
+        threading.Thread(target=task).start()
 
     def _ask_sync_at_startup(self):
         if tkMessageBox.askyesno("Sync", _(u"ask_sync_startup")):
@@ -111,6 +241,21 @@ class App(tk.Tk):
                         self.after(0, lambda: self.prog_win.progress.config(value=curr, maximum=total))
                         self.after(0, lambda: self.prog_win.lbl.config(text=_(u"prog_read", curr, total)))
                         
+                    track_count, count_error = get_library_track_count()
+                    if track_count < 0:
+                        self.after(0, lambda: self.apply_library_status(track_count, count_error))
+                        raise Exception("Could not read iTunes library. " + (count_error or ""))
+                    self.after(0, lambda: self.apply_library_status(track_count, None))
+                    if track_count == 0:
+                        self.total_tracks = 0
+                        self.cached_library = []
+                        self.after(0, self.prog_win.stop_timer)
+                        self.after(0, self.prog_win.destroy)
+                        if hasattr(self, 'tab_genius'):
+                            self.after(0, self.tab_genius._update_library_info)
+                        self.after(0, lambda: tkMessageBox.showwarning("Sync", "iTunes library has no tracks. Nothing was cached."))
+                        return
+
                     lib = get_library(update_progress, lambda: self.prog_win.running)
                     
                     if not self.prog_win.running:
@@ -127,7 +272,10 @@ class App(tk.Tk):
                     if hasattr(self, 'tab_genius'):
                         self.after(0, self.tab_genius._update_library_info)
                         
-                    self.after(0, lambda: tkMessageBox.showinfo("Sync", _(u"msg_lib_synced")))
+                    if len(lib) == 0:
+                        self.after(0, lambda: tkMessageBox.showwarning("Sync", "iTunes library was readable, but no usable tracks were returned."))
+                    else:
+                        self.after(0, lambda: tkMessageBox.showinfo("Sync", _(u"msg_lib_synced")))
                 except Exception as e:
                     self.after(0, self.prog_win.stop_timer)
                     self.after(0, self.prog_win.destroy)

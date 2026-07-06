@@ -1,11 +1,13 @@
 #import "IGMainWindowController.h"
 #import "IGSettingsViewController.h"
 #import "IGFileFixerViewController.h"
+#import "IGInfoEraserViewController.h"
 #import "IGUSBExportViewController.h"
 #import "IGCoversOptimizerViewController.h"
 #import "IGDuplicateFinderViewController.h"
 #import "IGOfflinePlaylistViewController.h"
 #import "IGUSBService.h"
+#import "IGiTunesService.h"
 #import "IGAIService.h"
 #import "IGKeychainHelper.h"
 #import "IGLocalizationService.h"
@@ -16,10 +18,17 @@
 @property (nonatomic, strong) NSView *sidebarContainer;
 @property (nonatomic, strong) NSView *contentContainer;
 @property (nonatomic, strong) NSMutableArray *sidebarButtons;
+@property (nonatomic, strong) NSTextField *libraryStatusLabel;
+@property (nonatomic, strong) NSButton *libraryRefreshButton;
+@property (nonatomic, assign) NSInteger libraryTrackCount;
+@property (nonatomic, assign) BOOL libraryStatusKnown;
+@property (nonatomic, assign) BOOL refreshingLibraryStatus;
+@property (nonatomic, assign) NSInteger activeIndex;
 
 @property (nonatomic, strong) IGGeniusViewController *geniusVC;
 @property (nonatomic, strong) IGFixerViewController *fixerVC;
 @property (nonatomic, strong) IGFileFixerViewController *fileFixerVC;
+@property (nonatomic, strong) IGInfoEraserViewController *infoEraserVC;
 @property (nonatomic, strong) IGUSBExportViewController *usbExportVC;
 @property (nonatomic, strong) IGCoversOptimizerViewController *coversOptimizerVC;
 @property (nonatomic, strong) IGDuplicateFinderViewController *duplicateFinderVC;
@@ -42,6 +51,10 @@
 	    [window release];
 #endif
 	    if (self) {
+	        _libraryTrackCount = -1;
+	        _libraryStatusKnown = NO;
+	        _refreshingLibraryStatus = NO;
+	        _activeIndex = -1;
 	        [self setupUI];
 	    }
     return self;
@@ -54,9 +67,12 @@
 	    [_sidebarContainer release];
 	    [_contentContainer release];
 	    [_sidebarButtons release];
+	    [_libraryStatusLabel release];
+	    [_libraryRefreshButton release];
 	    [_geniusVC release];
 	    [_fixerVC release];
 	    [_fileFixerVC release];
+	    [_infoEraserVC release];
 	    [_usbExportVC release];
 	    [_coversOptimizerVC release];
 	    [_duplicateFinderVC release];
@@ -113,6 +129,11 @@
                                              selector:@selector(drivesUpdatedNotification:)
                                                  name:@"IGUSBDrivesUpdatedNotification"
                                                object:nil];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applicationDidBecomeActive:)
+                                                 name:NSApplicationDidBecomeActiveNotification
+                                               object:nil];
     
     // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
 	    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"Gemini";
@@ -120,12 +141,85 @@
     if (apiKey && apiKey.length > 0) {
         [self switchViewToIndex:0];
     } else {
-        [self switchViewToIndex:7];
+        [self switchViewToIndex:8];
     }
+}
+
+- (void)applicationDidBecomeActive:(NSNotification *)notification {
+    if (self.libraryStatusKnown || self.refreshingLibraryStatus) {
+        return;
+    }
+    [self updateButtonStates];
 }
 
 - (void)drivesUpdatedNotification:(NSNotification *)notification {
     [self updateButtonStates];
+}
+
+- (BOOL)indexRequiresReadableLibrary:(NSInteger)index {
+    return (index == 0 || index == 1 || index == 3 || index == 4 || index == 5 || index == 6);
+}
+
+- (BOOL)libraryIsConfirmedEmpty {
+    return (self.libraryStatusKnown && self.libraryTrackCount == 0);
+}
+
+- (void)showEmptyLibraryAlert {
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:@"iTunes Library Is Empty"];
+    [alert setInformativeText:@"This tool needs tracks in your iTunes library. Add music to iTunes, then click Refresh iTunes."];
+    [alert runModal];
+#if !__has_feature(objc_arc)
+    [alert release];
+#endif
+}
+
+- (void)refreshLibraryStatusWithCompletion:(void(^)(void))completionBlock {
+    if (self.refreshingLibraryStatus) {
+        if (completionBlock) {
+            completionBlock();
+        }
+        return;
+    }
+
+    void (^completionCopy)(void) = completionBlock ? [completionBlock copy] : nil;
+    self.refreshingLibraryStatus = YES;
+    self.libraryStatusLabel.stringValue = @"Checking iTunes...";
+    self.libraryRefreshButton.enabled = NO;
+    [self updateButtonStates];
+
+    [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
+        self.refreshingLibraryStatus = NO;
+        self.libraryStatusKnown = YES;
+        self.libraryTrackCount = trackCount;
+        self.libraryRefreshButton.enabled = YES;
+
+        if (trackCount == 0) {
+            self.libraryStatusLabel.stringValue = @"iTunes library is empty.";
+        } else if (trackCount > 0) {
+            self.libraryStatusLabel.stringValue = [NSString stringWithFormat:@"iTunes tracks: %ld", (long)trackCount];
+        } else {
+            self.libraryStatusLabel.stringValue = @"iTunes status unknown.";
+            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Could not read iTunes library count: %@", errorMessage ?: @""]];
+        }
+
+        [self updateButtonStates];
+
+        if ([self libraryIsConfirmedEmpty] && [self indexRequiresReadableLibrary:self.activeIndex]) {
+            [self switchViewToIndex:8];
+        }
+
+        if (completionCopy) {
+            completionCopy();
+#if !__has_feature(objc_arc)
+            [completionCopy release];
+#endif
+        }
+    }];
+}
+
+- (void)refreshLibraryButtonClicked:(id)sender {
+    [self refreshLibraryStatusWithCompletion:nil];
 }
 
 - (void)updateButtonStates {
@@ -136,10 +230,13 @@
     
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
         NSButton *btn = self.sidebarButtons[i];
+        BOOL disabledByEmptyLibrary = ([self libraryIsConfirmedEmpty] && [self indexRequiresReadableLibrary:i]);
         if (i == 0) { // Only Genius Playlist requires an API key
-            btn.enabled = hasKey;
+            btn.enabled = hasKey && !disabledByEmptyLibrary && !self.refreshingLibraryStatus;
         } else if (i == 3) { // USB Export button
-            btn.enabled = !isUSBSearching;
+            btn.enabled = !isUSBSearching && !disabledByEmptyLibrary && !self.refreshingLibraryStatus;
+        } else if ([self indexRequiresReadableLibrary:i]) {
+            btn.enabled = !disabledByEmptyLibrary && !self.refreshingLibraryStatus;
         } else {
             btn.enabled = YES;
         }
@@ -156,6 +253,7 @@
         [lang t:@"covers_optimizer"],
         [lang t:@"duplicate_finder"],
         [lang t:@"offline_playlist"],
+        @"Info Eraser",
         [lang t:@"settings"]
     ];
     
@@ -181,6 +279,43 @@
 #endif
 	        y -= 38;
 	    }
+
+    if (!self.libraryStatusLabel) {
+        NSTextField *statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(15, 92, 150, 34)];
+        statusLabel.editable = NO;
+        statusLabel.selectable = NO;
+        statusLabel.bordered = NO;
+        statusLabel.drawsBackground = NO;
+        statusLabel.font = [NSFont systemFontOfSize:10.0];
+        statusLabel.textColor = [NSColor colorWithCalibratedWhite:0.38 alpha:1.0];
+        statusLabel.alignment = NSCenterTextAlignment;
+        statusLabel.lineBreakMode = NSLineBreakByWordWrapping;
+        statusLabel.stringValue = @"iTunes status unknown.";
+        statusLabel.autoresizingMask = NSViewWidthSizable;
+        self.libraryStatusLabel = statusLabel;
+        [self.sidebarContainer addSubview:statusLabel];
+#if !__has_feature(objc_arc)
+        [statusLabel release];
+#endif
+    } else {
+        self.libraryStatusLabel.frame = NSMakeRect(15, 92, 150, 34);
+    }
+
+    if (!self.libraryRefreshButton) {
+        NSButton *refreshButton = [[NSButton alloc] initWithFrame:NSMakeRect(15, 55, 150, 28)];
+        refreshButton.title = @"Refresh iTunes";
+        refreshButton.bezelStyle = NSTexturedSquareBezelStyle;
+        refreshButton.target = self;
+        refreshButton.action = @selector(refreshLibraryButtonClicked:);
+        refreshButton.autoresizingMask = NSViewWidthSizable;
+        self.libraryRefreshButton = refreshButton;
+        [self.sidebarContainer addSubview:refreshButton];
+#if !__has_feature(objc_arc)
+        [refreshButton release];
+#endif
+    } else {
+        self.libraryRefreshButton.frame = NSMakeRect(15, 55, 150, 28);
+    }
 }
 
 - (void)localizationChanged:(NSNotification *)notification {
@@ -218,8 +353,32 @@
         [alert setMessageText:@"Access Restricted"];
         [alert setInformativeText:@"Please enter and validate your API Key in Settings to unlock AI features."];
         [alert runModal];
+#if !__has_feature(objc_arc)
+        [alert release];
+#endif
         return;
     }
+
+    if ([self indexRequiresReadableLibrary:index] && !self.libraryStatusKnown) {
+        if (!self.refreshingLibraryStatus) {
+            [self refreshLibraryStatusWithCompletion:^{
+                if ([self libraryIsConfirmedEmpty]) {
+                    [self showEmptyLibraryAlert];
+                    [self switchViewToIndex:8];
+                } else {
+                    [self switchViewToIndex:index];
+                }
+            }];
+        }
+        return;
+    }
+
+    if ([self indexRequiresReadableLibrary:index] && [self libraryIsConfirmedEmpty]) {
+        [self showEmptyLibraryAlert];
+        return;
+    }
+
+    self.activeIndex = index;
 
     // Highlight button state
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
@@ -313,6 +472,16 @@
 	            targetVC = self.offlinePlaylistVC;
 	            break;
 	        case 7:
+	            if (!self.infoEraserVC) {
+	                IGInfoEraserViewController *vc = [[IGInfoEraserViewController alloc] init];
+	                self.infoEraserVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.infoEraserVC;
+	            break;
+	        case 8:
 	            if (!self.settingsVC) {
 	                IGSettingsViewController *vc = [[IGSettingsViewController alloc] init];
 	                self.settingsVC = vc;

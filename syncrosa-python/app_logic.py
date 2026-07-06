@@ -872,28 +872,48 @@ def get_library(progress_cb, check_run):
     return library
 
 def create_itunes_playlist(name, ids_list):
+    clean_ids = []
+    for tid in ids_list or []:
+        if tid:
+            if not isinstance(tid, unicode):
+                tid = unicode(tid)
+            clean_ids.append(tid.replace('"', '\\"'))
+
+    if not clean_ids:
+        return "0"
+
     script = u'''
     tell application "iTunes"
         set plName to "{0}"
+        set addedCount to 0
+        set idList to {1}
+        set tracksToAdd to {{}}
+
+        repeat with tid in idList
+            set tidText to (contents of tid) as text
+            try
+                set trk to (some track of library playlist 1 whose persistent ID is tidText)
+                set end of tracksToAdd to trk
+            end try
+        end repeat
+
+        if (count of tracksToAdd) is 0 then return "0"
+
         if not (exists user playlist plName) then
             make new user playlist with properties {{name:plName}}
         end if
         set pl to user playlist plName
         delete every track of pl
-        
-        set addedCount to 0
-        set idList to {1}
-        
-        repeat with tid in idList
+
+        repeat with trk in tracksToAdd
             try
-                set trk to (some track of library playlist 1 whose persistent ID is tid)
-                duplicate trk to pl
+                duplicate (contents of trk) to pl
                 set addedCount to addedCount + 1
             end try
         end repeat
         return addedCount as string
     end tell
-    '''.format(name.replace('"', '\\"'), '{"' + '", "'.join(ids_list) + '"}')
+    '''.format(name.replace('"', '\\"'), '{"' + '", "'.join(clean_ids) + '"}')
     return run_as(script.encode('utf-8'))
 
 
@@ -1555,6 +1575,12 @@ CORRECT OUTPUT FORMAT: ["A1B2C3D4E5F67890", "0987654321ABCDEF"]
                 
             self.after(0, lambda: self.prog_win.lbl.config(text=_(u"prog_create")))
             added_count = create_itunes_playlist(name, final_ids)
+            try:
+                added_num = int(added_count)
+            except:
+                added_num = 0
+            if added_num <= 0:
+                raise Exception("No tracks were added to iTunes. The playlist was not changed.")
             slog("Playlist successfully created!")
             
             self.after(0, self.prog_win.destroy)

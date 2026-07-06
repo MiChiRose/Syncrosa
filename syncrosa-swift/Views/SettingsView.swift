@@ -273,14 +273,34 @@ struct SettingsView: View {
         isSyncingLibrary = true
         self.activeNotification = NotificationMessage(text: "Syncing...", isError: false)
         DispatchQueue.global().async {
-            _ = MusicService.shared.getAllTracks { current, total in
+            guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
+                DispatchQueue.main.async {
+                    isSyncingLibrary = false
+                    self.activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty.", isError: true)
+                }
+                return
+            }
+
+            guard libraryCount > 0 else {
+                DispatchQueue.main.async {
+                    isSyncingLibrary = false
+                    self.activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Music прочитан, но треков в медиатеке нет." : "Music was read, but the library has no tracks.", isError: true)
+                }
+                return
+            }
+
+            let tracks = MusicService.shared.getAllTracks { current, total in
                 DispatchQueue.main.async {
                     self.activeNotification = NotificationMessage(text: lang.t("scanning", current, total), isError: false)
                 }
             }
             DispatchQueue.main.async {
                 isSyncingLibrary = false
-                self.activeNotification = NotificationMessage(text: lang.t("msg_lib_synced"), isError: false)
+                if tracks.isEmpty {
+                    self.activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Music прочитан, но доступных треков не вернул." : "Music was read, but no usable tracks were returned.", isError: true)
+                } else {
+                    self.activeNotification = NotificationMessage(text: lang.t("msg_lib_synced"), isError: false)
+                }
             }
         }
     }

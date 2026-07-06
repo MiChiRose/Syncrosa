@@ -55,10 +55,31 @@ class MusicService {
         }
         return result
     }
+
+    func getLibraryTrackCount() -> Int? {
+        let scripts = [
+            "tell application \"Music\" to count every track of library playlist 1",
+            """
+            tell application "Music"
+                set lib to library playlist 1
+                return (count of tracks of lib) as text
+            end tell
+            """,
+            "tell application id \"com.apple.Music\" to count every track of library playlist 1"
+        ]
+
+        for script in scripts {
+            if let countStr = runAppleScript(script),
+               let count = Int(countStr.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                return count
+            }
+        }
+        return nil
+    }
     
     func getAllTracks(progress: @escaping (Int, Int) -> Void) -> [MusicTrack] {
-        let countScript = "tell application \"Music\" to count every track of library playlist 1"
-        guard let countStr = runAppleScript(countScript), let total = Int(countStr) else { return [] }
+        guard let total = getLibraryTrackCount() else { return [] }
+        if total <= 0 { return [] }
         
         var allTracks: [MusicTrack] = []
         let chunkSize = 300
@@ -69,17 +90,41 @@ class MusicService {
             \(cleanFieldHandler)
             set out to ""
             tell application "Music"
-                set trks to (tracks \(i) thru \(end) of library playlist 1)
-                repeat with t in trks
+                set trks to (every track of library playlist 1)
+                set trackCount to count of trks
+                repeat with idx from \(i) to \(end)
+                    if idx > trackCount then exit repeat
+                    set t to item idx of trks
+
+                    set pid to ""
+                    set art to ""
+                    set nm to ""
+                    set alb to ""
+                    set gen to ""
+                    set yr to "0"
+
                     try
-                        set pid to persistent ID of t
-                        set art to artist of t
-                        set nm to name of t
-                        set alb to album of t
-                        set gen to genre of t
-                        set yr to year of t
-                        set out to out & pid & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(alb) & tab & my syncrosaCleanField(gen) & tab & yr & linefeed
+                        set pid to persistent ID of t as text
                     end try
+                    try
+                        set art to artist of t as text
+                    end try
+                    try
+                        set nm to name of t as text
+                    end try
+                    try
+                        set alb to album of t as text
+                    end try
+                    try
+                        set gen to genre of t as text
+                    end try
+                    try
+                        set yr to year of t as text
+                    end try
+
+                    if pid is not "" and nm is not "" then
+                        set out to out & pid & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(alb) & tab & my syncrosaCleanField(gen) & tab & yr & linefeed
+                    end if
                 end repeat
             end tell
             return out
@@ -108,23 +153,37 @@ class MusicService {
     }
 
     func createPlaylist(name: String, persistentIDs: [String]) -> Int {
+        guard !persistentIDs.isEmpty else {
+            return 0
+        }
+
         let idsString = "{\"" + persistentIDs.joined(separator: "\", \"") + "\"}"
         let script = """
         tell application "Music"
             set plName to "\(name.replacingOccurrences(of: "\"", with: "\\\""))"
+            set addedCount to 0
+            set idList to \(idsString)
+            set tracksToAdd to {}
+
+            repeat with tid in idList
+                set tidText to (contents of tid) as text
+                try
+                    set trk to (some track of library playlist 1 whose persistent ID is tidText)
+                    set end of tracksToAdd to trk
+                end try
+            end repeat
+
+            if (count of tracksToAdd) is 0 then return "0"
+
             if not (exists user playlist plName) then
                 make new user playlist with properties {name:plName}
             end if
             set pl to user playlist plName
             delete every track of pl
             
-            set addedCount to 0
-            set idList to \(idsString)
-            
-            repeat with tid in idList
+            repeat with trk in tracksToAdd
                 try
-                    set trk to (some track of library playlist 1 whose persistent ID is tid)
-                    duplicate trk to pl
+                    duplicate (contents of trk) to pl
                     set addedCount to addedCount + 1
                 end try
             end repeat
@@ -349,4 +408,3 @@ class MusicService {
         return (hasArtwork: hasArtwork, rating: rating)
     }
 }
-

@@ -4,7 +4,7 @@ import re
 import json
 import time
 from collections import Counter
-from core.itunes_bridge import FIELD_SEP, SAFE_FIELD_HANDLER, run_as
+from core.itunes_bridge import FIELD_SEP, SAFE_FIELD_HANDLER, run_as, get_library_track_count
 from core.network import make_request
 import sys
 try:
@@ -39,10 +39,9 @@ def find_apple_metadata(artist, title):
     return None
 
 def get_merge_candidates(progress_cb, check_run):
-    try:
-        total = int(run_as('tell application "iTunes" to count every track of library playlist 1', timeout_sec=45))
-    except:
-        total = 0
+    total, err = get_library_track_count()
+    if total <= 0:
+        return []
 
     raw_lines = []
     chunk_size = 200
@@ -105,11 +104,13 @@ def apply_merge(to_fix, progress_cb, status_cb, check_run, checked_tags):
         progress_cb(i + 1, len(to_fix))
 
 def run_metadata_fix(progress_cb, status_cb, check_run, checked_tags):
-    count_script = 'tell application "iTunes" to count tracks of library playlist 1'
-    try:
-        total = int(run_as(count_script, timeout_sec=45))
-    except:
-        total = 0
+    total, err = get_library_track_count()
+    if total < 0:
+        status_cb("Could not read iTunes library. " + (err or ""))
+        return
+    if total == 0:
+        status_cb("iTunes library has no tracks. There is no metadata to update.")
+        return
             
     for i in range(1, total + 1):
         if not check_run(): break

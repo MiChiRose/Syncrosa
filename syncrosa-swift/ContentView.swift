@@ -1,4 +1,37 @@
 import SwiftUI
+import AppKit
+
+enum MusicLibraryStatus: Equatable {
+    case checking
+    case available(Int)
+    case empty
+    case unavailable
+
+    var shouldBlockLibraryTools: Bool {
+        switch self {
+        case .checking, .empty:
+            return true
+        case .available, .unavailable:
+            return false
+        }
+    }
+
+    var shouldShowLibraryNotice: Bool {
+        switch self {
+        case .checking, .empty, .unavailable:
+            return true
+        case .available:
+            return false
+        }
+    }
+
+    var isAvailable: Bool {
+        if case .available(let count) = self {
+            return count > 0
+        }
+        return false
+    }
+}
 
 struct ContentView: View {
     @ObservedObject var lang = LocalizationService.shared
@@ -8,12 +41,15 @@ struct ContentView: View {
     @ObservedObject var usbService = USBService.shared
     @State private var selectedTab: Tab? = nil
     @State private var showHelp: Bool = false
+    @State private var musicLibraryStatus: MusicLibraryStatus = .checking
+    @State private var isRefreshingLibraryStatus: Bool = false
     
     enum Tab: Hashable {
         case playlist
         case offlinePlaylist
         case fixer
         case folderFix
+        case infoEraser
         case duplicateFinder
         case usbExport
         case coversOptimizer
@@ -27,33 +63,53 @@ struct ContentView: View {
                     NavigationLink(value: Tab.playlist) {
                         Label(lang.t("ai_playlist"), systemImage: "music.note.list")
                     }
-                    .disabled(!isKeyValidated)
-                    .opacity(isKeyValidated ? 1.0 : 0.5)
+                    .disabled(!isKeyValidated || musicLibraryStatus.shouldBlockLibraryTools)
+                    .opacity((isKeyValidated && !musicLibraryStatus.shouldBlockLibraryTools) ? 1.0 : 0.5)
                     
                     NavigationLink(value: Tab.offlinePlaylist) {
                         Label(lang.selectedLanguage == "ru" ? "Офлайн плейлист" : "Offline Playlist", systemImage: "music.note.house")
                     }
+                    .disabled(musicLibraryStatus.shouldBlockLibraryTools)
+                    .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
                     
                     NavigationLink(value: Tab.fixer) {
                         Label(lang.t("media_fixer"), systemImage: "wrench.and.screwdriver")
                     }
+                    .disabled(musicLibraryStatus.shouldBlockLibraryTools)
+                    .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
                     
                     NavigationLink(value: Tab.folderFix) {
                         Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
+                    }
+
+                    NavigationLink(value: Tab.infoEraser) {
+                        Label("Info Eraser", systemImage: "eraser.line.dashed")
                     }
                     
                     NavigationLink(value: Tab.duplicateFinder) {
                         Label(lang.selectedLanguage == "ru" ? "Поиск дубликатов" : "Duplicate Finder", systemImage: "arrow.2.squarepath")
                     }
+                    .disabled(musicLibraryStatus.shouldBlockLibraryTools)
+                    .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
                     
                     NavigationLink(value: Tab.usbExport) {
                         Label(lang.t("usb_export"), systemImage: "externaldrive.fill")
                     }
-                    .disabled(usbService.isSearching)
-                    .opacity(usbService.isSearching ? 0.5 : 1.0)
+                    .disabled(usbService.isSearching || musicLibraryStatus.shouldBlockLibraryTools)
+                    .opacity((usbService.isSearching || musicLibraryStatus.shouldBlockLibraryTools) ? 0.5 : 1.0)
                     
                     NavigationLink(value: Tab.coversOptimizer) {
                         Label(lang.t("covers_optimizer"), systemImage: "photo.on.rectangle.angled")
+                    }
+                    .disabled(musicLibraryStatus.shouldBlockLibraryTools)
+                    .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
+
+                    if musicLibraryStatus.shouldShowLibraryNotice {
+                        MusicLibrarySidebarStatusView(
+                            status: musicLibraryStatus,
+                            isRefreshing: isRefreshingLibraryStatus,
+                            refreshAction: refreshMusicLibraryStatus
+                        )
                     }
                 }
                 
@@ -79,11 +135,21 @@ struct ContentView: View {
                             case .offlinePlaylist: OfflinePlaylistGeneratorView()
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
+                            case .infoEraser: InfoEraserView()
                             case .duplicateFinder: DuplicateFinderView()
                             case .usbExport: USBExportView()
                             case .coversOptimizer: CoversOptimizerView()
                             case .settings: SettingsView()
-                            case .none: Text(lang.t("select_folder_msg")).foregroundColor(.secondary)
+                            case .none:
+                                if musicLibraryStatus.isAvailable {
+                                    Text(lang.t("select_folder_msg")).foregroundColor(.secondary)
+                                } else {
+                                    MusicLibraryUnavailableView(
+                                        status: musicLibraryStatus,
+                                        isRefreshing: isRefreshingLibraryStatus,
+                                        refreshAction: refreshMusicLibraryStatus
+                                    )
+                                }
                             }
                         }
                     }
@@ -118,13 +184,172 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            refreshMusicLibraryStatus()
             if !isKeyValidated {
                 selectedTab = .settings
-            } else if selectedTab == nil {
-                selectedTab = .playlist
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshMusicLibraryStatus()
+        }
         .frame(minWidth: 800, minHeight: 600)
+    }
+
+    private func refreshMusicLibraryStatus() {
+        guard !isRefreshingLibraryStatus else { return }
+        isRefreshingLibraryStatus = true
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let count = MusicService.shared.getLibraryTrackCount()
+            let newStatus: MusicLibraryStatus
+            if let count = count {
+                newStatus = count > 0 ? .available(count) : .empty
+            } else {
+                newStatus = .unavailable
+            }
+
+            DispatchQueue.main.async {
+                musicLibraryStatus = newStatus
+                isRefreshingLibraryStatus = false
+
+                if requiresMusicLibrary(selectedTab) && newStatus == .empty {
+                    selectedTab = nil
+                } else if selectedTab == nil && newStatus.isAvailable && isKeyValidated {
+                    selectedTab = .playlist
+                }
+            }
+        }
+    }
+
+    private func requiresMusicLibrary(_ tab: Tab?) -> Bool {
+        switch tab {
+        case .playlist, .offlinePlaylist, .fixer, .duplicateFinder, .usbExport, .coversOptimizer:
+            return true
+        case .folderFix, .infoEraser, .settings, .none:
+            return false
+        }
+    }
+}
+
+struct MusicLibrarySidebarStatusView: View {
+    @ObservedObject var lang = LocalizationService.shared
+    let status: MusicLibraryStatus
+    let isRefreshing: Bool
+    let refreshAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .foregroundColor(.secondary)
+            Text(shortMessage)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+            Spacer(minLength: 4)
+            Button(action: refreshAction) {
+                if isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption2)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(isRefreshing)
+            .help(lang.selectedLanguage == "ru" ? "Проверить Music ещё раз" : "Check Music again")
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
+    }
+
+    private var iconName: String {
+        switch status {
+        case .checking:
+            return "music.note"
+        case .empty:
+            return "tray"
+        case .unavailable:
+            return "exclamationmark.triangle"
+        case .available:
+            return "checkmark.circle"
+        }
+    }
+
+    private var shortMessage: String {
+        switch status {
+        case .checking:
+            return lang.selectedLanguage == "ru" ? "Проверка Music..." : "Checking Music..."
+        case .empty:
+            return lang.selectedLanguage == "ru" ? "Music пуста" : "Music is empty"
+        case .unavailable:
+            return lang.selectedLanguage == "ru" ? "Music не удалось проверить" : "Music check failed"
+        case .available:
+            return ""
+        }
+    }
+}
+
+struct MusicLibraryUnavailableView: View {
+    @ObservedObject var lang = LocalizationService.shared
+    let status: MusicLibraryStatus
+    let isRefreshing: Bool
+    let refreshAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            if status == .checking || isRefreshing {
+                ProgressView()
+                    .controlSize(.large)
+            } else {
+                Image(systemName: status == .empty ? "tray" : "music.note.list")
+                    .font(.system(size: 54))
+                    .foregroundColor(.gray.opacity(0.35))
+            }
+
+            Text(title)
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            Text(message)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 520)
+
+            Button(action: refreshAction) {
+                Label(lang.selectedLanguage == "ru" ? "Проверить ещё раз" : "Check Again", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .disabled(isRefreshing)
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var title: String {
+        switch status {
+        case .checking:
+            return lang.selectedLanguage == "ru" ? "Проверяю медиатеку Music" : "Checking Music Library"
+        case .empty:
+            return lang.selectedLanguage == "ru" ? "В Music нет треков" : "Music Has No Tracks"
+        case .unavailable:
+            return lang.selectedLanguage == "ru" ? "Music не удалось проверить" : "Could Not Check Music"
+        case .available:
+            return ""
+        }
+    }
+
+    private var message: String {
+        switch status {
+        case .checking:
+            return lang.selectedLanguage == "ru" ? "Сейчас проверяю, есть ли треки в вашей медиатеке." : "Checking whether your library contains tracks."
+        case .empty:
+            return lang.selectedLanguage == "ru" ? "Вкладки, которые работают с треками Music, временно заблокированы. Добавьте музыку в Music и нажмите «Проверить ещё раз»." : "Tabs that work with Music tracks are temporarily disabled. Add music to Music, then click Check Again."
+        case .unavailable:
+            return lang.selectedLanguage == "ru" ? "Syncrosa не получила ответ от Music. Вкладки не заблокированы: попробуйте открыть нужный инструмент. Если macOS спросит доступ к Music, нажмите «Разрешить»." : "Syncrosa did not get a response from Music. The tabs are not blocked: try opening the tool you need. If macOS asks for Music access, click Allow."
+        case .available:
+            return ""
+        }
     }
 }
 

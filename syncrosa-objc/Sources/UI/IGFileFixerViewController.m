@@ -82,12 +82,14 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
 @property (nonatomic, strong) NSTextField *folderPathField;
 @property (nonatomic, strong) NSButton *selectFolderButton;
 @property (nonatomic, strong) NSButton *downloadCoversButton;
+@property (nonatomic, strong) NSButton *normalizeUnderscoresButton;
 @property (nonatomic, strong) NSButton *fixButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextView *logView;
 @property (nonatomic, strong) NSArray *foundFiles;
 @property (nonatomic, assign) BOOL isProcessing;
+@property (nonatomic, assign) BOOL underscoreNormalizationEnabledForRun;
 
 @property (nonatomic, strong) NSButton *selectAllCheckbox;
 @property (nonatomic, strong) NSButton *albumCheckbox;
@@ -205,7 +207,14 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     self.downloadCoversButton.state = NSOnState;
     [self.view addSubview:self.downloadCoversButton];
 
-    y -= 45;
+    y -= 24;
+    self.normalizeUnderscoresButton = [[NSButton alloc] initWithFrame:NSMakeRect(110, y, 360, 20)];
+    [self.normalizeUnderscoresButton setButtonType:NSSwitchButton];
+    self.normalizeUnderscoresButton.title = [lang t:@"replace_underscores"];
+    self.normalizeUnderscoresButton.state = NSOffState;
+    [self.view addSubview:self.normalizeUnderscoresButton];
+
+    y -= 42;
     self.fixButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
     self.fixButton.title = [lang t:@"fix_all"];
     self.fixButton.bezelStyle = NSTexturedRoundedBezelStyle;
@@ -331,6 +340,10 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     });
 }
 
+- (void)clearLogView {
+    [self.logView setString:@""];
+}
+
 - (void)selectFolderClicked:(id)sender {
     NSOpenPanel *panel = [NSOpenPanel openPanel];
     [panel setCanChooseFiles:NO];
@@ -347,6 +360,7 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
 - (void)scanFolder:(NSURL *)url {
     self.fixButton.enabled = NO;
     self.statusLabel.stringValue = @"Scanning folder...";
+    [self clearLogView];
     [self log:[NSString stringWithFormat:@"Scanning folder recursively: %@", url.path ?: @""]];
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -391,10 +405,13 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     if (self.isProcessing) return;
 
     self.isProcessing = YES;
+    self.underscoreNormalizationEnabledForRun = (self.normalizeUnderscoresButton.state == NSOnState);
     self.fixButton.enabled = NO;
     self.selectFolderButton.enabled = NO;
     self.downloadCoversButton.enabled = NO;
+    self.normalizeUnderscoresButton.enabled = NO;
 
+    [self clearLogView];
     [self log:@"Starting folder fix process..."];
     self.progressIndicator.maxValue = self.foundFiles.count;
     self.progressIndicator.doubleValue = 0;
@@ -409,6 +426,7 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
             self.fixButton.enabled = YES;
             self.selectFolderButton.enabled = YES;
             self.downloadCoversButton.enabled = YES;
+            self.normalizeUnderscoresButton.enabled = YES;
             self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"done"];
             [self log:@"Process finished successfully."];
 
@@ -433,18 +451,25 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     BOOL updateGenre = (self.genreCheckbox.state == NSOnState);
     BOOL updateTrackNumber = (self.trackNumberCheckbox.state == NSOnState);
     BOOL updateLyrics = (self.lyricsCheckbox.state == NSOnState);
+    BOOL normalizeUnderscores = self.underscoreNormalizationEnabledForRun;
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         [self fixFileAtURL:fileUrl
              downloadCover:downloadCovers
+       normalizeUnderscores:normalizeUnderscores
                updateAlbum:updateAlbum
                updateTitle:updateTitle
               updateArtist:updateArtist
                updateGenre:updateGenre
          updateTrackNumber:updateTrackNumber
               updateLyrics:updateLyrics
-                completion:^(BOOL success) {
+                completion:^(BOOL success, BOOL underscoreNormalizationFailed) {
             dispatch_async(dispatch_get_main_queue(), ^{
+                if (underscoreNormalizationFailed) {
+                    self.underscoreNormalizationEnabledForRun = NO;
+                    self.normalizeUnderscoresButton.state = NSOffState;
+                    [self log:@"Underscore replacement stopped after a safe failure. Other Folder Fixer actions will continue."];
+                }
                 if (success) {
                     [self log:[NSString stringWithFormat:@"Successfully fixed: %@", fileName]];
                 } else {
@@ -656,19 +681,34 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
 
 - (void)fixFileAtURL:(NSURL *)fileURL
        downloadCover:(BOOL)downloadCover
+ normalizeUnderscores:(BOOL)normalizeUnderscores
          updateAlbum:(BOOL)updateAlbum
          updateTitle:(BOOL)updateTitle
         updateArtist:(BOOL)updateArtist
          updateGenre:(BOOL)updateGenre
    updateTrackNumber:(BOOL)updateTrackNumber
         updateLyrics:(BOOL)updateLyrics
-          completion:(void(^)(BOOL success))completionBlock {
-    [self extractMetadataFromFile:fileURL completion:^(NSString *artist, NSString *title, NSData *coverData) {
+          completion:(void(^)(BOOL success, BOOL underscoreNormalizationFailed))completionBlock {
+    __block NSURL *workingURL = fileURL;
+    __block BOOL underscoreNormalizationFailed = NO;
+
+    if (normalizeUnderscores) {
+        NSError *normalizeError = nil;
+        NSURL *normalizedURL = [self URLByReplacingUnderscoresInFilenameForURL:fileURL error:&normalizeError];
+        if (normalizedURL) {
+            workingURL = normalizedURL;
+        } else {
+            underscoreNormalizationFailed = YES;
+            workingURL = fileURL;
+        }
+    }
+
+    [self extractMetadataFromFile:workingURL completion:^(NSString *artist, NSString *title, NSData *coverData) {
         __block NSString *currentArtist = artist;
         __block NSString *currentTitle = title;
 
         if (currentArtist.length == 0 || currentTitle.length == 0) {
-            NSDictionary *parsed = [self parseArtistTitleFromFilename:[fileURL lastPathComponent]];
+            NSDictionary *parsed = [self parseArtistTitleFromFilename:[workingURL lastPathComponent]];
             if (currentArtist.length == 0) currentArtist = parsed[@"artist"];
             if (currentTitle.length == 0) currentTitle = parsed[@"title"];
         }
@@ -683,12 +723,12 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
             NSString *sanitizedArtist = [self sanitizeFilename:finalArtist];
             NSString *sanitizedTitle = [self sanitizeFilename:finalTitle];
 
-            NSString *newName = [NSString stringWithFormat:@"%@ - %@.%@", sanitizedArtist, sanitizedTitle, [fileURL pathExtension]];
-            NSURL *newURL = [[fileURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:newName];
-            newURL = [self uniqueDestinationURLForURL:newURL excludingURL:fileURL];
+            NSString *newName = [NSString stringWithFormat:@"%@ - %@.%@", sanitizedArtist, sanitizedTitle, [workingURL pathExtension]];
+            NSURL *newURL = [[workingURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:newName];
+            newURL = [self uniqueDestinationURLForURL:newURL excludingURL:workingURL];
             if (!newURL) {
-                NSLog(@"Could not find a safe destination filename for %@", fileURL.path);
-                completionBlock(NO);
+                NSLog(@"Could not find a safe destination filename for %@", workingURL.path);
+                completionBlock(NO, underscoreNormalizationFailed);
                 return;
             }
 
@@ -696,8 +736,8 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
             NSError *moveError = nil;
             BOOL renameSuccess = YES;
 
-            if (![fileURL.path isEqualToString:newURL.path]) {
-                renameSuccess = [fm moveItemAtURL:fileURL toURL:newURL error:&moveError];
+            if (![workingURL.path isEqualToString:newURL.path]) {
+                renameSuccess = [fm moveItemAtURL:workingURL toURL:newURL error:&moveError];
             }
 
             if (renameSuccess) {
@@ -764,7 +804,7 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
                             "        end try\n"
                             "    end try\n"
                             "end tell",
-                            IGFileFixerAppleScriptLiteral(fileURL.path),
+                            IGFileFixerAppleScriptLiteral(workingURL.path),
                             [updates componentsJoinedByString:@"\n"],
                             IGFileFixerAppleScriptLiteral(newURL.path),
                             [updates componentsJoinedByString:@"\n"]];
@@ -779,14 +819,14 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
                                    toDirectory:[newURL URLByDeletingLastPathComponent]
                                       baseName:[NSString stringWithFormat:@"%@ - %@", sanitizedArtist, sanitizedTitle]
                                     completion:^(BOOL coverSuccess) {
-                        completionBlock(YES);
+                        completionBlock(YES, underscoreNormalizationFailed);
                     }];
                 } else {
-                    completionBlock(YES);
+                    completionBlock(YES, underscoreNormalizationFailed);
                 }
             } else {
                 NSLog(@"Rename failed: %@", moveError.localizedDescription);
-                completionBlock(NO);
+                completionBlock(NO, underscoreNormalizationFailed);
             }
         }];
     }];
@@ -796,6 +836,53 @@ static NSData *IGFileFixerRunCurl(NSArray *args, int *statusOut) {
     NSCharacterSet *invalidCharacters = [NSCharacterSet characterSetWithCharactersInString:@"/\\?%*|\"<>:"];
     NSArray *parts = [name componentsSeparatedByCharactersInSet:invalidCharacters];
     return [parts componentsJoinedByString:@"_"];
+}
+
+- (NSString *)filenameByReplacingUnderscoresWithSpaces:(NSString *)filename {
+    NSMutableString *normalized = [[filename stringByReplacingOccurrencesOfString:@"_" withString:@" "] mutableCopy];
+    NSCharacterSet *whitespace = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+    NSArray *parts = [normalized componentsSeparatedByCharactersInSet:whitespace];
+    NSMutableArray *nonEmpty = [NSMutableArray array];
+    for (NSString *part in parts) {
+        if (part.length > 0) {
+            [nonEmpty addObject:part];
+        }
+    }
+    NSString *result = [nonEmpty componentsJoinedByString:@" "];
+#if !__has_feature(objc_arc)
+    [normalized release];
+#endif
+    return result;
+}
+
+- (NSURL *)URLByReplacingUnderscoresInFilenameForURL:(NSURL *)fileURL error:(NSError **)error {
+    NSString *baseName = [[fileURL lastPathComponent] stringByDeletingPathExtension];
+    if ([baseName rangeOfString:@"_"].location == NSNotFound) {
+        return fileURL;
+    }
+
+    NSString *normalizedBase = [self filenameByReplacingUnderscoresWithSpaces:baseName];
+    if (normalizedBase.length == 0 || [normalizedBase isEqualToString:baseName]) {
+        return fileURL;
+    }
+
+    NSString *ext = [fileURL pathExtension];
+    NSString *newName = ext.length > 0 ?
+        [NSString stringWithFormat:@"%@.%@", normalizedBase, ext] :
+        normalizedBase;
+    NSURL *desiredURL = [[fileURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:newName];
+    NSURL *destinationURL = [self uniqueDestinationURLForURL:desiredURL excludingURL:fileURL];
+    if (!destinationURL) {
+        return nil;
+    }
+    if ([destinationURL.path isEqualToString:fileURL.path]) {
+        return fileURL;
+    }
+
+    if ([[NSFileManager defaultManager] moveItemAtURL:fileURL toURL:destinationURL error:error]) {
+        return destinationURL;
+    }
+    return nil;
 }
 
 @end

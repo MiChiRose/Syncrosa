@@ -14,6 +14,7 @@ import time
 from core.localization import _
 from features.covers_optimizer import (
     get_tracks_with_covers,
+    get_last_scan_track_count,
     backup_cover,
     optimize_cover,
     restore_cover,
@@ -190,15 +191,27 @@ class OptimizerTab(tk.Frame):
         worker.start()
 
     def worker(self):
+        clear_status_when_done = True
         try:
             self.after(0, lambda: self.status.config(text="Scanning tracks..."))
             def scan_progress(curr, total):
                 self.after(0, lambda c=curr, t=total: self.status.config(text="Scanning tracks... ({}/{})".format(c, t)))
 
             tracks = get_tracks_with_covers(scan_progress, lambda: self.running)
+            scan_count = get_last_scan_track_count()
+            if hasattr(self.master_app, 'apply_library_status') and scan_count is not None:
+                self.after(0, lambda c=scan_count: self.master_app.apply_library_status(c, None if c >= 0 else "Could not read iTunes library."))
             if not tracks:
-                self.log(_(u"no_covers_found"))
-                self.after(0, lambda: self.status.config(text="No covers found."))
+                clear_status_when_done = False
+                if scan_count == 0:
+                    self.log("iTunes library has no tracks. There is no cover artwork to process.")
+                    self.after(0, lambda: self.status.config(text="No iTunes tracks found."))
+                elif scan_count is not None and scan_count < 0:
+                    self.log("Could not read iTunes library tracks. Covers operation stopped.")
+                    self.after(0, lambda: self.status.config(text="Could not read iTunes library."))
+                else:
+                    self.log(_(u"no_covers_found"))
+                    self.after(0, lambda: self.status.config(text="No covers found."))
                 return
 
             total = len(tracks)
@@ -259,7 +272,8 @@ class OptimizerTab(tk.Frame):
             self.running = False
             self.action = None
             self.after(0, lambda: self.set_controls_state(True))
-            self.after(0, lambda: self.status.config(text=""))
+            if clear_status_when_done:
+                self.after(0, lambda: self.status.config(text=""))
 
     def show_help(self):
         from ui.components import HelpDialog

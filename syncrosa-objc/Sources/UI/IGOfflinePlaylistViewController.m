@@ -249,6 +249,23 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         IGiTunesService *service = [IGiTunesService sharedService];
+        NSString *countRaw = [service runAppleScriptNamed:@"offline.genres.count" source:
+            @"tell application \"iTunes\"\n"
+            "    try\n"
+            "        set c to count every track of library playlist 1\n"
+            "        return \"OK\" & tab & (c as text)\n"
+            "    on error errMsg number errNum\n"
+            "        return \"ERROR\" & tab & (errNum as text) & tab & errMsg\n"
+            "    end try\n"
+            "end tell"];
+        NSArray *countParts = [countRaw componentsSeparatedByString:@"\t"];
+        if (countParts.count >= 2 && [countParts[0] isEqualToString:@"OK"] && [countParts[1] integerValue] == 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.statusLabel.stringValue = @"iTunes has no tracks. Offline playlists are unavailable.";
+            });
+            return;
+        }
+
         NSString *script =
             @"on replaceText(theText, oldText, newText)\n"
             "    set AppleScript's text item delimiters to oldText\n"
@@ -393,12 +410,55 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
 }
 
 - (void)generatePlaylists {
+    NSArray *decadeCheckboxesPreflight = @[self.dec60s, self.dec70s, self.dec80s, self.dec90s, self.dec2000s, self.dec2010s, self.dec2020s];
+    BOOL hasSelectedDecade = NO;
+    for (NSButton *checkbox in decadeCheckboxesPreflight) {
+        if (checkbox.state == NSOnState) {
+            hasSelectedDecade = YES;
+            break;
+        }
+    }
+    if (!hasSelectedDecade) {
+        self.statusLabel.stringValue = @"Select at least one decade before generating playlists.";
+        [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+        return;
+    }
+
     self.generateButton.enabled = NO;
     [self.progressIndicator startAnimation:nil];
     self.statusLabel.stringValue = @"Fetching library details...";
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         IGiTunesService *service = [IGiTunesService sharedService];
+        NSString *countRaw = [service runAppleScriptNamed:@"offline.scanTracks.count" source:
+            @"tell application \"iTunes\"\n"
+            "    try\n"
+            "        set c to count every track of library playlist 1\n"
+            "        return \"OK\" & tab & (c as text)\n"
+            "    on error errMsg number errNum\n"
+            "        return \"ERROR\" & tab & (errNum as text) & tab & errMsg\n"
+            "    end try\n"
+            "end tell"];
+        NSArray *countParts = [countRaw componentsSeparatedByString:@"\t"];
+        if (countParts.count < 2 || ![countParts[0] isEqualToString:@"OK"]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.generateButton.enabled = YES;
+                [self.progressIndicator stopAnimation:nil];
+                self.statusLabel.stringValue = @"Could not read iTunes library.";
+                [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            });
+            return;
+        }
+        if ([countParts[1] integerValue] == 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.generateButton.enabled = YES;
+                [self.progressIndicator stopAnimation:nil];
+                self.statusLabel.stringValue = @"iTunes has no tracks. There is nothing to use for offline playlists.";
+                [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            });
+            return;
+        }
+
         NSString *script =
             @"on replaceText(theText, oldText, newText)\n"
             "    set AppleScript's text item delimiters to oldText\n"
@@ -554,6 +614,9 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
     // Now, run the decade playlist creation
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         IGiTunesService *service = [IGiTunesService sharedService];
+        NSInteger epochCreatedCount = 0;
+        NSInteger epochSkippedCount = 0;
+        NSInteger epochUnchangedCount = 0;
 
         for (NSString *decadeName in selectedDecades) {
             // Find matching tracks in this decade
@@ -567,6 +630,7 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
 
             if (decadeTracks.count == 0) {
                 NSLog(@"[Warning] No matching tracks found for decade: %@. Skipping playlist creation.", decadeName);
+                epochSkippedCount++;
                 continue;
             }
 
@@ -578,35 +642,56 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
                 @"set plName to %@\n"
                 "set idList to %@\n"
                 "set addedCount to 0\n"
+                "set tracksToAdd to {}\n"
                 @"tell application \"iTunes\"\n"
-                "    try\n"
-                "        if not (exists user playlist plName) then\n"
-                "            make new user playlist with properties {name:plName}\n"
-                "        end if\n"
-                "        set pl to user playlist plName\n"
-                "        delete every track of pl\n"
-                "        repeat with pidItem in idList\n"
-                "            try\n"
-                "                set pidText to (contents of pidItem) as text\n"
-                "                duplicate (some track of library playlist 1 whose persistent ID is pidText) to pl\n"
-                "                set addedCount to addedCount + 1\n"
-                "            end try\n"
-                "        end repeat\n"
-                "    end try\n"
+                "    repeat with pidItem in idList\n"
+                "        try\n"
+                "            set pidText to (contents of pidItem) as text\n"
+                "            set trk to (some track of library playlist 1 whose persistent ID is pidText)\n"
+                "            set end of tracksToAdd to trk\n"
+                "        end try\n"
+                "    end repeat\n"
+                "    if (count of tracksToAdd) is 0 then return \"0\"\n"
+                "    if not (exists user playlist plName) then\n"
+                "        make new user playlist with properties {name:plName}\n"
+                "    end if\n"
+                "    set pl to user playlist plName\n"
+                "    delete every track of pl\n"
+                "    repeat with trk in tracksToAdd\n"
+                "        try\n"
+                "            duplicate (contents of trk) to pl\n"
+                "            set addedCount to addedCount + 1\n"
+                "        end try\n"
+                "    end repeat\n"
                 "end tell\n"
                 "return addedCount as text",
                 IGOfflineAppleScriptLiteral(playlistName),
                 IGOfflineAppleScriptListLiteral(decadeTracks)];
-            [service runAppleScriptNamed:@"offline.createDecadePlaylist" source:createScript];
+            NSString *result = [service runAppleScriptNamed:@"offline.createDecadePlaylist" source:createScript];
+            NSInteger addedCount = [result integerValue];
 
-            NSLog(@"Created playlist '%@' with %ld tracks.", playlistName, (long)decadeTracks.count);
+            if (addedCount > 0) {
+                epochCreatedCount++;
+                NSLog(@"Created playlist '%@' with %ld tracks.", playlistName, (long)addedCount);
+            } else {
+                epochUnchangedCount++;
+                NSLog(@"Playlist '%@' was not changed because iTunes did not find matching track IDs.", playlistName);
+            }
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
             self.generateButton.enabled = YES;
             [self.progressIndicator stopAnimation:nil];
-            self.statusLabel.stringValue = @"Playlist generation completed!";
-            [IGNotificationView showInView:self.view message:@"Playlists generated!" isError:NO];
+            if (epochCreatedCount > 0) {
+                self.statusLabel.stringValue = [NSString stringWithFormat:@"Playlist generation completed. Created %ld, skipped %ld, unchanged %ld.",
+                                                (long)epochCreatedCount,
+                                                (long)epochSkippedCount,
+                                                (long)epochUnchangedCount];
+                [IGNotificationView showInView:self.view message:@"Playlists generated!" isError:NO];
+            } else {
+                self.statusLabel.stringValue = @"No playlists were created.";
+                [IGNotificationView showInView:self.view message:@"No playlists were created." isError:YES];
+            }
         });
     });
 }

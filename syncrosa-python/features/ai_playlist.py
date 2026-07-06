@@ -8,6 +8,10 @@ def generate_playlist_ids(provider, api_key, model, mood, count, library_sample)
     all_final_ids = []
     target_count = int(count)
     total_tracks = len(library_sample)
+    if target_count <= 0:
+        return False, "Playlist size must be greater than zero."
+    if total_tracks <= 0:
+        return False, "iTunes library has no readable tracks."
     
     # Calculate balanced chunks
     if total_tracks > MAX_CHUNK_SIZE:
@@ -20,6 +24,8 @@ def generate_playlist_ids(provider, api_key, model, mood, count, library_sample)
         actual_chunk_size = total_tracks
 
     # Split library into balanced parts
+    if actual_chunk_size <= 0:
+        return False, "iTunes library has no readable tracks."
     chunks = [library_sample[i:i + actual_chunk_size] for i in range(0, total_tracks, actual_chunk_size)]
     # Ensure we didn't end up with an empty chunk at the end due to math rounding
     chunks = [c for c in chunks if c]

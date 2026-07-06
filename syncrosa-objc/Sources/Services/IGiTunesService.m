@@ -106,8 +106,64 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     return YES;
 }
 
+- (NSInteger)readLibraryTrackCountSyncWithErrorMessage:(NSString **)errorMessage {
+    if (errorMessage) {
+        *errorMessage = nil;
+    }
+
+    NSString *script =
+        @"tell application \"iTunes\"\n"
+        "    set trackCount to -1\n"
+        "    set fileTrackCount to -1\n"
+        "    set lastError to \"\"\n"
+        "    try\n"
+        "        set trackCount to count every track of library playlist 1\n"
+        "    on error errMsg number errNum\n"
+        "        set lastError to (errNum as text) & \" \" & errMsg\n"
+        "    end try\n"
+        "    try\n"
+        "        set fileTrackCount to count every file track of library playlist 1\n"
+        "    on error errMsg number errNum\n"
+        "        if lastError is \"\" then set lastError to (errNum as text) & \" \" & errMsg\n"
+        "    end try\n"
+        "    if trackCount < 0 and fileTrackCount < 0 then\n"
+        "        return \"ERROR\" & tab & lastError\n"
+        "    end if\n"
+        "    if fileTrackCount > trackCount then set trackCount to fileTrackCount\n"
+        "    return \"OK\" & tab & (trackCount as text)\n"
+        "end tell";
+
+    NSString *raw = [self runAppleScriptNamed:@"library.count" source:script];
+    NSArray *parts = raw.length > 0 ? [raw componentsSeparatedByString:@"\t"] : nil;
+    if (parts.count >= 2 && [[parts objectAtIndex:0] isEqualToString:@"OK"]) {
+        return [[parts objectAtIndex:1] integerValue];
+    }
+
+    if (errorMessage) {
+        if (parts.count >= 2 && [[parts objectAtIndex:0] isEqualToString:@"ERROR"]) {
+            *errorMessage = [parts objectAtIndex:1];
+        } else {
+            *errorMessage = @"Could not read iTunes library.";
+        }
+    }
+    return -1;
+}
+
 - (NSString *)runAppleScript:(NSString *)source {
     return [self runAppleScriptNamed:@"generic" source:source];
+}
+
+- (void)fetchLibraryTrackCountWithCompletion:(void(^)(NSInteger trackCount, NSString *errorMessage))completionBlock {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *errorMessage = nil;
+        NSInteger count = [self readLibraryTrackCountSyncWithErrorMessage:&errorMessage];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) {
+                completionBlock(count, errorMessage);
+            }
+        });
+    });
 }
 
 - (NSString *)runAppleScriptNamed:(NSString *)name source:(NSString *)source {
@@ -309,8 +365,8 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
 - (void)fetchAllTracksWithProgress:(void(^)(NSInteger current, NSInteger total))progressBlock 
                         completion:(void(^)(NSArray *tracks))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *countStr = [self runAppleScriptNamed:@"library.fetchAll.count" source:@"tell application \"iTunes\" to count every track of library playlist 1"];
-        NSInteger total = [countStr integerValue];
+        NSString *errorMessage = nil;
+        NSInteger total = [self readLibraryTrackCountSyncWithErrorMessage:&errorMessage];
         if (total <= 0) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 completionBlock(@[]);
@@ -399,6 +455,15 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
 - (void)createPlaylistWithName:(NSString *)name 
                  persistentIDs:(NSArray *)pids 
                     completion:(void(^)(NSInteger addedCount))completionBlock {
+    if (pids.count == 0) {
+        if (completionBlock) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completionBlock(0);
+            });
+        }
+        return;
+    }
+
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSString *idsString = IGAppleScriptListLiteral(pids);
         NSString *playlistLiteral = IGAppleScriptLiteral(name);
@@ -406,20 +471,29 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
         NSString *scriptSource = [NSString stringWithFormat:
             @"tell application \"iTunes\"\n"
             "    set plName to %@\n"
+            "    set addedCount to 0\n"
+            "    set idList to %@\n"
+            "    set tracksToAdd to {}\n"
+            "    \n"
+            "    repeat with tid in idList\n"
+            "        set tidText to (contents of tid) as text\n"
+            "        try\n"
+            "            set trk to (some track of library playlist 1 whose persistent ID is tidText)\n"
+            "            set end of tracksToAdd to trk\n"
+            "        end try\n"
+            "    end repeat\n"
+            "    \n"
+            "    if (count of tracksToAdd) is 0 then return \"0\"\n"
+            "    \n"
             "    if not (exists user playlist plName) then\n"
             "        make new user playlist with properties {name:plName}\n"
             "    end if\n"
             "    set pl to user playlist plName\n"
             "    delete every track of pl\n"
             "    \n"
-            "    set addedCount to 0\n"
-            "    set idList to %@\n"
-            "    \n"
-            "    repeat with tid in idList\n"
-            "        set tidText to (contents of tid) as text\n"
+            "    repeat with trk in tracksToAdd\n"
             "        try\n"
-            "            set trk to (some track of library playlist 1 whose persistent ID is tidText)\n"
-            "            duplicate trk to pl\n"
+            "            duplicate (contents of trk) to pl\n"
             "            set addedCount to addedCount + 1\n"
             "        end try\n"
             "    end repeat\n"

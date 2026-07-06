@@ -26,6 +26,7 @@ struct USBExportView: View {
     @State private var showFSWarning: Bool = false
     @State private var showResultAlert: Bool = false
     @State private var resultMessage: String = ""
+    @State private var playlistMessage: String? = nil
     
     var selectedDrive: USBDrive? {
         usbService.availableDrives.first { $0.id == selectedDriveId }
@@ -117,7 +118,7 @@ struct USBExportView: View {
                             HStack {
                                 Image(systemName: "music.note.list")
                                     .foregroundColor(.gray)
-                                Text(lang.t("no_playlists"))
+                                Text(playlistMessage ?? lang.t("no_playlists"))
                                     .foregroundColor(.secondary)
                             }
                             .padding(.vertical, 8)
@@ -229,6 +230,9 @@ struct USBExportView: View {
         .sheet(isPresented: $showHelp) {
             helpSheetView
         }
+        .onAppear {
+            loadPlaylists()
+        }
     }
     
     var helpSheetView: some View {
@@ -252,14 +256,14 @@ struct USBExportView: View {
                          "Шаги использования:\n" +
                          "1. Вставьте USB-накопитель и выберите его в списке.\n" +
                          "2. Выберите плейлист, который хотите скопировать.\n" +
-                         "3. Нажмите «Отправить на USB Flash».\n" +
+                         "3. Нажмите «Отправить на USB Flash». На накопителе будет создана папка с именем плейлиста, и треки будут скопированы внутрь неё.\n" +
                          "4. Если на накопителе недостаточно места, программа предложит скопировать случайную выборку песен, которая поместится на флешку." :
                          
                          "This tool allows you to export selected playlists from Apple Music to your external USB storage.\n\n" +
                          "How to use:\n" +
                          "1. Connect your USB drive and select it from the list.\n" +
                          "2. Choose the playlist you want to copy.\n" +
-                         "3. Click 'Export to USB Flash'.\n" +
+                         "3. Click 'Export to USB Flash'. A folder named after the playlist will be created on the drive, and tracks will be copied into it.\n" +
                          "4. If space is insufficient, you will be prompted to either cancel or copy a random subset that fits."
                     )
                     .font(.body)
@@ -272,10 +276,23 @@ struct USBExportView: View {
 
     
     private func loadPlaylists() {
+        playlistMessage = lang.selectedLanguage == "ru" ? "Загрузка плейлистов..." : "Loading playlists..."
         DispatchQueue.global(qos: .userInitiated).async {
             let list = MusicService.shared.getUserPlaylists()
+            let libraryCount = list.isEmpty ? MusicService.shared.getLibraryTrackCount() : nil
             DispatchQueue.main.async {
                 self.playlists = list
+                if list.isEmpty {
+                    if let count = libraryCount, count == 0 {
+                        self.playlistMessage = self.lang.selectedLanguage == "ru" ? "В Music нет треков и доступных плейлистов." : "Music has no tracks or playlists to export."
+                    } else if libraryCount == nil {
+                        self.playlistMessage = self.lang.selectedLanguage == "ru" ? "Не удалось прочитать плейлисты Music." : "Could not read Music playlists."
+                    } else {
+                        self.playlistMessage = self.lang.t("no_playlists")
+                    }
+                } else {
+                    self.playlistMessage = nil
+                }
             }
         }
     }
@@ -314,6 +331,10 @@ struct USBExportView: View {
     
     private func startExportProcess() {
         guard let drive = selectedDrive else { return }
+        guard !tracksToExport.isEmpty else {
+            activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "В выбранном плейлисте нет доступных файлов для экспорта." : "The selected playlist has no available files to export.", isError: true)
+            return
+        }
         
         // 1. Check space
         let totalDRMSize = tracksToExport.filter { $0.isDRM }.reduce(0) { $0 + $1.fileSize }
@@ -335,6 +356,7 @@ struct USBExportView: View {
         PlaylistExportService.shared.exportToUSB(
             tracks: tracksToExport,
             destination: drive.volumeURL,
+            playlistName: selectedPlaylistName,
             mode: mode
         ) { progressInfo in
             bytesCopied = progressInfo.bytesCopied
@@ -352,14 +374,25 @@ struct USBExportView: View {
                 
                 if !result.errors.isEmpty && result.errors.contains("Drive disconnected") {
                     activeNotification = NotificationMessage(text: lang.t("drive_disconnected"), isError: true)
+                } else if !result.errors.isEmpty {
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru"
+                            ? "Экспортировано \(copied) треков в папку «\(selectedPlaylistName)». Ошибок: \(result.errors.count)."
+                            : "Exported \(copied) tracks to the \"\(selectedPlaylistName)\" folder. Errors: \(result.errors.count).",
+                        isError: copied == 0
+                    )
                 } else if drm > 0 || missing > 0 {
                     activeNotification = NotificationMessage(
-                        text: lang.t("export_partial", copied, copied + drm + missing, drm + missing),
+                        text: lang.selectedLanguage == "ru"
+                            ? "Экспортировано \(copied) треков в папку «\(selectedPlaylistName)». Пропущено: \(drm + missing)."
+                            : "Exported \(copied) tracks to the \"\(selectedPlaylistName)\" folder. Skipped: \(drm + missing).",
                         isError: false
                     )
                 } else {
                     activeNotification = NotificationMessage(
-                        text: lang.t("export_success", copied),
+                        text: lang.selectedLanguage == "ru"
+                            ? "Экспортировано \(copied) треков в папку «\(selectedPlaylistName)»."
+                            : "Exported \(copied) tracks to the \"\(selectedPlaylistName)\" folder.",
                         isError: false
                     )
                 }

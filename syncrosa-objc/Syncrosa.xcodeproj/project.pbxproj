@@ -14,6 +14,7 @@
 		71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */; };
 		602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */; };
 		72FECC5191E0484D8D030A5E /* IGFileFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 739BF74E464946A2AA4C0110 /* IGFileFixerViewController.m */; };
+		A1B2C3D4E5F60708090A0001 /* IGInfoEraserViewController.m in Build */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60708090A0102 /* IGInfoEraserViewController.m */; };
 		C276892C58134848B0C9C667 /* IGGeniusViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 66FDB03C78DD486E89F166B2 /* IGGeniusViewController.m */; };
 		B4689CDE395842698F3CE170 /* IGNotificationView.m in Build */ = {isa = PBXBuildFile; fileRef = AE10F8E4682E4EA7B7095986 /* IGNotificationView.m */; };
 		09A92887A59B4CE3BD2B132A /* IGMainWindowController.m in Build */ = {isa = PBXBuildFile; fileRef = 1F3E05FFC4294765A2A1D856 /* IGMainWindowController.m */; };
@@ -60,6 +61,8 @@
 		7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGOfflinePlaylistViewController.m"; sourceTree = "<group>"; };
 		F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
 		739BF74E464946A2AA4C0110 /* IGFileFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFileFixerViewController.m"; sourceTree = "<group>"; };
+		A1B2C3D4E5F60708090A0101 /* IGInfoEraserViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGInfoEraserViewController.h"; sourceTree = "<group>"; };
+		A1B2C3D4E5F60708090A0102 /* IGInfoEraserViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGInfoEraserViewController.m"; sourceTree = "<group>"; };
 		1E00386C424D42A2949A6D8B /* IGCoversOptimizerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGCoversOptimizerViewController.h"; sourceTree = "<group>"; };
 		3142FA52755640FEAFB6C162 /* IGFixerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGFixerViewController.h"; sourceTree = "<group>"; };
 		66FDB03C78DD486E89F166B2 /* IGGeniusViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGGeniusViewController.m"; sourceTree = "<group>"; };
@@ -211,6 +214,8 @@
 				7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */,
 				F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */,
 				739BF74E464946A2AA4C0110 /* IGFileFixerViewController.m */,
+				A1B2C3D4E5F60708090A0101 /* IGInfoEraserViewController.h */,
+				A1B2C3D4E5F60708090A0102 /* IGInfoEraserViewController.m */,
 				1E00386C424D42A2949A6D8B /* IGCoversOptimizerViewController.h */,
 				3142FA52755640FEAFB6C162 /* IGFixerViewController.h */,
 				66FDB03C78DD486E89F166B2 /* IGGeniusViewController.m */,
@@ -382,6 +387,7 @@
 				71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Sources */,
 				602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Sources */,
 				72FECC5191E0484D8D030A5E /* IGFileFixerViewController.m in Sources */,
+				A1B2C3D4E5F60708090A0001 /* IGInfoEraserViewController.m in Sources */,
 				C276892C58134848B0C9C667 /* IGGeniusViewController.m in Sources */,
 				B4689CDE395842698F3CE170 /* IGNotificationView.m in Sources */,
 				09A92887A59B4CE3BD2B132A /* IGMainWindowController.m in Sources */,

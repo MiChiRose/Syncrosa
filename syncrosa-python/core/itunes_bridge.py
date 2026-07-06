@@ -70,10 +70,43 @@ def run_as(s, timeout_sec=120):
         raise AppleScriptError("osascript failed ({0}): {1}".format(p.returncode, stderr or stdout))
     return stdout
 
-def get_library(progress_cb, check_run):
+def get_library_track_count():
     try:
-        total = int(run_as('tell application "iTunes" to count every track', timeout_sec=45))
-    except:
+        script = u'''
+        tell application "iTunes"
+            set trackCount to -1
+            set fileTrackCount to -1
+            set lastError to ""
+            try
+                set trackCount to count every track of library playlist 1
+            on error errMsg number errNum
+                set lastError to (errNum as text) & " " & errMsg
+            end try
+            try
+                set fileTrackCount to count every file track of library playlist 1
+            on error errMsg number errNum
+                if lastError is "" then set lastError to (errNum as text) & " " & errMsg
+            end try
+            if trackCount < 0 and fileTrackCount < 0 then
+                return "ERROR" & tab & lastError
+            end if
+            if fileTrackCount > trackCount then set trackCount to fileTrackCount
+            return "OK" & tab & (trackCount as text)
+        end tell
+        '''
+        result = run_as(script, timeout_sec=45)
+        parts = result.split(FIELD_SEP)
+        if len(parts) >= 2 and parts[0] == "OK":
+            return int(parts[1]), None
+        if len(parts) >= 2 and parts[0] == "ERROR":
+            return -1, parts[1]
+        return -1, "Could not read iTunes library count."
+    except Exception as e:
+        return -1, str(e)
+
+def get_library(progress_cb, check_run):
+    total, err = get_library_track_count()
+    if total <= 0:
         return []
     
     library = []
@@ -118,34 +151,51 @@ def get_library(progress_cb, check_run):
     return library
 
 def create_itunes_playlist(name, ids_list):
+    clean_ids = []
+    for tid in ids_list or []:
+        if tid:
+            clean_ids.append(_to_text(tid).replace('"', '\\"'))
+
+    if not clean_ids:
+        return "0"
+
     script = u'''
     tell application "iTunes"
         set plName to "{0}"
+        set addedCount to 0
+        set idList to {1}
+        set tracksToAdd to {{}}
+
+        repeat with tid in idList
+            set tidText to (contents of tid) as text
+            try
+                set trk to (some track of library playlist 1 whose persistent ID is tidText)
+                set end of tracksToAdd to trk
+            end try
+        end repeat
+
+        if (count of tracksToAdd) is 0 then return "0"
+
         if not (exists user playlist plName) then
             make new user playlist with properties {{name:plName}}
         end if
         set pl to user playlist plName
         delete every track of pl
-        
-        set addedCount to 0
-        set idList to {1}
-        
-        repeat with tid in idList
+
+        repeat with trk in tracksToAdd
             try
-                set trk to (some track of library playlist 1 whose persistent ID is tid)
-                duplicate trk to pl
+                duplicate (contents of trk) to pl
                 set addedCount to addedCount + 1
             end try
         end repeat
         return addedCount as string
     end tell
-    '''.format(name.replace('"', '\\"'), '{"' + '", "'.join(ids_list) + '"}')
+    '''.format(name.replace('"', '\\"'), '{"' + '", "'.join(clean_ids) + '"}')
     return run_as(script, timeout_sec=300)
 
 def get_library_for_duplicates(progress_cb, check_run):
-    try:
-        total = int(run_as('tell application "iTunes" to count every track', timeout_sec=45))
-    except:
+    total, err = get_library_track_count()
+    if total <= 0:
         return []
     
     library = []
@@ -229,9 +279,8 @@ def delete_track_by_id(pid):
     return run_as(script, timeout_sec=120)
 
 def get_library_for_offline_playlist(progress_cb, check_run):
-    try:
-        total = int(run_as('tell application "iTunes" to count every track', timeout_sec=45))
-    except:
+    total, err = get_library_track_count()
+    if total <= 0:
         return []
     
     library = []

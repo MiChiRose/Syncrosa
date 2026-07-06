@@ -214,6 +214,28 @@ struct PlaylistGeneratorView: View {
         activeNotification = NotificationMessage(text: "Syncing library...", isError: false)
         
         DispatchQueue.global().async {
+            guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
+                DispatchQueue.main.async {
+                    isGenerating = false
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty.",
+                        isError: true
+                    )
+                }
+                return
+            }
+
+            guard libraryCount > 0 else {
+                DispatchQueue.main.async {
+                    isGenerating = false
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru" ? "В Music нет треков. Нечего добавлять в ИИ-плейлист." : "Music has no tracks. There is nothing to add to an AI playlist.",
+                        isError: true
+                    )
+                }
+                return
+            }
+
             let tracks = MusicService.shared.getAllTracks { current, total in
                 DispatchQueue.main.async {
                     activeNotification = NotificationMessage(text: "Syncing: \(current)/\(total)", isError: false)
@@ -223,7 +245,10 @@ struct PlaylistGeneratorView: View {
             guard !tracks.isEmpty else {
                 DispatchQueue.main.async {
                     isGenerating = false
-                    activeNotification = NotificationMessage(text: "Library is empty.", isError: true)
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru" ? "Music прочитан, но доступных треков не вернул." : "Music was read, but no usable tracks were returned.",
+                        isError: true
+                    )
                 }
                 return
             }
@@ -253,7 +278,14 @@ struct PlaylistGeneratorView: View {
                     if let ids = persistentIDs, !ids.isEmpty {
                         activeNotification = NotificationMessage(text: "Creating playlist in Music...", isError: false)
                         let added = MusicService.shared.createPlaylist(name: playlistName, persistentIDs: ids)
-                        activeNotification = NotificationMessage(text: "Success! Added \(added) tracks.", isError: false)
+                        if added > 0 {
+                            activeNotification = NotificationMessage(text: "Success! Added \(added) tracks.", isError: false)
+                        } else {
+                            activeNotification = NotificationMessage(
+                                text: lang.selectedLanguage == "ru" ? "Плейлист не создан: Music не добавил ни одного трека." : "Playlist was not created: Music added zero tracks.",
+                                isError: true
+                            )
+                        }
                     } else {
                         activeNotification = NotificationMessage(text: "AI failed to find matches.", isError: true)
                     }

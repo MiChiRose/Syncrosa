@@ -21,6 +21,7 @@ struct FileMediaFixerView: View {
     @State private var isProcessing: Bool = false
     @State private var activeNotification: NotificationMessage? = nil
     @State private var downloadCovers: Bool = true
+    @State private var normalizeUnderscores: Bool = false
     @State private var showHelp: Bool = false
     
     // Checkbox checklist states
@@ -117,7 +118,7 @@ struct FileMediaFixerView: View {
                             Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(fileItems.isEmpty || isProcessing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics))
+                        .disabled(fileItems.isEmpty || isProcessing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics && !normalizeUnderscores))
                     }
                     
                     Toggle(isOn: $downloadCovers) {
@@ -125,6 +126,13 @@ struct FileMediaFixerView: View {
                             .font(.caption)
                     }
                     .toggleStyle(.checkbox)
+
+                    Toggle(isOn: $normalizeUnderscores) {
+                        Text(lang.t("replace_underscores"))
+                            .font(.caption)
+                    }
+                    .toggleStyle(.checkbox)
+                    .disabled(isProcessing)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -199,17 +207,19 @@ struct FileMediaFixerView: View {
                          "Инструкция по использованию:\n" +
                          "1. Выберите в панели тегов те свойства, которые вы хотите применить к переименованию файлов.\n" +
                          "2. Укажите, нужно ли автоматически скачивать обложку альбома в ту же папку.\n" +
-                         "3. Нажмите «Выбрать папку» и укажите директорию с вашей музыкой.\n" +
-                         "4. Программа отсканирует все поддерживаемые файлы и выведет их список.\n" +
-                         "5. Нажмите «Исправить все файлы». Программа запросит корректные данные из iTunes Search API и переименует файлы по шаблону «Исполнитель - Название.расширение», применяя только выбранные теги." :
+                         "3. При необходимости включите замену подчёркиваний в имени файла на пробелы.\n" +
+                         "4. Нажмите «Выбрать папку» и укажите директорию с вашей музыкой.\n" +
+                         "5. Программа отсканирует все поддерживаемые файлы и выведет их список.\n" +
+                         "6. Нажмите «Исправить все файлы». Программа запросит корректные данные из iTunes Search API и переименует файлы по шаблону «Исполнитель - Название.расширение», применяя только выбранные теги." :
                          
                          "This tool is designed to directly rename and organize music files (MP3, FLAC, M4A, etc.) in a folder on your disk.\n\n" +
                          "How to use:\n" +
                          "1. Select the specific tags in the tags panel that you wish to apply to the file processing/renaming.\n" +
                          "2. Select whether to download album covers to the folder.\n" +
-                         "3. Click 'Select Folder' and choose the directory containing your music files.\n" +
-                         "4. The program will scan the directory and list all supported files.\n" +
-                         "5. Click 'Fix All Files' to process the files. The app will search iTunes Search API and rename files to '[Artist] - [Title].[ext]' based only on the checked tags."
+                         "3. Optionally replace underscores in filenames with spaces.\n" +
+                         "4. Click 'Select Folder' and choose the directory containing your music files.\n" +
+                         "5. The program will scan the directory and list all supported files.\n" +
+                         "6. Click 'Fix All Files' to process the files. The app will search iTunes Search API and rename files to '[Artist] - [Title].[ext]' based only on the checked tags."
                     )
                     .font(.body)
                 }
@@ -300,6 +310,8 @@ struct FileMediaFixerView: View {
             "trackNumber": fixTrackNumber,
             "lyrics": fixLyrics
         ]
+        var underscoreNormalizationEnabled = normalizeUnderscores
+        var underscoreNormalizationStopped = false
         
         DispatchQueue.global().async {
             for index in fileItems.indices {
@@ -307,20 +319,32 @@ struct FileMediaFixerView: View {
                     fileItems[index].status = .processing
                 }
                 
-                let success = FileMetadataService.shared.fixFile(
+                let result = FileMetadataService.shared.fixFile(
                     url: fileItems[index].url,
                     downloadCover: downloadCovers,
-                    checkedTags: tagsMap
+                    checkedTags: tagsMap,
+                    normalizeUnderscores: underscoreNormalizationEnabled
                 )
+
+                if result.underscoreNormalizationFailed {
+                    underscoreNormalizationEnabled = false
+                    underscoreNormalizationStopped = true
+                    DispatchQueue.main.async {
+                        normalizeUnderscores = false
+                    }
+                }
                 
                 DispatchQueue.main.async {
-                    fileItems[index].status = success ? .done : .error
+                    fileItems[index].status = result.success ? .done : .error
                 }
             }
             
             DispatchQueue.main.async {
                 isProcessing = false
-                activeNotification = NotificationMessage(text: lang.t("done"), isError: false)
+                let message = underscoreNormalizationStopped
+                    ? (lang.selectedLanguage == "ru" ? "Готово. Замена _ была остановлена после ошибки, остальные функции продолжили работу." : "Done. Underscore replacement stopped after a safe failure; other fixes continued.")
+                    : lang.t("done")
+                activeNotification = NotificationMessage(text: message, isError: false)
             }
         }
     }
