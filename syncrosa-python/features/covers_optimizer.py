@@ -11,8 +11,17 @@ except ImportError:
 
 from core.itunes_bridge import FIELD_SEP, SAFE_FIELD_HANDLER, run_as
 
+LAST_SCAN_TRACK_COUNT = None
+
 def get_app_name():
-    return "Music" if os.path.exists("/System/Applications/Music.app") else "iTunes"
+    if os.path.exists("/Applications/iTunes.app") or os.path.exists("/System/Applications/iTunes.app"):
+        return "iTunes"
+    if os.path.exists("/System/Applications/Music.app"):
+        return "Music"
+    return "iTunes"
+
+def get_last_scan_track_count():
+    return LAST_SCAN_TRACK_COUNT
 
 def get_backup_folder():
     home = os.path.expanduser("~")
@@ -49,13 +58,15 @@ def save_manifest(manifest):
         pass
 
 def get_tracks_with_covers(progress_cb=None, check_run=None):
+    global LAST_SCAN_TRACK_COUNT
     if check_run is None:
         check_run = lambda: True
     app_name = get_app_name()
     try:
         total = int(run_as('tell application "{0}" to count every track of library playlist 1'.format(app_name), timeout_sec=45))
     except:
-        total = 0
+        total = -1
+    LAST_SCAN_TRACK_COUNT = total
 
     tracks = []
     if total <= 0:

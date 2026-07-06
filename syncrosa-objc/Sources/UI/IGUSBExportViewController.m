@@ -230,17 +230,45 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 }
 
 - (void)reloadPlaylists {
+    self.currentPlaylistTracks = @[];
+    self.statusLabel.stringValue = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+        @"Загрузка плейлистов iTunes..." :
+        @"Loading iTunes playlists...";
+
     [[IGiTunesService sharedService] fetchPlaylistsWithCompletion:^(NSArray *playlists) {
-        self.playlists = playlists;
+        self.playlists = playlists ?: @[];
         [self.playlistPopup removeAllItems];
 
-        if (playlists.count == 0) {
+        if (self.playlists.count == 0) {
             [self.playlistPopup addItemWithTitle:[[IGLocalizationService sharedService] t:@"no_playlists"]];
             self.playlistPopup.enabled = NO;
             self.playlistInfoLabel.stringValue = @"";
+            [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
+                NSString *message = @"";
+                if (trackCount < 0) {
+                    message = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+                        @"Не удалось прочитать медиатеку iTunes." :
+                        @"Could not read the iTunes library.";
+                    if (errorMessage.length > 0) {
+                        message = [message stringByAppendingFormat:@" %@", errorMessage];
+                    }
+                    [IGNotificationView showInView:self.view message:message isError:YES];
+                } else if (trackCount == 0) {
+                    message = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+                        @"В iTunes нет треков. Экспортировать пока нечего." :
+                        @"iTunes has no tracks. There is nothing to export yet.";
+                } else {
+                    message = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+                        @"В iTunes есть треки, но нет плейлистов для экспорта." :
+                        @"iTunes has tracks, but no playlists are available for export.";
+                }
+                self.statusLabel.stringValue = message;
+                [self updateExportButtonState];
+            }];
         } else {
             self.playlistPopup.enabled = YES;
-            for (NSDictionary *pl in playlists) {
+            self.statusLabel.stringValue = @"";
+            for (NSDictionary *pl in self.playlists) {
                 [self.playlistPopup addItemWithTitle:pl[@"name"]];
             }
             [self playlistSelected:self.playlistPopup];
@@ -278,16 +306,25 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         NSString *playlistName = playlist[@"name"];
 
         self.playlistInfoLabel.stringValue = @"Loading track details...";
+        self.currentPlaylistTracks = @[];
+        [self updateExportButtonState];
 
         [[IGiTunesService sharedService] fetchTracksForPlaylist:playlistName completion:^(NSArray *tracks) {
-            self.currentPlaylistTracks = tracks;
+            self.currentPlaylistTracks = tracks ?: @[];
             int64_t totalBytes = 0;
-            for (NSDictionary *t in tracks) {
+            for (NSDictionary *t in self.currentPlaylistTracks) {
                 totalBytes += [t[@"size"] longLongValue];
             }
 
             NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:totalBytes countStyle:NSByteCountFormatterCountStyleFile];
-            self.playlistInfoLabel.stringValue = [NSString stringWithFormat:@"Tracks: %ld | Total Size: %@", (long)tracks.count, sizeStr];
+            self.playlistInfoLabel.stringValue = [NSString stringWithFormat:@"Tracks: %ld | Total Size: %@", (long)self.currentPlaylistTracks.count, sizeStr];
+            if (self.currentPlaylistTracks.count == 0) {
+                self.statusLabel.stringValue = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+                    @"В выбранном плейлисте нет локальных файлов для экспорта." :
+                    @"The selected playlist has no local files to export.";
+            } else {
+                self.statusLabel.stringValue = @"";
+            }
             [self updateExportButtonState];
         }];
     }
@@ -362,6 +399,15 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     if (driveIdx < 0 || driveIdx >= self.drives.count) return;
     IGUSBDrive *drive = self.drives[driveIdx];
 
+    if (self.currentPlaylistTracks.count == 0) {
+        NSString *message = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+            @"В выбранном плейлисте нет локальных треков для экспорта." :
+            @"The selected playlist has no local tracks to export.";
+        self.statusLabel.stringValue = message;
+        [IGNotificationView showInView:self.view message:message isError:YES];
+        return;
+    }
+
     // Calculate size
     int64_t totalBytes = 0;
     for (NSDictionary *t in self.currentPlaylistTracks) {
@@ -435,6 +481,16 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         NSInteger skippedDRM = 0;
         NSInteger totalTracks = tracksToCopy.count;
         int64_t totalBytesCopied = 0;
+
+        if (totalTracks == 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                NSString *message = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+                    @"Нет треков, которые помещаются на выбранный накопитель." :
+                    @"No tracks fit on the selected drive.";
+                [self finishExportWithError:message];
+            });
+            return;
+        }
 
         dispatch_async(dispatch_get_main_queue(), ^{
             self.progressIndicator.maxValue = totalTracks;

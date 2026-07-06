@@ -11,7 +11,7 @@ except ImportError:
 import threading
 from core.localization import _
 from core.config import CONFIG_DATA, save_config
-from core.itunes_bridge import FIELD_SEP, get_library_for_duplicates, delete_track_by_id
+from core.itunes_bridge import FIELD_SEP, get_library_track_count, get_library_for_duplicates, delete_track_by_id
 from ui.components import HelpDialog, ProgressWindow
 
 class ScrollableFrame(tk.Frame):
@@ -103,7 +103,15 @@ class DuplicateFinderTab(tk.Frame):
                 def update_progress(curr, total):
                     self.after(0, lambda: self.prog_win.progress.config(value=curr, maximum=total))
                     self.after(0, lambda: self.prog_win.lbl.config(text="Scanning... ({}/{})".format(curr, total)))
-                
+
+                track_count, count_error = get_library_track_count()
+                if track_count < 0:
+                    raise Exception("Could not read iTunes library. " + (count_error or ""))
+                if track_count == 0:
+                    self.after(0, self.prog_win.destroy)
+                    self.after(0, lambda: self.render_pairs([], True))
+                    return
+
                 raw_library = get_library_for_duplicates(update_progress, lambda: self.prog_win.running)
                 
                 if not self.prog_win.running:
@@ -124,9 +132,18 @@ class DuplicateFinderTab(tk.Frame):
         lbl = tk.Label(self.scroll_frame.scrollable_frame, text="Click 'Show Duplicates' to scan your library.", font=("system", 11), bg="#ECECEC", fg="#555555")
         lbl.pack(pady=40)
 
-    def render_pairs(self, raw_library):
+    def render_pairs(self, raw_library, empty_library=False):
         self.pending_actions = {}
         self.apply_btn.config(state="disabled")
+        if empty_library:
+            lbl = tk.Label(self.scroll_frame.scrollable_frame, text="iTunes library has no tracks. There is nothing to scan for duplicates.", font=("system", 12), bg="#ECECEC")
+            lbl.pack(pady=20)
+            return
+        if not raw_library:
+            lbl = tk.Label(self.scroll_frame.scrollable_frame, text="No readable iTunes tracks were returned.", font=("system", 12), bg="#ECECEC")
+            lbl.pack(pady=20)
+            return
+
         groups = {}
         for track_line in raw_library:
             parts = track_line.split(FIELD_SEP)

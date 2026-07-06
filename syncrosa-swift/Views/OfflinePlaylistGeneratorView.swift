@@ -44,6 +44,7 @@ struct OfflinePlaylistGeneratorView: View {
     @State private var showEmptyAlert: Bool = false
     @State private var alertMessage: String = ""
     @State private var showHelp: Bool = false
+    @State private var emptyLibraryMessage: String? = nil
     
     var body: some View {
         ScrollView {
@@ -71,6 +72,17 @@ struct OfflinePlaylistGeneratorView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
+                } else if let emptyLibraryMessage = emptyLibraryMessage {
+                    VStack(spacing: 15) {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: 42))
+                            .foregroundColor(.gray.opacity(0.35))
+                        Text(emptyLibraryMessage)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 60)
                 } else {
                     // Card 1: Custom Filters
                     VStack(alignment: .leading, spacing: 20) {
@@ -318,12 +330,34 @@ struct OfflinePlaylistGeneratorView: View {
     
     func loadLibrary() {
         isLoading = true
+        emptyLibraryMessage = nil
         DispatchQueue.global().async {
+            guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
+                DispatchQueue.main.async {
+                    self.allTracks = []
+                    self.genres = []
+                    self.emptyLibraryMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    self.isLoading = false
+                }
+                return
+            }
+
+            guard libraryCount > 0 else {
+                DispatchQueue.main.async {
+                    self.allTracks = []
+                    self.genres = []
+                    self.emptyLibraryMessage = lang.selectedLanguage == "ru" ? "В Music нет треков. Создавать офлайн-плейлисты пока не из чего." : "Music has no tracks. There is nothing to use for offline playlists yet."
+                    self.isLoading = false
+                }
+                return
+            }
+
             let tracks = MusicService.shared.getAllTracks { _, _ in }
             let uniqueGenres = Array(Set(tracks.map { $0.genre })).filter { !$0.isEmpty }.sorted()
             DispatchQueue.main.async {
                 self.allTracks = tracks
                 self.genres = uniqueGenres
+                self.emptyLibraryMessage = tracks.isEmpty ? (lang.selectedLanguage == "ru" ? "В Music нет доступных треков." : "Music has no readable tracks.") : nil
                 self.isLoading = false
             }
         }
@@ -388,6 +422,13 @@ struct OfflinePlaylistGeneratorView: View {
     }
     
     func createPlaylistWithTracks(_ tracksToUse: [MusicTrack]) {
+        guard !tracksToUse.isEmpty else {
+            alertMessage = lang.selectedLanguage == "ru" ? "Плейлист не создан: список треков пуст." : "Playlist was not created because the track list is empty."
+            showAlert = true
+            activeNotification = nil
+            return
+        }
+
         isCreatingPlaylist = true
         activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Создание плейлиста в Музыке..." : "Creating playlist in Music...", isError: false)
         
@@ -397,9 +438,13 @@ struct OfflinePlaylistGeneratorView: View {
             
             DispatchQueue.main.async {
                 self.isCreatingPlaylist = false
-                self.alertMessage = lang.selectedLanguage == "ru" ?
-                    "Успешно создано! Добавлено треков: \(added)" :
-                    "Success! Created playlist with \(added) tracks."
+                self.alertMessage = added > 0 ?
+                    (lang.selectedLanguage == "ru" ?
+                        "Успешно создано! Добавлено треков: \(added)" :
+                        "Success! Created playlist with \(added) tracks.") :
+                    (lang.selectedLanguage == "ru" ?
+                        "Плейлист не создан: Music не нашел выбранные треки." :
+                        "Playlist was not created: Music did not find the selected tracks.")
                 self.showAlert = true
                 self.activeNotification = nil
             }
@@ -439,9 +484,15 @@ struct OfflinePlaylistGeneratorView: View {
                 let plName = "Syncrosa - \(decade)"
                 let ids = matching.map { $0.persistentID }
                 let added = MusicService.shared.createPlaylist(name: plName, persistentIDs: ids)
-                logs.append(lang.selectedLanguage == "ru" ?
-                            "✅ \(decade): создан '\(plName)' (\(added) треков)." :
-                            "✅ \(decade): created '\(plName)' (\(added) tracks).")
+                if added > 0 {
+                    logs.append(lang.selectedLanguage == "ru" ?
+                                "✅ \(decade): создан '\(plName)' (\(added) треков)." :
+                                "✅ \(decade): created '\(plName)' (\(added) tracks).")
+                } else {
+                    logs.append(lang.selectedLanguage == "ru" ?
+                                "⚠️ \(decade): Music не нашел треки, плейлист не изменен." :
+                                "⚠️ \(decade): Music did not find the tracks, playlist was not changed.")
+                }
             }
             
             DispatchQueue.main.async {

@@ -6,6 +6,12 @@
 + (instancetype)sharedService;
 
 /**
+ * Checks whether the iTunes library is readable and how many tracks it has.
+ * trackCount is -1 when the library cannot be read.
+ */
+- (void)fetchLibraryTrackCountWithCompletion:(void(^)(NSInteger trackCount, NSString *errorMessage))completionBlock;
+
+/**
  * Fetches all tracks from iTunes library playlist 1.
  * @param progressBlock A block called with (currentCount, totalCount).
  * @param completionBlock A block called with the array of IGTrack objects.

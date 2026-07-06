@@ -11,6 +11,7 @@ except ImportError:
 import threading
 import os
 from core.localization import _
+from core.itunes_bridge import get_library_track_count
 from ui.components import HelpDialog
 from features.media_fixer import get_merge_candidates, apply_merge, run_metadata_fix
 
@@ -186,6 +187,18 @@ class FixerTab(tk.Frame):
 
     def worker(self, checked_tags):
         try:
+            track_count, count_error = get_library_track_count()
+            if track_count < 0:
+                message = "Could not read iTunes library. " + (count_error or "")
+                self.log(message)
+                self.after(0, lambda m=message: self.status.config(text=m[:80]))
+                return
+            if track_count == 0:
+                message = "iTunes library has no tracks. There is no metadata to update."
+                self.log(message)
+                self.after(0, lambda: self.status.config(text="No iTunes tracks found."))
+                return
+
             # Phase 1: Merge
             if "album" in checked_tags:
                 self.after(0, lambda: self.label.config(text="Phase 1: Merging Duplicate Albums"))

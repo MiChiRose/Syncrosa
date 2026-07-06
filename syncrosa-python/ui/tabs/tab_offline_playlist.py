@@ -11,7 +11,7 @@ except ImportError:
 import datetime
 import threading
 from core.localization import _
-from core.itunes_bridge import FIELD_SEP, get_library_for_offline_playlist, create_itunes_playlist
+from core.itunes_bridge import FIELD_SEP, get_library_track_count, get_library_for_offline_playlist, create_itunes_playlist
 from ui.components import HelpDialog, ProgressWindow
 
 class OfflinePlaylistTab(tk.Frame):
@@ -19,6 +19,7 @@ class OfflinePlaylistTab(tk.Frame):
         tk.Frame.__init__(self, parent, bg="#ECECEC", borderwidth=0, highlightthickness=0)
         self.master_app = master_app
         self.local_library = []
+        self.library_scan_complete = False
         self.build_ui()
 
     def build_ui(self):
@@ -166,7 +167,15 @@ class OfflinePlaylistTab(tk.Frame):
                 def update_progress(curr, total):
                     self.after(0, lambda: self.prog_win.progress.config(value=curr, maximum=total))
                     self.after(0, lambda: self.prog_win.lbl.config(text="Scanning Library... ({}/{})".format(curr, total)))
-                
+
+                track_count, count_error = get_library_track_count()
+                if track_count < 0:
+                    raise Exception("Could not read iTunes library. " + (count_error or ""))
+                if track_count == 0:
+                    self.after(0, self.prog_win.destroy)
+                    self.after(0, lambda: self.update_genres_and_library([]))
+                    return
+
                 lib = get_library_for_offline_playlist(update_progress, lambda: self.prog_win.running)
                 if not self.prog_win.running:
                     self.after(0, self.prog_win.destroy)
@@ -182,6 +191,7 @@ class OfflinePlaylistTab(tk.Frame):
 
     def update_genres_and_library(self, lib):
         self.local_library = lib
+        self.library_scan_complete = True
         genres = set()
         for line in lib:
             parts = line.split(FIELD_SEP)
@@ -192,13 +202,20 @@ class OfflinePlaylistTab(tk.Frame):
         sorted_genres = ["Any"] + sorted(list(genres))
         self.genre_combo["values"] = sorted_genres
         self.genre_combo.current(0)
-        
-        self.status_lbl.config(text="Library scanned: {} tracks loaded.".format(len(lib)))
-        tkMessageBox.showinfo("Scan Completed", "iTunes Library successfully scanned!")
+
+        if len(lib) == 0:
+            self.status_lbl.config(text="iTunes library has no tracks available for offline playlists.")
+            tkMessageBox.showwarning("Empty Library", "iTunes library has no tracks. There is nothing to use for offline playlists.")
+        else:
+            self.status_lbl.config(text="Library scanned: {} tracks loaded.".format(len(lib)))
+            tkMessageBox.showinfo("Scan Completed", "iTunes Library successfully scanned!")
 
     def generate_playlists(self):
         if not self.local_library:
-            tkMessageBox.showwarning("Scan Required", "Please click 'Scan Library' first to load your iTunes tracks and genres.")
+            if self.library_scan_complete:
+                tkMessageBox.showwarning("Empty Library", "iTunes library has no tracks. There is nothing to generate.")
+            else:
+                tkMessageBox.showwarning("Scan Required", "Please click 'Scan Library' first to load your iTunes tracks and genres.")
             return
 
         checked_decades = [dec for dec, var in self.decades.items() if var.get()]
@@ -289,6 +306,7 @@ class OfflinePlaylistTab(tk.Frame):
 
         skipped_decades = []
         created_playlists = []
+        unchanged_decades = []
 
         for dec in checked_decades:
             dec_tracks = [t for t in filtered_tracks if matches_decade(t['year'], dec)]
@@ -299,8 +317,15 @@ class OfflinePlaylistTab(tk.Frame):
             
             p_name = "Epochs - {}".format(dec)
             ids = [t['pid'] for t in dec_tracks]
-            create_itunes_playlist(p_name, ids)
-            created_playlists.append((p_name, len(ids)))
+            added_count = create_itunes_playlist(p_name, ids)
+            try:
+                added_num = int(added_count)
+            except:
+                added_num = 0
+            if added_num > 0:
+                created_playlists.append((p_name, added_num))
+            else:
+                unchanged_decades.append(dec)
 
         # Summary message
         msg = ""
@@ -312,6 +337,11 @@ class OfflinePlaylistTab(tk.Frame):
             if msg: msg += "\n"
             msg += "Skipped decades (0 tracks match):\n"
             for dec in skipped_decades:
+                msg += "- {}\n".format(dec)
+        if unchanged_decades:
+            if msg: msg += "\n"
+            msg += "Playlists not changed (iTunes did not find matching track IDs):\n"
+            for dec in unchanged_decades:
                 msg += "- {}\n".format(dec)
 
         if not msg:

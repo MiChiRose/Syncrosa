@@ -285,6 +285,28 @@ struct DuplicateFinderView: View {
         activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Сканирование медиатеки..." : "Scanning Music library...", isError: false)
         
         DispatchQueue.global().async {
+            guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
+                DispatchQueue.main.async {
+                    self.duplicatePairs = []
+                    self.isScanning = false
+                    self.activeNotification = nil
+                    self.alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    self.showAlert = true
+                }
+                return
+            }
+
+            guard libraryCount > 0 else {
+                DispatchQueue.main.async {
+                    self.duplicatePairs = []
+                    self.isScanning = false
+                    self.activeNotification = nil
+                    self.alertMessage = lang.selectedLanguage == "ru" ? "В Music нет треков. Дубликаты искать не из чего." : "Music has no tracks. There is nothing to scan for duplicates."
+                    self.showAlert = true
+                }
+                return
+            }
+
             let tracks = MusicService.shared.getAllTracks { current, total in
                 DispatchQueue.main.async {
                     activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Сканирование: \(current)/\(total)" : "Scanning: \(current)/\(total)", isError: false)

@@ -221,6 +221,26 @@ struct MediaFixerView: View {
         activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Сканирование медиатеки..." : "Scanning Music Library...", isError: false)
         
         DispatchQueue.global().async {
+            guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
+                DispatchQueue.main.async {
+                    isAnalyzing = false
+                    alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    showAlert = true
+                    activeNotification = nil
+                }
+                return
+            }
+
+            guard libraryCount > 0 else {
+                DispatchQueue.main.async {
+                    isAnalyzing = false
+                    alertMessage = lang.selectedLanguage == "ru" ? "В Music нет треков. Анализировать пока нечего." : "Music has no tracks. There is nothing to analyze yet."
+                    showAlert = true
+                    activeNotification = nil
+                }
+                return
+            }
+
             let tracks = MusicService.shared.getAllTracks { current, total in
                 DispatchQueue.main.async {
                     activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Сканирование: \(current)/\(total)" : "Scanning: \(current)/\(total)", isError: false)
@@ -317,6 +337,26 @@ struct MediaFixerView: View {
         activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Загрузка списка треков..." : "Loading track list...", isError: false)
         
         DispatchQueue.global().async {
+            guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
+                DispatchQueue.main.async {
+                    isAnalyzing = false
+                    alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    showAlert = true
+                    activeNotification = nil
+                }
+                return
+            }
+
+            guard libraryCount > 0 else {
+                DispatchQueue.main.async {
+                    isAnalyzing = false
+                    alertMessage = lang.selectedLanguage == "ru" ? "В Music нет треков. Обновлять метаданные пока не у чего." : "Music has no tracks. There is no metadata to update."
+                    showAlert = true
+                    activeNotification = nil
+                }
+                return
+            }
+
             let tracks = MusicService.shared.getAllTracks { _, _ in }
             guard !tracks.isEmpty else {
                 DispatchQueue.main.async {

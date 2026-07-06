@@ -21,7 +21,7 @@ import re
 
 from core.localization import _
 from core.config import CONFIG_DATA, desktop_debug_logs_enabled
-from core.itunes_bridge import get_library, create_itunes_playlist
+from core.itunes_bridge import get_library, get_library_track_count, create_itunes_playlist
 from features.ai_playlist import generate_playlist_ids
 from ui.components import ProgressWindow
 
@@ -124,6 +124,15 @@ class GeniusTab(tk.Frame):
             slog("Initializing generation process...")
                 
             if not self.master_app.cached_library:
+                track_count, count_error = get_library_track_count()
+                if track_count < 0:
+                    raise Exception("Could not read iTunes library. " + (count_error or ""))
+                if track_count == 0:
+                    self.master_app.total_tracks = 0
+                    self.master_app.cached_library = []
+                    self.after(0, self._update_library_info)
+                    raise Exception(_(u"err_empty_lib"))
+
                 slog("Scanning iTunes Library (may take a moment)...")
                 lib = get_library(update_progress, lambda: self.prog_win.running)
                 
@@ -176,11 +185,19 @@ class GeniusTab(tk.Frame):
                 
             slog("Response received! Parsing results...")
             final_ids = res
+            if not final_ids:
+                raise Exception("The AI did not return any usable track IDs.")
             
             slog("Found %d valid tracks. Injecting to iTunes..." % len(final_ids))
                 
             self.after(0, lambda: self.prog_win.lbl.config(text=_(u"prog_create")))
             added_count = create_itunes_playlist(name, final_ids)
+            try:
+                added_num = int(added_count)
+            except:
+                added_num = 0
+            if added_num <= 0:
+                raise Exception("No tracks were added to iTunes. The playlist was not changed.")
             slog("Playlist successfully created!")
             
             self.after(0, self.prog_win.destroy)

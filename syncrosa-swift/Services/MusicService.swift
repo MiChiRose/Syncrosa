@@ -55,10 +55,16 @@ class MusicService {
         }
         return result
     }
+
+    func getLibraryTrackCount() -> Int? {
+        let countScript = "tell application \"Music\" to count every track of library playlist 1"
+        guard let countStr = runAppleScript(countScript) else { return nil }
+        return Int(countStr.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
     
     func getAllTracks(progress: @escaping (Int, Int) -> Void) -> [MusicTrack] {
-        let countScript = "tell application \"Music\" to count every track of library playlist 1"
-        guard let countStr = runAppleScript(countScript), let total = Int(countStr) else { return [] }
+        guard let total = getLibraryTrackCount() else { return [] }
+        if total <= 0 { return [] }
         
         var allTracks: [MusicTrack] = []
         let chunkSize = 300
@@ -108,23 +114,37 @@ class MusicService {
     }
 
     func createPlaylist(name: String, persistentIDs: [String]) -> Int {
+        guard !persistentIDs.isEmpty else {
+            return 0
+        }
+
         let idsString = "{\"" + persistentIDs.joined(separator: "\", \"") + "\"}"
         let script = """
         tell application "Music"
             set plName to "\(name.replacingOccurrences(of: "\"", with: "\\\""))"
+            set addedCount to 0
+            set idList to \(idsString)
+            set tracksToAdd to {}
+
+            repeat with tid in idList
+                set tidText to (contents of tid) as text
+                try
+                    set trk to (some track of library playlist 1 whose persistent ID is tidText)
+                    set end of tracksToAdd to trk
+                end try
+            end repeat
+
+            if (count of tracksToAdd) is 0 then return "0"
+
             if not (exists user playlist plName) then
                 make new user playlist with properties {name:plName}
             end if
             set pl to user playlist plName
             delete every track of pl
             
-            set addedCount to 0
-            set idList to \(idsString)
-            
-            repeat with tid in idList
+            repeat with trk in tracksToAdd
                 try
-                    set trk to (some track of library playlist 1 whose persistent ID is tid)
-                    duplicate trk to pl
+                    duplicate (contents of trk) to pl
                     set addedCount to addedCount + 1
                 end try
             end repeat
@@ -349,4 +369,3 @@ class MusicService {
         return (hasArtwork: hasArtwork, rating: rating)
     }
 }
-

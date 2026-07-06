@@ -235,6 +235,35 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         IGiTunesService *service = [IGiTunesService sharedService];
+        NSString *countRaw = [service runAppleScriptNamed:@"duplicates.count" source:
+            @"tell application \"iTunes\"\n"
+            "    try\n"
+            "        set c to count every track of library playlist 1\n"
+            "        return \"OK\" & tab & (c as text)\n"
+            "    on error errMsg number errNum\n"
+            "        return \"ERROR\" & tab & (errNum as text) & tab & errMsg\n"
+            "    end try\n"
+            "end tell"];
+        NSArray *countParts = [countRaw componentsSeparatedByString:@"\t"];
+        if (countParts.count < 2 || ![countParts[0] isEqualToString:@"OK"]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.scanButton.enabled = YES;
+                [self setProgressVisible:NO];
+                self.statusLabel.stringValue = @"Could not read iTunes library.";
+                [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            });
+            return;
+        }
+        if ([countParts[1] integerValue] == 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.scanButton.enabled = YES;
+                [self setProgressVisible:NO];
+                self.statusLabel.stringValue = @"iTunes has no tracks. There is nothing to scan for duplicates.";
+                [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+            });
+            return;
+        }
+
         NSString *script =
             @"on replaceText(theText, oldText, newText)\n"
             "    set AppleScript's text item delimiters to oldText\n"
