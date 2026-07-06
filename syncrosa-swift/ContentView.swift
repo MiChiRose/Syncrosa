@@ -49,6 +49,7 @@ struct ContentView: View {
         case offlinePlaylist
         case fixer
         case folderFix
+        case infoEraser
         case duplicateFinder
         case usbExport
         case coversOptimizer
@@ -79,6 +80,10 @@ struct ContentView: View {
                     
                     NavigationLink(value: Tab.folderFix) {
                         Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
+                    }
+
+                    NavigationLink(value: Tab.infoEraser) {
+                        Label("Info Eraser", systemImage: "eraser.line.dashed")
                     }
                     
                     NavigationLink(value: Tab.duplicateFinder) {
@@ -130,6 +135,7 @@ struct ContentView: View {
                             case .offlinePlaylist: OfflinePlaylistGeneratorView()
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
+                            case .infoEraser: InfoEraserView()
                             case .duplicateFinder: DuplicateFinderView()
                             case .usbExport: USBExportView()
                             case .coversOptimizer: CoversOptimizerView()
@@ -219,7 +225,7 @@ struct ContentView: View {
         switch tab {
         case .playlist, .offlinePlaylist, .fixer, .duplicateFinder, .usbExport, .coversOptimizer:
             return true
-        case .folderFix, .settings, .none:
+        case .folderFix, .infoEraser, .settings, .none:
             return false
         }
     }

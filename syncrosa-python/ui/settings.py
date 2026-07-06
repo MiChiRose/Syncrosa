@@ -183,7 +183,11 @@ class SetupWindow(tk.Toplevel):
 
                 track_count, count_error = get_library_track_count()
                 if track_count < 0:
+                    if hasattr(self.master, 'apply_library_status'):
+                        self.after(0, lambda: self.master.apply_library_status(track_count, count_error))
                     raise Exception("Could not read iTunes library. " + (count_error or ""))
+                if hasattr(self.master, 'apply_library_status'):
+                    self.after(0, lambda: self.master.apply_library_status(track_count, None))
                 if track_count == 0:
                     self.master.cached_library = []
                     self.master.total_tracks = 0

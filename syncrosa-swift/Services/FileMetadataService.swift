@@ -1,18 +1,34 @@
 import Foundation
 import AVFoundation
 
+struct FileMetadataFixResult {
+    let success: Bool
+    let underscoreNormalizationFailed: Bool
+}
+
 class FileMetadataService {
     static let shared = FileMetadataService()
     
-    func fixFile(url: URL, downloadCover: Bool, checkedTags: [String: Bool]) -> Bool {
+    func fixFile(url: URL, downloadCover: Bool, checkedTags: [String: Bool], normalizeUnderscores: Bool = false) -> FileMetadataFixResult {
         let semaphore = DispatchSemaphore(value: 0)
         var success = false
+        var underscoreNormalizationFailed = false
+        var workingURL = url
+
+        if normalizeUnderscores {
+            do {
+                workingURL = try normalizeUnderscoresInFilename(url)
+            } catch {
+                underscoreNormalizationFailed = true
+                workingURL = url
+            }
+        }
         
         // 1. Extract current info
         var artist = ""
         var title = ""
         
-        let asset = AVAsset(url: url)
+        let asset = AVAsset(url: workingURL)
         let metadataSemaphore = DispatchSemaphore(value: 0)
         
         Task {
@@ -33,7 +49,7 @@ class FileMetadataService {
         
         // 2. If info is missing, parse from filename
         if artist.isEmpty || title.isEmpty {
-            let filename = url.deletingPathExtension().lastPathComponent
+            let filename = workingURL.deletingPathExtension().lastPathComponent
             let parsed = parseFilename(filename)
             if artist.isEmpty { artist = parsed.artist }
             if title.isEmpty { title = parsed.title }
@@ -77,20 +93,21 @@ class FileMetadataService {
             
             let sanitizedArtist = self.sanitizeFilename(newArtist)
             let sanitizedTitle = self.sanitizeFilename(newTitle)
-            let newFilename = "\(sanitizedArtist) - \(sanitizedTitle).\(url.pathExtension)"
-            let desiredUrl = url.deletingLastPathComponent().appendingPathComponent(newFilename)
-            let newUrl = self.uniqueDestinationURL(for: desiredUrl, originalURL: url)
+            let newFilename = "\(sanitizedArtist) - \(sanitizedTitle).\(workingURL.pathExtension)"
+            let desiredUrl = workingURL.deletingLastPathComponent().appendingPathComponent(newFilename)
+            let newUrl = self.uniqueDestinationURL(for: desiredUrl, originalURL: workingURL)
             
             do {
-                if url.standardized.path != newUrl.standardized.path {
-                    if url.path.lowercased() == newUrl.path.lowercased() {
+                if workingURL.standardized.path != newUrl.standardized.path {
+                    if workingURL.path.lowercased() == newUrl.path.lowercased() {
                         // Case-only rename: use a temp name first to avoid deleting the source file on case-insensitive macOS volumes
-                        let tempUrl = url.deletingLastPathComponent().appendingPathComponent("temp_\(UUID().uuidString)_\(url.lastPathComponent)")
-                        try FileManager.default.moveItem(at: url, to: tempUrl)
+                        let tempUrl = workingURL.deletingLastPathComponent().appendingPathComponent("temp_\(UUID().uuidString)_\(workingURL.lastPathComponent)")
+                        try FileManager.default.moveItem(at: workingURL, to: tempUrl)
                         try FileManager.default.moveItem(at: tempUrl, to: newUrl)
                     } else {
-                        try FileManager.default.moveItem(at: url, to: newUrl)
+                        try FileManager.default.moveItem(at: workingURL, to: newUrl)
                     }
+                    workingURL = newUrl
                 }
                 
                 // If downloadCover is true and album tag is checked, try to download cover
@@ -106,7 +123,28 @@ class FileMetadataService {
         }
         
         _ = semaphore.wait(timeout: .now() + 10)
-        return success
+        return FileMetadataFixResult(success: success, underscoreNormalizationFailed: underscoreNormalizationFailed)
+    }
+
+    private func normalizeUnderscoresInFilename(_ url: URL) throws -> URL {
+        let baseName = url.deletingPathExtension().lastPathComponent
+        guard baseName.contains("_") else { return url }
+
+        let normalizedBase = baseName
+            .replacingOccurrences(of: "_+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !normalizedBase.isEmpty, normalizedBase != baseName else { return url }
+
+        let ext = url.pathExtension
+        let newName = ext.isEmpty ? normalizedBase : "\(normalizedBase).\(ext)"
+        let desiredURL = url.deletingLastPathComponent().appendingPathComponent(newName)
+        let newURL = uniqueDestinationURL(for: desiredURL, originalURL: url)
+        guard url.standardized.path != newURL.standardized.path else { return url }
+
+        try FileManager.default.moveItem(at: url, to: newURL)
+        return newURL
     }
     
     private func parseFilename(_ filename: String) -> (artist: String, title: String) {

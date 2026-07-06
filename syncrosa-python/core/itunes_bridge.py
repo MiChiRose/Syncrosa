@@ -72,8 +72,35 @@ def run_as(s, timeout_sec=120):
 
 def get_library_track_count():
     try:
-        total = int(run_as('tell application "iTunes" to count every track of library playlist 1', timeout_sec=45))
-        return total, None
+        script = u'''
+        tell application "iTunes"
+            set trackCount to -1
+            set fileTrackCount to -1
+            set lastError to ""
+            try
+                set trackCount to count every track of library playlist 1
+            on error errMsg number errNum
+                set lastError to (errNum as text) & " " & errMsg
+            end try
+            try
+                set fileTrackCount to count every file track of library playlist 1
+            on error errMsg number errNum
+                if lastError is "" then set lastError to (errNum as text) & " " & errMsg
+            end try
+            if trackCount < 0 and fileTrackCount < 0 then
+                return "ERROR" & tab & lastError
+            end if
+            if fileTrackCount > trackCount then set trackCount to fileTrackCount
+            return "OK" & tab & (trackCount as text)
+        end tell
+        '''
+        result = run_as(script, timeout_sec=45)
+        parts = result.split(FIELD_SEP)
+        if len(parts) >= 2 and parts[0] == "OK":
+            return int(parts[1]), None
+        if len(parts) >= 2 and parts[0] == "ERROR":
+            return -1, parts[1]
+        return -1, "Could not read iTunes library count."
     except Exception as e:
         return -1, str(e)
 
