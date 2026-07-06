@@ -336,7 +336,7 @@ struct OfflinePlaylistGeneratorView: View {
                 DispatchQueue.main.async {
                     self.allTracks = []
                     self.genres = []
-                    self.emptyLibraryMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    self.emptyLibraryMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty."
                     self.isLoading = false
                 }
                 return

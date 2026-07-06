@@ -10,56 +10,61 @@ struct NotificationModifier: ViewModifier {
     @Binding var message: NotificationMessage?
     
     func body(content: Content) -> some View {
-        ZStack {
-            content
-            
-            if let msg = message {
-                VStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: msg.isError ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                            .foregroundColor(msg.isError ? .red : .blue)
-                        
-                        Text(msg.text)
-                            .font(.system(size: 14, weight: .medium))
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            withAnimation {
-                                message = nil
-                            }
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                                .font(.system(size: 16))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding()
-                    .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-                    .padding(.top, 20)
-                    .padding(.horizontal, 40)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .onAppear {
-                        // Auto-hide after 3 seconds unless it's a long process
-                        if !msg.text.contains("...") {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                withAnimation {
-                                    message = nil
-                                }
-                            }
-                        }
-                    }
-                    
-                    Spacer()
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .top) {
+                if let msg = message {
+                    notificationBanner(for: msg)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 24)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(100)
                 }
-                .zIndex(100)
+            }
+            .animation(.easeInOut(duration: 0.18), value: message?.id)
+    }
+
+    private func notificationBanner(for msg: NotificationMessage) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: msg.isError ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                .foregroundColor(msg.isError ? .red : .blue)
+
+            Text(msg.text)
+                .font(.system(size: 14, weight: .medium))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+
+            Button(action: {
+                withAnimation {
+                    message = nil
+                }
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 16))
+            }
+        }
+        .padding()
+        .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .buttonStyle(.plain)
+        .onAppear {
+            // Auto-hide short status messages; progress messages keep updating until the task finishes.
+            if !msg.text.contains("...") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation {
+                        if message?.id == msg.id {
+                            message = nil
+                        }
+                    }
+                }
             }
         }
     }

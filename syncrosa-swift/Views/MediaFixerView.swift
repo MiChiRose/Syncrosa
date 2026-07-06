@@ -224,7 +224,7 @@ struct MediaFixerView: View {
             guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
                 DispatchQueue.main.async {
                     isAnalyzing = false
-                    alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty."
                     showAlert = true
                     activeNotification = nil
                 }
@@ -250,7 +250,7 @@ struct MediaFixerView: View {
             DispatchQueue.main.async {
                 isAnalyzing = false
                 if tracks.isEmpty {
-                    alertMessage = lang.selectedLanguage == "ru" ? "Медиатека пуста или недоступна." : "Your Music library is empty or could not be read."
+                    alertMessage = lang.selectedLanguage == "ru" ? "Music прочитан, но доступных треков не вернул." : "Music was read, but no usable tracks were returned."
                     showAlert = true
                     activeNotification = nil
                 } else {
@@ -340,7 +340,7 @@ struct MediaFixerView: View {
             guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
                 DispatchQueue.main.async {
                     isAnalyzing = false
-                    alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music." : "Could not read your Music library."
+                    alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty."
                     showAlert = true
                     activeNotification = nil
                 }
@@ -361,7 +361,7 @@ struct MediaFixerView: View {
             guard !tracks.isEmpty else {
                 DispatchQueue.main.async {
                     isAnalyzing = false
-                    alertMessage = lang.selectedLanguage == "ru" ? "Медиатека пуста." : "Library is empty."
+                    alertMessage = lang.selectedLanguage == "ru" ? "Music прочитан, но доступных треков не вернул." : "Music was read, but no usable tracks were returned."
                     showAlert = true
                     activeNotification = nil
                 }

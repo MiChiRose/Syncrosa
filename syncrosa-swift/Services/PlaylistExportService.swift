@@ -37,6 +37,7 @@ class PlaylistExportService {
     func exportToUSB(
         tracks: [TrackFile],
         destination: URL,
+        playlistName: String,
         mode: ExportMode,
         progress: @escaping (ExportProgress) -> Void,
         completion: @escaping (ExportResult) -> Void
@@ -46,6 +47,22 @@ class PlaylistExportService {
             var skippedDRM = 0
             var skippedNotDownloaded = 0
             var errors: [String] = []
+            let fm = FileManager.default
+            let exportFolderName = self.sanitizedFolderName(playlistName)
+            let exportFolder = destination.appendingPathComponent(exportFolderName, isDirectory: true)
+
+            do {
+                try fm.createDirectory(at: exportFolder, withIntermediateDirectories: true)
+            } catch {
+                completion(ExportResult(
+                    copiedCount: 0,
+                    skippedDRM: 0,
+                    skippedNotDownloaded: 0,
+                    totalBytesCopied: 0,
+                    errors: ["Could not create playlist folder: \(error.localizedDescription)"]
+                ))
+                return
+            }
             
             // 1. Filter out DRM/missing tracks first
             let filteredTracks = tracksToCopy.filter { track in
@@ -64,7 +81,7 @@ class PlaylistExportService {
             
             // 2. Check if we need to fit available space
             var availableSpace: Int64 = 0
-            if let attrs = try? destination.resourceValues(forKeys: [.volumeAvailableCapacityKey]),
+            if let attrs = try? exportFolder.resourceValues(forKeys: [.volumeAvailableCapacityKey]),
                let cap = attrs.volumeAvailableCapacity {
                 availableSpace = Int64(cap)
             }
@@ -103,21 +120,19 @@ class PlaylistExportService {
             var currentTrackIndex = 0
             var totalBytesCopied: Int64 = 0
             var copiedCount = 0
-            
-            let fm = FileManager.default
-            
+
             for track in tracksToCopy {
                 currentTrackIndex += 1
                 let sourceURL = URL(fileURLWithPath: track.filePath)
                 
                 // Construct unique destination URL
                 var destFilename = "\(self.sanitizeFilename(track.artist)) - \(self.sanitizeFilename(track.name)).\(sourceURL.pathExtension)"
-                var destURL = destination.appendingPathComponent(destFilename)
+                var destURL = exportFolder.appendingPathComponent(destFilename)
                 
                 var suffix = 2
                 while fm.fileExists(atPath: destURL.path) {
                     destFilename = "\(self.sanitizeFilename(track.artist)) - \(self.sanitizeFilename(track.name))_\(suffix).\(sourceURL.pathExtension)"
-                    destURL = destination.appendingPathComponent(destFilename)
+                    destURL = exportFolder.appendingPathComponent(destFilename)
                     suffix += 1
                 }
                 
@@ -140,7 +155,7 @@ class PlaylistExportService {
                 } catch {
                     errors.append("\(track.artist) - \(track.name): \(error.localizedDescription)")
                     // Check if destination drive was disconnected (path does not exist)
-                    if !fm.fileExists(atPath: destination.path) {
+                    if !fm.fileExists(atPath: exportFolder.path) {
                         completion(ExportResult(
                             copiedCount: copiedCount,
                             skippedDRM: skippedDRM,
@@ -166,6 +181,11 @@ class PlaylistExportService {
     private func sanitizeFilename(_ name: String) -> String {
         let invalidCharacters = CharacterSet(charactersIn: "/\\?%*|\"<>:")
         return name.components(separatedBy: invalidCharacters).joined(separator: "_")
+    }
+
+    private func sanitizedFolderName(_ name: String) -> String {
+        let trimmed = sanitizeFilename(name).trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Syncrosa Playlist" : trimmed
     }
     
     private func chunkedCopy(from source: URL, to destination: URL, progress: @escaping (Int64) -> Void) throws {
