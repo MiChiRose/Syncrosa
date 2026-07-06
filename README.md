@@ -65,9 +65,9 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.2.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines. |
-| `Syncrosa_Python_v3.2.1.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available. |
-| `Syncrosa_SwiftUI_v3.2.1.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build; not intended for vintage Macs. |
+| `Syncrosa_Cocoa_v3.4.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines. |
+| `Syncrosa_Python_v3.4.0.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available. |
+| `Syncrosa_SwiftUI_v3.4.0.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with system Light/Dark appearance; not intended for vintage Macs. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
