@@ -66,21 +66,22 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.3.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds Recovery Center, HDD Safe Mode, and safer update/release-note checks. |
-| `Syncrosa_Python_v3.4.3.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available, with aligned updater, history, and recovery polish. |
-| `Syncrosa_SwiftUI_v3.4.3.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with polished Liquid Glass controls, Recovery Center, release notes, and smarter disabled actions. |
+| `Syncrosa_Cocoa_v3.4.4.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds folder playlist import, external AI JSON handoff, and legacy-safe playlist protections. |
+| `Syncrosa_Python_v3.4.4.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available, with folder playlist tools and aligned library doctor polish. |
+| `Syncrosa_SwiftUI_v3.4.4.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with folder playlist import in iTunes Media Fixer, clearer checkboxes, Markdown release notes, and help sheets. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.4.3
+### Latest Release: 3.4.4
 
-Syncrosa 3.4.3 focuses on safer long-running work, clearer recovery, and a more polished modern UI across the active app tracks:
+Syncrosa 3.4.4 focuses on creating playlists from local folders, smoother external AI handoff, and small UI fixes found during hands-on SwiftUI testing:
 
-- **Recovery Center:** SwiftUI, Objective-C, and Python builds now expose recovery/history locations and interrupted-operation markers more clearly.
-- **Updates:** Check Updates can also expose release notes, while Update App stays disabled unless GitHub has a newer compatible package.
-- **HDD Safety:** Objective-C gains HDD Safe Mode controls for gentler legacy-disk operation on older Intel Macs.
-- **SwiftUI:** Liquid Glass controls are more readable, action buttons disable when required selections are missing, and release notes open in a dedicated sheet.
-- **Docs:** README download instructions now point at the current 3.4.3 packages.
+- **Folder Playlist Import:** Pick a local music folder, enter a playlist name, and let Syncrosa import the tracks into Music.app or iTunes as a playlist.
+- **External AI JSON Flow:** Export a folder manifest for an outside AI/friend, then import the returned JSON selection back into Syncrosa.
+- **Safer Replace Flow:** Folder playlist import now clearly warns when an existing playlist name will be cleared and rebuilt.
+- **Library Doctor:** SwiftUI Library Doctor and Recovery Center now include top-level help buttons explaining what each screen does.
+- **SwiftUI Polish:** Empty checkbox boxes are visible again, and release notes render Markdown instead of raw formatting symbols.
+- **Docs:** README download instructions now point at the current 3.4.4 packages.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.

@@ -10,6 +10,21 @@ struct MusicTrack: Identifiable, Codable, Equatable {
     let year: Int
 }
 
+struct MusicFileTrackReference: Identifiable, Codable, Equatable {
+    var id: String { persistentID.isEmpty ? "\(name)-\(path)" : persistentID }
+    let persistentID: String
+    let name: String
+    let artist: String
+    let path: String
+    let size: Int64
+    let kind: String
+}
+
+struct MusicBatchImportResult {
+    let importedCount: Int
+    let errors: [String]
+}
+
 class MusicService {
     static let shared = MusicService()
     private let scriptQueue = DispatchQueue(label: "com.michirose.syncrosa.scriptQueue")
@@ -193,6 +208,65 @@ class MusicService {
         
         return Int(runAppleScript(script) ?? "0") ?? 0
     }
+
+    func importFilesAsPlaylistBatch(playlistName: String, fileURLs: [URL], clearPlaylist: Bool) -> MusicBatchImportResult {
+        guard !fileURLs.isEmpty else {
+            return MusicBatchImportResult(importedCount: 0, errors: [])
+        }
+
+        let playlistLiteral = escapeAppleScriptString(playlistName)
+        let fileList = "{\"" + fileURLs.map { escapeAppleScriptString($0.path) }.joined(separator: "\", \"") + "\"}"
+        let clearLine = clearPlaylist ? "delete every track of pl" : ""
+        let script = """
+        \(cleanFieldHandler)
+        tell application "Music"
+            set plName to "\(playlistLiteral)"
+            set fileList to \(fileList)
+            set addedCount to 0
+            set errorText to ""
+
+            if not (exists user playlist plName) then
+                make new user playlist with properties {name:plName}
+            end if
+            set pl to user playlist plName
+            \(clearLine)
+
+            repeat with filePath in fileList
+                set filePathText to (contents of filePath) as text
+                try
+                    set importedTrack to add (POSIX file filePathText)
+                    try
+                        duplicate importedTrack to pl
+                        set addedCount to addedCount + 1
+                    on error
+                        try
+                            duplicate item 1 of importedTrack to pl
+                            set addedCount to addedCount + 1
+                        on error errMsg
+                            set errorText to errorText & my syncrosaCleanField(filePathText) & ": " & my syncrosaCleanField(errMsg) & linefeed
+                        end try
+                    end try
+                on error errMsg
+                    set errorText to errorText & my syncrosaCleanField(filePathText) & ": " & my syncrosaCleanField(errMsg) & linefeed
+                end try
+            end repeat
+            return (addedCount as text) & tab & errorText
+        end tell
+        """
+
+        guard let result = runAppleScript(script), !result.isEmpty else {
+            return MusicBatchImportResult(importedCount: 0, errors: ["Music did not return an import result."])
+        }
+        let parts = result.components(separatedBy: fieldSeparator)
+        let count = Int(parts.first ?? "0") ?? 0
+        let errors: [String]
+        if parts.count >= 2 {
+            errors = parts[1].components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        } else {
+            errors = []
+        }
+        return MusicBatchImportResult(importedCount: count, errors: errors)
+    }
     
     func getUserPlaylists() -> [(name: String, trackCount: Int)] {
         let script = """
@@ -260,6 +334,75 @@ class MusicService {
             }
         }
         return tracks
+    }
+
+    func getLibraryFileTrackReferences(progress: @escaping (Int, Int) -> Void) -> [MusicFileTrackReference] {
+        let countScript = "tell application \"Music\" to count every file track of library playlist 1"
+        guard let countText = runAppleScript(countScript),
+              let total = Int(countText.trimmingCharacters(in: .whitespacesAndNewlines)),
+              total > 0 else {
+            return []
+        }
+
+        var references: [MusicFileTrackReference] = []
+        let chunkSize = 250
+        for start in stride(from: 1, through: total, by: chunkSize) {
+            let end = min(start + chunkSize - 1, total)
+            let script = """
+            \(cleanFieldHandler)
+            set output to ""
+            tell application "Music"
+                set allFileTracks to every file track of library playlist 1
+                repeat with trackIndex from \(start) to \(end)
+                    if trackIndex is greater than (count of allFileTracks) then exit repeat
+                    set t to item trackIndex of allFileTracks
+                    set pid to ""
+                    set nm to ""
+                    set art to ""
+                    set knd to ""
+                    set sz to "0"
+                    set pth to ""
+                    try
+                        set pid to persistent ID of t as text
+                    end try
+                    try
+                        set nm to name of t as text
+                    end try
+                    try
+                        set art to artist of t as text
+                    end try
+                    try
+                        set knd to kind of t as text
+                    end try
+                    try
+                        set sz to size of t as text
+                    end try
+                    try
+                        set loc to location of t
+                        if loc is not missing value then set pth to POSIX path of loc
+                    end try
+                    set output to output & my syncrosaCleanField(pid) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(pth) & tab & sz & tab & my syncrosaCleanField(knd) & linefeed
+                end repeat
+            end tell
+            return output
+            """
+            if let result = runAppleScript(script) {
+                for line in result.components(separatedBy: .newlines) where line.contains(fieldSeparator) {
+                    let parts = line.components(separatedBy: fieldSeparator)
+                    guard parts.count >= 6 else { continue }
+                    references.append(MusicFileTrackReference(
+                        persistentID: parts[0],
+                        name: parts[1],
+                        artist: parts[2],
+                        path: parts[3],
+                        size: Int64(parts[4]) ?? 0,
+                        kind: parts[5]
+                    ))
+                }
+            }
+            progress(end, total)
+        }
+        return references
     }
     
     private func escapeAppleScriptString(_ str: String) -> String {

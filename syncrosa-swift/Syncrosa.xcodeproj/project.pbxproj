@@ -40,6 +40,7 @@
 		D3E1A2B3C4D5E6F700001012 /* RecoveryCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001112 /* RecoveryCenterView.swift */; };
 		D3E1A2B3C4D5E6F700001013 /* SafetyPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001113 /* SafetyPreviewView.swift */; };
 		D3E1A2B3C4D5E6F700001014 /* OperationRecoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */; };
+		D3E1A2B3C4D5E6F700001015 /* FolderPlaylistImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001115 /* FolderPlaylistImportService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -78,6 +79,7 @@
 		D3E1A2B3C4D5E6F700001112 /* RecoveryCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryCenterView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700001113 /* SafetyPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyPreviewView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationRecoveryService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001115 /* FolderPlaylistImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderPlaylistImportService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -138,6 +140,7 @@
 					D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */,
 					D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */,
 					D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */,
+					D3E1A2B3C4D5E6F700001115 /* FolderPlaylistImportService.swift */,
 					D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */,
 					D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */,
 					D3E1A2B3C4D5E6F70000110D /* USBService.swift */,
@@ -250,6 +253,7 @@
 				D3E1A2B3C4D5E6F70000100B /* SyncrosaStorage.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100C /* OperationHistoryService.swift in Sources */,
 				D3E1A2B3C4D5E6F700001014 /* OperationRecoveryService.swift in Sources */,
+				D3E1A2B3C4D5E6F700001015 /* FolderPlaylistImportService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000B /* LocalizationService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000C /* KeychainHelper.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100D /* USBService.swift in Sources */,

@@ -12,8 +12,11 @@ except ImportError:
     from tkinter import messagebox as tkMessageBox
 import os
 import threading
+import json
+import time
 
 from core.operation_history import record_operation
+from core.itunes_bridge import import_files_as_playlist
 
 
 MUSIC_EXTENSIONS = (".mp3", ".m4a", ".mp4", ".aac", ".alac", ".flac", ".wav", ".aiff")
@@ -40,6 +43,18 @@ class FilenameCleanerTab(tk.Frame):
         btns.pack(pady=8)
         self.clean_btn = ttk.Button(btns, text="Clean Filenames", command=self.clean, state="disabled", width=20)
         self.clean_btn.pack(side=tk.LEFT, padx=6)
+        self.playlist_var = tk.StringVar(value="")
+        self.playlist_var.trace("w", lambda *args: self._update_buttons())
+        tk.Entry(btns, textvariable=self.playlist_var, width=22).pack(side=tk.LEFT, padx=6)
+        self.import_btn = ttk.Button(btns, text="Create Playlist", command=self.create_playlist, state="disabled", width=18)
+        self.import_btn.pack(side=tk.LEFT, padx=6)
+
+        ai_btns = tk.Frame(self, bg="#ECECEC")
+        ai_btns.pack(pady=2)
+        self.export_json_btn = ttk.Button(ai_btns, text="Export AI JSON", command=self.export_ai_json, state="disabled", width=18)
+        self.export_json_btn.pack(side=tk.LEFT, padx=6)
+        self.import_json_btn = ttk.Button(ai_btns, text="Import AI JSON", command=self.import_ai_json, state="disabled", width=18)
+        self.import_json_btn.pack(side=tk.LEFT, padx=6)
         self.progress = ttk.Progressbar(self, mode="determinate")
         self.progress.pack(fill=tk.X, padx=24, pady=6)
         self.status = tk.Label(self, text="Select a folder with music files.", font=("system", 10), bg="#ECECEC", fg="#555555")
@@ -63,7 +78,143 @@ class FilenameCleanerTab(tk.Frame):
         self.clear_log()
         self.log("Scanned folder recursively: {} music files.".format(len(self.files)))
         self.status.config(text="Files found: {}".format(len(self.files)))
-        self.clean_btn.config(state="normal" if self.files else "disabled")
+        self._update_buttons()
+
+    def _update_buttons(self):
+        has_files = bool(self.files) and not self.running
+        has_playlist_name = bool(self.playlist_var.get().strip())
+        self.clean_btn.config(state="normal" if has_files else "disabled")
+        self.import_btn.config(state="normal" if has_files and has_playlist_name else "disabled")
+        self.export_json_btn.config(state="normal" if has_files else "disabled")
+        self.import_json_btn.config(state="normal" if has_files else "disabled")
+
+    def _track_manifest(self, path):
+        rel = os.path.relpath(path, self.folder) if self.folder else os.path.basename(path)
+        size = os.path.getsize(path) if os.path.exists(path) else 0
+        base, ext = os.path.splitext(os.path.basename(path))
+        clean = " ".join(base.replace("_", " ").split())
+        artist = ""
+        title = clean
+        if " - " in clean:
+            parts = clean.split(" - ", 1)
+            artist = parts[0].strip()
+            title = parts[1].strip()
+        return {
+            "id": rel + "#" + str(size),
+            "relativePath": rel,
+            "fileName": os.path.basename(path),
+            "artistHint": artist,
+            "titleHint": title,
+            "fileExtension": ext[1:].lower(),
+            "fileSize": size
+        }
+
+    def export_ai_json(self):
+        if not self.files:
+            return
+        path = tkFileDialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON", "*.json")],
+            initialfile="Syncrosa-AI-Manifest.json"
+        )
+        if not path:
+            return
+        manifest = {
+            "schema": "syncrosa-folder-playlist-manifest-v1",
+            "app": "Syncrosa",
+            "folderName": os.path.basename(self.folder),
+            "instructions": "Return JSON like {\"playlistName\":\"Name\",\"trackIDs\":[\"id-from-this-file\"]}.",
+            "tracks": [self._track_manifest(p) for p in self.files]
+        }
+        with open(path, "w") as f:
+            json.dump(manifest, f, indent=2, sort_keys=True)
+        self.clear_log()
+        self.log("Exported AI manifest: " + path)
+
+    def import_ai_json(self):
+        if not self.files:
+            return
+        path = tkFileDialog.askopenfilename(filetypes=[("JSON", "*.json")])
+        if not path:
+            return
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+        except Exception as e:
+            tkMessageBox.showerror("AI JSON", str(e))
+            return
+        if data.get("playlistName") and not self.playlist_var.get().strip():
+            self.playlist_var.set(data.get("playlistName"))
+            self._update_buttons()
+        keys = set()
+        for field in ("trackIDs", "selectedTrackIDs", "relativePaths"):
+            for value in data.get(field) or []:
+                keys.add(value)
+        for item in data.get("tracks") or []:
+            if isinstance(item, dict):
+                for field in ("id", "relativePath", "fileName"):
+                    if item.get(field):
+                        keys.add(item.get(field))
+        manifests = [(p, self._track_manifest(p)) for p in self.files]
+        selected = [p for p, m in manifests if m["id"] in keys or m["relativePath"] in keys or m["fileName"] in keys]
+        if not selected:
+            tkMessageBox.showerror("AI JSON", "JSON did not match any files in the selected folder.")
+            return
+        self.create_playlist(selected)
+
+    def create_playlist(self, selected_files=None):
+        if self.running:
+            return
+        files = selected_files or self.files
+        name = self.playlist_var.get().strip()
+        if not name:
+            tkMessageBox.showerror("Folder Playlist", "Enter a playlist name first.")
+            return
+        importable = [p for p in files if os.path.splitext(p)[1].lower() in (".mp3", ".m4a", ".mp4", ".aac", ".wav", ".aiff", ".aif", ".alac")]
+        skipped = len(files) - len(importable)
+        total_size = sum([os.path.getsize(p) for p in importable if os.path.exists(p)])
+        estimate = max(3, int(len(importable) * 0.6 + (total_size / 1048576.0) / 25.0))
+        if not importable:
+            tkMessageBox.showerror("Folder Playlist", "No supported files to import into iTunes.")
+            return
+        confirm_message = (
+            "Create playlist '{}'?\\n"
+            "Files: {}\\n"
+            "Skipped: {}\\n"
+            "Estimated time: ~{} sec\\n\\n"
+            "If a playlist with this name already exists, Syncrosa will clear it first and replace it with these tracks."
+        ).format(name, len(importable), skipped, estimate)
+        if not tkMessageBox.askyesno("Folder Playlist", confirm_message):
+            return
+        self.running = True
+        self.import_btn.config(state="disabled")
+        self.clean_btn.config(state="disabled")
+        self.export_json_btn.config(state="disabled")
+        self.import_json_btn.config(state="disabled")
+        self.progress.config(value=0, maximum=max(1, len(importable)))
+        self.clear_log()
+        self.log("Starting playlist import: " + name)
+        threading.Thread(target=lambda: self.playlist_worker(name, importable, skipped)).start()
+
+    def playlist_worker(self, name, paths, skipped):
+        imported = 0
+        try:
+            batch_size = 12
+            for start in range(0, len(paths), batch_size):
+                batch = paths[start:start + batch_size]
+                imported += import_files_as_playlist(name, batch, clear_playlist=(start == 0))
+                self.after(0, lambda i=min(start + batch_size, len(paths)): self.progress.config(value=i))
+                self.after(0, lambda s=start: self.log("Imported batch starting at {}".format(s + 1)))
+                time.sleep(0.05)
+            message = "Playlist '{}' ready. Added: {}. Skipped: {}.".format(name, imported, skipped)
+            record_operation("Folder Playlist Importer", "Import Folder Playlist", "OK", message, imported)
+        except Exception as e:
+            message = "Folder playlist import failed: " + str(e)
+            record_operation("Folder Playlist Importer", "Import Folder Playlist", "FAIL", message, imported)
+        self.after(0, lambda m=message: self.status.config(text=m))
+        self.after(0, lambda m=message: self.log(m))
+        self.running = False
+        self.after(0, self._update_buttons)
 
     def clear_log(self):
         self.log_box.config(state="normal")

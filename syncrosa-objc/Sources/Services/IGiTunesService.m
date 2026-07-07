@@ -509,6 +509,104 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     });
 }
 
+- (void)importFilePaths:(NSArray *)paths
+         asPlaylistName:(NSString *)playlistName
+          clearPlaylist:(BOOL)clearPlaylist
+             completion:(void(^)(NSInteger addedCount, NSArray *errors))completionBlock {
+    if (paths.count == 0 || playlistName.length == 0) {
+        if (completionBlock) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completionBlock(0, @[@"No files to import."]);
+            });
+        }
+        return;
+    }
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSMutableArray *cleanPaths = [NSMutableArray arrayWithCapacity:paths.count];
+        for (id value in paths) {
+            if ([value isKindOfClass:[NSString class]] && [value length] > 0) {
+                [cleanPaths addObject:value];
+            }
+        }
+
+        NSString *pathList = IGAppleScriptListLiteral(cleanPaths);
+        NSString *playlistLiteral = IGAppleScriptLiteral(playlistName);
+        NSString *clearLine = clearPlaylist ? @"    delete every track of pl\n" : @"";
+        NSString *scriptSource = [NSString stringWithFormat:
+            @"on replaceText(theText, oldText, newText)\n"
+            "    set AppleScript's text item delimiters to oldText\n"
+            "    set textItems to every text item of theText\n"
+            "    set AppleScript's text item delimiters to newText\n"
+            "    set newString to textItems as text\n"
+            "    set AppleScript's text item delimiters to \"\"\n"
+            "    return newString\n"
+            "end replaceText\n"
+            "on textValue(v)\n"
+            "    try\n"
+            "        set s to v as text\n"
+            "        set s to my replaceText(s, tab, \" \")\n"
+            "        set s to my replaceText(s, linefeed, \" \")\n"
+            "        set s to my replaceText(s, return, \" \")\n"
+            "        return s\n"
+            "    on error\n"
+            "        return \"\"\n"
+            "    end try\n"
+            "end textValue\n"
+            @"tell application \"iTunes\"\n"
+            "    set plName to %@\n"
+            "    set fileList to %@\n"
+            "    set addedCount to 0\n"
+            "    set errorText to \"\"\n"
+            "    if not (exists user playlist plName) then\n"
+            "        make new user playlist with properties {name:plName}\n"
+            "    end if\n"
+            "    set pl to user playlist plName\n"
+            "%@"
+            "    repeat with filePath in fileList\n"
+            "        set filePathText to (contents of filePath) as text\n"
+            "        try\n"
+            "            set importedTrack to add (POSIX file filePathText)\n"
+            "            try\n"
+            "                duplicate importedTrack to pl\n"
+            "                set addedCount to addedCount + 1\n"
+            "            on error\n"
+            "                try\n"
+            "                    duplicate item 1 of importedTrack to pl\n"
+            "                    set addedCount to addedCount + 1\n"
+            "                on error errMsg\n"
+            "                    set errorText to errorText & my textValue(filePathText) & \": \" & my textValue(errMsg) & linefeed\n"
+            "                end try\n"
+            "            end try\n"
+            "        on error errMsg\n"
+            "            set errorText to errorText & my textValue(filePathText) & \": \" & my textValue(errMsg) & linefeed\n"
+            "        end try\n"
+            "    end repeat\n"
+            "    return (addedCount as text) & tab & errorText\n"
+            "end tell", playlistLiteral, pathList, clearLine];
+
+        NSString *result = [self runAppleScriptNamed:@"folder.importPlaylist.batch" source:scriptSource];
+        NSArray *parts = result.length > 0 ? [result componentsSeparatedByString:@"\t"] : @[];
+        NSInteger imported = parts.count > 0 ? [[parts objectAtIndex:0] integerValue] : 0;
+        NSMutableArray *errors = [NSMutableArray array];
+        if (parts.count > 1) {
+            NSArray *lines = [[parts objectAtIndex:1] componentsSeparatedByString:@"\n"];
+            for (NSString *line in lines) {
+                NSString *trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                if (trimmed.length > 0) {
+                    [errors addObject:trimmed];
+                }
+            }
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) {
+                completionBlock(imported, errors);
+            }
+        });
+    });
+}
+
 - (void)fetchPlaylistsWithCompletion:(void(^)(NSArray *playlists))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSString *script = 
@@ -636,6 +734,111 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
         
         dispatch_async(dispatch_get_main_queue(), ^{
             completionBlock(tracks);
+        });
+    });
+}
+
+- (void)fetchLibraryFileTrackReferencesWithCompletion:(void(^)(NSArray *tracks))completionBlock {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *handler =
+            @"on replaceText(theText, oldText, newText)\n"
+            "    set AppleScript's text item delimiters to oldText\n"
+            "    set textItems to every text item of theText\n"
+            "    set AppleScript's text item delimiters to newText\n"
+            "    set newString to textItems as text\n"
+            "    set AppleScript's text item delimiters to \"\"\n"
+            "    return newString\n"
+            "end replaceText\n"
+            "on textValue(v)\n"
+            "    try\n"
+            "        if v is missing value then return \"\"\n"
+            "        set s to v as text\n"
+            "        set s to my replaceText(s, tab, \" \")\n"
+            "        set s to my replaceText(s, linefeed, \" \")\n"
+            "        set s to my replaceText(s, return, \" \")\n"
+            "        return s\n"
+            "    on error\n"
+            "        return \"\"\n"
+            "    end try\n"
+            "end textValue\n";
+
+        NSString *countScript =
+            @"tell application \"iTunes\"\n"
+            "    try\n"
+            "        return (count of every file track of library playlist 1) as text\n"
+            "    on error\n"
+            "        return \"0\"\n"
+            "    end try\n"
+            "end tell";
+
+        NSInteger total = [[self runAppleScriptNamed:@"library.fileTrackReferences.count" source:countScript] integerValue];
+        NSMutableArray *tracks = [NSMutableArray array];
+        NSInteger chunkSize = 200;
+
+        for (NSInteger start = 1; start <= total; start += chunkSize) {
+            NSInteger end = MIN(start + chunkSize - 1, total);
+            NSString *script = [NSString stringWithFormat:
+            @"%@"
+            "tell application \"iTunes\"\n"
+            "    set output to \"\"\n"
+            "    try\n"
+            "        set trks to every file track of library playlist 1\n"
+            "        repeat with trackIndex from %ld to %ld\n"
+            "            if trackIndex is greater than (count of trks) then exit repeat\n"
+            "            set t to item trackIndex of trks\n"
+            "            set pid to \"\"\n"
+            "            set nm to \"\"\n"
+            "            set art to \"\"\n"
+            "            set pth to \"\"\n"
+            "            set sz to \"0\"\n"
+            "            set knd to \"\"\n"
+            "            try\n"
+            "                set pid to persistent ID of t as text\n"
+            "            end try\n"
+            "            try\n"
+            "                set nm to name of t as text\n"
+            "            end try\n"
+            "            try\n"
+            "                set art to artist of t as text\n"
+            "            end try\n"
+            "            try\n"
+            "                set knd to kind of t as text\n"
+            "            end try\n"
+            "            try\n"
+            "                set sz to size of t as text\n"
+            "            end try\n"
+            "            try\n"
+            "                set loc to location of t\n"
+            "                if loc is not missing value then set pth to POSIX path of loc\n"
+            "            end try\n"
+            "            set output to output & my textValue(pid) & tab & my textValue(nm) & tab & my textValue(art) & tab & my textValue(pth) & tab & sz & tab & my textValue(knd) & linefeed\n"
+            "        end repeat\n"
+            "    end try\n"
+            "    return output\n"
+            "end tell", handler, (long)start, (long)end];
+
+            NSString *rawResult = [self runAppleScriptNamed:@"library.fileTrackReferences.chunk" source:script];
+            NSArray *lines = rawResult.length > 0 ? [rawResult componentsSeparatedByString:@"\n"] : @[];
+            for (NSString *line in lines) {
+                if ([line rangeOfString:@"\t"].location == NSNotFound) continue;
+                NSArray *parts = [line componentsSeparatedByString:@"\t"];
+                if (parts.count >= 6) {
+                    [tracks addObject:@{
+                        @"persistentID": [parts objectAtIndex:0],
+                        @"name": [parts objectAtIndex:1],
+                        @"artist": [parts objectAtIndex:2],
+                        @"path": [parts objectAtIndex:3],
+                        @"size": @([[parts objectAtIndex:4] longLongValue]),
+                        @"kind": [parts objectAtIndex:5]
+                    }];
+                }
+            }
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) {
+                completionBlock(tracks);
+            }
         });
     });
 }

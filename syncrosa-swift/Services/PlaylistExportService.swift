@@ -39,6 +39,9 @@ class PlaylistExportService {
         destination: URL,
         playlistName: String,
         mode: ExportMode,
+        createM3U: Bool = false,
+        createM3U8: Bool = false,
+        useIPodSafeNames: Bool = false,
         progress: @escaping (ExportProgress) -> Void,
         completion: @escaping (ExportResult) -> Void
     ) {
@@ -120,18 +123,21 @@ class PlaylistExportService {
             var currentTrackIndex = 0
             var totalBytesCopied: Int64 = 0
             var copiedCount = 0
+            var copiedPlaylistEntries: [String] = []
 
             for track in tracksToCopy {
                 currentTrackIndex += 1
                 let sourceURL = URL(fileURLWithPath: track.filePath)
                 
                 // Construct unique destination URL
-                var destFilename = "\(self.sanitizeFilename(track.artist)) - \(self.sanitizeFilename(track.name)).\(sourceURL.pathExtension)"
+                let safeArtist = useIPodSafeNames ? self.iPodSafeFilename(track.artist) : self.sanitizeFilename(track.artist)
+                let safeName = useIPodSafeNames ? self.iPodSafeFilename(track.name) : self.sanitizeFilename(track.name)
+                var destFilename = "\(safeArtist) - \(safeName).\(sourceURL.pathExtension)"
                 var destURL = exportFolder.appendingPathComponent(destFilename)
                 
                 var suffix = 2
                 while fm.fileExists(atPath: destURL.path) {
-                    destFilename = "\(self.sanitizeFilename(track.artist)) - \(self.sanitizeFilename(track.name))_\(suffix).\(sourceURL.pathExtension)"
+                    destFilename = "\(safeArtist) - \(safeName)_\(suffix).\(sourceURL.pathExtension)"
                     destURL = exportFolder.appendingPathComponent(destFilename)
                     suffix += 1
                 }
@@ -152,6 +158,7 @@ class PlaylistExportService {
                         }
                     }
                     copiedCount += 1
+                    copiedPlaylistEntries.append(destURL.lastPathComponent)
                 } catch {
                     errors.append("\(track.artist) - \(track.name): \(error.localizedDescription)")
                     // Check if destination drive was disconnected (path does not exist)
@@ -165,6 +172,20 @@ class PlaylistExportService {
                         ))
                         return
                     }
+                }
+            }
+
+            if createM3U || createM3U8 {
+                do {
+                    try self.writePlaylistFiles(
+                        entries: copiedPlaylistEntries,
+                        playlistName: playlistName,
+                        folderURL: exportFolder,
+                        createM3U: createM3U,
+                        createM3U8: createM3U8
+                    )
+                } catch {
+                    errors.append("Playlist file export: \(error.localizedDescription)")
                 }
             }
             
@@ -186,6 +207,47 @@ class PlaylistExportService {
     private func sanitizedFolderName(_ name: String) -> String {
         let trimmed = sanitizeFilename(name).trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Syncrosa Playlist" : trimmed
+    }
+
+    private func iPodSafeFilename(_ name: String) -> String {
+        var folded = name.folding(options: [.diacriticInsensitive, .widthInsensitive], locale: .current)
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " ._-"))
+        var safe = ""
+        for scalar in folded.unicodeScalars {
+            safe.append(allowed.contains(scalar) ? String(scalar) : "_")
+        }
+        folded = safe
+        folded = folded
+            .replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ._-").union(.whitespacesAndNewlines))
+        if folded.isEmpty {
+            folded = "Track"
+        }
+        if folded.count > 80 {
+            folded = String(folded.prefix(80)).trimmingCharacters(in: CharacterSet(charactersIn: " ._-").union(.whitespacesAndNewlines))
+        }
+        return sanitizeFilename(folded.isEmpty ? "Track" : folded)
+    }
+
+    private func writePlaylistFiles(entries: [String], playlistName: String, folderURL: URL, createM3U: Bool, createM3U8: Bool) throws {
+        guard !entries.isEmpty else { return }
+        let baseName = sanitizedFolderName(playlistName)
+        let body = "#EXTM3U\n" + entries.joined(separator: "\n") + "\n"
+        if createM3U8 {
+            try body.write(
+                to: folderURL.appendingPathComponent("\(baseName).m3u8"),
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+        if createM3U {
+            try body.write(
+                to: folderURL.appendingPathComponent("\(baseName).m3u"),
+                atomically: true,
+                encoding: .utf8
+            )
+        }
     }
     
     private func chunkedCopy(from source: URL, to destination: URL, progress: @escaping (Int64) -> Void) throws {

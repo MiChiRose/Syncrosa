@@ -28,6 +28,14 @@
                     completion:(void(^)(NSInteger addedCount))completionBlock;
 
 /**
+ * Imports local file paths into iTunes and duplicates the imported tracks into a user playlist.
+ */
+- (void)importFilePaths:(NSArray *)paths
+         asPlaylistName:(NSString *)playlistName
+          clearPlaylist:(BOOL)clearPlaylist
+             completion:(void(^)(NSInteger addedCount, NSArray *errors))completionBlock;
+
+/**
  * Fetches all user playlists from iTunes.
  */
 - (void)fetchPlaylistsWithCompletion:(void(^)(NSArray *playlists))completionBlock;
@@ -37,6 +45,11 @@
  */
 - (void)fetchTracksForPlaylist:(NSString *)playlistName 
                     completion:(void(^)(NSArray *tracks))completionBlock;
+
+/**
+ * Fetches local file track references for diagnostics.
+ */
+- (void)fetchLibraryFileTrackReferencesWithCompletion:(void(^)(NSArray *tracks))completionBlock;
 
 /**
  * Executes an AppleScript command on the main thread and returns the string result.

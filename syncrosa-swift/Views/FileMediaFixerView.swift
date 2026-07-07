@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 enum FileStatus {
     case pending
@@ -17,6 +18,8 @@ struct FileItem: Identifiable {
 private enum FileFixerSafetyAction {
     case fixMetadata
     case cleanFilenames
+    case importFolderPlaylist
+    case importExternalSelection([FolderPlaylistTrack])
 }
 
 struct FileMediaFixerView: View {
@@ -30,6 +33,9 @@ struct FileMediaFixerView: View {
     @State private var showHelp: Bool = false
     @State private var safetyPreview: SafetyPreviewRequest? = nil
     @State private var pendingSafetyAction: FileFixerSafetyAction? = nil
+    @State private var folderPlaylistTracks: [FolderPlaylistTrack] = []
+    @State private var playlistName: String = ""
+    @State private var importProgressText: String = ""
     
     // Checkbox checklist states
     @State private var fixAlbum: Bool = true
@@ -53,6 +59,29 @@ struct FileMediaFixerView: View {
             }
         )
     }
+
+    var folderImportEstimateText: String {
+        guard !folderPlaylistTracks.isEmpty else {
+            return lang.selectedLanguage == "ru"
+                ? "Выберите папку, чтобы увидеть оценку импорта."
+                : "Select a folder to estimate import time."
+        }
+        let totalBytes = folderPlaylistTracks.reduce(Int64(0)) { $0 + $1.fileSize }
+        let seconds = FolderPlaylistImportService.shared.estimatedImportSeconds(
+            fileCount: folderPlaylistTracks.count,
+            totalBytes: totalBytes,
+            hddSafeMode: UserDefaults.standard.bool(forKey: "hdd_safe_mode")
+        )
+        let size = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+        let unsupported = folderPlaylistTracks.filter { $0.fileExtension.lowercased() == "flac" }.count
+        let base = lang.selectedLanguage == "ru"
+            ? "Найдено \(folderPlaylistTracks.count) файлов (\(size)). Оценка импорта: ~\(seconds) сек."
+            : "Found \(folderPlaylistTracks.count) files (\(size)). Import estimate: ~\(seconds)s."
+        guard unsupported > 0 else { return base }
+        return base + (lang.selectedLanguage == "ru"
+            ? " FLAC может быть пропущен Music.app."
+            : " FLAC may be skipped by Music.app.")
+    }
     
     var body: some View {
         SyncrosaPage {
@@ -71,23 +100,23 @@ struct FileMediaFixerView: View {
                         Text(lang.selectedLanguage == "ru" ? "Выбрать все" : "Select All")
                             .fontWeight(.bold)
                     }
-                    .toggleStyle(.checkbox)
+                    .toggleStyle(SyncrosaCheckboxToggleStyle())
                     
                     Divider()
                     
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], alignment: .leading, spacing: 12) {
                         Toggle(lang.selectedLanguage == "ru" ? "Альбом" : "Album", isOn: $fixAlbum)
-                            .toggleStyle(.checkbox)
+                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                         Toggle(lang.selectedLanguage == "ru" ? "Название" : "Title", isOn: $fixTitle)
-                            .toggleStyle(.checkbox)
+                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                         Toggle(lang.selectedLanguage == "ru" ? "Исполнитель" : "Artist", isOn: $fixArtist)
-                            .toggleStyle(.checkbox)
+                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                         Toggle(lang.selectedLanguage == "ru" ? "Жанр" : "Genre", isOn: $fixGenre)
-                            .toggleStyle(.checkbox)
+                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                         Toggle(lang.selectedLanguage == "ru" ? "Номер трека" : "Track Number", isOn: $fixTrackNumber)
-                            .toggleStyle(.checkbox)
+                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                         Toggle(lang.selectedLanguage == "ru" ? "Текст песен" : "Lyrics", isOn: $fixLyrics)
-                            .toggleStyle(.checkbox)
+                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                     }
                 }
                 .syncrosaCard()
@@ -126,10 +155,10 @@ struct FileMediaFixerView: View {
                         Text(lang.selectedLanguage == "ru" ? "Скачивать обложки альбомов в папку" : "Download album covers into the folder")
                             .font(.caption)
                     }
-                    .toggleStyle(.checkbox)
+                    .toggleStyle(SyncrosaCheckboxToggleStyle())
                 }
                 .syncrosaCard()
-                
+
                 // Card 2: File List
                 VStack(alignment: .leading, spacing: 10) {
                     SyncrosaSectionLabel(text: lang.t("files_to_process", fileItems.count), systemImage: "doc.text")
@@ -263,24 +292,12 @@ struct FileMediaFixerView: View {
     }
     
     func scanFolder(_ url: URL) {
-        let musicExtensions = ["mp3", "wav", "flac", "alac", "m4a", "aiff"]
-        var matches: [FileItem] = []
-        
-        let fm = FileManager.default
-        let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) { url, error in
-            return true
-        }
-        
-        while let fileUrl = enumerator?.nextObject() as? URL {
-            var isDir: ObjCBool = false
-            if fm.fileExists(atPath: fileUrl.path, isDirectory: &isDir), !isDir.boolValue {
-                if musicExtensions.contains(fileUrl.pathExtension.lowercased()) {
-                    matches.append(FileItem(url: fileUrl))
-                }
-            }
-        }
+        let scannedTracks = FolderPlaylistImportService.shared.scanFolder(url)
+        let matches = scannedTracks.map { FileItem(url: url.appendingPathComponent($0.relativePath)) }
         
         self.fileItems = matches
+        self.folderPlaylistTracks = scannedTracks
+        self.importProgressText = ""
         logLines.removeAll()
         appendLog("Scanned folder recursively: \(matches.count) music files.")
         
@@ -328,6 +345,33 @@ struct FileMediaFixerView: View {
                 confirmTitle: lang.selectedLanguage == "ru" ? "Очистить имена" : "Clean Names",
                 isDestructive: false
             )
+        case .importFolderPlaylist:
+            let selectedName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Создать плейлист из папки?" : "Create playlist from folder?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa импортирует поддерживаемые файлы в Music и создаст/обновит плейлист с указанным именем." : "Syncrosa will import supported files into Music and create/update a playlist with the chosen name.",
+                details: [
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Папка" : "Folder", value: folderPath),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Плейлист" : "Playlist", value: selectedName),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Файлов" : "Files", value: "\(folderPlaylistTracks.count)"),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Оценка" : "Estimate", value: folderImportEstimateText)
+                ],
+                confirmTitle: lang.selectedLanguage == "ru" ? "Создать" : "Create",
+                isDestructive: false
+            )
+        case .importExternalSelection(let selectedTracks):
+            let selectedName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Создать AI-плейлист из JSON?" : "Create AI playlist from JSON?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa импортирует только треки, выбранные во внешнем JSON-файле." : "Syncrosa will import only the tracks selected in the external JSON file.",
+                details: [
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Папка" : "Folder", value: folderPath),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Плейлист" : "Playlist", value: selectedName),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Выбрано" : "Selected", value: "\(selectedTracks.count)")
+                ],
+                confirmTitle: lang.selectedLanguage == "ru" ? "Собрать" : "Build",
+                isDestructive: false
+            )
         }
     }
 
@@ -337,8 +381,121 @@ struct FileMediaFixerView: View {
             fixFolderMetadata()
         case .cleanFilenames:
             cleanFilenames()
+        case .importFolderPlaylist:
+            importPlaylistFromFolder(tracks: folderPlaylistTracks, title: "Import Folder Playlist")
+        case .importExternalSelection(let selectedTracks):
+            importPlaylistFromFolder(tracks: selectedTracks, title: "Import External AI Playlist")
         case .none:
             break
+        }
+    }
+
+    func exportFolderManifest() {
+        guard !folderPath.isEmpty, !folderPlaylistTracks.isEmpty else { return }
+        let folderURL = URL(fileURLWithPath: folderPath, isDirectory: true)
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "Syncrosa-\(folderURL.lastPathComponent)-AI-Manifest.json"
+        panel.title = lang.selectedLanguage == "ru" ? "Сохранить JSON для внешнего AI" : "Save JSON for external AI"
+        if panel.runModal() == .OK, let destination = panel.url {
+            do {
+                let manifest = FolderPlaylistImportService.shared.buildManifest(folderURL: folderURL, tracks: folderPlaylistTracks)
+                try FolderPlaylistImportService.shared.writeManifest(manifest, to: destination)
+                logLines.removeAll()
+                appendLog("Exported AI manifest: \(destination.path)")
+                appendLog("Give this JSON to an AI assistant and ask it to return {\"playlistName\":\"...\",\"trackIDs\":[...]}.")
+                activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "JSON для AI сохранён." : "AI JSON manifest saved.", isError: false)
+            } catch {
+                activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
+            }
+        }
+    }
+
+    func importAISelection() {
+        guard !folderPlaylistTracks.isEmpty else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.title = lang.selectedLanguage == "ru" ? "Выберите JSON с выбором треков" : "Choose playlist selection JSON"
+        if panel.runModal() == .OK, let selectionURL = panel.url {
+            do {
+                let selection = try FolderPlaylistImportService.shared.readSelection(from: selectionURL)
+                let selectedTracks = FolderPlaylistImportService.shared.selectedTracks(from: selection, availableTracks: folderPlaylistTracks)
+                if let name = selection.playlistName, playlistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    playlistName = name
+                }
+                guard !selectedTracks.isEmpty else {
+                    activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "JSON не содержит треки, которые совпали с выбранной папкой." : "The JSON did not match any tracks in the selected folder.", isError: true)
+                    return
+                }
+                guard !playlistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Введите название плейлиста." : "Enter a playlist name.", isError: true)
+                    return
+                }
+                presentSafetyPreview(.importExternalSelection(selectedTracks))
+            } catch {
+                activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
+            }
+        }
+    }
+
+    func importPlaylistFromFolder(tracks: [FolderPlaylistTrack], title: String) {
+        guard !folderPath.isEmpty, !tracks.isEmpty else { return }
+        let folderURL = URL(fileURLWithPath: folderPath, isDirectory: true)
+        let cleanPlaylistName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanPlaylistName.isEmpty else { return }
+
+        let resolved = FolderPlaylistImportService.shared.importableURLs(for: tracks, folderURL: folderURL)
+        guard !resolved.urls.isEmpty else {
+            activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Нет поддерживаемых файлов для импорта в Music." : "No supported files to import into Music.", isError: true)
+            return
+        }
+
+        isProcessing = true
+        logLines.removeAll()
+        importProgressText = ""
+        appendLog("Starting playlist import: \(cleanPlaylistName)")
+        appendLog("Files selected: \(tracks.count). Importable: \(resolved.urls.count). Skipped before import: \(resolved.skipped.count).")
+        activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Импортирую папку в Music..." : "Importing folder into Music...", isError: false)
+
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Folder Playlist Importer",
+            title: title,
+            message: lang.selectedLanguage == "ru" ? "Импорт папки в Music был прерван. Проверьте Recovery Center и созданный плейлист." : "Folder import into Music was interrupted. Check Recovery Center and the created playlist.",
+            affectedCount: resolved.urls.count,
+            backupPath: folderPath
+        )
+
+        FolderPlaylistImportService.shared.importFolderTracks(
+            playlistName: cleanPlaylistName,
+            fileURLs: resolved.urls,
+            hddSafeMode: UserDefaults.standard.bool(forKey: "hdd_safe_mode")
+        ) { progress in
+            importProgressText = lang.selectedLanguage == "ru"
+                ? "Импорт \(progress.current)/\(progress.total): \(progress.fileName)"
+                : "Import \(progress.current)/\(progress.total): \(progress.fileName)"
+            appendLog(importProgressText)
+        } completion: { result in
+            OperationRecoveryService.shared.finish(recoveryID)
+            isProcessing = false
+            let message = lang.selectedLanguage == "ru"
+                ? "Плейлист «\(cleanPlaylistName)» готов. Добавлено: \(result.importedCount), пропущено: \(result.skippedCount + resolved.skipped.count), ошибок: \(result.errors.count)."
+                : "Playlist \"\(cleanPlaylistName)\" is ready. Added: \(result.importedCount), skipped: \(result.skippedCount + resolved.skipped.count), errors: \(result.errors.count)."
+            appendLog(message)
+            for error in result.errors.prefix(12) {
+                appendLog("ERROR: \(error)")
+            }
+            activeNotification = NotificationMessage(text: message, isError: result.importedCount == 0)
+            OperationHistoryService.shared.record(
+                tool: "Folder Playlist Importer",
+                title: title,
+                status: result.errors.isEmpty ? "OK" : "WARN",
+                message: message,
+                affectedCount: result.importedCount,
+                backupPath: folderPath
+            )
         }
     }
     

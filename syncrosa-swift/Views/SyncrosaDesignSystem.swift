@@ -510,6 +510,46 @@ struct SyncrosaSwitchToggleStyle: ToggleStyle {
     }
 }
 
+struct SyncrosaCheckboxToggleStyle: ToggleStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            HStack(alignment: .center, spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(configuration.isOn ? SyncrosaTheme.accent : Color(nsColor: .controlBackgroundColor).opacity(0.72))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .stroke(
+                                    configuration.isOn ? Color.white.opacity(0.30) : Color.primary.opacity(0.34),
+                                    lineWidth: 1.2
+                                )
+                        )
+                        .shadow(color: Color.white.opacity(configuration.isOn ? 0.12 : 0.18), radius: 1, x: 0, y: -1)
+                        .shadow(color: SyncrosaTheme.softShadow.opacity(configuration.isOn ? 0.24 : 0.16), radius: 4, x: 0, y: 2)
+
+                    if configuration.isOn {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color.white)
+                    }
+                }
+                .frame(width: 20, height: 20)
+
+                configuration.label
+                    .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(isEnabled ? 1 : 0.52)
+        .accessibilityValue(configuration.isOn ? "On" : "Off")
+    }
+}
+
 struct SyncrosaSecondaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 

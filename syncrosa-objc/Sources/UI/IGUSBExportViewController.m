@@ -16,6 +16,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 @property (nonatomic, strong) NSPopUpButton *playlistPopup;
 @property (nonatomic, strong) NSTextField *playlistInfoLabel;
 @property (nonatomic, strong) NSPopUpButton *modePopup;
+@property (nonatomic, strong) NSButton *m3uButton;
+@property (nonatomic, strong) NSButton *m3u8Button;
+@property (nonatomic, strong) NSButton *ipodSafeButton;
 @property (nonatomic, strong) NSButton *exportButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
@@ -160,6 +163,26 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
     self.modePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 208, 340, 26) pullsDown:NO];
     [self.view addSubview:self.modePopup];
+
+    self.m3uButton = [[NSButton alloc] initWithFrame:NSMakeRect(200, 178, 70, 20)];
+    [self.m3uButton setButtonType:NSSwitchButton];
+    self.m3uButton.title = @".m3u";
+    self.m3uButton.enabled = NO;
+    [self.view addSubview:self.m3uButton];
+
+    self.m3u8Button = [[NSButton alloc] initWithFrame:NSMakeRect(280, 178, 70, 20)];
+    [self.m3u8Button setButtonType:NSSwitchButton];
+    self.m3u8Button.title = @".m3u8";
+    self.m3u8Button.state = NSOnState;
+    self.m3u8Button.enabled = NO;
+    [self.view addSubview:self.m3u8Button];
+
+    self.ipodSafeButton = [[NSButton alloc] initWithFrame:NSMakeRect(360, 178, 180, 20)];
+    [self.ipodSafeButton setButtonType:NSSwitchButton];
+    self.ipodSafeButton.title = @"iPod-safe names";
+    [self.ipodSafeButton setToolTip:@"Shortens and cleans filenames for older iPods, car stereos, and FAT/exFAT drives."];
+    self.ipodSafeButton.enabled = NO;
+    [self.view addSubview:self.ipodSafeButton];
 
     // Export Button
     self.exportButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, 150, 200, 40)];
@@ -334,6 +357,10 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     BOOL hasDrive = (self.drives.count > 0);
     BOOL hasPlaylist = (self.currentPlaylistTracks.count > 0);
     self.exportButton.enabled = self.isExporting || (hasDrive && hasPlaylist);
+    BOOL optionsEnabled = (!self.isExporting && hasDrive && hasPlaylist);
+    self.m3uButton.enabled = optionsEnabled;
+    self.m3u8Button.enabled = optionsEnabled;
+    self.ipodSafeButton.enabled = optionsEnabled;
 }
 
 - (void)updateLocalization {
@@ -445,6 +472,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     self.drivePopup.enabled = NO;
     self.playlistPopup.enabled = NO;
     self.modePopup.enabled = NO;
+    self.m3uButton.enabled = NO;
+    self.m3u8Button.enabled = NO;
+    self.ipodSafeButton.enabled = NO;
     self.progressIndicator.hidden = NO;
     self.progressIndicator.doubleValue = 0;
 
@@ -481,6 +511,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         NSInteger skippedDRM = 0;
         NSInteger totalTracks = tracksToCopy.count;
         int64_t totalBytesCopied = 0;
+        NSMutableArray *copiedEntries = [NSMutableArray array];
 
         if (totalTracks == 0) {
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -497,6 +528,20 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         });
 
         NSFileManager *fm = [NSFileManager defaultManager];
+        NSString *playlistName = @"Syncrosa Playlist";
+        NSInteger playlistIndex = [self.playlistPopup indexOfSelectedItem];
+        if (playlistIndex >= 0 && playlistIndex < self.playlists.count) {
+            NSString *candidate = [[self.playlists objectAtIndex:playlistIndex] objectForKey:@"name"];
+            if (candidate.length > 0) playlistName = candidate;
+        }
+        NSURL *exportFolder = [drive.volumeURL URLByAppendingPathComponent:[self sanitizedFolderName:playlistName]];
+        NSError *folderError = nil;
+        if (![fm createDirectoryAtURL:exportFolder withIntermediateDirectories:YES attributes:nil error:&folderError]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self finishExportWithError:[NSString stringWithFormat:@"Could not create playlist folder: %@", folderError.localizedDescription ?: @""]];
+            });
+            return;
+        }
 
         for (NSInteger i = 0; i < totalTracks; i++) {
             if (self.shouldCancelExport) {
@@ -532,17 +577,17 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             NSURL *sourceURL = [NSURL fileURLWithPath:filePath];
 
             // Build unique destination filename to prevent collision
-            NSString *sanitizedArtist = [self sanitizeFilename:track[@"artist"]];
-            NSString *sanitizedTitle = [self sanitizeFilename:track[@"name"]];
+            NSString *sanitizedArtist = (self.ipodSafeButton.state == NSOnState) ? [self iPodSafeFilename:track[@"artist"]] : [self sanitizeFilename:track[@"artist"]];
+            NSString *sanitizedTitle = (self.ipodSafeButton.state == NSOnState) ? [self iPodSafeFilename:track[@"name"]] : [self sanitizeFilename:track[@"name"]];
             NSString *ext = [filePath pathExtension];
 
             NSString *destName = [NSString stringWithFormat:@"%@ - %@.%@", sanitizedArtist, sanitizedTitle, ext];
-            NSURL *destURL = [drive.volumeURL URLByAppendingPathComponent:destName];
+            NSURL *destURL = [exportFolder URLByAppendingPathComponent:destName];
 
             NSInteger suffix = 2;
             while ([fm fileExistsAtPath:destURL.path]) {
                 destName = [NSString stringWithFormat:@"%@ - %@_%ld.%@", sanitizedArtist, sanitizedTitle, (long)suffix, ext];
-                destURL = [drive.volumeURL URLByAppendingPathComponent:destName];
+                destURL = [exportFolder URLByAppendingPathComponent:destName];
                 suffix++;
             }
 
@@ -571,6 +616,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             if (success) {
                 copiedCount++;
                 totalBytesCopied += fileSize;
+                [copiedEntries addObject:destURL.lastPathComponent ?: destName];
             } else {
                 if (currentFileBytes > 0 && [fm fileExistsAtPath:destURL.path]) {
                     [fm removeItemAtURL:destURL error:nil];
@@ -585,6 +631,10 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             }
         }
 
+        if (copiedEntries.count > 0 && (self.m3uButton.state == NSOnState || self.m3u8Button.state == NSOnState)) {
+            [self writePlaylistFiles:copiedEntries playlistName:playlistName folderURL:exportFolder];
+        }
+
         dispatch_async(dispatch_get_main_queue(), ^{
             [self finishExportWithCopiedCount:copiedCount totalRequested:totalTracks skippedDRM:skippedDRM bytes:totalBytesCopied];
         });
@@ -595,6 +645,55 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     NSCharacterSet *invalidCharacters = [NSCharacterSet characterSetWithCharactersInString:@"/\\?%*|\"<>:"];
     NSArray *parts = [name componentsSeparatedByCharactersInSet:invalidCharacters];
     return [parts componentsJoinedByString:@"_"];
+}
+
+- (NSString *)sanitizedFolderName:(NSString *)name {
+    NSString *clean = [[self sanitizeFilename:name ?: @""] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return clean.length > 0 ? clean : @"Syncrosa Playlist";
+}
+
+- (NSString *)iPodSafeFilename:(NSString *)name {
+    NSMutableString *value = [[name ?: @"Track" mutableCopy] autorelease];
+    CFStringTransform((CFMutableStringRef)value, NULL, kCFStringTransformStripCombiningMarks, NO);
+    NSCharacterSet *allowed = [[NSCharacterSet alphanumericCharacterSet] mutableCopy];
+    [(NSMutableCharacterSet *)allowed addCharactersInString:@" ._-"];
+    NSMutableString *out = [NSMutableString string];
+    for (NSUInteger i = 0; i < value.length; i++) {
+        unichar ch = [value characterAtIndex:i];
+        if ([allowed characterIsMember:ch]) {
+            [out appendFormat:@"%C", ch];
+        } else {
+            [out appendString:@"_"];
+        }
+    }
+#if !__has_feature(objc_arc)
+    [allowed release];
+#endif
+    while ([out rangeOfString:@"__"].location != NSNotFound) {
+        [out replaceOccurrencesOfString:@"__" withString:@"_" options:0 range:NSMakeRange(0, out.length)];
+    }
+    NSString *trimmed = [out stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._-\n\r\t"]];
+    if (trimmed.length == 0) trimmed = @"Track";
+    if (trimmed.length > 80) trimmed = [trimmed substringToIndex:80];
+    return [self sanitizeFilename:trimmed];
+}
+
+- (void)writePlaylistFiles:(NSArray *)entries playlistName:(NSString *)playlistName folderURL:(NSURL *)folderURL {
+    if (entries.count == 0) return;
+    NSString *base = [self sanitizedFolderName:playlistName];
+    NSString *body = [NSString stringWithFormat:@"#EXTM3U\n%@\n", [entries componentsJoinedByString:@"\n"]];
+    if (self.m3u8Button.state == NSOnState) {
+        [body writeToURL:[folderURL URLByAppendingPathComponent:[base stringByAppendingPathExtension:@"m3u8"]]
+              atomically:YES
+                encoding:NSUTF8StringEncoding
+                   error:nil];
+    }
+    if (self.m3uButton.state == NSOnState) {
+        [body writeToURL:[folderURL URLByAppendingPathComponent:[base stringByAppendingPathExtension:@"m3u"]]
+              atomically:YES
+                encoding:NSUTF8StringEncoding
+                   error:nil];
+    }
 }
 
 - (BOOL)copyFileFrom:(NSURL *)source
@@ -670,6 +769,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.drivePopup setEnabled:YES];
     [self.playlistPopup setEnabled:YES];
     [self.modePopup setEnabled:YES];
+    [self.m3uButton setEnabled:YES];
+    [self.m3u8Button setEnabled:YES];
+    [self.ipodSafeButton setEnabled:YES];
     self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
     [self updateExportButtonState];
 
@@ -687,6 +789,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.drivePopup setEnabled:YES];
     [self.playlistPopup setEnabled:YES];
     [self.modePopup setEnabled:YES];
+    [self.m3uButton setEnabled:YES];
+    [self.m3u8Button setEnabled:YES];
+    [self.ipodSafeButton setEnabled:YES];
     self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
     [self updateExportButtonState];
     [self reloadDrives];
@@ -712,6 +817,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.drivePopup setEnabled:YES];
     [self.playlistPopup setEnabled:YES];
     [self.modePopup setEnabled:YES];
+    [self.m3uButton setEnabled:YES];
+    [self.m3u8Button setEnabled:YES];
+    [self.ipodSafeButton setEnabled:YES];
     self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
     [self updateExportButtonState];
     [self reloadDrives]; // Refresh free space info

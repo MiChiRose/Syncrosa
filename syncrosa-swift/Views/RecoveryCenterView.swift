@@ -6,13 +6,15 @@ struct RecoveryCenterView: View {
     @ObservedObject private var recovery = OperationRecoveryService.shared
     @ObservedObject private var history = OperationHistoryService.shared
     @State private var showHistory = false
+    @State private var showHelp = false
 
     var body: some View {
         SyncrosaPage {
             SyncrosaPageHeader(
                 title: lang.selectedLanguage == "ru" ? "Центр восстановления" : "Recovery Center",
                 systemImage: "cross.case",
-                subtitle: lang.selectedLanguage == "ru" ? "Backup-папки, прерванные операции и история действий." : "Backup folders, interrupted operations, and operation history."
+                subtitle: lang.selectedLanguage == "ru" ? "Backup-папки, прерванные операции и история действий." : "Backup folders, interrupted operations, and operation history.",
+                helpAction: { showHelp = true }
             ) {
                 Button(action: { showHistory = true }) {
                     Label(lang.selectedLanguage == "ru" ? "История" : "History", systemImage: "clock.arrow.circlepath")
@@ -85,6 +87,35 @@ struct RecoveryCenterView: View {
         .sheet(isPresented: $showHistory) {
             OperationHistoryView()
         }
+        .sheet(isPresented: $showHelp) {
+            helpSheetView
+        }
+    }
+
+    private var helpSheetView: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text(lang.selectedLanguage == "ru" ? "Инструкция: Recovery Center" : "Help: Recovery Center")
+                    .font(.headline)
+                Spacer()
+                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
+                    showHelp = false
+                }
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
+            }
+
+            Divider()
+
+            ScrollView {
+                Text(lang.selectedLanguage == "ru"
+                     ? "Recovery Center показывает, где Syncrosa хранит backup-файлы, последние операции и маркер прерванного процесса.\n\nЕсли приложение закрылось во время долгого действия, после запуска здесь появится запись о незавершённой операции. Это не откатывает изменения автоматически, но помогает понять, какой инструмент работал и где искать backup или результат."
+                     : "Recovery Center shows where Syncrosa keeps backup files, recent operations, and the marker for an interrupted long process.\n\nIf the app closes during a long operation, Syncrosa shows that unfinished operation here after launch. It does not roll changes back automatically, but it helps you see which tool was running and where to find backup or output files.")
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(minWidth: 500, minHeight: 260)
+        }
+        .padding()
     }
 
     @ViewBuilder

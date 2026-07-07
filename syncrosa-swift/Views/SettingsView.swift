@@ -431,7 +431,7 @@ struct SettingsView: View {
             }
 
             ScrollView {
-                Text(latestReleaseNotes)
+                Text(releaseNotesAttributed)
                     .font(.system(size: 13))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -441,6 +441,37 @@ struct SettingsView: View {
         }
         .padding(24)
         .frame(width: 680, height: 460)
+    }
+
+    var releaseNotesAttributed: AttributedString {
+        let markdown = normalizedReleaseNotesMarkdown(latestReleaseNotes)
+        if let attributed = try? AttributedString(markdown: markdown) {
+            return attributed
+        }
+        return AttributedString(stripMarkdownFallback(markdown))
+    }
+
+    func normalizedReleaseNotesMarkdown(_ raw: String) -> String {
+        var output: [String] = []
+        var insideFence = false
+        for line in raw.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("```") {
+                insideFence.toggle()
+                continue
+            }
+            output.append(insideFence ? "    \(line)" : line)
+        }
+        return output.joined(separator: "\n")
+    }
+
+    func stripMarkdownFallback(_ raw: String) -> String {
+        raw
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "### ", with: "")
+            .replacingOccurrences(of: "## ", with: "")
+            .replacingOccurrences(of: "# ", with: "")
     }
 
     func parseUpdateResponse(data: Data?, error: Error?) -> (message: String, url: URL?, available: Bool, isError: Bool, releaseTitle: String, releaseNotes: String) {

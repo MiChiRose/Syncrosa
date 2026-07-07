@@ -138,7 +138,7 @@ struct OfflinePlaylistGeneratorView: View {
                                 Text(lang.selectedLanguage == "ru" ? "Требовать наличие обложки" : "Require cover art")
                                     .font(.subheadline)
                             }
-                            .toggleStyle(.checkbox)
+                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                             
                             Text(lang.selectedLanguage == "ru" ? "(необязательно)" : "(optional)")
                                 .font(.caption2)
@@ -153,7 +153,7 @@ struct OfflinePlaylistGeneratorView: View {
                                     Text(lang.selectedLanguage == "ru" ? "Фильтровать по рейтингу" : "Filter by rating")
                                         .font(.subheadline)
                                 }
-                                .toggleStyle(.checkbox)
+                                .toggleStyle(SyncrosaCheckboxToggleStyle())
                                 
                                 Text(lang.selectedLanguage == "ru" ? "(необязательно)" : "(optional)")
                                     .font(.caption2)
@@ -218,7 +218,7 @@ struct OfflinePlaylistGeneratorView: View {
                                 )) {
                                     Text(decade)
                                 }
-                                .toggleStyle(.checkbox)
+                                .toggleStyle(SyncrosaCheckboxToggleStyle())
                             }
                         }
                         

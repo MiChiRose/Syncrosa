@@ -18,6 +18,9 @@ struct USBExportView: View {
     @State private var totalTracksToExport: Int = 0
     @State private var bytesCopied: Int64 = 0
     @State private var totalBytesToExport: Int64 = 0
+    @State private var createM3U: Bool = false
+    @State private var createM3U8: Bool = true
+    @State private var useIPodSafeNames: Bool = false
     
     @State private var activeNotification: NotificationMessage? = nil
     @State private var showHelp: Bool = false
@@ -171,6 +174,34 @@ struct USBExportView: View {
                             }
                             .padding(.top, 10)
                         } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                SyncrosaSectionLabel(
+                                    text: lang.selectedLanguage == "ru" ? "ОПЦИИ ПЛЕЙЛИСТА" : "PLAYLIST FILE OPTIONS",
+                                    systemImage: "list.bullet.rectangle"
+                                )
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170))], alignment: .leading, spacing: 10) {
+                                    Toggle(".m3u", isOn: $createM3U)
+                                        .toggleStyle(SyncrosaCheckboxToggleStyle())
+                                    Toggle(".m3u8", isOn: $createM3U8)
+                                        .toggleStyle(SyncrosaCheckboxToggleStyle())
+                                    HStack(spacing: 6) {
+                                        Toggle(lang.selectedLanguage == "ru" ? "iPod-safe names" : "iPod-safe names", isOn: $useIPodSafeNames)
+                                            .toggleStyle(SyncrosaCheckboxToggleStyle())
+                                        Button(action: {
+                                            activeNotification = NotificationMessage(
+                                                text: lang.selectedLanguage == "ru"
+                                                    ? "iPod-safe names сокращает и чистит имена файлов для старых iPod, магнитол и FAT/exFAT накопителей."
+                                                    : "iPod-safe names shortens and cleans filenames for older iPods, car stereos, and FAT/exFAT drives.",
+                                                isError: false
+                                            )
+                                        }) {
+                                            Image(systemName: "questionmark.circle")
+                                        }
+                                        .buttonStyle(SyncrosaGlassIconButtonStyle(size: 22))
+                                    }
+                                }
+                            }
+
                             Button(action: startExportProcess) {
                                 Text(lang.t("export_button"))
                                     .frame(maxWidth: .infinity)
@@ -257,14 +288,18 @@ struct USBExportView: View {
                          "1. Вставьте USB-накопитель и выберите его в списке.\n" +
                          "2. Выберите плейлист, который хотите скопировать.\n" +
                          "3. Нажмите «Отправить на USB Flash». На накопителе будет создана папка с именем плейлиста, и треки будут скопированы внутрь неё.\n" +
-                         "4. Если на накопителе недостаточно места, программа предложит скопировать случайную выборку песен, которая поместится на флешку." :
+                         "4. Включите .m3u/.m3u8, если устройству нужен отдельный файл плейлиста.\n" +
+                         "5. iPod-safe names сокращает и чистит имена файлов для старых iPod, магнитол и FAT/exFAT накопителей.\n" +
+                         "6. Если на накопителе недостаточно места, программа предложит скопировать случайную выборку песен, которая поместится на флешку." :
                          
                          "This tool allows you to export selected playlists from Apple Music to your external USB storage.\n\n" +
                          "How to use:\n" +
                          "1. Connect your USB drive and select it from the list.\n" +
                          "2. Choose the playlist you want to copy.\n" +
                          "3. Click 'Export to USB Flash'. A folder named after the playlist will be created on the drive, and tracks will be copied into it.\n" +
-                         "4. If space is insufficient, you will be prompted to either cancel or copy a random subset that fits."
+                         "4. Enable .m3u/.m3u8 when the target device expects a playlist file.\n" +
+                         "5. iPod-safe names shortens and cleans filenames for older iPods, car stereos, and FAT/exFAT drives.\n" +
+                         "6. If space is insufficient, you will be prompted to either cancel or copy a random subset that fits."
                     )
                     .font(.body)
                 }
@@ -373,7 +408,10 @@ struct USBExportView: View {
             tracks: tracksToExport,
             destination: drive.volumeURL,
             playlistName: selectedPlaylistName,
-            mode: mode
+            mode: mode,
+            createM3U: createM3U,
+            createM3U8: createM3U8,
+            useIPodSafeNames: useIPodSafeNames
         ) { progressInfo in
             bytesCopied = progressInfo.bytesCopied
             totalBytesToExport = progressInfo.totalBytes

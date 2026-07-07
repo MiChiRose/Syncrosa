@@ -45,6 +45,7 @@ let package = Package(
                 "Services/SyncrosaStorage.swift",
                 "Services/OperationHistoryService.swift",
                 "Services/OperationRecoveryService.swift",
+                "Services/FolderPlaylistImportService.swift",
                 "Services/LocalizationService.swift",
                 "Services/KeychainHelper.swift",
                 "Services/USBService.swift",

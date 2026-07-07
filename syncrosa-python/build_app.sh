@@ -124,6 +124,10 @@ echo "Refreshing Finder icon cache..."
 # Force Mac OS to reload the app bundle metadata
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH" || true
 
+echo "Signing app bundle..."
+codesign --force --sign - "$APP_PATH"
+codesign --verify --strict "$APP_PATH"
+
 # 9. УПАКОВКА В ZIP
 echo "Creating distribution ZIP..."
 mkdir -p "$DIST_DIR"

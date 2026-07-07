@@ -48,6 +48,18 @@ def _to_text(value):
         return value
     return value.decode("utf-8", "replace")
 
+def _as_literal(value):
+    text = _to_text(value)
+    text = text.replace(u"\\", u"\\\\")
+    text = text.replace(u"\"", u"\\\"")
+    text = text.replace(u"\r", u" ")
+    text = text.replace(u"\n", u" ")
+    text = text.replace(u"\t", u" ")
+    return u'"' + text + u'"'
+
+def _as_list_literal(values):
+    return u"{" + u", ".join([_as_literal(value) for value in values]) + u"}"
+
 def run_as(s, timeout_sec=120):
     script = _to_text(s)
     script_arg = script.encode("utf-8") if sys.version_info[0] < 3 else script
@@ -154,14 +166,14 @@ def create_itunes_playlist(name, ids_list):
     clean_ids = []
     for tid in ids_list or []:
         if tid:
-            clean_ids.append(_to_text(tid).replace('"', '\\"'))
+            clean_ids.append(_to_text(tid))
 
     if not clean_ids:
         return "0"
 
     script = u'''
     tell application "iTunes"
-        set plName to "{0}"
+        set plName to {0}
         set addedCount to 0
         set idList to {1}
         set tracksToAdd to {{}}
@@ -190,8 +202,46 @@ def create_itunes_playlist(name, ids_list):
         end repeat
         return addedCount as string
     end tell
-    '''.format(name.replace('"', '\\"'), '{"' + '", "'.join(clean_ids) + '"}')
+    '''.format(_as_literal(name), _as_list_literal(clean_ids))
     return run_as(script, timeout_sec=300)
+
+def import_files_as_playlist(name, file_paths, clear_playlist=True):
+    clean_paths = []
+    for path in file_paths or []:
+        if path:
+            clean_paths.append(_to_text(path))
+    if not clean_paths:
+        return 0
+
+    clear_line = "delete every track of pl" if clear_playlist else ""
+    script = u'''
+    tell application "iTunes"
+        set plName to {0}
+        set fileList to {1}
+        set addedCount to 0
+        if not (exists user playlist plName) then
+            make new user playlist with properties {{name:plName}}
+        end if
+        set pl to user playlist plName
+        {2}
+        repeat with filePath in fileList
+            try
+                set importedTrack to add (POSIX file ((contents of filePath) as text))
+                try
+                    duplicate importedTrack to pl
+                    set addedCount to addedCount + 1
+                on error
+                    try
+                        duplicate item 1 of importedTrack to pl
+                        set addedCount to addedCount + 1
+                    end try
+                end try
+            end try
+        end repeat
+        return addedCount as string
+    end tell
+    '''.format(_as_literal(name), _as_list_literal(clean_paths), clear_line)
+    return int(run_as(script, timeout_sec=300) or "0")
 
 def get_library_for_duplicates(progress_cb, check_run):
     total, err = get_library_track_count()

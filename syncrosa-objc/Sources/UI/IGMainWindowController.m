@@ -161,15 +161,19 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [self.view addSubview:title];
 
     y -= 45;
-    CGFloat toolSelectorWidth = 360.0;
+    CGFloat toolSelectorWidth = 500.0;
     self.toolSelector = [[[NSSegmentedControl alloc] initWithFrame:NSMakeRect((580.0 - toolSelectorWidth) / 2.0, y, toolSelectorWidth, 26)] autorelease];
-    self.toolSelector.segmentCount = 3;
+    self.toolSelector.segmentCount = 5;
     [self.toolSelector setLabel:@"Cover Restore" forSegment:0];
     [self.toolSelector setLabel:@"Cover Audit" forSegment:1];
     [self.toolSelector setLabel:@"Library Audit" forSegment:2];
-    [self.toolSelector setWidth:(toolSelectorWidth / 3.0) forSegment:0];
-    [self.toolSelector setWidth:(toolSelectorWidth / 3.0) forSegment:1];
-    [self.toolSelector setWidth:(toolSelectorWidth / 3.0) forSegment:2];
+    [self.toolSelector setLabel:@"iPod Report" forSegment:3];
+    [self.toolSelector setLabel:@"Broken" forSegment:4];
+    [self.toolSelector setWidth:110 forSegment:0];
+    [self.toolSelector setWidth:105 forSegment:1];
+    [self.toolSelector setWidth:105 forSegment:2];
+    [self.toolSelector setWidth:95 forSegment:3];
+    [self.toolSelector setWidth:85 forSegment:4];
     [self.toolSelector setSelectedSegment:1];
     [self.view addSubview:self.toolSelector];
 
@@ -222,7 +226,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [self clearLog];
 
     NSInteger selected = self.toolSelector.selectedSegment;
-    NSString *selectedTitle = selected == 0 ? @"Cover Restore" : (selected == 1 ? @"Cover Audit" : @"Library Audit");
+    NSArray *titles = @[@"Cover Restore", @"Cover Audit", @"Library Audit", @"iPod Report", @"Broken Tracks"];
+    NSString *selectedTitle = (selected >= 0 && selected < (NSInteger)titles.count) ? [titles objectAtIndex:selected] : @"Library Audit";
     __block NSString *historyMessage = @"Library Doctor finished.";
     __block NSString *historyStatus = @"OK";
     [self log:@"Library Doctor started."];
@@ -270,6 +275,91 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                 historyMessage = [NSString stringWithFormat:@"Cover audit complete. Tracks: %ld. Tracks with covers: %ld.", (long)total, (long)coverCount];
                 [self log:historyMessage];
             }
+        } else if (selected == 3 || selected == 4) {
+            dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+            __block NSArray *refs = nil;
+            [[IGiTunesService sharedService] fetchLibraryFileTrackReferencesWithCompletion:^(NSArray *tracks) {
+                refs = [tracks copy];
+                dispatch_semaphore_signal(semaphore);
+            }];
+            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+#if !__has_feature(objc_arc)
+            dispatch_release(semaphore);
+#endif
+            if (selected == 3) {
+                NSArray *supported = @[@"mp3", @"m4a", @"mp4", @"aac", @"wav", @"aiff", @"aif"];
+                NSInteger unsupported = 0;
+                NSInteger missing = 0;
+                NSInteger longNames = 0;
+                NSInteger hugeFiles = 0;
+                unsigned long long totalBytes = 0;
+                NSFileManager *fm = [NSFileManager defaultManager];
+                for (NSDictionary *track in refs) {
+                    NSString *path = [track objectForKey:@"path"] ?: @"";
+                    NSString *ext = [[path pathExtension] lowercaseString];
+                    unsigned long long size = [[track objectForKey:@"size"] unsignedLongLongValue];
+                    totalBytes += size;
+                    if (path.length == 0 || ![fm fileExistsAtPath:path] || ![fm isReadableFileAtPath:path]) {
+                        missing++;
+                    }
+                    if (ext.length > 0 && ![supported containsObject:ext]) {
+                        unsupported++;
+                        [self log:[NSString stringWithFormat:@"format warning: %@ - %@ [%@]",
+                                   [track objectForKey:@"artist"] ?: @"",
+                                   [track objectForKey:@"name"] ?: @"",
+                                   [ext uppercaseString]]];
+                    }
+                    if ([[path lastPathComponent] length] > 80) {
+                        longNames++;
+                    }
+                    if (size > 100ULL * 1024ULL * 1024ULL) {
+                        hugeFiles++;
+                    }
+                }
+                NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:(long long)totalBytes countStyle:NSByteCountFormatterCountStyleFile];
+                [self log:[NSString stringWithFormat:@"file tracks scanned: %ld", (long)refs.count]];
+                [self log:[NSString stringWithFormat:@"total local size: %@", sizeStr]];
+                [self log:[NSString stringWithFormat:@"unsupported format warnings: %ld", (long)unsupported]];
+                [self log:[NSString stringWithFormat:@"missing/unreadable files: %ld", (long)missing]];
+                [self log:[NSString stringWithFormat:@"long filenames (>80 chars): %ld", (long)longNames]];
+                [self log:[NSString stringWithFormat:@"large files (>100 MB): %ld", (long)hugeFiles]];
+                NSInteger warnings = unsupported + missing + longNames + hugeFiles;
+                historyStatus = warnings > 0 ? @"WARN" : @"OK";
+                historyMessage = [NSString stringWithFormat:@"iPod report complete. Scanned: %ld. Warnings: %ld.", (long)refs.count, (long)warnings];
+            } else {
+                NSMutableArray *broken = [NSMutableArray array];
+                NSFileManager *fm = [NSFileManager defaultManager];
+                for (NSDictionary *track in refs) {
+                    NSString *path = [track objectForKey:@"path"] ?: @"";
+                    if (path.length == 0 || ![fm fileExistsAtPath:path] || ![fm isReadableFileAtPath:path]) {
+                        [broken addObject:track];
+                    }
+                }
+                [self log:[NSString stringWithFormat:@"file tracks scanned: %ld", (long)refs.count]];
+                if (broken.count == 0) {
+                    [self log:@"no missing file references found"];
+                    historyStatus = @"OK";
+                    historyMessage = @"Broken tracks scan complete. No missing files found.";
+                } else {
+                    [self log:[NSString stringWithFormat:@"missing/unreadable file references: %ld", (long)broken.count]];
+                    NSInteger shown = 0;
+                    for (NSDictionary *track in broken) {
+                        if (shown >= 80) break;
+                        [self log:[NSString stringWithFormat:@"missing: %@ - %@",
+                                   [track objectForKey:@"artist"] ?: @"",
+                                   [track objectForKey:@"name"] ?: @""]];
+                        shown++;
+                    }
+                    if (broken.count > 80) {
+                        [self log:[NSString stringWithFormat:@"...and %ld more", (long)(broken.count - 80)]];
+                    }
+                    historyStatus = @"WARN";
+                    historyMessage = [NSString stringWithFormat:@"Broken tracks scan complete. Missing files: %ld.", (long)broken.count];
+                }
+            }
+#if !__has_feature(objc_arc)
+            [refs release];
+#endif
         } else {
             NSString *errorMessage = nil;
             NSInteger count = [[IGiTunesService sharedService] readLibraryTrackCountSyncWithErrorMessage:&errorMessage];

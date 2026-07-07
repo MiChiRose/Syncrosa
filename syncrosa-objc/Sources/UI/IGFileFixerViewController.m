@@ -4,6 +4,7 @@
 #import "IGiTunesService.h"
 #import "IGLyricsService.h"
 #import <objc/message.h>
+#import <math.h>
 
 static NSString *IGFileFixerJSONString(id value) {
     return [value isKindOfClass:[NSString class]] ? value : @"";
@@ -149,11 +150,32 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
     }
 }
 
+static BOOL IGFileFixerIsImportableMusicFile(NSURL *url) {
+    NSString *ext = [[url pathExtension] lowercaseString];
+    NSArray *supported = @[@"mp3", @"m4a", @"mp4", @"aac", @"wav", @"aiff", @"aif", @"alac"];
+    return [supported containsObject:ext];
+}
+
+static NSString *IGFileFixerRelativePath(NSString *basePath, NSString *filePath) {
+    if (basePath.length > 0 && [filePath hasPrefix:[basePath stringByAppendingString:@"/"]]) {
+        return [filePath substringFromIndex:basePath.length + 1];
+    }
+    return [filePath lastPathComponent];
+}
+
+static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long size) {
+    return [NSString stringWithFormat:@"%@#%llu", relativePath ?: @"", size];
+}
+
 @interface IGFileFixerViewController ()
 @property (nonatomic, strong) NSTextField *folderPathField;
 @property (nonatomic, strong) NSButton *selectFolderButton;
 @property (nonatomic, strong) NSButton *downloadCoversButton;
 @property (nonatomic, strong) NSButton *cleanFilenamesButton;
+@property (nonatomic, strong) NSTextField *playlistNameField;
+@property (nonatomic, strong) NSButton *exportManifestButton;
+@property (nonatomic, strong) NSButton *importSelectionButton;
+@property (nonatomic, strong) NSButton *importFolderPlaylistButton;
 @property (nonatomic, strong) NSButton *fixButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
@@ -165,6 +187,7 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
 @property (nonatomic, assign) NSInteger folderFixFailureCount;
 @property (nonatomic, strong) NSString *folderFixActiveID;
 @property (nonatomic, strong) NSString *filenameCleanerActiveID;
+@property (nonatomic, strong) NSString *folderPlaylistActiveID;
 
 @property (nonatomic, strong) NSButton *selectAllCheckbox;
 @property (nonatomic, strong) NSButton *albumCheckbox;
@@ -177,6 +200,13 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
 @end
 
 @implementation IGFileFixerViewController
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
 
 - (void)loadView {
     self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)];
@@ -295,7 +325,7 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
     [self.view addSubview:self.downloadCoversButton];
 
     y -= 24;
-    self.cleanFilenamesButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y - 4, 200, 30)];
+    self.cleanFilenamesButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y - 4, 130, 30)];
     self.cleanFilenamesButton.title = @"Clean Filenames";
     self.cleanFilenamesButton.bezelStyle = NSRoundedBezelStyle;
     self.cleanFilenamesButton.enabled = NO;
@@ -303,8 +333,42 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
     self.cleanFilenamesButton.action = @selector(cleanFilenamesClicked:);
     [self.view addSubview:self.cleanFilenamesButton];
 
+    self.playlistNameField = [[NSTextField alloc] initWithFrame:NSMakeRect(180, y, 170, 24)];
+    [[self.playlistNameField cell] setPlaceholderString:@"Playlist name"];
+    self.playlistNameField.target = self;
+    self.playlistNameField.action = @selector(playlistNameChanged:);
+    [self.view addSubview:self.playlistNameField];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(playlistNameChanged:)
+                                                 name:NSControlTextDidChangeNotification
+                                               object:self.playlistNameField];
+
+    self.importFolderPlaylistButton = [[NSButton alloc] initWithFrame:NSMakeRect(360, y - 4, 180, 30)];
+    self.importFolderPlaylistButton.title = @"Create Playlist";
+    self.importFolderPlaylistButton.bezelStyle = NSRoundedBezelStyle;
+    self.importFolderPlaylistButton.enabled = NO;
+    self.importFolderPlaylistButton.target = self;
+    self.importFolderPlaylistButton.action = @selector(importFolderPlaylistClicked:);
+    [self.view addSubview:self.importFolderPlaylistButton];
+
     y -= 42;
-    self.fixButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
+    self.exportManifestButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y + 5, 150, 30)];
+    self.exportManifestButton.title = @"Export AI JSON";
+    self.exportManifestButton.bezelStyle = NSRoundedBezelStyle;
+    self.exportManifestButton.enabled = NO;
+    self.exportManifestButton.target = self;
+    self.exportManifestButton.action = @selector(exportManifestClicked:);
+    [self.view addSubview:self.exportManifestButton];
+
+    self.importSelectionButton = [[NSButton alloc] initWithFrame:NSMakeRect(200, y + 5, 150, 30)];
+    self.importSelectionButton.title = @"Import AI JSON";
+    self.importSelectionButton.bezelStyle = NSRoundedBezelStyle;
+    self.importSelectionButton.enabled = NO;
+    self.importSelectionButton.target = self;
+    self.importSelectionButton.action = @selector(importSelectionClicked:);
+    [self.view addSubview:self.importSelectionButton];
+
+    self.fixButton = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 180, 40)];
     self.fixButton.title = [lang t:@"fix_all"];
     self.fixButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.fixButton.enabled = NO;
@@ -375,6 +439,16 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
 
 - (void)updateFixButtonState {
     self.fixButton.enabled = (!self.isProcessing && self.foundFiles.count > 0 && [self hasSelectedTags]);
+    BOOL hasFiles = (!self.isProcessing && self.foundFiles.count > 0);
+    BOOL hasPlaylistName = ([[self.playlistNameField.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length] > 0);
+    self.cleanFilenamesButton.enabled = hasFiles;
+    self.exportManifestButton.enabled = hasFiles;
+    self.importSelectionButton.enabled = hasFiles;
+    self.importFolderPlaylistButton.enabled = (hasFiles && hasPlaylistName);
+}
+
+- (void)playlistNameChanged:(id)sender {
+    [self updateFixButtonState];
 }
 
 - (void)tagCheckboxClicked:(id)sender {
@@ -393,7 +467,9 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
                           "This utility scans a local directory for music files and performs the following actions:\n\n"
                           "1. Standard Rename: Renames music files on your disk to the standard format 'Artist - Title' using metadata parsed from filenames or the iTunes API.\n"
                           "2. iTunes Tag Sync: If the file is part of your iTunes/Music library, it runs an AppleScript to sync only the checked tags (Album, Title, Artist, Genre, Track Number, and Lyrics).\n"
-                          "3. Cover Art: Downloads the album cover as a separate JPEG file in the same directory if 'Download Album Covers' is checked.\n\n"
+                          "3. Folder Playlist Import: Enter a playlist name and use Create Playlist to import supported local files into iTunes and create a playlist.\n"
+                          "4. External AI JSON: Export AI JSON, ask an external AI/friend to select tracks, then import the returned JSON back into Syncrosa.\n"
+                          "5. Cover Art: Downloads the album cover as a separate JPEG file in the same directory if 'Download Album Covers' is checked.\n\n"
                           "Every individual track write operation is wrapped in a safe block. If a write fails or the track is not present in iTunes/Music, it will skip without interrupting the overall process.";
 
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
@@ -509,7 +585,6 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
             self.statusLabel.stringValue = [lang t:@"files_to_process" args:@[@([result count])]];
             [self log:[NSString stringWithFormat:@"Scanned folder recursively: Found %ld music files.", (long)result.count]];
             [self updateFixButtonState];
-            self.cleanFilenamesButton.enabled = (result.count > 0);
 #if !__has_feature(objc_arc)
             [result release];
 #endif
@@ -518,6 +593,251 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
         [pool drain];
 #endif
     });
+}
+
+- (NSDictionary *)manifestTrackForURL:(NSURL *)fileURL {
+    NSString *basePath = self.folderPathField.stringValue ?: @"";
+    NSString *relative = IGFileFixerRelativePath(basePath, fileURL.path ?: @"");
+    unsigned long long size = 0;
+    NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:fileURL.path error:nil];
+    if (attrs) {
+        size = [[attrs objectForKey:NSFileSize] unsignedLongLongValue];
+    }
+    NSString *baseName = [[fileURL lastPathComponent] stringByDeletingPathExtension] ?: @"";
+    NSString *cleanName = [[baseName stringByReplacingOccurrencesOfString:@"_" withString:@" "] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString *artist = @"";
+    NSString *title = cleanName;
+    NSRange sep = [cleanName rangeOfString:@" - "];
+    if (sep.location != NSNotFound) {
+        artist = [[cleanName substringToIndex:sep.location] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        title = [[cleanName substringFromIndex:sep.location + sep.length] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    }
+
+    return @{
+        @"id": IGFileFixerTrackID(relative, size),
+        @"relativePath": relative ?: @"",
+        @"fileName": [fileURL lastPathComponent] ?: @"",
+        @"artistHint": artist ?: @"",
+        @"titleHint": title ?: @"",
+        @"fileExtension": [[fileURL pathExtension] lowercaseString] ?: @"",
+        @"fileSize": @(size)
+    };
+}
+
+- (void)exportManifestClicked:(id)sender {
+    if (self.foundFiles.count == 0) return;
+
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    [panel setAllowedFileTypes:@[@"json"]];
+    [panel setNameFieldStringValue:@"Syncrosa-AI-Manifest.json"];
+    if ([panel runModal] != NSOKButton) return;
+
+    NSMutableArray *tracks = [NSMutableArray arrayWithCapacity:self.foundFiles.count];
+    for (NSURL *url in self.foundFiles) {
+        [tracks addObject:[self manifestTrackForURL:url]];
+    }
+    NSDictionary *manifest = @{
+        @"schema": @"syncrosa-folder-playlist-manifest-v1",
+        @"app": @"Syncrosa",
+        @"folderName": [self.folderPathField.stringValue lastPathComponent] ?: @"",
+        @"instructions": @"Ask an AI assistant to choose tracks and return JSON like {\"playlistName\":\"Name\",\"trackIDs\":[\"id-from-this-file\"]}.",
+        @"tracks": tracks
+    };
+    NSData *data = [NSJSONSerialization dataWithJSONObject:manifest options:NSJSONWritingPrettyPrinted error:nil];
+    if (data && [data writeToURL:[panel URL] atomically:YES]) {
+        [self clearLogView];
+        [self log:[NSString stringWithFormat:@"Exported AI manifest: %@", [[panel URL] path]]];
+        [IGNotificationView showInView:self.view message:@"AI JSON manifest saved." isError:NO];
+    } else {
+        [IGNotificationView showInView:self.view message:@"Could not save AI JSON manifest." isError:YES];
+    }
+}
+
+- (NSArray *)selectedURLsFromSelection:(NSDictionary *)selection playlistName:(NSString **)playlistNameOut {
+    NSString *jsonName = [selection objectForKey:@"playlistName"];
+    if ([jsonName isKindOfClass:[NSString class]] && jsonName.length > 0 && playlistNameOut) {
+        *playlistNameOut = jsonName;
+    }
+
+    NSMutableSet *keys = [NSMutableSet set];
+    for (NSString *field in @[@"trackIDs", @"selectedTrackIDs", @"relativePaths"]) {
+        id values = [selection objectForKey:field];
+        if ([values isKindOfClass:[NSArray class]]) {
+            for (id value in values) {
+                if ([value isKindOfClass:[NSString class]]) {
+                    [keys addObject:value];
+                }
+            }
+        }
+    }
+    id trackObjects = [selection objectForKey:@"tracks"];
+    if ([trackObjects isKindOfClass:[NSArray class]]) {
+        for (id rawTrack in trackObjects) {
+            if (![rawTrack isKindOfClass:[NSDictionary class]]) continue;
+            for (NSString *field in @[@"id", @"relativePath", @"fileName"]) {
+                id value = [rawTrack objectForKey:field];
+                if ([value isKindOfClass:[NSString class]]) {
+                    [keys addObject:value];
+                }
+            }
+        }
+    }
+    if (keys.count == 0) return @[];
+
+    NSMutableArray *selected = [NSMutableArray array];
+    for (NSURL *url in self.foundFiles) {
+        NSDictionary *track = [self manifestTrackForURL:url];
+        if ([keys containsObject:[track objectForKey:@"id"]] ||
+            [keys containsObject:[track objectForKey:@"relativePath"]] ||
+            [keys containsObject:[track objectForKey:@"fileName"]]) {
+            [selected addObject:url];
+        }
+    }
+    return selected;
+}
+
+- (void)importSelectionClicked:(id)sender {
+    if (self.foundFiles.count == 0) return;
+
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    [panel setCanChooseFiles:YES];
+    [panel setCanChooseDirectories:NO];
+    [panel setAllowsMultipleSelection:NO];
+    [panel setAllowedFileTypes:@[@"json"]];
+    if ([panel runModal] != NSOKButton) return;
+
+    NSData *data = [NSData dataWithContentsOfURL:[[panel URLs] firstObject]];
+    NSDictionary *json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    if (![json isKindOfClass:[NSDictionary class]]) {
+        [IGNotificationView showInView:self.view message:@"Could not read selection JSON." isError:YES];
+        return;
+    }
+
+    NSString *jsonPlaylistName = nil;
+    NSArray *selectedURLs = [self selectedURLsFromSelection:json playlistName:&jsonPlaylistName];
+    if (jsonPlaylistName.length > 0 && self.playlistNameField.stringValue.length == 0) {
+        self.playlistNameField.stringValue = jsonPlaylistName;
+    }
+    if (selectedURLs.count == 0) {
+        [IGNotificationView showInView:self.view message:@"JSON did not match any files in the selected folder." isError:YES];
+        return;
+    }
+    [self confirmAndImportURLs:selectedURLs title:@"Import External AI Playlist"];
+}
+
+- (void)importFolderPlaylistClicked:(id)sender {
+    if (self.foundFiles.count == 0) return;
+    [self confirmAndImportURLs:self.foundFiles title:@"Import Folder Playlist"];
+}
+
+- (void)confirmAndImportURLs:(NSArray *)urls title:(NSString *)title {
+    NSString *playlistName = [self.playlistNameField.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (playlistName.length == 0) {
+        [IGNotificationView showInView:self.view message:@"Enter a playlist name first." isError:YES];
+        return;
+    }
+
+    NSMutableArray *paths = [NSMutableArray array];
+    NSInteger skipped = 0;
+    unsigned long long totalBytes = 0;
+    for (NSURL *url in urls) {
+        if (!IGFileFixerIsImportableMusicFile(url)) {
+            skipped++;
+            continue;
+        }
+        NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:url.path error:nil];
+        totalBytes += [[attrs objectForKey:NSFileSize] unsignedLongLongValue];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:url.path]) {
+            [paths addObject:url.path];
+        } else {
+            skipped++;
+        }
+    }
+
+    if (paths.count == 0) {
+        [IGNotificationView showInView:self.view message:@"No supported files to import into iTunes." isError:YES];
+        return;
+    }
+
+    BOOL hddSafe = [[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"];
+    double mb = (double)totalBytes / 1048576.0;
+    NSInteger estimate = MAX(3, (NSInteger)ceil(paths.count * (hddSafe ? 0.9 : 0.35) + mb / (hddSafe ? 18.0 : 45.0)));
+
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:@"Create playlist from folder?"];
+    [alert setInformativeText:[NSString stringWithFormat:@"Playlist: %@\nFiles: %ld\nSkipped before import: %ld\nEstimated time: ~%ld sec\n\nIf a playlist with this name already exists, Syncrosa will clear it first and replace it with these tracks.", playlistName, (long)paths.count, (long)skipped, (long)estimate]];
+    [alert addButtonWithTitle:@"Create / Replace"];
+    [alert addButtonWithTitle:@"Cancel"];
+    if ([alert runModal] != NSAlertFirstButtonReturn) return;
+
+    [self runFolderPlaylistImportWithPaths:paths playlistName:playlistName title:title skippedBeforeImport:skipped];
+}
+
+- (void)runFolderPlaylistImportWithPaths:(NSArray *)paths playlistName:(NSString *)playlistName title:(NSString *)title skippedBeforeImport:(NSInteger)skippedBeforeImport {
+    self.isProcessing = YES;
+    self.fixButton.enabled = NO;
+    self.cleanFilenamesButton.enabled = NO;
+    self.exportManifestButton.enabled = NO;
+    self.importSelectionButton.enabled = NO;
+    self.importFolderPlaylistButton.enabled = NO;
+    self.selectFolderButton.enabled = NO;
+    self.downloadCoversButton.enabled = NO;
+    [self clearLogView];
+    [self log:[NSString stringWithFormat:@"Starting playlist import: %@", playlistName]];
+    self.statusLabel.stringValue = @"Importing folder into iTunes...";
+    self.progressIndicator.maxValue = paths.count;
+    self.progressIndicator.doubleValue = 0;
+    self.folderPlaylistActiveID = IGFileFixerBeginActiveOperation(@"Folder Playlist Importer",
+                                                                 title,
+                                                                 @"Folder playlist import was interrupted.",
+                                                                 paths.count,
+                                                                 self.folderPathField.stringValue ?: @"");
+    [self importPathBatch:paths playlistName:playlistName batchStart:0 importedSoFar:0 skippedBeforeImport:skippedBeforeImport errors:[NSMutableArray array] title:title];
+}
+
+- (void)importPathBatch:(NSArray *)paths playlistName:(NSString *)playlistName batchStart:(NSInteger)batchStart importedSoFar:(NSInteger)importedSoFar skippedBeforeImport:(NSInteger)skippedBeforeImport errors:(NSMutableArray *)errors title:(NSString *)title {
+    if (batchStart >= paths.count) {
+        IGFileFixerFinishActiveOperation(self.folderPlaylistActiveID);
+        self.folderPlaylistActiveID = nil;
+        self.isProcessing = NO;
+        self.selectFolderButton.enabled = YES;
+        self.downloadCoversButton.enabled = YES;
+        [self updateFixButtonState];
+        NSString *message = [NSString stringWithFormat:@"Playlist '%@' ready. Added: %ld. Skipped: %ld. Errors: %ld.",
+                             playlistName,
+                             (long)importedSoFar,
+                             (long)skippedBeforeImport,
+                             (long)errors.count];
+        self.statusLabel.stringValue = message;
+        [self log:message];
+        IGFileFixerRecordHistory(@"Folder Playlist Importer", title, errors.count > 0 ? @"WARN" : @"OK", message, importedSoFar);
+        [IGNotificationView showInView:self.view message:message isError:(importedSoFar == 0)];
+        return;
+    }
+
+    NSInteger batchSize = [[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"] ? 10 : 20;
+    NSInteger end = MIN(batchStart + batchSize, paths.count);
+    NSArray *batch = [paths subarrayWithRange:NSMakeRange(batchStart, end - batchStart)];
+    self.progressIndicator.doubleValue = batchStart;
+    [self log:[NSString stringWithFormat:@"Importing %ld-%ld of %ld...", (long)(batchStart + 1), (long)end, (long)paths.count]];
+
+    [[IGiTunesService sharedService] importFilePaths:batch asPlaylistName:playlistName clearPlaylist:(batchStart == 0) completion:^(NSInteger addedCount, NSArray *batchErrors) {
+        [errors addObjectsFromArray:batchErrors ?: @[]];
+        self.progressIndicator.doubleValue = end;
+        if (batchErrors.count > 0) {
+            for (NSString *error in [batchErrors subarrayWithRange:NSMakeRange(0, MIN((NSUInteger)3, batchErrors.count))]) {
+                [self log:[NSString stringWithFormat:@"ERROR: %@", error]];
+            }
+        }
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"]) {
+            dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.08 * NSEC_PER_SEC));
+            dispatch_after(delay, dispatch_get_main_queue(), ^{
+                [self importPathBatch:paths playlistName:playlistName batchStart:end importedSoFar:(importedSoFar + addedCount) skippedBeforeImport:skippedBeforeImport errors:errors title:title];
+            });
+        } else {
+            [self importPathBatch:paths playlistName:playlistName batchStart:end importedSoFar:(importedSoFar + addedCount) skippedBeforeImport:skippedBeforeImport errors:errors title:title];
+        }
+    }];
 }
 
 - (void)fixClicked:(id)sender {
@@ -531,6 +851,9 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
     self.selectFolderButton.enabled = NO;
     self.downloadCoversButton.enabled = NO;
     self.cleanFilenamesButton.enabled = NO;
+    self.exportManifestButton.enabled = NO;
+    self.importSelectionButton.enabled = NO;
+    self.importFolderPlaylistButton.enabled = NO;
 
     [self clearLogView];
     [self log:@"Starting folder fix process..."];
@@ -553,6 +876,9 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
     self.cleanFilenamesButton.enabled = NO;
     self.selectFolderButton.enabled = NO;
     self.downloadCoversButton.enabled = NO;
+    self.exportManifestButton.enabled = NO;
+    self.importSelectionButton.enabled = NO;
+    self.importFolderPlaylistButton.enabled = NO;
 
     [self clearLogView];
     [self log:@"Starting filename cleaner..."];
@@ -615,7 +941,6 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
             self.foundFiles = finalFiles;
             self.isProcessing = NO;
             [self updateFixButtonState];
-            self.cleanFilenamesButton.enabled = (self.foundFiles.count > 0);
             self.selectFolderButton.enabled = YES;
             self.downloadCoversButton.enabled = YES;
             self.statusLabel.stringValue = failed ? @"Filename Cleaner stopped after an error." : [NSString stringWithFormat:@"Filename Cleaner finished. Renamed: %ld.", (long)renamed];
@@ -640,7 +965,6 @@ static void IGFileFixerFinishActiveOperation(NSString *identifier) {
             [self updateFixButtonState];
             self.selectFolderButton.enabled = YES;
             self.downloadCoversButton.enabled = YES;
-            self.cleanFilenamesButton.enabled = (self.foundFiles.count > 0);
             NSString *historyStatus = self.folderFixFailureCount > 0 ? @"WARN" : @"OK";
             NSString *historyMessage = self.folderFixFailureCount > 0 ?
                 [NSString stringWithFormat:@"Process finished with %ld failed files and %ld successful files.", (long)self.folderFixFailureCount, (long)self.folderFixSuccessCount] :

@@ -7,6 +7,7 @@ except ImportError:
     import tkinter as tk
     from tkinter import ttk
 import threading
+import os
 
 from core.itunes_bridge import run_as, get_library_track_count
 from core.operation_history import record_operation
@@ -22,7 +23,7 @@ class LibraryDoctorTab(tk.Frame):
     def build_ui(self):
         tk.Label(self, text="Library Doctor", font=("system", 15, "bold"), bg="#ECECEC").pack(pady=(18, 8))
         self.tool_var = tk.StringVar(value="Cover Audit")
-        self.tool = ttk.Combobox(self, textvariable=self.tool_var, values=["Cover Restore", "Cover Audit", "Library Audit"], state="readonly", width=24)
+        self.tool = ttk.Combobox(self, textvariable=self.tool_var, values=["Cover Restore", "Cover Audit", "Library Audit", "iPod Report", "Broken Tracks"], state="readonly", width=24)
         self.tool.pack(pady=6)
         self.run_btn = ttk.Button(self, text="Run Doctor", command=self.run, width=20)
         self.run_btn.pack(pady=6)
@@ -83,6 +84,45 @@ return (trackCount as text) & tab & (coverCount as text)
                 affected = 1
                 self.after(0, lambda m=message: self.log(m))
             else:
+                if tool in ("iPod Report", "Broken Tracks"):
+                    refs = self.read_file_track_refs()
+                    if tool == "iPod Report":
+                        supported = set(["mp3", "m4a", "mp4", "aac", "wav", "aiff", "aif"])
+                        unsupported = 0
+                        missing = 0
+                        long_names = 0
+                        huge = 0
+                        total_size = 0
+                        for ref in refs:
+                            path = ref.get("path", "")
+                            ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""
+                            total_size += ref.get("size", 0)
+                            if self._is_broken_path(path):
+                                missing += 1
+                            if ext and ext not in supported:
+                                unsupported += 1
+                            if len(os.path.basename(path)) > 80:
+                                long_names += 1
+                            if ref.get("size", 0) > 100 * 1024 * 1024:
+                                huge += 1
+                        warnings = unsupported + missing + long_names + huge
+                        message = "iPod report complete. Scanned: {}. Warnings: {}.".format(len(refs), warnings)
+                        affected = warnings
+                        status = "WARN" if warnings else "OK"
+                        self.after(0, lambda: self.log("file tracks scanned: {}".format(len(refs))))
+                        self.after(0, lambda: self.log("unsupported format warnings: {}".format(unsupported)))
+                        self.after(0, lambda: self.log("missing/unreadable files: {}".format(missing)))
+                        self.after(0, lambda: self.log("long filenames (>80 chars): {}".format(long_names)))
+                        self.after(0, lambda: self.log("large files (>100 MB): {}".format(huge)))
+                    else:
+                        broken = [r for r in refs if self._is_broken_path(r.get("path"))]
+                        message = "Broken tracks scan complete. Missing files: {}.".format(len(broken))
+                        affected = len(broken)
+                        status = "WARN" if broken else "OK"
+                        self.after(0, lambda: self.log("file tracks scanned: {}".format(len(refs))))
+                        for ref in broken[:80]:
+                            self.after(0, lambda r=ref: self.log("missing: {} - {}".format(r.get("artist", ""), r.get("name", ""))))
+                    return
                 count, err = get_library_track_count()
                 if count >= 0:
                     message = "iTunes library track count: {}".format(count)
@@ -101,3 +141,89 @@ return (trackCount as text) & tab & (coverCount as text)
             self.after(0, lambda: self.log("Library Doctor finished."))
             self.after(0, lambda: self.run_btn.config(state="normal"))
             self.running = False
+
+    def _is_broken_path(self, path):
+        return not path or not os.path.exists(path) or not os.access(path, os.R_OK)
+
+    def read_file_track_refs(self):
+        count_script = u'''
+tell application "iTunes"
+    try
+        return (count of every file track of library playlist 1) as text
+    on error
+        return "0"
+    end try
+end tell
+'''
+        total = 0
+        try:
+            total = int(run_as(count_script, timeout_sec=120) or "0")
+        except:
+            total = 0
+
+        handler = u'''
+on syncrosaCleanField(v)
+    try
+        set s to v as text
+    on error
+        set s to ""
+    end try
+    set oldDelims to AppleScript's text item delimiters
+    set AppleScript's text item delimiters to tab
+    set parts to text items of s
+    set AppleScript's text item delimiters to " "
+    set s to parts as text
+    set AppleScript's text item delimiters to linefeed
+    set parts to text items of s
+    set AppleScript's text item delimiters to " "
+    set s to parts as text
+    set AppleScript's text item delimiters to oldDelims
+    return s
+end syncrosaCleanField
+'''
+        body = u'''
+set output to ""
+tell application "iTunes"
+    try
+        set trks to every file track of library playlist 1
+        repeat with trackIndex from {0} to {1}
+            if trackIndex is greater than (count of trks) then exit repeat
+            set t to item trackIndex of trks
+            set nm to ""
+            set art to ""
+            set pth to ""
+            set sz to "0"
+            try
+                set nm to name of t as text
+            end try
+            try
+                set art to artist of t as text
+            end try
+            try
+                set sz to size of t as text
+            end try
+            try
+                set loc to location of t
+                if loc is not missing value then set pth to POSIX path of loc
+            end try
+            set output to output & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(pth) & tab & sz & linefeed
+        end repeat
+    end try
+end tell
+return output
+'''
+        refs = []
+        chunk_size = 200
+        for start in range(1, total + 1, chunk_size):
+            end = min(start + chunk_size - 1, total)
+            script = handler + body.format(start, end)
+            raw = run_as(script, timeout_sec=120)
+            for line in raw.split("\n"):
+                parts = line.split("\t")
+                if len(parts) >= 4:
+                    try:
+                        size = int(parts[3])
+                    except:
+                        size = 0
+                    refs.append({"name": parts[0], "artist": parts[1], "path": parts[2], "size": size})
+        return refs
