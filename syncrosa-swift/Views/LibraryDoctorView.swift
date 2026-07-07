@@ -27,6 +27,13 @@ struct LibraryDoctorView: View {
 
                     Text(descriptionText)
                         .foregroundColor(.secondary)
+
+                    if !selectedToolCanRun, let message = disabledReasonText {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     SyncrosaAdaptiveRow(spacing: 12) {
                         Button(action: runSelectedTool) {
                             if isRunning {
@@ -36,7 +43,7 @@ struct LibraryDoctorView: View {
                             }
                         }
                         .buttonStyle(SyncrosaPrimaryButtonStyle())
-                        .disabled(isRunning)
+                        .disabled(isRunning || !selectedToolCanRun)
                         ProgressView(value: progress, total: progressMax)
                             .opacity(isRunning || progress > 0 ? 1 : 0.35)
                     }
@@ -58,6 +65,20 @@ struct LibraryDoctorView: View {
         }
     }
 
+    private var selectedToolCanRun: Bool {
+        if selectedTool == 0 {
+            return CoversOptimizerService.shared.backupManifestCount() > 0
+        }
+        return true
+    }
+
+    private var disabledReasonText: String? {
+        guard selectedTool == 0 else { return nil }
+        return lang.selectedLanguage == "ru"
+            ? "Сначала создайте backup обложек в Covers Optimizer."
+            : "Create a cover backup in Covers Optimizer first."
+    }
+
     private var buttonTitle: String {
         switch selectedTool {
         case 0:
@@ -70,6 +91,7 @@ struct LibraryDoctorView: View {
     }
 
     private func runSelectedTool() {
+        guard selectedToolCanRun else { return }
         let selectedToolIndex = selectedTool
         logs.removeAll()
         progress = 0

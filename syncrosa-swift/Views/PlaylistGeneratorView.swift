@@ -22,6 +22,14 @@ struct PlaylistGeneratorView: View {
         if selectedProvider == "Groq" { return groqModel }
         return openrouterModel
     }
+
+    var canGeneratePlaylist: Bool {
+        let trimmedName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedPrompt.isEmpty, !isGenerating else { return false }
+        guard let count = Int(trackCount.trimmingCharacters(in: .whitespacesAndNewlines)) else { return false }
+        return count > 0
+    }
     
     var body: some View {
         SyncrosaPage {
@@ -136,7 +144,7 @@ struct PlaylistGeneratorView: View {
                 }
                 .buttonStyle(SyncrosaPrimaryButtonStyle())
                 .controlSize(.large)
-                .disabled(prompt.isEmpty || playlistName.isEmpty || isGenerating)
+                .disabled(!canGeneratePlaylist)
                 
                 Spacer()
         }

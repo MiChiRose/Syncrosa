@@ -98,6 +98,7 @@ class OptimizerTab(tk.Frame):
 
         self.stop_btn = ttk.Button(self.btn_frame, text="Stop", command=self.stop_process, width=10, state="disabled")
         self.stop_btn.pack(side=tk.LEFT, padx=5)
+        self.set_controls_state(True)
 
     def _append_log(self, text):
         if not self.winfo_exists():
@@ -126,8 +127,14 @@ class OptimizerTab(tk.Frame):
         self.device_combo.config(state="readonly" if enabled else "disabled")
         self.backup_btn.config(state=state)
         self.optimize_btn.config(state=state)
-        self.restore_btn.config(state=state)
+        self.restore_btn.config(state="normal" if (enabled and self.has_cover_backup()) else "disabled")
         self.stop_btn.config(state="disabled" if enabled else "normal")
+
+    def has_cover_backup(self):
+        try:
+            return len(load_manifest().get("backups", {})) > 0
+        except Exception:
+            return False
 
     def clear_console(self):
         self.console.config(state="normal")

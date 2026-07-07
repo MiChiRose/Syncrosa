@@ -29,6 +29,7 @@ class GeniusTab(tk.Frame):
     def __init__(self, parent, master_app):
         tk.Frame.__init__(self, parent, bg="#ECECEC", borderwidth=0, highlightthickness=0)
         self.master_app = master_app
+        self.generating = False
         self.build_ui()
 
     def build_ui(self):
@@ -50,16 +51,19 @@ class GeniusTab(tk.Frame):
         tk.Label(form_frame, text=_(u"pl_name"), font=("system", 13), bg="#ECECEC").pack(anchor="w", padx=40, pady=(5, 2))
         self.pl_name = tk.Entry(form_frame, state="normal", font=("system", 14), highlightbackground="#ECECEC")
         self.pl_name.insert(0, _(u"def_name"))
+        self.pl_name.bind("<KeyRelease>", lambda _event: self.update_generate_state())
         self.pl_name.pack(fill=tk.X, padx=40, pady=(0, 15))
         
         tk.Label(form_frame, text=_(u"pl_mood"), font=("system", 13), bg="#ECECEC").pack(anchor="w", padx=40, pady=(5, 2))
         self.pl_mood = tk.Entry(form_frame, state="normal", font=("system", 14), highlightbackground="#ECECEC")
+        self.pl_mood.bind("<KeyRelease>", lambda _event: self.update_generate_state())
         self.pl_mood.pack(fill=tk.X, padx=40, pady=(0, 15))
         
         self.lbl_max = tk.Label(form_frame, text=_(u"max_available", str(self.master_app.total_tracks)), font=("system", 12), bg="#ECECEC")
         self.lbl_max.pack(anchor="w", padx=40, pady=(5, 2))
         
         self.count_var = tk.StringVar(value="25")
+        self.count_var.trace("w", lambda *args: self.update_generate_state())
         
         count_frame = tk.Frame(form_frame, bg="#ECECEC")
         count_frame.pack(anchor="center", pady=(0, 15))
@@ -89,6 +93,20 @@ class GeniusTab(tk.Frame):
         self.lbl_lib.pack(pady=5)
         
         tk.Label(self, text=_(u"footer"), font=("system", 10), fg="#666666", bg="#ECECEC", justify=tk.CENTER).pack(side=tk.BOTTOM, pady=15)
+        self.update_generate_state()
+
+    def can_generate(self):
+        if self.generating:
+            return False
+        if not self.pl_name.get().strip() or not self.pl_mood.get().strip():
+            return False
+        try:
+            return int(self.count_var.get()) > 0
+        except Exception:
+            return False
+
+    def update_generate_state(self):
+        self.btn_gen.config(state="normal" if self.can_generate() else "disabled")
 
     def _update_library_info(self):
         # Thread-safe update from main app
@@ -108,9 +126,15 @@ class GeniusTab(tk.Frame):
         if not mood or not name:
             tkMessageBox.showerror("Error", _(u"err_fill_all"))
             return
-            
+
+        self.generating = True
+        self.update_generate_state()
         self.prog_win = ProgressWindow(self)
         threading.Thread(target=self.process_task, args=(mood, name, count)).start()
+
+    def finish_generation(self):
+        self.generating = False
+        self.update_generate_state()
 
     def process_task(self, mood, name, count):
         try:
@@ -262,6 +286,8 @@ class GeniusTab(tk.Frame):
                     tkMessageBox.showerror("Generation Error", short_msg + "\n\n" + ui_err_str)
                     
             self.after(0, show_error_and_ask_log)
+        finally:
+            self.after(0, self.finish_generation)
 
     def show_help(self):
         from ui.components import HelpDialog

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct OperationHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var lang = LocalizationService.shared
     @ObservedObject private var history = OperationHistoryService.shared
     @State private var selectedTool = "All"
@@ -39,6 +40,12 @@ struct OperationHistoryView: View {
                     history.clear()
                 }
                 .buttonStyle(SyncrosaSecondaryButtonStyle())
+
+                Button(action: { dismiss() }) {
+                    Label(lang.selectedLanguage == "ru" ? "Закрыть" : "Close", systemImage: "xmark")
+                }
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
+                .keyboardShortcut(.cancelAction)
             }
 
             if filteredEntries.isEmpty {

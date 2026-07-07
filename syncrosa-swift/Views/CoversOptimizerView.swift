@@ -79,7 +79,7 @@ struct CoversOptimizerView: View {
                             Text(lang.t("btn_restore_covers"))
                                 .frame(minWidth: 160)
                         }
-                        .disabled(isProcessing)
+                        .disabled(isProcessing || !hasCoverBackup)
 
                         if isProcessing {
                             Button(action: {
@@ -128,6 +128,13 @@ struct CoversOptimizerView: View {
         .sheet(isPresented: $showHelp) {
             helpSheetView
         }
+        .onAppear {
+            CoversOptimizerService.shared.createBackupFolderIfNeeded()
+        }
+    }
+
+    private var hasCoverBackup: Bool {
+        CoversOptimizerService.shared.backupManifestCount() > 0
     }
     
     var helpSheetView: some View {

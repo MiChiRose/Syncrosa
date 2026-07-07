@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -37,6 +38,10 @@ struct SettingsView: View {
     @State private var openRouterModels: [String] = AIService.shared.cachedOpenRouterModels
     @State private var isSyncingModels: Bool = false
     @State private var isSyncingLibrary: Bool = false
+    @State private var isCheckingUpdates: Bool = false
+    @State private var isUpdateAvailable: Bool = false
+    @State private var updateStatusText: String = ""
+    @State private var updateURL: URL? = nil
     @State private var showHistory: Bool = false
     
     var isKeyEmpty: Bool {
@@ -98,6 +103,39 @@ struct SettingsView: View {
                 }
                 .syncrosaCard()
                 
+                // Group 1b: Updates
+                VStack(alignment: .leading, spacing: 12) {
+                    Label(lang.selectedLanguage == "ru" ? "Обновления" : "Updates", systemImage: "arrow.down.circle")
+                        .font(.headline)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(lang.selectedLanguage == "ru" ? "Текущая версия: \(currentAppVersion)" : "Current version: \(currentAppVersion)")
+                            .fontWeight(.semibold)
+                        Text(updateStatusText.isEmpty ? (lang.selectedLanguage == "ru" ? "Проверяйте релизы и скачивайте правильный архив для SwiftUI-версии." : "Check releases and open the correct SwiftUI download.") : updateStatusText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    HStack(spacing: 10) {
+                        Button(action: checkForUpdates) {
+                            if isCheckingUpdates {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Label(lang.selectedLanguage == "ru" ? "Проверить обновления" : "Check Updates", systemImage: "arrow.clockwise")
+                            }
+                        }
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
+                        .disabled(isCheckingUpdates)
+
+                        Button(action: openUpdateURL) {
+                            Label(lang.selectedLanguage == "ru" ? "Обновить приложение" : "Update App", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(SyncrosaPrimaryButtonStyle())
+                        .disabled(!isUpdateAvailable)
+                    }
+                }
+                .syncrosaCard()
+
                 // Group 1: iTunes Library
                 VStack(alignment: .leading, spacing: 10) {
                     Label(lang.t("lib_cleanup"), systemImage: "music.note.house")
@@ -322,6 +360,114 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    var currentAppVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        if let version = version, !version.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return version
+        }
+        return "Development"
+    }
+
+    func checkForUpdates() {
+        guard !isCheckingUpdates else { return }
+        isCheckingUpdates = true
+        isUpdateAvailable = false
+        updateURL = nil
+        updateStatusText = lang.selectedLanguage == "ru" ? "Проверяю GitHub Releases..." : "Checking GitHub Releases..."
+
+        guard let url = URL(string: "https://api.github.com/repos/MiChiRose/Syncrosa/releases/latest") else {
+            isCheckingUpdates = false
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 30
+        request.setValue("Syncrosa/\(currentAppVersion)", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            let result = self.parseUpdateResponse(data: data, error: error)
+            DispatchQueue.main.async {
+                self.isCheckingUpdates = false
+                self.isUpdateAvailable = result.available
+                self.updateURL = result.available ? result.url : nil
+                self.updateStatusText = result.message
+                self.activeNotification = NotificationMessage(text: result.message, isError: result.isError)
+            }
+        }.resume()
+    }
+
+    func parseUpdateResponse(data: Data?, error: Error?) -> (message: String, url: URL?, available: Bool, isError: Bool) {
+        if let error = error {
+            let message = lang.selectedLanguage == "ru" ? "Не удалось проверить обновления: \(error.localizedDescription)" : "Could not check updates: \(error.localizedDescription)"
+            return (message, nil, false, true)
+        }
+
+        guard let data = data,
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let json = object as? [String: Any] else {
+            let message = lang.selectedLanguage == "ru" ? "GitHub вернул неожиданный ответ." : "GitHub returned an unexpected response."
+            return (message, nil, false, true)
+        }
+
+        let latestVersion = ((json["tag_name"] as? String) ?? (json["name"] as? String) ?? "").replacingOccurrences(of: "v", with: "")
+        let htmlURL = URL(string: json["html_url"] as? String ?? "https://github.com/MiChiRose/Syncrosa/releases/latest")
+        var assetURL: URL? = nil
+        if let assets = json["assets"] as? [[String: Any]] {
+            for asset in assets {
+                let name = asset["name"] as? String ?? ""
+                if name.contains("Syncrosa_SwiftUI_v"), let download = asset["browser_download_url"] as? String {
+                    assetURL = URL(string: download)
+                    break
+                }
+            }
+        }
+
+        if latestVersion.isEmpty {
+            let message = lang.selectedLanguage == "ru" ? "Не удалось определить последнюю версию." : "Could not read the latest version."
+            return (message, nil, false, true)
+        }
+
+        if currentAppVersion == "Development" {
+            let message = lang.selectedLanguage == "ru" ? "Последний релиз: Syncrosa \(latestVersion). Это dev-сборка." : "Latest release: Syncrosa \(latestVersion). This is a development build."
+            return (message, nil, false, false)
+        }
+
+        let comparison = compareVersions(latestVersion, currentAppVersion)
+        if comparison == .orderedDescending {
+            let message = lang.selectedLanguage == "ru" ? "Доступна Syncrosa \(latestVersion). Нажмите Update App." : "Syncrosa \(latestVersion) is available. Click Update App."
+            return (message, assetURL ?? htmlURL, true, false)
+        }
+
+        let message = lang.selectedLanguage == "ru" ? "У вас актуальная версия Syncrosa \(currentAppVersion)." : "You are up to date on Syncrosa \(currentAppVersion)."
+        return (message, nil, false, false)
+    }
+
+    func openUpdateURL() {
+        guard isUpdateAvailable, let updateURL else { return }
+        NSWorkspace.shared.open(updateURL)
+    }
+
+    func compareVersions(_ left: String, _ right: String) -> ComparisonResult {
+        let l = versionParts(left)
+        let r = versionParts(right)
+        for index in 0..<max(l.count, r.count) {
+            let lv = index < l.count ? l[index] : 0
+            let rv = index < r.count ? r[index] : 0
+            if lv > rv { return .orderedDescending }
+            if lv < rv { return .orderedAscending }
+        }
+        return .orderedSame
+    }
+
+    func versionParts(_ version: String) -> [Int] {
+        version
+            .replacingOccurrences(of: "v", with: "")
+            .split { !$0.isNumber }
+            .compactMap { Int($0) }
     }
     
     func validateKey() {

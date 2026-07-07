@@ -240,7 +240,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
     BOOL hasFiles = (self.foundFiles.count > 0);
     self.backupButton.enabled = (!busy && hasFiles);
     self.eraseButton.enabled = (!busy && hasFiles);
-    self.restoreButton.enabled = (!busy && self.selectedFolderURL != nil);
+    self.restoreButton.enabled = (!busy && self.selectedFolderURL != nil && [self hasRestoreBackup]);
 }
 
 - (void)selectFolderClicked:(id)sender {
@@ -438,6 +438,11 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
         return [[candidates objectAtIndex:0] objectForKey:@"path"];
     }
     return localBackupDir;
+}
+
+- (BOOL)hasRestoreBackup {
+    NSString *backupDir = [self restoreBackupDirectoryPath];
+    return [[NSFileManager defaultManager] fileExistsAtPath:[backupDir stringByAppendingPathComponent:@"manifest.json"]];
 }
 
 - (NSInteger)backupOriginalInfoWithProgress:(void(^)(NSInteger current, NSInteger total))progress manifestPath:(NSString **)manifestPath {

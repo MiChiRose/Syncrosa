@@ -22,6 +22,7 @@ from core.localization import _, LANGUAGES
 from core.config import CONFIG_DATA, save_config, desktop_debug_logs_enabled
 from core.network import test_api_key, make_request
 from core.operation_history import read_history
+from core.updater import RELEASE_PAGE_URL, check_for_updates, current_version, open_update_url
 from ui.components import ProgressWindow
 
 class SetupWindow(tk.Toplevel):
@@ -30,13 +31,14 @@ class SetupWindow(tk.Toplevel):
         self.title(_(u"menu_ai_settings").replace("...", ""))
         
         window_width = 750
-        window_height = 540
+        window_height = 620
         self.geometry("{}x{}".format(window_width, window_height))
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
         
         self.on_success = on_success
+        self.update_url = RELEASE_PAGE_URL
         self.configure(bg="#ECECEC")
         
         self.update_idletasks()
@@ -128,6 +130,32 @@ class SetupWindow(tk.Toplevel):
         self.btn_sync_lib.pack(side=tk.LEFT, pady=10)
 
         tk.Frame(main_frame, bg="#D4D4D4", height=1).pack(fill=tk.X, pady=15)
+
+        # --- UPDATES SECTION ---
+        tk.Label(main_frame, text="Updates", font=("system", 13), bg="#ECECEC").pack(anchor="w", pady=(0, 10))
+
+        update_frame = tk.Frame(main_frame, bg="#ECECEC")
+        update_frame.pack(fill=tk.X, padx=10)
+        update_frame.columnconfigure(2, weight=1)
+
+        self.update_status_label = tk.Label(
+            update_frame,
+            text="Current version: {0}".format(current_version()),
+            font=("system", 11),
+            fg="#666666",
+            bg="#ECECEC",
+            anchor="w"
+        )
+        self.update_status_label.grid(row=0, column=0, columnspan=3, sticky="we", pady=(0, 8))
+
+        self.btn_check_updates = ttk.Button(update_frame, text="Check Updates", command=self.check_updates, width=18)
+        self.btn_check_updates.grid(row=1, column=0, sticky="w", pady=(0, 2))
+
+        self.btn_update_app = ttk.Button(update_frame, text="Update App", command=self.open_update, width=18)
+        self.btn_update_app.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
+        self.btn_update_app.config(state="disabled")
+
+        tk.Frame(main_frame, bg="#D4D4D4", height=1).pack(fill=tk.X, pady=15)
         
         # --- PREFERENCES SECTION ---
         pref_frame = tk.Frame(main_frame, bg="#ECECEC")
@@ -188,6 +216,8 @@ class SetupWindow(tk.Toplevel):
         selected_tool = tk.StringVar(value="All")
         combo = ttk.Combobox(top, textvariable=selected_tool, values=tools, state="readonly", width=24)
         combo.pack(side=tk.LEFT)
+        ttk.Button(top, text="Close", command=win.destroy, width=12).pack(side=tk.RIGHT)
+        win.bind("<Escape>", lambda _event: win.destroy())
         text = tk.Text(win, bg="#000000", fg="#00FF55", font=("Monaco", 10), state="disabled")
         text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
@@ -271,6 +301,40 @@ class SetupWindow(tk.Toplevel):
                 self.after(0, lambda: self.btn_sync_lib.config(state="normal"))
                 
         threading.Thread(target=task).start()
+
+    def check_updates(self):
+        self.btn_check_updates.config(state="disabled")
+        self.btn_update_app.config(state="disabled")
+        self.update_status_label.config(text="Checking GitHub Releases...")
+
+        def task():
+            try:
+                result = check_for_updates()
+            except Exception as exc:
+                result = {
+                    "ok": False,
+                    "available": False,
+                    "message": "Could not check updates: " + str(exc),
+                    "url": RELEASE_PAGE_URL
+                }
+            self.after(0, self.finish_update_check, result)
+
+        threading.Thread(target=task).start()
+
+    def finish_update_check(self, result):
+        self.btn_check_updates.config(state="normal")
+        update_available = bool(result.get("available"))
+        self.update_url = (result.get("url") if update_available else None) or RELEASE_PAGE_URL
+        self.btn_update_app.config(state="normal" if update_available else "disabled")
+        self.update_status_label.config(text=result.get("message", "Update check finished."))
+        if update_available:
+            tkMessageBox.showinfo("Updates", result.get("message", "Syncrosa update is available."))
+
+    def open_update(self):
+        if self.btn_update_app.cget("state") == "disabled":
+            return
+        if not open_update_url(self.update_url):
+            tkMessageBox.showerror("Updates", "Could not open the update page.")
 
     def on_closing(self):
         self.grab_release()

@@ -202,18 +202,24 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     [self.albumCheckbox setButtonType:NSSwitchButton];
     self.albumCheckbox.title = [lang t:@"tag_album"];
     self.albumCheckbox.state = NSOnState;
+    self.albumCheckbox.target = self;
+    self.albumCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.albumCheckbox];
 
     self.titleCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
     [self.titleCheckbox setButtonType:NSSwitchButton];
     self.titleCheckbox.title = [lang t:@"tag_title"];
     self.titleCheckbox.state = NSOnState;
+    self.titleCheckbox.target = self;
+    self.titleCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.titleCheckbox];
 
     self.artistCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
     [self.artistCheckbox setButtonType:NSSwitchButton];
     self.artistCheckbox.title = [lang t:@"tag_artist"];
     self.artistCheckbox.state = NSOnState;
+    self.artistCheckbox.target = self;
+    self.artistCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.artistCheckbox];
 
     y -= 25;
@@ -221,18 +227,24 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     [self.genreCheckbox setButtonType:NSSwitchButton];
     self.genreCheckbox.title = [lang t:@"tag_genre"];
     self.genreCheckbox.state = NSOnState;
+    self.genreCheckbox.target = self;
+    self.genreCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.genreCheckbox];
 
     self.trackNumberCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
     [self.trackNumberCheckbox setButtonType:NSSwitchButton];
     self.trackNumberCheckbox.title = [lang t:@"tag_track_number"];
     self.trackNumberCheckbox.state = NSOnState;
+    self.trackNumberCheckbox.target = self;
+    self.trackNumberCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.trackNumberCheckbox];
 
     self.lyricsCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
     [self.lyricsCheckbox setButtonType:NSSwitchButton];
     self.lyricsCheckbox.title = [lang t:@"tag_lyrics"];
     self.lyricsCheckbox.state = NSOnState;
+    self.lyricsCheckbox.target = self;
+    self.lyricsCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.lyricsCheckbox];
 
     y -= 28;
@@ -298,6 +310,7 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     footer.bordered = NO;
     footer.drawsBackground = NO;
     [self.view addSubview:footer];
+    [self tagCheckboxClicked:nil];
 }
 
 - (void)selectAllClicked:(id)sender {
@@ -308,6 +321,31 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     self.genreCheckbox.state = state;
     self.trackNumberCheckbox.state = state;
     self.lyricsCheckbox.state = state;
+    [self updateFixButtonState];
+}
+
+- (BOOL)hasSelectedTags {
+    return self.albumCheckbox.state == NSOnState ||
+           self.titleCheckbox.state == NSOnState ||
+           self.artistCheckbox.state == NSOnState ||
+           self.genreCheckbox.state == NSOnState ||
+           self.trackNumberCheckbox.state == NSOnState ||
+           self.lyricsCheckbox.state == NSOnState;
+}
+
+- (void)updateFixButtonState {
+    self.fixButton.enabled = (!self.isProcessing && self.foundFiles.count > 0 && [self hasSelectedTags]);
+}
+
+- (void)tagCheckboxClicked:(id)sender {
+    BOOL allChecked = self.albumCheckbox.state == NSOnState &&
+                      self.titleCheckbox.state == NSOnState &&
+                      self.artistCheckbox.state == NSOnState &&
+                      self.genreCheckbox.state == NSOnState &&
+                      self.trackNumberCheckbox.state == NSOnState &&
+                      self.lyricsCheckbox.state == NSOnState;
+    self.selectAllCheckbox.state = allChecked ? NSOnState : NSOffState;
+    [self updateFixButtonState];
 }
 
 - (void)helpClicked:(id)sender {
@@ -427,7 +465,7 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
             IGLocalizationService *lang = [IGLocalizationService sharedService];
             self.statusLabel.stringValue = [lang t:@"files_to_process" args:@[@([result count])]];
             [self log:[NSString stringWithFormat:@"Scanned folder recursively: Found %ld music files.", (long)result.count]];
-            self.fixButton.enabled = (result.count > 0);
+            [self updateFixButtonState];
             self.cleanFilenamesButton.enabled = (result.count > 0);
 #if !__has_feature(objc_arc)
             [result release];
@@ -440,7 +478,7 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
 }
 
 - (void)fixClicked:(id)sender {
-    if (self.isProcessing) return;
+    if (self.isProcessing || self.foundFiles.count == 0 || ![self hasSelectedTags]) return;
 
     self.isProcessing = YES;
     self.underscoreNormalizationEnabledForRun = NO;
@@ -520,7 +558,7 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
         dispatch_async(dispatch_get_main_queue(), ^{
             self.foundFiles = finalFiles;
             self.isProcessing = NO;
-            self.fixButton.enabled = (self.foundFiles.count > 0);
+            [self updateFixButtonState];
             self.cleanFilenamesButton.enabled = (self.foundFiles.count > 0);
             self.selectFolderButton.enabled = YES;
             self.downloadCoversButton.enabled = YES;
@@ -541,7 +579,7 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     if (index >= self.foundFiles.count) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.isProcessing = NO;
-            self.fixButton.enabled = YES;
+            [self updateFixButtonState];
             self.selectFolderButton.enabled = YES;
             self.downloadCoversButton.enabled = YES;
             self.cleanFilenamesButton.enabled = (self.foundFiles.count > 0);

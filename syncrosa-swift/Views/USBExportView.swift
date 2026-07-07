@@ -10,6 +10,7 @@ struct USBExportView: View {
     @State private var playlistTracksCount: Int = 0
     @State private var playlistSize: Int64 = 0
     @State private var tracksToExport: [PlaylistExportService.TrackFile] = []
+    @State private var isLoadingPlaylistDetails: Bool = false
     
     @State private var isExporting: Bool = false
     @State private var currentTrackName: String = ""
@@ -150,7 +151,7 @@ struct USBExportView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(selectedPlaylistName)
                                     .font(.headline)
-                                Text("\(playlistTracksCount) tracks (\(formattedPlaylistSize))")
+                                Text(isLoadingPlaylistDetails ? (lang.selectedLanguage == "ru" ? "Загрузка треков..." : "Loading tracks...") : "\(playlistTracksCount) tracks (\(formattedPlaylistSize))")
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
@@ -176,6 +177,7 @@ struct USBExportView: View {
                             }
                             .buttonStyle(SyncrosaPrimaryButtonStyle())
                             .controlSize(.large)
+                            .disabled(isLoadingPlaylistDetails || tracksToExport.isEmpty)
                         }
                     }
                     .syncrosaCard()
@@ -280,6 +282,14 @@ struct USBExportView: View {
             let libraryCount = list.isEmpty ? MusicService.shared.getLibraryTrackCount() : nil
             DispatchQueue.main.async {
                 self.playlists = list
+                if !self.selectedPlaylistName.isEmpty,
+                   !list.contains(where: { $0.name == self.selectedPlaylistName }) {
+                    self.selectedPlaylistName = ""
+                    self.playlistTracksCount = 0
+                    self.playlistSize = 0
+                    self.tracksToExport = []
+                    self.isLoadingPlaylistDetails = false
+                }
                 if list.isEmpty {
                     if let count = libraryCount, count == 0 {
                         self.playlistMessage = self.lang.selectedLanguage == "ru" ? "В Music нет треков и доступных плейлистов." : "Music has no tracks or playlists to export."
@@ -300,8 +310,14 @@ struct USBExportView: View {
             playlistTracksCount = 0
             playlistSize = 0
             tracksToExport = []
+            isLoadingPlaylistDetails = false
             return
         }
+
+        isLoadingPlaylistDetails = true
+        playlistTracksCount = 0
+        playlistSize = 0
+        tracksToExport = []
         
         DispatchQueue.global(qos: .userInitiated).async {
             let rawTracks = MusicService.shared.getPlaylistTrackPaths(playlistName: playlistName)
@@ -320,9 +336,11 @@ struct USBExportView: View {
             }
             
             DispatchQueue.main.async {
+                guard self.selectedPlaylistName == playlistName else { return }
                 self.playlistTracksCount = count
                 self.playlistSize = size
                 self.tracksToExport = mapped
+                self.isLoadingPlaylistDetails = false
             }
         }
     }

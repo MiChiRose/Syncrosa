@@ -17,6 +17,43 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     return @"Gemini";
 }
 
+static NSString *IGSettingsCurrentVersion(void) {
+    NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    if (version.length == 0) {
+        version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleVersion"];
+    }
+    return version.length > 0 ? version : @"Development";
+}
+
+static NSArray *IGSettingsVersionParts(NSString *version) {
+    NSMutableArray *parts = [NSMutableArray array];
+    NSScanner *scanner = [NSScanner scannerWithString:version ?: @""];
+    NSCharacterSet *digits = [NSCharacterSet decimalDigitCharacterSet];
+    while (![scanner isAtEnd]) {
+        NSString *number = nil;
+        if ([scanner scanCharactersFromSet:digits intoString:&number]) {
+            [parts addObject:@([number integerValue])];
+        } else {
+            [scanner scanUpToCharactersFromSet:digits intoString:NULL];
+        }
+    }
+    return parts;
+}
+
+static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *right) {
+    NSArray *leftParts = IGSettingsVersionParts(left);
+    NSArray *rightParts = IGSettingsVersionParts(right);
+    NSUInteger count = MAX(leftParts.count, rightParts.count);
+    NSUInteger index = 0;
+    for (index = 0; index < count; index++) {
+        NSInteger leftValue = index < leftParts.count ? [[leftParts objectAtIndex:index] integerValue] : 0;
+        NSInteger rightValue = index < rightParts.count ? [[rightParts objectAtIndex:index] integerValue] : 0;
+        if (leftValue > rightValue) return NSOrderedDescending;
+        if (leftValue < rightValue) return NSOrderedAscending;
+    }
+    return NSOrderedSame;
+}
+
 @interface IGSettingsViewController () <NSComboBoxDelegate>
 
 @property (nonatomic, strong) NSTextField *titleLabel;
@@ -34,6 +71,10 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
 @property (nonatomic, strong) NSButton *historyButton;
 @property (nonatomic, strong) NSButton *syncLibButton;
 @property (nonatomic, strong) NSTextField *syncLibStatusLabel;
+@property (nonatomic, strong) NSButton *updateCheckButton;
+@property (nonatomic, strong) NSButton *updateOpenButton;
+@property (nonatomic, strong) NSTextField *updateStatusLabel;
+@property (nonatomic, strong) NSString *latestUpdateURL;
 @property (nonatomic, strong) NSButton *saveButton;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextField *footerLabel;
@@ -45,7 +86,7 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
 @implementation IGSettingsViewController
 
 - (void)loadView {
-    self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)];
+    self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 500)];
     [self setupUI];
     [self loadSettings];
     
@@ -64,7 +105,8 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
 
 - (void)setupUI {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
-    CGFloat y = 430;
+    CGFloat y = 450;
+    self.latestUpdateURL = @"https://github.com/MiChiRose/Syncrosa/releases/latest";
     
     // Title
     self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 480, 30)];
@@ -170,8 +212,32 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     self.syncLibStatusLabel.bordered = NO;
     self.syncLibStatusLabel.drawsBackground = NO;
     [self.view addSubview:self.syncLibStatusLabel];
+
+    y -= 40;
+    // Updates Section
+    self.updateCheckButton = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 150, 30)];
+    self.updateCheckButton.bezelStyle = NSRoundedBezelStyle;
+    self.updateCheckButton.target = self;
+    self.updateCheckButton.action = @selector(checkUpdatesClicked:);
+    [self.view addSubview:self.updateCheckButton];
+
+    self.updateOpenButton = [[NSButton alloc] initWithFrame:NSMakeRect(180, y, 140, 30)];
+    self.updateOpenButton.bezelStyle = NSRoundedBezelStyle;
+    self.updateOpenButton.target = self;
+    self.updateOpenButton.action = @selector(openUpdateClicked:);
+    self.updateOpenButton.enabled = NO;
+    [self.view addSubview:self.updateOpenButton];
+
+    self.updateStatusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(330, y+5, 230, 20)];
+    self.updateStatusLabel.font = [NSFont systemFontOfSize:11];
+    self.updateStatusLabel.textColor = [NSColor grayColor];
+    self.updateStatusLabel.editable = NO;
+    self.updateStatusLabel.bordered = NO;
+    self.updateStatusLabel.drawsBackground = NO;
+    self.updateStatusLabel.stringValue = [NSString stringWithFormat:@"Current version: %@", IGSettingsCurrentVersion()];
+    [self.view addSubview:self.updateStatusLabel];
     
-    y -= 55;
+    y -= 45;
     // Save Button
     self.saveButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
     self.saveButton.bezelStyle = NSTexturedRoundedBezelStyle;
@@ -189,7 +255,7 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     [self.view addSubview:self.statusLabel];
     
     // Help Button
-    self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, 432, 25, 25)];
+    self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, 452, 25, 25)];
     self.helpBtn.bezelStyle = NSHelpButtonBezelStyle;
     self.helpBtn.title = @"";
     self.helpBtn.target = self;
@@ -227,11 +293,16 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
         @"Prompt to save text logs for errors and successful generation";
     self.onlyLocalCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Only Local Mode (без сетевых метаданных)" : @"Only Local Mode (skip online metadata)";
     self.historyButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"История операций" : @"Operation History";
+    self.updateCheckButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Проверить обновления" : @"Check Updates";
+    self.updateOpenButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Update App" : @"Update App";
     
     if (self.syncLibStatusLabel.stringValue.length == 0 || 
         [self.syncLibStatusLabel.stringValue isEqualToString:@"Refresh your local music database cache."] ||
         [self.syncLibStatusLabel.stringValue isEqualToString:@"Обновите локальный кэш музыкальной базы."]) {
         self.syncLibStatusLabel.stringValue = [lang t:@"refresh_cache"];
+    }
+    if (self.updateStatusLabel.stringValue.length == 0) {
+        self.updateStatusLabel.stringValue = [NSString stringWithFormat:@"Current version: %@", IGSettingsCurrentVersion()];
     }
 }
 
@@ -347,7 +418,8 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     [sheet.contentView addSubview:scroll];
 
     NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(210, 15, 100, 30)];
-    closeButton.title = @"OK";
+    IGLocalizationService *lang = [IGLocalizationService sharedService];
+    closeButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Закрыть" : @"Close";
     closeButton.bezelStyle = NSRoundedBezelStyle;
     closeButton.target = self;
     closeButton.action = @selector(closeHelpSheet:);
@@ -514,6 +586,95 @@ static NSString *IGSettingsCanonicalProvider(NSString *provider) {
             [IGNotificationView showInView:self.view message:[[IGLocalizationService sharedService] t:@"msg_lib_synced"] isError:NO];
         }];
     }];
+}
+
+- (void)checkUpdatesClicked:(id)sender {
+    IGLocalizationService *lang = [IGLocalizationService sharedService];
+    self.updateCheckButton.enabled = NO;
+    self.updateOpenButton.enabled = NO;
+    self.latestUpdateURL = @"";
+    self.updateStatusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Проверяю GitHub Releases..." : @"Checking GitHub Releases...";
+
+    NSURL *url = [NSURL URLWithString:@"https://api.github.com/repos/MiChiRose/Syncrosa/releases/latest"];
+    NSDictionary *headers = @{@"Accept": @"application/vnd.github+json"};
+
+    [[IGAIService sharedService] makeRequestToURL:url method:@"GET" headers:headers body:nil completion:^(NSData *data, NSError *error) {
+        NSString *message = nil;
+        NSString *targetURL = @"https://github.com/MiChiRose/Syncrosa/releases/latest";
+        BOOL isError = NO;
+        BOOL updateAvailable = NO;
+
+        if (error) {
+            message = [NSString stringWithFormat:@"Could not check updates: %@", error.localizedDescription];
+            isError = YES;
+        } else if (data.length == 0) {
+            message = @"GitHub returned an empty response.";
+            isError = YES;
+        } else {
+            NSError *jsonError = nil;
+            id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+            if (![parsed isKindOfClass:[NSDictionary class]]) {
+                message = @"GitHub returned an unexpected response.";
+                isError = YES;
+            } else {
+                NSDictionary *release = (NSDictionary *)parsed;
+                NSString *latest = [release objectForKey:@"tag_name"] ?: [release objectForKey:@"name"];
+                latest = [latest stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                if ([latest hasPrefix:@"v"]) {
+                    latest = [latest substringFromIndex:1];
+                }
+                NSString *htmlURL = [release objectForKey:@"html_url"];
+                if (htmlURL.length > 0) {
+                    targetURL = htmlURL;
+                }
+
+                NSArray *assets = [release objectForKey:@"assets"];
+                if ([assets isKindOfClass:[NSArray class]]) {
+                    for (NSDictionary *asset in assets) {
+                        if (![asset isKindOfClass:[NSDictionary class]]) continue;
+                        NSString *name = [asset objectForKey:@"name"];
+                        NSString *download = [asset objectForKey:@"browser_download_url"];
+                        if ([name rangeOfString:@"Syncrosa_Cocoa_v"].location != NSNotFound && [[name pathExtension] isEqualToString:@"zip"] && download.length > 0) {
+                            targetURL = download;
+                            break;
+                        }
+                    }
+                }
+
+                NSString *current = IGSettingsCurrentVersion();
+                if (latest.length == 0) {
+                    message = @"Could not read the latest Syncrosa version.";
+                    isError = YES;
+                } else if ([current isEqualToString:@"Development"]) {
+                    message = [NSString stringWithFormat:@"Latest release: Syncrosa %@. This is a development build.", latest];
+                } else if (IGSettingsCompareVersions(latest, current) == NSOrderedDescending) {
+                    message = [NSString stringWithFormat:@"Syncrosa %@ is available. Click Update App.", latest];
+                    updateAvailable = YES;
+                } else {
+                    message = [NSString stringWithFormat:@"You are up to date on Syncrosa %@.", current];
+                }
+            }
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.latestUpdateURL = updateAvailable ? targetURL : @"";
+            self.updateStatusLabel.stringValue = message ?: @"Update check finished.";
+            self.updateCheckButton.enabled = YES;
+            self.updateOpenButton.enabled = updateAvailable;
+            [IGNotificationView showInView:self.view message:self.updateStatusLabel.stringValue isError:isError];
+        });
+    }];
+}
+
+- (void)openUpdateClicked:(id)sender {
+    if (!self.updateOpenButton.enabled || self.latestUpdateURL.length == 0) {
+        return;
+    }
+    NSString *urlString = self.latestUpdateURL;
+    NSURL *url = [NSURL URLWithString:urlString];
+    if (url) {
+        [[NSWorkspace sharedWorkspace] openURL:url];
+    }
 }
 
 - (void)saveClicked:(id)sender {

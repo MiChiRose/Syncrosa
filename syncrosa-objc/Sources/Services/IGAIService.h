@@ -10,6 +10,12 @@
 
 - (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock;
 
+- (void)makeRequestToURL:(NSURL *)url
+                  method:(NSString *)method
+                 headers:(NSDictionary *)headers
+                    body:(NSData *)body
+              completion:(void(^)(NSData *data, NSError *error))completionBlock;
+
 - (void)validateAPIKeyWithCompletion:(void(^)(BOOL success, NSString *errorMsg))completionBlock;
 
 - (void)generatePlaylistWithPrompt:(NSString *)prompt 

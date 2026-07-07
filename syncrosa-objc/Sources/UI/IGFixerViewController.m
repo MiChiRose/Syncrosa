@@ -39,6 +39,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 @property (nonatomic, strong) NSButton *trackNumberCheckbox;
 @property (nonatomic, strong) NSButton *lyricsCheckbox;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
+@property (nonatomic, assign) BOOL isRunning;
 
 @end
 
@@ -106,32 +107,44 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     self.albumCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
     [self.albumCheckbox setButtonType:NSSwitchButton];
     self.albumCheckbox.state = NSOnState;
+    self.albumCheckbox.target = self;
+    self.albumCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.albumCheckbox];
     
     self.titleCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
     [self.titleCheckbox setButtonType:NSSwitchButton];
     self.titleCheckbox.state = NSOnState;
+    self.titleCheckbox.target = self;
+    self.titleCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.titleCheckbox];
     
     self.artistCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
     [self.artistCheckbox setButtonType:NSSwitchButton];
     self.artistCheckbox.state = NSOnState;
+    self.artistCheckbox.target = self;
+    self.artistCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.artistCheckbox];
     
     y -= 25;
     self.genreCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
     [self.genreCheckbox setButtonType:NSSwitchButton];
     self.genreCheckbox.state = NSOnState;
+    self.genreCheckbox.target = self;
+    self.genreCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.genreCheckbox];
     
     self.trackNumberCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
     [self.trackNumberCheckbox setButtonType:NSSwitchButton];
     self.trackNumberCheckbox.state = NSOnState;
+    self.trackNumberCheckbox.target = self;
+    self.trackNumberCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.trackNumberCheckbox];
     
     self.lyricsCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
     [self.lyricsCheckbox setButtonType:NSSwitchButton];
     self.lyricsCheckbox.state = NSOffState;
+    self.lyricsCheckbox.target = self;
+    self.lyricsCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.lyricsCheckbox];
 
     y -= 140;
@@ -166,6 +179,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     [self.view addSubview:self.footerLabel];
     
     [self updateLocalization];
+    [self tagCheckboxClicked:nil];
 }
 
 - (void)updateLocalization {
@@ -225,6 +239,31 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     self.genreCheckbox.state = state;
     self.trackNumberCheckbox.state = state;
     self.lyricsCheckbox.state = state;
+    [self updateStartButtonState];
+}
+
+- (BOOL)hasSelectedTags {
+    return self.albumCheckbox.state == NSOnState ||
+           self.titleCheckbox.state == NSOnState ||
+           self.artistCheckbox.state == NSOnState ||
+           self.genreCheckbox.state == NSOnState ||
+           self.trackNumberCheckbox.state == NSOnState ||
+           self.lyricsCheckbox.state == NSOnState;
+}
+
+- (void)updateStartButtonState {
+    self.startButton.enabled = (!self.isRunning && [self hasSelectedTags]);
+}
+
+- (void)tagCheckboxClicked:(id)sender {
+    BOOL allChecked = self.albumCheckbox.state == NSOnState &&
+                      self.titleCheckbox.state == NSOnState &&
+                      self.artistCheckbox.state == NSOnState &&
+                      self.genreCheckbox.state == NSOnState &&
+                      self.trackNumberCheckbox.state == NSOnState &&
+                      self.lyricsCheckbox.state == NSOnState;
+    self.selectAllCheckbox.state = allChecked ? NSOnState : NSOffState;
+    [self updateStartButtonState];
 }
 
 - (void)helpClicked:(id)sender {
@@ -277,6 +316,9 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 }
 
 - (void)startClicked:(id)sender {
+    if (![self hasSelectedTags]) {
+        return;
+    }
     [self clearLogView];
     [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer start options album=%ld title=%ld artist=%ld genre=%ld trackNumber=%ld lyrics=%ld",
                                   (long)self.albumCheckbox.state,
@@ -286,6 +328,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
                                   (long)self.trackNumberCheckbox.state,
                                   (long)self.lyricsCheckbox.state]];
 
+    self.isRunning = YES;
     self.startButton.enabled = NO;
     self.statusLabel.stringValue = @"Checking iTunes library...";
 
@@ -293,14 +336,16 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
         if (trackCount < 0) {
             self.statusLabel.stringValue = errorMessage ?: @"Could not read iTunes library.";
             [self log:self.statusLabel.stringValue];
-            self.startButton.enabled = YES;
+            self.isRunning = NO;
+            [self updateStartButtonState];
             [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
             return;
         }
         if (trackCount == 0) {
             self.statusLabel.stringValue = @"iTunes has no tracks. There is no metadata to update.";
             [self log:self.statusLabel.stringValue];
-            self.startButton.enabled = YES;
+            self.isRunning = NO;
+            [self updateStartButtonState];
             [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
             return;
         }
@@ -383,7 +428,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     } completion:^{
         self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"done"];
         [self log:@"All metadata tasks finished."];
-        self.startButton.enabled = YES;
+        self.isRunning = NO;
+        [self updateStartButtonState];
         [self.progressIndicator stopAnimation:nil];
         self.progressIndicator.indeterminate = NO;
         self.progressIndicator.doubleValue = self.progressIndicator.maxValue;

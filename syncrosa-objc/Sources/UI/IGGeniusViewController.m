@@ -22,6 +22,7 @@
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextField *footerLabel;
+@property (nonatomic, assign) BOOL isGenerating;
 
 @end
 
@@ -185,6 +186,7 @@
     
     [self updateLocalization];
     [self updateCharacterCounters];
+    [self updateGenerateButtonState];
 }
 
 - (void)updateLocalization {
@@ -227,6 +229,7 @@
 
 - (void)stepperChanged:(id)sender {
     self.countField.stringValue = [NSString stringWithFormat:@"%ld", (long)self.stepper.integerValue];
+    [self updateGenerateButtonState];
 }
 
 #pragma mark - TextField Delegate (Character Counting)
@@ -248,6 +251,7 @@
         self.stepper.integerValue = val;
     }
     [self updateCharacterCounters];
+    [self updateGenerateButtonState];
 }
 
 - (void)updateCharacterCounters {
@@ -255,11 +259,30 @@
     self.promptCounterLabel.stringValue = [NSString stringWithFormat:@"%ld/150", (long)self.promptField.stringValue.length];
 }
 
+- (BOOL)canGeneratePlaylist {
+    NSString *name = [self.playlistNameField.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString *prompt = [self.promptField.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return !self.isGenerating && name.length > 0 && prompt.length > 0 && [self.countField integerValue] > 0;
+}
+
+- (void)updateGenerateButtonState {
+    self.generateButton.enabled = [self canGeneratePlaylist];
+}
+
+- (void)finishGeneration {
+    self.isGenerating = NO;
+    [self updateGenerateButtonState];
+}
+
 #pragma mark - Generation
 
 - (void)generateClicked:(id)sender {
+    if (![self canGeneratePlaylist]) {
+        return;
+    }
     IGLocalizationService *lang = [IGLocalizationService sharedService];
-    self.generateButton.enabled = NO;
+    self.isGenerating = YES;
+    [self updateGenerateButtonState];
     self.progressIndicator.hidden = NO;
     self.progressIndicator.doubleValue = 0;
     self.statusLabel.stringValue = @"Reading iTunes Library...";
@@ -267,7 +290,7 @@
     [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
         if (trackCount < 0) {
             self.statusLabel.stringValue = errorMessage ?: @"Could not read iTunes library.";
-            self.generateButton.enabled = YES;
+            [self finishGeneration];
             self.progressIndicator.hidden = YES;
             [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
             return;
@@ -276,7 +299,7 @@
             self.statusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
                 @"В iTunes нет треков. Создавать ИИ-плейлист пока не из чего." :
                 @"iTunes has no tracks. There is nothing to use for an AI playlist.";
-            self.generateButton.enabled = YES;
+            [self finishGeneration];
             self.progressIndicator.hidden = YES;
             [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
             return;
@@ -288,7 +311,7 @@
         } completion:^(NSArray *tracks) {
         if (tracks.count == 0) {
             self.statusLabel.stringValue = [lang t:@"lib_empty"];
-            self.generateButton.enabled = YES;
+            [self finishGeneration];
             self.progressIndicator.hidden = YES;
             [IGNotificationView showInView:self.view message:[lang t:@"lib_empty"] isError:YES];
             return;
@@ -319,7 +342,7 @@
             
             if (!suggestedIDs || suggestedIDs.count == 0) {
                 self.statusLabel.stringValue = [lang t:@"ai_fail"];
-                self.generateButton.enabled = YES;
+                [self finishGeneration];
                 [IGNotificationView showInView:self.view message:[lang t:@"ai_fail"] isError:YES];
                 return;
             }
@@ -333,14 +356,14 @@
                     self.statusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
                         @"Плейлист не создан: iTunes не добавил ни одного трека." :
                         @"Playlist was not created: iTunes added zero tracks.";
-                    self.generateButton.enabled = YES;
+                    [self finishGeneration];
                     self.progressIndicator.hidden = YES;
                     [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
                     return;
                 }
                 NSString *successMsg = [lang t:@"success_added" args:@[@((long)addedCount)]];
                 self.statusLabel.stringValue = successMsg;
-                self.generateButton.enabled = YES;
+                [self finishGeneration];
                 self.progressIndicator.hidden = YES;
                 
                 [IGNotificationView showInView:self.view message:successMsg isError:NO];

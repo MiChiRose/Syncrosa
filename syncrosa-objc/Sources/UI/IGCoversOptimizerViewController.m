@@ -124,6 +124,7 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
     self.restoreButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.restoreButton.target = self;
     self.restoreButton.action = @selector(restoreClicked:);
+    self.restoreButton.enabled = [self hasCoverBackup];
     [self.view addSubview:self.restoreButton];
 
     y -= 40;
@@ -368,6 +369,12 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
 #else
     return defaultManifest;
 #endif
+}
+
+- (BOOL)hasCoverBackup {
+    NSDictionary *manifest = [self loadManifest];
+    NSDictionary *backups = manifest[@"backups"];
+    return [backups isKindOfClass:[NSDictionary class]] && backups.count > 0;
 }
 
 - (void)saveManifest:(NSDictionary *)manifest {
@@ -1170,7 +1177,7 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
         [self.devicePopup setEnabled:!isProcessing];
         [self.backupButton setEnabled:!isProcessing];
         [self.optimizeButton setEnabled:!isProcessing];
-        [self.restoreButton setEnabled:!isProcessing];
+        [self.restoreButton setEnabled:(!isProcessing && [self hasCoverBackup])];
         if (isProcessing) {
             [self.progressIndicator startAnimation:nil];
         } else {

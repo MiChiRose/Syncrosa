@@ -117,6 +117,7 @@ class FixerTab(tk.Frame):
 
         self.stop_btn = ttk.Button(self.btn_frame, text="Stop", command=self.stop, state="disabled", width=10)
         self.stop_btn.pack(side=tk.LEFT, padx=10)
+        self.update_start_state()
 
     def show_help(self):
         help_text = (
@@ -138,10 +139,18 @@ class FixerTab(tk.Frame):
         val = self.select_all_var.get()
         for v in self.vars.values():
             v.set(val)
+        self.update_start_state()
             
     def update_select_all(self):
         all_checked = all(v.get() for v in self.vars.values())
         self.select_all_var.set(all_checked)
+        self.update_start_state()
+
+    def has_selected_tags(self):
+        return any(v.get() for v in self.vars.values())
+
+    def update_start_state(self):
+        self.start_btn.config(state="normal" if (not self.running and self.has_selected_tags()) else "disabled")
 
     def _append_log(self, text):
         if not self.winfo_exists():
@@ -173,7 +182,7 @@ class FixerTab(tk.Frame):
             return
 
         self.running = True
-        self.start_btn.config(state="disabled")
+        self.update_start_state()
         self.stop_btn.config(state="normal")
         self.progress["value"] = 0
         self.console.config(state="normal")
@@ -250,5 +259,5 @@ class FixerTab(tk.Frame):
             self.after(0, lambda: tkMessageBox.showerror("Fixer Error", str(e)))
         finally:
             self.running = False
-            self.after(0, lambda: self.start_btn.config(state="normal"))
+            self.after(0, self.update_start_state)
             self.after(0, lambda: self.stop_btn.config(state="disabled"))

@@ -12,7 +12,7 @@ except ImportError:
     from tkinter import filedialog as tkFileDialog
 import threading
 
-from features.info_eraser import backup_original_info, erase_info, find_music_files, restore_info
+from features.info_eraser import backup_original_info, erase_info, find_music_files, has_restore_backup, restore_info
 from core.operation_history import record_operation
 
 SUPPORTED_INFO_EXTENSIONS = (".mp3", ".m4a", ".mp4", ".aac", ".alac")
@@ -78,7 +78,7 @@ class InfoEraserTab(tk.Frame):
         enabled = (not busy and len(self.files) > 0)
         self.backup_btn.config(state="normal" if enabled else "disabled")
         self.erase_btn.config(state="normal" if enabled else "disabled")
-        self.restore_btn.config(state="normal" if (not busy and self.folder_path) else "disabled")
+        self.restore_btn.config(state="normal" if (not busy and self.folder_path and has_restore_backup(self.folder_path)) else "disabled")
 
     def log(self, text):
         self.log_box.config(state="normal")

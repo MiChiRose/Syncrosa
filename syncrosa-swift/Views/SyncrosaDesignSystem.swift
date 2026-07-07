@@ -547,30 +547,40 @@ struct SyncrosaPrimaryButtonStyle: ButtonStyle {
     var tint: Color = SyncrosaTheme.accent
 
     func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+
         configuration.label
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color.white)
+            .foregroundStyle(isEnabled ? tint : Color.secondary.opacity(0.72))
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .frame(minHeight: 32)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .background(.thinMaterial, in: shape)
             .background(
-                tint.opacity(configuration.isPressed ? 0.74 : 0.92),
-                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(isEnabled ? 0.18 : 0.06),
+                        tint.opacity(isEnabled ? (configuration.isPressed ? 0.20 : 0.13) : 0.04)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: shape
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(Color.white.opacity(isEnabled ? 0.34 : 0.14), lineWidth: 1)
+                shape
+                    .stroke(Color.white.opacity(isEnabled ? 0.40 : 0.16), lineWidth: 1)
                     .blendMode(.screen)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(tint.opacity(isEnabled ? 0.50 : 0.12), lineWidth: 1)
+                shape
+                    .stroke(tint.opacity(isEnabled ? 0.30 : 0.08), lineWidth: 1)
                     .blendMode(.multiply)
             )
-            .shadow(color: tint.opacity(isEnabled ? 0.34 : 0), radius: 12, x: 0, y: 6)
-            .shadow(color: Color.white.opacity(isEnabled ? 0.26 : 0), radius: 1, x: 0, y: -1)
-            .opacity(isEnabled ? 1 : 0.45)
+            .shadow(color: Color.white.opacity(isEnabled ? 0.22 : 0), radius: 1, x: 0, y: -1)
+            .shadow(color: tint.opacity(isEnabled ? 0.16 : 0), radius: 8, x: 0, y: 3)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.28 : 0), radius: 7, x: 0, y: 3)
+            .opacity(isEnabled ? 1 : 0.48)
             .scaleEffect(configuration.isPressed ? 0.982 : 1)
             .animation(.spring(response: 0.20, dampingFraction: 0.82), value: configuration.isPressed)
     }

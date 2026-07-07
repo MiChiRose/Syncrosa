@@ -66,20 +66,21 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; includes the 10.9 Cocoa launch fix. |
-| `Syncrosa_Python_v3.4.1.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available. |
-| `Syncrosa_SwiftUI_v3.4.1.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with Liquid Glass styling and system Light/Dark appearance. |
+| `Syncrosa_Cocoa_v3.4.2.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; includes safer update checks and clearer history windows. |
+| `Syncrosa_Python_v3.4.2.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available, with aligned update/history polish. |
+| `Syncrosa_SwiftUI_v3.4.2.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with Liquid Glass styling, system Light/Dark appearance, and smarter disabled controls. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.4.1
+### Latest Release: 3.4.2
 
-Syncrosa 3.4.1 is a polish and stability release across all three app tracks:
+Syncrosa 3.4.2 is a small usability and release-flow update across all three app tracks:
 
-- **SwiftUI:** refreshed Liquid Glass design system for cards, menus, segmented controls, buttons, toggles, and utility surfaces.
-- **Objective-C:** fixed a Mavericks launch crash caused by a modern `NSTextField` line-break selector and centered the Library Doctor tabs.
-- **Python:** refreshed release package alongside the native builds so all three download options stay aligned.
-- **Docs:** README download instructions now point at the current 3.4.1 packages.
+- **Updates:** Settings now has a simple Check Updates / Update App flow, and the update button only activates when GitHub has a newer Syncrosa release.
+- **SwiftUI:** controls now disable themselves when a required selection, checkbox, folder, playlist, or available update is missing.
+- **History:** Operation History now has an explicit Close button, with clearer closing behavior across SwiftUI, Python, and Objective-C builds.
+- **Objective-C:** source metadata is aligned with the current release while preserving the OS X 10.9 Mavericks target.
+- **Docs:** README download instructions now point at the current 3.4.2 packages.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.

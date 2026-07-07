@@ -69,7 +69,7 @@ struct InfoEraserView: View {
                             Label(lang.selectedLanguage == "ru" ? "Восстановить" : "Restore Info", systemImage: "arrow.uturn.backward")
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
-                        .disabled(folderPath.isEmpty || isProcessing)
+                        .disabled(!canRestoreOriginalInfo || isProcessing)
                     }
 
                     ProgressView(value: progressValue, total: progressTotal)
@@ -112,6 +112,11 @@ struct InfoEraserView: View {
     private var fileSummary: String {
         let supportedCount = fileItems.filter { isSupportedInfoExtension($0.url.pathExtension.lowercased()) }.count
         return lang.selectedLanguage == "ru" ? "Найдено файлов: \(fileItems.count). Поддерживается очистка MP3, M4A, MP4, AAC, ALAC: \(supportedCount)." : "Files found: \(fileItems.count). Supported for erasing MP3, M4A, MP4, AAC, ALAC: \(supportedCount)."
+    }
+
+    private var canRestoreOriginalInfo: Bool {
+        guard !folderPath.isEmpty else { return false }
+        return InfoEraserService.shared.hasRestoreBackup(for: URL(fileURLWithPath: folderPath))
     }
 
     private var helpSheet: some View {

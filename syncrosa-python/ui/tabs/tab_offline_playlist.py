@@ -102,30 +102,37 @@ class OfflinePlaylistTab(tk.Frame):
         }
         
         # Layout Decades Checkboxes in a grid
-        self.chk_60s = tk.Checkbutton(self.decades_frame, text="60s", variable=self.decades["60s"], bg="#ECECEC", activebackground="#ECECEC")
+        self.chk_60s = tk.Checkbutton(self.decades_frame, text="60s", variable=self.decades["60s"], command=self.update_generate_state, bg="#ECECEC", activebackground="#ECECEC")
         self.chk_60s.grid(row=0, column=0, sticky="w", padx=15, pady=5)
         
-        self.chk_70s = tk.Checkbutton(self.decades_frame, text="70s", variable=self.decades["70s"], bg="#ECECEC", activebackground="#ECECEC")
+        self.chk_70s = tk.Checkbutton(self.decades_frame, text="70s", variable=self.decades["70s"], command=self.update_generate_state, bg="#ECECEC", activebackground="#ECECEC")
         self.chk_70s.grid(row=0, column=1, sticky="w", padx=15, pady=5)
         
-        self.chk_80s = tk.Checkbutton(self.decades_frame, text="80s", variable=self.decades["80s"], bg="#ECECEC", activebackground="#ECECEC")
+        self.chk_80s = tk.Checkbutton(self.decades_frame, text="80s", variable=self.decades["80s"], command=self.update_generate_state, bg="#ECECEC", activebackground="#ECECEC")
         self.chk_80s.grid(row=0, column=2, sticky="w", padx=15, pady=5)
         
-        self.chk_90s = tk.Checkbutton(self.decades_frame, text="90s", variable=self.decades["90s"], bg="#ECECEC", activebackground="#ECECEC")
+        self.chk_90s = tk.Checkbutton(self.decades_frame, text="90s", variable=self.decades["90s"], command=self.update_generate_state, bg="#ECECEC", activebackground="#ECECEC")
         self.chk_90s.grid(row=0, column=3, sticky="w", padx=15, pady=5)
         
-        self.chk_2000s = tk.Checkbutton(self.decades_frame, text="2000s", variable=self.decades["2000s"], bg="#ECECEC", activebackground="#ECECEC")
+        self.chk_2000s = tk.Checkbutton(self.decades_frame, text="2000s", variable=self.decades["2000s"], command=self.update_generate_state, bg="#ECECEC", activebackground="#ECECEC")
         self.chk_2000s.grid(row=1, column=0, sticky="w", padx=15, pady=5)
         
-        self.chk_2010s = tk.Checkbutton(self.decades_frame, text="2010s", variable=self.decades["2010s"], bg="#ECECEC", activebackground="#ECECEC")
+        self.chk_2010s = tk.Checkbutton(self.decades_frame, text="2010s", variable=self.decades["2010s"], command=self.update_generate_state, bg="#ECECEC", activebackground="#ECECEC")
         self.chk_2010s.grid(row=1, column=1, sticky="w", padx=15, pady=5)
         
-        self.chk_2020s = tk.Checkbutton(self.decades_frame, text="2020+", variable=self.decades["2020+"], bg="#ECECEC", activebackground="#ECECEC")
+        self.chk_2020s = tk.Checkbutton(self.decades_frame, text="2020+", variable=self.decades["2020+"], command=self.update_generate_state, bg="#ECECEC", activebackground="#ECECEC")
         self.chk_2020s.grid(row=1, column=2, sticky="w", padx=15, pady=5)
 
         # Generate Button
-        self.gen_btn = ttk.Button(self, text="Generate Playlists by Epochs", command=self.generate_playlists, width=30)
+        self.gen_btn = ttk.Button(self, text="Generate Playlists by Epochs", command=self.generate_playlists, width=30, state="disabled")
         self.gen_btn.pack(pady=15)
+
+    def has_checked_decades(self):
+        return any(var.get() for var in self.decades.values())
+
+    def update_generate_state(self):
+        enabled = bool(self.local_library) and self.has_checked_decades()
+        self.gen_btn.config(state="normal" if enabled else "disabled")
 
     def show_help(self):
         help_text = (
@@ -213,6 +220,7 @@ class OfflinePlaylistTab(tk.Frame):
         else:
             self.status_lbl.config(text="Library scanned: {} tracks loaded.".format(len(lib)))
             tkMessageBox.showinfo("Scan Completed", "iTunes Library successfully scanned!")
+        self.update_generate_state()
 
     def generate_playlists(self):
         if not self.local_library:

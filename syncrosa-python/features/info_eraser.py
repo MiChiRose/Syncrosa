@@ -71,6 +71,10 @@ def _restore_backup_dir(folder):
     return local_dir
 
 
+def has_restore_backup(folder):
+    return os.path.exists(os.path.join(_restore_backup_dir(folder), MANIFEST_NAME))
+
+
 def _relpath(path, folder):
     try:
         return os.path.relpath(path, folder)

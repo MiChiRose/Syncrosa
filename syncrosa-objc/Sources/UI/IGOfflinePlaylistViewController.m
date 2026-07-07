@@ -49,6 +49,7 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextField *footerLabel;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
+@property (nonatomic, assign) BOOL isGenerating;
 @end
 
 @implementation IGOfflinePlaylistViewController
@@ -150,24 +151,32 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
     [self.dec60s setButtonType:NSSwitchButton];
     self.dec60s.title = @"60s";
     self.dec60s.state = NSOnState;
+    self.dec60s.target = self;
+    self.dec60s.action = @selector(decadeCheckboxChanged:);
     [self.view addSubview:self.dec60s];
 
     self.dec70s = [[NSButton alloc] initWithFrame:NSMakeRect(140, y, 80, 20)];
     [self.dec70s setButtonType:NSSwitchButton];
     self.dec70s.title = @"70s";
     self.dec70s.state = NSOnState;
+    self.dec70s.target = self;
+    self.dec70s.action = @selector(decadeCheckboxChanged:);
     [self.view addSubview:self.dec70s];
 
     self.dec80s = [[NSButton alloc] initWithFrame:NSMakeRect(240, y, 80, 20)];
     [self.dec80s setButtonType:NSSwitchButton];
     self.dec80s.title = @"80s";
     self.dec80s.state = NSOnState;
+    self.dec80s.target = self;
+    self.dec80s.action = @selector(decadeCheckboxChanged:);
     [self.view addSubview:self.dec80s];
 
     self.dec90s = [[NSButton alloc] initWithFrame:NSMakeRect(340, y, 80, 20)];
     [self.dec90s setButtonType:NSSwitchButton];
     self.dec90s.title = @"90s";
     self.dec90s.state = NSOnState;
+    self.dec90s.target = self;
+    self.dec90s.action = @selector(decadeCheckboxChanged:);
     [self.view addSubview:self.dec90s];
 
     y -= 30;
@@ -175,18 +184,24 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
     [self.dec2000s setButtonType:NSSwitchButton];
     self.dec2000s.title = @"2000s";
     self.dec2000s.state = NSOnState;
+    self.dec2000s.target = self;
+    self.dec2000s.action = @selector(decadeCheckboxChanged:);
     [self.view addSubview:self.dec2000s];
 
     self.dec2010s = [[NSButton alloc] initWithFrame:NSMakeRect(140, y, 80, 20)];
     [self.dec2010s setButtonType:NSSwitchButton];
     self.dec2010s.title = @"2010s";
     self.dec2010s.state = NSOnState;
+    self.dec2010s.target = self;
+    self.dec2010s.action = @selector(decadeCheckboxChanged:);
     [self.view addSubview:self.dec2010s];
 
     self.dec2020s = [[NSButton alloc] initWithFrame:NSMakeRect(240, y, 80, 20)];
     [self.dec2020s setButtonType:NSSwitchButton];
     self.dec2020s.title = @"2020+";
     self.dec2020s.state = NSOnState;
+    self.dec2020s.target = self;
+    self.dec2020s.action = @selector(decadeCheckboxChanged:);
     [self.view addSubview:self.dec2020s];
 
     // Generate Button
@@ -225,6 +240,28 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
     self.footerLabel.bordered = NO;
     self.footerLabel.drawsBackground = NO;
     [self.view addSubview:self.footerLabel];
+    [self updateGenerateButtonState];
+}
+
+- (NSArray *)decadeCheckboxes {
+    return @[self.dec60s, self.dec70s, self.dec80s, self.dec90s, self.dec2000s, self.dec2010s, self.dec2020s];
+}
+
+- (BOOL)hasSelectedDecade {
+    for (NSButton *checkbox in [self decadeCheckboxes]) {
+        if (checkbox.state == NSOnState) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+- (void)updateGenerateButtonState {
+    self.generateButton.enabled = (!self.isGenerating && [self hasSelectedDecade]);
+}
+
+- (void)decadeCheckboxChanged:(id)sender {
+    [self updateGenerateButtonState];
 }
 
 - (void)populateYears {
@@ -410,21 +447,14 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
 }
 
 - (void)generatePlaylists {
-    NSArray *decadeCheckboxesPreflight = @[self.dec60s, self.dec70s, self.dec80s, self.dec90s, self.dec2000s, self.dec2010s, self.dec2020s];
-    BOOL hasSelectedDecade = NO;
-    for (NSButton *checkbox in decadeCheckboxesPreflight) {
-        if (checkbox.state == NSOnState) {
-            hasSelectedDecade = YES;
-            break;
-        }
-    }
-    if (!hasSelectedDecade) {
+    if (![self hasSelectedDecade]) {
         self.statusLabel.stringValue = @"Select at least one decade before generating playlists.";
         [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
         return;
     }
 
-    self.generateButton.enabled = NO;
+    self.isGenerating = YES;
+    [self updateGenerateButtonState];
     [self.progressIndicator startAnimation:nil];
     self.statusLabel.stringValue = @"Fetching library details...";
 
@@ -442,7 +472,8 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
         NSArray *countParts = [countRaw componentsSeparatedByString:@"\t"];
         if (countParts.count < 2 || ![countParts[0] isEqualToString:@"OK"]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                self.generateButton.enabled = YES;
+                self.isGenerating = NO;
+                [self updateGenerateButtonState];
                 [self.progressIndicator stopAnimation:nil];
                 self.statusLabel.stringValue = @"Could not read iTunes library.";
                 [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
@@ -451,7 +482,8 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
         }
         if ([countParts[1] integerValue] == 0) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                self.generateButton.enabled = YES;
+                self.isGenerating = NO;
+                [self updateGenerateButtonState];
                 [self.progressIndicator stopAnimation:nil];
                 self.statusLabel.stringValue = @"iTunes has no tracks. There is nothing to use for offline playlists.";
                 [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
@@ -499,7 +531,8 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
         NSString *raw = [service runAppleScriptNamed:@"offline.scanTracks" source:script];
         if (!raw || raw.length == 0) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                self.generateButton.enabled = YES;
+                self.isGenerating = NO;
+                [self updateGenerateButtonState];
                 [self.progressIndicator stopAnimation:nil];
                 self.statusLabel.stringValue = @"No tracks found in library.";
             });
@@ -595,7 +628,8 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
             self.statusLabel.stringValue = @"Generating without filters...";
             [self processTrackList:allTracks ignoreFilters:YES];
         } else {
-            self.generateButton.enabled = YES;
+            self.isGenerating = NO;
+            [self updateGenerateButtonState];
             self.statusLabel.stringValue = @"Generation cancelled.";
         }
         return;
@@ -680,7 +714,8 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            self.generateButton.enabled = YES;
+            self.isGenerating = NO;
+            [self updateGenerateButtonState];
             [self.progressIndicator stopAnimation:nil];
             if (epochCreatedCount > 0) {
                 self.statusLabel.stringValue = [NSString stringWithFormat:@"Playlist generation completed. Created %ld, skipped %ld, unchanged %ld.",

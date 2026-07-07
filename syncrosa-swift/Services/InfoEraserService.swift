@@ -216,6 +216,11 @@ final class InfoEraserService {
         return (restored, missing)
     }
 
+    func hasRestoreBackup(for folder: URL) -> Bool {
+        let backupDir = restoreBackupDirectory(for: folder)
+        return FileManager.default.fileExists(atPath: backupDir.appendingPathComponent(manifestName).path)
+    }
+
     private func isSupportedExtension(_ ext: String) -> Bool {
         ext == "mp3" || mp4Extensions.contains(ext)
     }
