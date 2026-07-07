@@ -5,6 +5,50 @@
 static NSString *IGInfoEraserBackupDirName = @"SyncrosaInfoEraserBackup";
 static NSUInteger IGInfoEraserChunkSize = 256 * 1024;
 
+static void IGInfoEraserHDDSafePause(void) {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"]) {
+        [NSThread sleepForTimeInterval:0.01];
+    }
+}
+
+static void IGInfoEraserHDDSafeChunkPause(void) {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"]) {
+        [NSThread sleepForTimeInterval:0.003];
+    }
+}
+
+static NSString *IGInfoEraserSupportDir(void) {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    NSString *dir = [base stringByAppendingPathComponent:@"Syncrosa"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    return dir;
+}
+
+static NSString *IGInfoEraserBeginActiveOperation(NSString *title, NSString *message, NSInteger affectedCount, NSString *backupPath) {
+    NSString *identifier = [[NSProcessInfo processInfo] globallyUniqueString];
+    NSDictionary *marker = @{
+        @"id": identifier,
+        @"tool": @"Info Eraser",
+        @"title": title ?: @"",
+        @"message": message ?: @"",
+        @"startedAt": @([[NSDate date] timeIntervalSince1970]),
+        @"affectedCount": @(affectedCount),
+        @"backupPath": backupPath ?: @""
+    };
+    NSString *path = [IGInfoEraserSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
+    [marker writeToFile:path atomically:YES];
+    return identifier;
+}
+
+static void IGInfoEraserFinishActiveOperation(NSString *identifier) {
+    NSString *path = [IGInfoEraserSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
+    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:path];
+    if (!identifier || [[marker objectForKey:@"id"] isEqualToString:identifier]) {
+        [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
+    }
+}
+
 static uint32_t IGInfoEraserReadBE32(NSData *data, NSUInteger offset) {
     const unsigned char *bytes = [data bytes];
     return ((uint32_t)bytes[offset] << 24) | ((uint32_t)bytes[offset + 1] << 16) | ((uint32_t)bytes[offset + 2] << 8) | (uint32_t)bytes[offset + 3];
@@ -369,6 +413,10 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
     self.statusLabel.stringValue = status;
     [self clearLogView];
     [self log:status];
+    NSString *activeID = IGInfoEraserBeginActiveOperation(status,
+                                                         @"Info Eraser was interrupted while working on local music files.",
+                                                         self.foundFiles.count,
+                                                         [self backupDirectoryPath]);
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -385,6 +433,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
+            IGInfoEraserFinishActiveOperation(activeID);
             self.statusLabel.stringValue = message ?: @"Done";
             [self log:message ?: @"Done"];
             IGInfoEraserRecordHistory(status, [message hasPrefix:@"ERROR:"] ? @"FAIL" : @"OK", message ?: @"Done", self.foundFiles.count, [self backupDirectoryPath]);
@@ -519,6 +568,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
 
         [items addObject:item];
         if (progress) progress(i + 1, total);
+        IGInfoEraserHDDSafePause();
     }
 
     NSDictionary *manifest = @{
@@ -600,6 +650,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
             unsupported++;
         }
         if (progress) progress(i + 1, total);
+        IGInfoEraserHDDSafePause();
     }
     if (unsupportedOut) *unsupportedOut = unsupported;
     return erased;
@@ -655,6 +706,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
             NSData *chunk = nil;
             while ((chunk = [body readDataOfLength:IGInfoEraserChunkSize]).length > 0) {
                 [output writeData:chunk];
+                IGInfoEraserHDDSafeChunkPause();
             }
             [body closeFile];
             if (id3v1.length > 0) [output writeData:id3v1];
@@ -674,6 +726,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
             }
         }
         if (progress) progress(i + 1, total);
+        IGInfoEraserHDDSafePause();
     }
 
     if (missingOut) *missingOut = missing;
@@ -829,6 +882,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
         if (chunk.length == 0) break;
         [output writeData:chunk];
         remaining -= chunk.length;
+        IGInfoEraserHDDSafeChunkPause();
     }
     [input closeFile];
     [output closeFile];

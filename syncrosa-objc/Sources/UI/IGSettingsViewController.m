@@ -68,13 +68,18 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
 @property (nonatomic, strong) NSSecureTextField *apiKeyField;
 @property (nonatomic, strong) NSButton *enableLoggingCheckbox;
 @property (nonatomic, strong) NSButton *onlyLocalCheckbox;
+@property (nonatomic, strong) NSButton *hddSafeCheckbox;
 @property (nonatomic, strong) NSButton *historyButton;
+@property (nonatomic, strong) NSButton *recoveryButton;
 @property (nonatomic, strong) NSButton *syncLibButton;
 @property (nonatomic, strong) NSTextField *syncLibStatusLabel;
 @property (nonatomic, strong) NSButton *updateCheckButton;
 @property (nonatomic, strong) NSButton *updateOpenButton;
+@property (nonatomic, strong) NSButton *releaseNotesButton;
 @property (nonatomic, strong) NSTextField *updateStatusLabel;
 @property (nonatomic, strong) NSString *latestUpdateURL;
+@property (nonatomic, strong) NSString *latestReleaseTitle;
+@property (nonatomic, strong) NSString *latestReleaseNotes;
 @property (nonatomic, strong) NSButton *saveButton;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextField *footerLabel;
@@ -105,8 +110,10 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
 
 - (void)setupUI {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
-    CGFloat y = 450;
+    CGFloat y = 465;
     self.latestUpdateURL = @"https://github.com/MiChiRose/Syncrosa/releases/latest";
+    self.latestReleaseTitle = @"";
+    self.latestReleaseNotes = @"";
     
     // Title
     self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 480, 30)];
@@ -196,6 +203,19 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     self.historyButton.target = self;
     self.historyButton.action = @selector(historyClicked:);
     [self.view addSubview:self.historyButton];
+
+    y -= 25;
+    self.hddSafeCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)];
+    self.hddSafeCheckbox.buttonType = NSSwitchButton;
+    self.hddSafeCheckbox.title = @"HDD Safe Mode";
+    [self.view addSubview:self.hddSafeCheckbox];
+
+    self.recoveryButton = [[NSButton alloc] initWithFrame:NSMakeRect(300, y - 4, 180, 28)];
+    self.recoveryButton.bezelStyle = NSRoundedBezelStyle;
+    self.recoveryButton.title = @"Recovery Center";
+    self.recoveryButton.target = self;
+    self.recoveryButton.action = @selector(recoveryClicked:);
+    [self.view addSubview:self.recoveryButton];
     
     y -= 35;
     // Library Sync Section
@@ -215,20 +235,27 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
 
     y -= 40;
     // Updates Section
-    self.updateCheckButton = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 150, 30)];
+    self.updateCheckButton = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 145, 30)];
     self.updateCheckButton.bezelStyle = NSRoundedBezelStyle;
     self.updateCheckButton.target = self;
     self.updateCheckButton.action = @selector(checkUpdatesClicked:);
     [self.view addSubview:self.updateCheckButton];
 
-    self.updateOpenButton = [[NSButton alloc] initWithFrame:NSMakeRect(180, y, 140, 30)];
+    self.updateOpenButton = [[NSButton alloc] initWithFrame:NSMakeRect(175, y, 120, 30)];
     self.updateOpenButton.bezelStyle = NSRoundedBezelStyle;
     self.updateOpenButton.target = self;
     self.updateOpenButton.action = @selector(openUpdateClicked:);
     self.updateOpenButton.enabled = NO;
     [self.view addSubview:self.updateOpenButton];
 
-    self.updateStatusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(330, y+5, 230, 20)];
+    self.releaseNotesButton = [[NSButton alloc] initWithFrame:NSMakeRect(305, y, 125, 30)];
+    self.releaseNotesButton.bezelStyle = NSRoundedBezelStyle;
+    self.releaseNotesButton.target = self;
+    self.releaseNotesButton.action = @selector(releaseNotesClicked:);
+    self.releaseNotesButton.enabled = NO;
+    [self.view addSubview:self.releaseNotesButton];
+
+    self.updateStatusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y - 20, 540, 20)];
     self.updateStatusLabel.font = [NSFont systemFontOfSize:11];
     self.updateStatusLabel.textColor = [NSColor grayColor];
     self.updateStatusLabel.editable = NO;
@@ -237,7 +264,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     self.updateStatusLabel.stringValue = [NSString stringWithFormat:@"Current version: %@", IGSettingsCurrentVersion()];
     [self.view addSubview:self.updateStatusLabel];
     
-    y -= 45;
+    y -= 56;
     // Save Button
     self.saveButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
     self.saveButton.bezelStyle = NSTexturedRoundedBezelStyle;
@@ -245,7 +272,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     self.saveButton.action = @selector(saveClicked:);
     [self.view addSubview:self.saveButton];
     
-    y -= 40;
+    y -= 36;
     self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
     self.statusLabel.stringValue = @"";
     self.statusLabel.editable = NO;
@@ -255,7 +282,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     [self.view addSubview:self.statusLabel];
     
     // Help Button
-    self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, 452, 25, 25)];
+    self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, 467, 25, 25)];
     self.helpBtn.bezelStyle = NSHelpButtonBezelStyle;
     self.helpBtn.title = @"";
     self.helpBtn.target = self;
@@ -263,7 +290,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     [self.view addSubview:self.helpBtn];
     
     // Footer
-    self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 500, 40)];
+    self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 4, 500, 30)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
     self.footerLabel.textColor = [NSColor grayColor];
     self.footerLabel.alignment = NSCenterTextAlignment;
@@ -292,9 +319,12 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
         @"Запрашивать сохранение логов при генерации и ошибках" : 
         @"Prompt to save text logs for errors and successful generation";
     self.onlyLocalCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Only Local Mode (без сетевых метаданных)" : @"Only Local Mode (skip online metadata)";
+    self.hddSafeCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"HDD Safe Mode (мягче для диска)" : @"HDD Safe Mode (gentler disk work)";
     self.historyButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"История операций" : @"Operation History";
+    self.recoveryButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Recovery Center" : @"Recovery Center";
     self.updateCheckButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Проверить обновления" : @"Check Updates";
     self.updateOpenButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Update App" : @"Update App";
+    self.releaseNotesButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Что нового" : @"Release Notes";
     
     if (self.syncLibStatusLabel.stringValue.length == 0 || 
         [self.syncLibStatusLabel.stringValue isEqualToString:@"Refresh your local music database cache."] ||
@@ -433,6 +463,86 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     }
 }
 
+- (NSString *)applicationSupportSyncrosaPath {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    return [base stringByAppendingPathComponent:@"Syncrosa"];
+}
+
+- (void)recoveryClicked:(id)sender {
+    NSString *support = [self applicationSupportSyncrosaPath];
+    NSString *backups = [support stringByAppendingPathComponent:@"Backups"];
+    NSString *history = [self operationHistoryPath];
+    NSString *activePath = [support stringByAppendingPathComponent:@"active-operation.plist"];
+    NSDictionary *active = [NSDictionary dictionaryWithContentsOfFile:activePath];
+    NSString *activeText = @"No interrupted operation marker found.";
+    if ([active isKindOfClass:[NSDictionary class]] && [active objectForKey:@"title"]) {
+        NSDate *date = [NSDate dateWithTimeIntervalSince1970:[[active objectForKey:@"startedAt"] doubleValue]];
+        activeText = [NSString stringWithFormat:@"%@\nTool: %@\nStarted: %@\nAffected: %@\nBackup: %@",
+                      [active objectForKey:@"title"] ?: @"",
+                      [active objectForKey:@"tool"] ?: @"",
+                      date ?: [NSDate date],
+                      [active objectForKey:@"affectedCount"] ?: @0,
+                      [active objectForKey:@"backupPath"] ?: @""];
+    }
+    NSString *text = [NSString stringWithFormat:
+                      @"Recovery Center\n\n"
+                      "Interrupted operations:\n"
+                      "%@\n\n"
+                      "Backups:\n%@\n\n"
+                      "Operation History:\n%@\n\n"
+                      "Info Eraser local backups are also stored next to the selected music folder as SyncrosaInfoEraserBackup.",
+                      activeText,
+                      backups,
+                      history];
+    [self showTextSheetWithTitle:@"Recovery Center" text:text monospace:NO];
+}
+
+- (void)releaseNotesClicked:(id)sender {
+    NSString *title = self.latestReleaseTitle.length > 0 ? self.latestReleaseTitle : @"Syncrosa Release Notes";
+    NSString *text = self.latestReleaseNotes.length > 0 ? self.latestReleaseNotes : @"Run Check Updates first.";
+    [self showTextSheetWithTitle:title text:text monospace:NO];
+}
+
+- (void)showTextSheetWithTitle:(NSString *)title text:(NSString *)text monospace:(BOOL)monospace {
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 520, 360)
+                                                  styleMask:NSTitledWindowMask
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:YES];
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 480, 280)];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    textView.editable = NO;
+    textView.string = text ?: @"";
+    textView.font = monospace ? ([NSFont fontWithName:@"Monaco" size:10] ?: [NSFont systemFontOfSize:10]) : [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+
+    NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 325, 480, 22)];
+    titleLabel.stringValue = title ?: @"";
+    titleLabel.font = [NSFont boldSystemFontOfSize:14];
+    titleLabel.editable = NO;
+    titleLabel.bordered = NO;
+    titleLabel.drawsBackground = NO;
+    [sheet.contentView addSubview:titleLabel];
+
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(210, 15, 100, 30)];
+    IGLocalizationService *lang = [IGLocalizationService sharedService];
+    closeButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Закрыть" : @"Close";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+
+    self.helpSheetWindow = sheet;
+    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
+        [self.view.window beginSheet:sheet completionHandler:nil];
+    } else {
+        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
+    }
+}
+
 - (void)comboBoxSelectionDidChange:(NSNotification *)notification {
     if (notification.object == self.providerCombo) {
         NSInteger index = [self.providerCombo indexOfSelectedItem];
@@ -501,6 +611,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     // 4. Logging
     self.enableLoggingCheckbox.state = ([IGLogger desktopDiagnosticsEnabled] && [defaults boolForKey:@"enable_logging"]) ? NSOnState : NSOffState;
     self.onlyLocalCheckbox.state = [defaults boolForKey:@"only_local_mode"] ? NSOnState : NSOffState;
+    self.hddSafeCheckbox.state = [defaults boolForKey:@"hdd_safe_mode"] ? NSOnState : NSOffState;
     
     // Sync AIService state
     [IGAIService sharedService].provider = provider;
@@ -592,7 +703,10 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     self.updateCheckButton.enabled = NO;
     self.updateOpenButton.enabled = NO;
+    self.releaseNotesButton.enabled = NO;
     self.latestUpdateURL = @"";
+    self.latestReleaseTitle = @"";
+    self.latestReleaseNotes = @"";
     self.updateStatusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Проверяю GitHub Releases..." : @"Checking GitHub Releases...";
 
     NSURL *url = [NSURL URLWithString:@"https://api.github.com/repos/MiChiRose/Syncrosa/releases/latest"];
@@ -622,6 +736,14 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
                 latest = [latest stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
                 if ([latest hasPrefix:@"v"]) {
                     latest = [latest substringFromIndex:1];
+                }
+                NSString *releaseName = [release objectForKey:@"name"];
+                NSString *releaseBody = [release objectForKey:@"body"];
+                if ([releaseName isKindOfClass:[NSString class]]) {
+                    self.latestReleaseTitle = releaseName;
+                }
+                if ([releaseBody isKindOfClass:[NSString class]]) {
+                    self.latestReleaseNotes = releaseBody;
                 }
                 NSString *htmlURL = [release objectForKey:@"html_url"];
                 if (htmlURL.length > 0) {
@@ -661,6 +783,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
             self.updateStatusLabel.stringValue = message ?: @"Update check finished.";
             self.updateCheckButton.enabled = YES;
             self.updateOpenButton.enabled = updateAvailable;
+            self.releaseNotesButton.enabled = (self.latestReleaseNotes.length > 0);
             [IGNotificationView showInView:self.view message:self.updateStatusLabel.stringValue isError:isError];
         });
     }];
@@ -687,6 +810,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     [defaults setBool:(self.onlyLocalCheckbox.state == NSOnState) forKey:@"only_local_mode"];
+    [defaults setBool:(self.hddSafeCheckbox.state == NSOnState) forKey:@"hdd_safe_mode"];
     [defaults synchronize];
     
     [IGAIService sharedService].provider = currentProvider;
@@ -706,6 +830,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
             
             [defaults setBool:([IGLogger desktopDiagnosticsEnabled] && self.enableLoggingCheckbox.state == NSOnState) forKey:@"enable_logging"];
             [defaults setBool:(self.onlyLocalCheckbox.state == NSOnState) forKey:@"only_local_mode"];
+            [defaults setBool:(self.hddSafeCheckbox.state == NSOnState) forKey:@"hdd_safe_mode"];
             [defaults synchronize];
             
             // Securely save API Key to Keychain

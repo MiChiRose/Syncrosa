@@ -105,6 +105,8 @@ def check_for_updates():
         }
 
     latest = (release.get("tag_name") or release.get("name") or "").lstrip("v")
+    release_title = release.get("name") or "Syncrosa " + latest
+    release_notes = release.get("body") or ""
     html_url = release.get("html_url") or RELEASE_PAGE_URL
     asset_url = _find_python_asset(release) or html_url
     current = current_version()
@@ -114,7 +116,9 @@ def check_for_updates():
             "ok": False,
             "available": False,
             "message": "Could not read the latest Syncrosa version.",
-            "url": html_url
+            "url": html_url,
+            "release_title": release_title,
+            "release_notes": release_notes
         }
 
     if current == "Development":
@@ -122,7 +126,9 @@ def check_for_updates():
             "ok": True,
             "available": False,
             "message": "Latest release: Syncrosa {0}. This is a development build.".format(latest),
-            "url": asset_url
+            "url": asset_url,
+            "release_title": release_title,
+            "release_notes": release_notes
         }
 
     if compare_versions(latest, current) > 0:
@@ -130,14 +136,18 @@ def check_for_updates():
             "ok": True,
             "available": True,
             "message": "Syncrosa {0} is available. Click Update App.".format(latest),
-            "url": asset_url
+            "url": asset_url,
+            "release_title": release_title,
+            "release_notes": release_notes
         }
 
     return {
         "ok": True,
         "available": False,
         "message": "You are up to date on Syncrosa {0}.".format(current),
-        "url": html_url
+        "url": html_url,
+        "release_title": release_title,
+        "release_notes": release_notes
     }
 
 

@@ -22,6 +22,7 @@ from core.localization import _, LANGUAGES
 from core.config import CONFIG_DATA, save_config, desktop_debug_logs_enabled
 from core.network import test_api_key, make_request
 from core.operation_history import read_history
+from core.storage_paths import application_support_dir, backups_dir
 from core.updater import RELEASE_PAGE_URL, check_for_updates, current_version, open_update_url
 from ui.components import ProgressWindow
 
@@ -39,6 +40,8 @@ class SetupWindow(tk.Toplevel):
         
         self.on_success = on_success
         self.update_url = RELEASE_PAGE_URL
+        self.release_title = ""
+        self.release_notes = ""
         self.configure(bg="#ECECEC")
         
         self.update_idletasks()
@@ -155,6 +158,10 @@ class SetupWindow(tk.Toplevel):
         self.btn_update_app.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
         self.btn_update_app.config(state="disabled")
 
+        self.btn_release_notes = ttk.Button(update_frame, text="Release Notes", command=self.show_release_notes, width=18)
+        self.btn_release_notes.grid(row=1, column=2, sticky="w", padx=(10, 0), pady=(0, 2))
+        self.btn_release_notes.config(state="disabled")
+
         tk.Frame(main_frame, bg="#D4D4D4", height=1).pack(fill=tk.X, pady=15)
         
         # --- PREFERENCES SECTION ---
@@ -168,6 +175,7 @@ class SetupWindow(tk.Toplevel):
         self.only_local_var = tk.BooleanVar(value=bool(CONFIG_DATA.get("only_local_mode", False)))
         tk.Checkbutton(pref_frame, text="Only Local Mode", variable=self.only_local_var, bg="#ECECEC", font=("system", 12), command=self.save_only_local).pack(side=tk.LEFT, anchor="w", padx=10, pady=0)
         ttk.Button(pref_frame, text="Operation History", command=self.show_history, width=18).pack(side=tk.LEFT, padx=10)
+        ttk.Button(pref_frame, text="Recovery Center", command=self.show_recovery_center, width=18).pack(side=tk.LEFT, padx=10)
         
         # --- FOOTER SECTION ---
         bottom_frame = tk.Frame(main_frame, bg="#ECECEC")
@@ -241,6 +249,37 @@ class SetupWindow(tk.Toplevel):
 
         combo.bind("<<ComboboxSelected>>", reload_history)
         reload_history()
+
+    def show_recovery_center(self):
+        win = tk.Toplevel(self)
+        win.title("Recovery Center")
+        win.geometry("620x360")
+        top = tk.Frame(win)
+        top.pack(fill=tk.X, padx=10, pady=8)
+        ttk.Button(top, text="Close", command=win.destroy, width=12).pack(side=tk.RIGHT)
+        win.bind("<Escape>", lambda _event: win.destroy())
+        text = tk.Text(win, bg="#000000", fg="#00FF55", font=("Monaco", 10), state="normal")
+        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+
+        active_path = os.path.join(application_support_dir(), "active-operation.json")
+        active_text = "No interrupted operation marker found."
+        if os.path.exists(active_path):
+            try:
+                with open(active_path, "rb") as f:
+                    active = json.loads(f.read().decode("utf-8"))
+                active_text = "{0}\nTool: {1}\nAffected: {2}\nBackup: {3}".format(
+                    active.get("title", ""),
+                    active.get("tool", ""),
+                    active.get("affectedCount", 0),
+                    active.get("backupPath", "")
+                )
+            except Exception:
+                active_text = "Could not read active-operation marker."
+
+        text.insert(tk.END, "Interrupted operation:\n{0}\n\n".format(active_text))
+        text.insert(tk.END, "Backups:\n{0}\n\n".format(backups_dir()))
+        text.insert(tk.END, "Operation History:\n{0}\n".format(os.path.join(application_support_dir(), "operation-history.json")))
+        text.config(state="disabled")
         
     def clear_lib_cache(self):
         self.btn_sync_lib.config(state="disabled")
@@ -305,6 +344,9 @@ class SetupWindow(tk.Toplevel):
     def check_updates(self):
         self.btn_check_updates.config(state="disabled")
         self.btn_update_app.config(state="disabled")
+        self.btn_release_notes.config(state="disabled")
+        self.release_title = ""
+        self.release_notes = ""
         self.update_status_label.config(text="Checking GitHub Releases...")
 
         def task():
@@ -315,7 +357,9 @@ class SetupWindow(tk.Toplevel):
                     "ok": False,
                     "available": False,
                     "message": "Could not check updates: " + str(exc),
-                    "url": RELEASE_PAGE_URL
+                    "url": RELEASE_PAGE_URL,
+                    "release_title": "",
+                    "release_notes": ""
                 }
             self.after(0, self.finish_update_check, result)
 
@@ -325,7 +369,10 @@ class SetupWindow(tk.Toplevel):
         self.btn_check_updates.config(state="normal")
         update_available = bool(result.get("available"))
         self.update_url = (result.get("url") if update_available else None) or RELEASE_PAGE_URL
+        self.release_title = result.get("release_title") or ""
+        self.release_notes = result.get("release_notes") or ""
         self.btn_update_app.config(state="normal" if update_available else "disabled")
+        self.btn_release_notes.config(state="normal" if self.release_notes.strip() else "disabled")
         self.update_status_label.config(text=result.get("message", "Update check finished."))
         if update_available:
             tkMessageBox.showinfo("Updates", result.get("message", "Syncrosa update is available."))
@@ -335,6 +382,22 @@ class SetupWindow(tk.Toplevel):
             return
         if not open_update_url(self.update_url):
             tkMessageBox.showerror("Updates", "Could not open the update page.")
+
+    def show_release_notes(self):
+        if not self.release_notes.strip():
+            return
+        win = tk.Toplevel(self)
+        win.title(self.release_title or "Syncrosa Release Notes")
+        win.geometry("680x460")
+        top = tk.Frame(win)
+        top.pack(fill=tk.X, padx=10, pady=8)
+        tk.Label(top, text=self.release_title or "Syncrosa Release Notes", font=("system", 13, "bold")).pack(side=tk.LEFT)
+        ttk.Button(top, text="Close", command=win.destroy, width=12).pack(side=tk.RIGHT)
+        win.bind("<Escape>", lambda _event: win.destroy())
+        text = tk.Text(win, wrap=tk.WORD, font=("system", 12))
+        text.insert(tk.END, self.release_notes)
+        text.config(state="disabled")
+        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
     def on_closing(self):
         self.grab_release()

@@ -4,8 +4,8 @@ extension SyncrosaTheme {
     static let contentMaxWidth: CGFloat = 1120
     static let pageHorizontalPadding: CGFloat = 32
     static let pageVerticalPadding: CGFloat = 28
-    static let cardRadius: CGFloat = 14
-    static let controlRadius: CGFloat = 10
+    static let cardRadius: CGFloat = 12
+    static let controlRadius: CGFloat = 9
     static let accent = Color(nsColor: .controlAccentColor)
     static let destructive = Color(nsColor: .systemRed)
     static let success = Color(nsColor: .systemGreen)
@@ -13,9 +13,9 @@ extension SyncrosaTheme {
     static let elevatedFill = Color(nsColor: .controlBackgroundColor).opacity(0.78)
     static let consoleBackground = Color(nsColor: .textColor).opacity(0.94)
     static let consoleForeground = Color(nsColor: .systemGreen)
-    static let glassHighlight = Color.white.opacity(0.36)
-    static let glassHairline = Color.primary.opacity(0.12)
-    static let glassFill = Color.white.opacity(0.055)
+    static let glassHighlight = Color.white.opacity(0.24)
+    static let glassHairline = Color.primary.opacity(0.14)
+    static let glassFill = Color(nsColor: .controlBackgroundColor).opacity(0.30)
 }
 
 struct SyncrosaPage<Content: View>: View {
@@ -149,7 +149,7 @@ struct SyncrosaCardModifier: ViewModifier {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .background(SyncrosaTheme.glassFill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -161,8 +161,8 @@ struct SyncrosaCardModifier: ViewModifier {
                     .stroke(SyncrosaTheme.glassHairline, lineWidth: 1)
                     .blendMode(.multiply)
             )
-            .shadow(color: Color.white.opacity(0.22), radius: 1, x: 0, y: -1)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(0.58), radius: 18, x: 0, y: 8)
+            .shadow(color: Color.white.opacity(0.12), radius: 1, x: 0, y: -1)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(0.28), radius: 12, x: 0, y: 5)
     }
 }
 
@@ -189,12 +189,13 @@ struct SyncrosaControlShellModifier: ViewModifier {
         content
             .padding(.horizontal, horizontal)
             .padding(.vertical, vertical)
-            .background(Color.primary.opacity(0.065), in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(Color.primary.opacity(0.16), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.14), lineWidth: 1)
             )
-            .shadow(color: SyncrosaTheme.softShadow.opacity(0.35), radius: 6, x: 0, y: 2)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(0.20), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -306,20 +307,20 @@ struct SyncrosaGlassControlModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .background(SyncrosaTheme.glassFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(SyncrosaTheme.glassFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(SyncrosaTheme.glassHighlight, lineWidth: 1)
                     .blendMode(.screen)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(SyncrosaTheme.glassHairline.opacity(isActive ? 1.0 : 0.86), lineWidth: 1)
                     .blendMode(.multiply)
             )
-            .shadow(color: Color.white.opacity(0.30), radius: 1, x: 0, y: -1)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(0.70), radius: 10, x: 0, y: 5)
+            .shadow(color: Color.white.opacity(0.16), radius: 1, x: 0, y: -1)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(0.32), radius: 7, x: 0, y: 3)
     }
 }
 
@@ -519,23 +520,23 @@ struct SyncrosaSecondaryButtonStyle: ButtonStyle {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .frame(minHeight: 30)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             .background(
-                (configuration.isPressed ? Color.primary.opacity(0.10) : SyncrosaTheme.glassFill),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                (configuration.isPressed ? Color.primary.opacity(0.09) : SyncrosaTheme.glassFill),
+                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(SyncrosaTheme.glassHighlight.opacity(isEnabled ? 1 : 0.45), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(SyncrosaTheme.glassHighlight.opacity(isEnabled ? 0.9 : 0.35), lineWidth: 1)
                     .blendMode(.screen)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(isEnabled ? 0.16 : 0.07), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(Color.primary.opacity(isEnabled ? 0.15 : 0.07), lineWidth: 1)
                     .blendMode(.multiply)
             )
-            .shadow(color: Color.white.opacity(isEnabled ? 0.20 : 0), radius: 1, x: 0, y: -1)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.50 : 0), radius: 8, x: 0, y: 4)
+            .shadow(color: Color.white.opacity(isEnabled ? 0.10 : 0), radius: 1, x: 0, y: -1)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.24 : 0), radius: 6, x: 0, y: 3)
             .opacity(isEnabled ? 1 : 0.55)
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
@@ -551,16 +552,16 @@ struct SyncrosaPrimaryButtonStyle: ButtonStyle {
 
         configuration.label
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(isEnabled ? tint : Color.secondary.opacity(0.72))
+            .foregroundStyle(isEnabled ? Color.white : Color.secondary.opacity(0.72))
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .frame(minHeight: 32)
-            .background(.thinMaterial, in: shape)
+            .background(.regularMaterial, in: shape)
             .background(
                 LinearGradient(
                     colors: [
-                        Color.white.opacity(isEnabled ? 0.18 : 0.06),
-                        tint.opacity(isEnabled ? (configuration.isPressed ? 0.20 : 0.13) : 0.04)
+                        tint.opacity(isEnabled ? (configuration.isPressed ? 0.80 : 0.95) : 0.08),
+                        tint.opacity(isEnabled ? (configuration.isPressed ? 0.66 : 0.78) : 0.04)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -569,17 +570,17 @@ struct SyncrosaPrimaryButtonStyle: ButtonStyle {
             )
             .overlay(
                 shape
-                    .stroke(Color.white.opacity(isEnabled ? 0.40 : 0.16), lineWidth: 1)
+                    .stroke(Color.white.opacity(isEnabled ? 0.32 : 0.12), lineWidth: 1)
                     .blendMode(.screen)
             )
             .overlay(
                 shape
-                    .stroke(tint.opacity(isEnabled ? 0.30 : 0.08), lineWidth: 1)
+                    .stroke(Color.black.opacity(isEnabled ? 0.10 : 0.04), lineWidth: 1)
                     .blendMode(.multiply)
             )
-            .shadow(color: Color.white.opacity(isEnabled ? 0.22 : 0), radius: 1, x: 0, y: -1)
-            .shadow(color: tint.opacity(isEnabled ? 0.16 : 0), radius: 8, x: 0, y: 3)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.28 : 0), radius: 7, x: 0, y: 3)
+            .shadow(color: Color.white.opacity(isEnabled ? 0.10 : 0), radius: 1, x: 0, y: -1)
+            .shadow(color: tint.opacity(isEnabled ? 0.14 : 0), radius: 7, x: 0, y: 3)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.20 : 0), radius: 6, x: 0, y: 3)
             .opacity(isEnabled ? 1 : 0.48)
             .scaleEffect(configuration.isPressed ? 0.982 : 1)
             .animation(.spring(response: 0.20, dampingFraction: 0.82), value: configuration.isPressed)
@@ -602,12 +603,12 @@ struct SyncrosaGlassIconButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(isEnabled ? tint.opacity(0.82) : Color.secondary)
             .frame(width: size, height: size)
-            .background(.thinMaterial, in: Circle())
+            .background(.regularMaterial, in: Circle())
             .background(SyncrosaTheme.glassFill, in: Circle())
             .overlay(Circle().stroke(SyncrosaTheme.glassHighlight.opacity(isEnabled ? 1 : 0.4), lineWidth: 1).blendMode(.screen))
             .overlay(Circle().stroke(Color.primary.opacity(isEnabled ? 0.12 : 0.06), lineWidth: 1).blendMode(.multiply))
-            .shadow(color: Color.white.opacity(isEnabled ? 0.18 : 0), radius: 1, x: 0, y: -1)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.45 : 0), radius: 7, x: 0, y: 3)
+            .shadow(color: Color.white.opacity(isEnabled ? 0.10 : 0), radius: 1, x: 0, y: -1)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.22 : 0), radius: 5, x: 0, y: 2)
             .opacity(isEnabled ? 1 : 0.50)
             .scaleEffect(configuration.isPressed ? 0.94 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)

@@ -66,21 +66,21 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.2.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; includes safer update checks and clearer history windows. |
-| `Syncrosa_Python_v3.4.2.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available, with aligned update/history polish. |
-| `Syncrosa_SwiftUI_v3.4.2.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with Liquid Glass styling, system Light/Dark appearance, and smarter disabled controls. |
+| `Syncrosa_Cocoa_v3.4.3.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds Recovery Center, HDD Safe Mode, and safer update/release-note checks. |
+| `Syncrosa_Python_v3.4.3.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available, with aligned updater, history, and recovery polish. |
+| `Syncrosa_SwiftUI_v3.4.3.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with polished Liquid Glass controls, Recovery Center, release notes, and smarter disabled actions. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.4.2
+### Latest Release: 3.4.3
 
-Syncrosa 3.4.2 is a small usability and release-flow update across all three app tracks:
+Syncrosa 3.4.3 focuses on safer long-running work, clearer recovery, and a more polished modern UI across the active app tracks:
 
-- **Updates:** Settings now has a simple Check Updates / Update App flow, and the update button only activates when GitHub has a newer Syncrosa release.
-- **SwiftUI:** controls now disable themselves when a required selection, checkbox, folder, playlist, or available update is missing.
-- **History:** Operation History now has an explicit Close button, with clearer closing behavior across SwiftUI, Python, and Objective-C builds.
-- **Objective-C:** source metadata is aligned with the current release while preserving the OS X 10.9 Mavericks target.
-- **Docs:** README download instructions now point at the current 3.4.2 packages.
+- **Recovery Center:** SwiftUI, Objective-C, and Python builds now expose recovery/history locations and interrupted-operation markers more clearly.
+- **Updates:** Check Updates can also expose release notes, while Update App stays disabled unless GitHub has a newer compatible package.
+- **HDD Safety:** Objective-C gains HDD Safe Mode controls for gentler legacy-disk operation on older Intel Macs.
+- **SwiftUI:** Liquid Glass controls are more readable, action buttons disable when required selections are missing, and release notes open in a dedicated sheet.
+- **Docs:** README download instructions now point at the current 3.4.3 packages.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.

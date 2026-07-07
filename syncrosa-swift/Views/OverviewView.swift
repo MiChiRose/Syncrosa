@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OverviewView: View {
     @ObservedObject var lang = LocalizationService.shared
+    @ObservedObject private var recovery = OperationRecoveryService.shared
     @State private var showWizard = false
     @State private var showHistory = false
     @AppStorage("has_seen_setup_wizard") private var hasSeenSetupWizard = false
@@ -11,6 +12,7 @@ struct OverviewView: View {
     let isRefreshingLibraryStatus: Bool
     let refreshLibraryStatus: () -> Void
     let openLibraryDoctor: () -> Void
+    let openRecoveryCenter: () -> Void
 
     var body: some View {
         SyncrosaPage {
@@ -51,6 +53,12 @@ struct OverviewView: View {
                     icon: "externaldrive.badge.plus",
                     tint: .purple
                 )
+                overviewCard(
+                    title: lang.selectedLanguage == "ru" ? "Восстановление" : "Recovery",
+                    value: recovery.activeOperation == nil ? (lang.selectedLanguage == "ru" ? "Чисто" : "Clean") : (lang.selectedLanguage == "ru" ? "Нужна проверка" : "Needs Review"),
+                    icon: recovery.activeOperation == nil ? "checkmark.shield" : "exclamationmark.triangle",
+                    tint: recovery.activeOperation == nil ? SyncrosaTheme.success : SyncrosaTheme.caution
+                )
             }
 
             VStack(alignment: .leading, spacing: 14) {
@@ -72,6 +80,11 @@ struct OverviewView: View {
                     .buttonStyle(SyncrosaSecondaryButtonStyle())
                     .disabled(libraryStatus.shouldBlockLibraryTools)
 
+                    Button(action: openRecoveryCenter) {
+                        Label(lang.selectedLanguage == "ru" ? "Recovery Center" : "Recovery Center", systemImage: "cross.case")
+                    }
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
+
                     Toggle(lang.selectedLanguage == "ru" ? "Only Local" : "Only Local", isOn: $onlyLocalMode)
                         .toggleStyle(SyncrosaSwitchToggleStyle())
                 }
@@ -84,6 +97,7 @@ struct OverviewView: View {
                 safetyRow("Long scans run in chunks and show visible progress.")
                 safetyRow("Info Eraser keeps restore metadata in a sidecar backup and records the operation.")
                 safetyRow("Only Local Mode skips online metadata lookups when you want disk-local work only.")
+                safetyRow("Interrupted long operations leave a recovery marker in Recovery Center.")
             }
             .syncrosaCard()
         }

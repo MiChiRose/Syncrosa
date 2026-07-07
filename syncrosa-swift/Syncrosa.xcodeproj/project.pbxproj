@@ -36,6 +36,10 @@
 		D3E1A2B3C4D5E6F70000100E /* PlaylistExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110E /* PlaylistExportService.swift */; };
 		D3E1A2B3C4D5E6F70000100F /* CoversOptimizerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110F /* CoversOptimizerService.swift */; };
 		D3E1A2B3C4D5E6F700001010 /* LyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001110 /* LyricsService.swift */; };
+		D3E1A2B3C4D5E6F700001011 /* SyncrosaDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001111 /* SyncrosaDesignSystem.swift */; };
+		D3E1A2B3C4D5E6F700001012 /* RecoveryCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001112 /* RecoveryCenterView.swift */; };
+		D3E1A2B3C4D5E6F700001013 /* SafetyPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001113 /* SafetyPreviewView.swift */; };
+		D3E1A2B3C4D5E6F700001014 /* OperationRecoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +74,10 @@
 		D3E1A2B3C4D5E6F70000110E /* PlaylistExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistExportService.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000110F /* CoversOptimizerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoversOptimizerService.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700001110 /* LyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001111 /* SyncrosaDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncrosaDesignSystem.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001112 /* RecoveryCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryCenterView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001113 /* SafetyPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyPreviewView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationRecoveryService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,10 +108,13 @@
 			isa = PBXGroup;
 			children = (
 				D3E1A2B3C4D5E6F700000103 /* PlaylistGeneratorView.swift */,
+					D3E1A2B3C4D5E6F700001111 /* SyncrosaDesignSystem.swift */,
 					D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */,
 					D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */,
 					D3E1A2B3C4D5E6F700001101 /* InfoEraserView.swift */,
 					D3E1A2B3C4D5E6F700001102 /* OverviewView.swift */,
+					D3E1A2B3C4D5E6F700001112 /* RecoveryCenterView.swift */,
+					D3E1A2B3C4D5E6F700001113 /* SafetyPreviewView.swift */,
 					D3E1A2B3C4D5E6F700001103 /* LibraryDoctorView.swift */,
 					D3E1A2B3C4D5E6F700001104 /* OperationHistoryView.swift */,
 					D3E1A2B3C4D5E6F700001105 /* USBExportView.swift */,
@@ -126,6 +137,7 @@
 					D3E1A2B3C4D5E6F70000110A /* InfoEraserService.swift */,
 					D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */,
 					D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */,
+					D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */,
 					D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */,
 					D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */,
 					D3E1A2B3C4D5E6F70000110D /* USBService.swift */,
@@ -215,10 +227,13 @@
 				D3E1A2B3C4D5E6F700000001 /* SyncrosaApp.swift in Sources */,
 				D3E1A2B3C4D5E6F700000002 /* ContentView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000003 /* PlaylistGeneratorView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001011 /* SyncrosaDesignSystem.swift in Sources */,
 				D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000005 /* FileMediaFixerView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001001 /* InfoEraserView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001002 /* OverviewView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001012 /* RecoveryCenterView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001013 /* SafetyPreviewView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001003 /* LibraryDoctorView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001004 /* OperationHistoryView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001005 /* USBExportView.swift in Sources */,
@@ -234,6 +249,7 @@
 				D3E1A2B3C4D5E6F70000100A /* InfoEraserService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100B /* SyncrosaStorage.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100C /* OperationHistoryService.swift in Sources */,
+				D3E1A2B3C4D5E6F700001014 /* OperationRecoveryService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000B /* LocalizationService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000C /* KeychainHelper.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100D /* USBService.swift in Sources */,

@@ -19,6 +19,12 @@ final class CoversProcessingCancelToken {
     }
 }
 
+private enum CoversSafetyAction {
+    case backup
+    case optimize
+    case restore
+}
+
 struct CoversOptimizerView: View {
     @ObservedObject var lang = LocalizationService.shared
     
@@ -28,9 +34,10 @@ struct CoversOptimizerView: View {
     @State private var progressMax: Double = 1.0
     @State private var isProcessing = false
     @State private var cancelToken = CoversProcessingCancelToken()
-    @State private var showBackupAlert = false
     @State private var currentTrackName = ""
     @State private var showHelp = false
+    @State private var safetyPreview: SafetyPreviewRequest? = nil
+    @State private var pendingSafetyAction: CoversSafetyAction? = nil
     
     let devices = [
         (name: "iPod Classic / Nano / Vintage (300x300)", size: 300),
@@ -62,20 +69,20 @@ struct CoversOptimizerView: View {
                     
                     // Action Buttons
                     SyncrosaAdaptiveRow(spacing: 15) {
-                        Button(action: runBackup) {
+                        Button(action: { presentSafetyPreview(.backup) }) {
                             Text(lang.t("btn_backup_covers"))
                                 .frame(minWidth: 160)
                         }
                         .disabled(isProcessing)
                         
-                        Button(action: { showBackupAlert = true }) {
+                        Button(action: { presentSafetyPreview(.optimize) }) {
                             Text(lang.t("btn_optimize_covers"))
                                 .bold()
                                 .frame(minWidth: 160)
                         }
                         .disabled(isProcessing)
                         
-                        Button(action: runRestore) {
+                        Button(action: { presentSafetyPreview(.restore) }) {
                             Text(lang.t("btn_restore_covers"))
                                 .frame(minWidth: 160)
                         }
@@ -115,18 +122,23 @@ struct CoversOptimizerView: View {
                 minHeight: 250
             )
         }
-        .alert(isPresented: $showBackupAlert) {
-            Alert(
-                title: Text(lang.t("confirm_backup_title")),
-                message: Text(lang.t("confirm_backup_msg")),
-                primaryButton: .destructive(Text(lang.t("confirm_yes"))) {
-                    runOptimize()
-                },
-                secondaryButton: .cancel(Text(lang.t("confirm_no")))
-            )
-        }
         .sheet(isPresented: $showHelp) {
             helpSheetView
+        }
+        .sheet(item: $safetyPreview) { request in
+            SafetyPreviewSheet(
+                request: request,
+                cancel: {
+                    safetyPreview = nil
+                    pendingSafetyAction = nil
+                },
+                confirm: {
+                    let action = pendingSafetyAction
+                    safetyPreview = nil
+                    pendingSafetyAction = nil
+                    runSafetyAction(action)
+                }
+            )
         }
         .onAppear {
             CoversOptimizerService.shared.createBackupFolderIfNeeded()
@@ -186,6 +198,58 @@ struct CoversOptimizerView: View {
             logs.removeFirst(logs.count - 500)
         }
     }
+
+    private func presentSafetyPreview(_ action: CoversSafetyAction) {
+        pendingSafetyAction = action
+        let backupPath = CoversOptimizerService.shared.backupFolder.path
+        let libraryCount = MusicService.shared.getLibraryTrackCount()
+        let countText = libraryCount.map { "\($0)" } ?? (lang.selectedLanguage == "ru" ? "не удалось прочитать" : "unavailable")
+        let details = [
+            SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Треков Music" : "Music tracks", value: countText),
+            SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Целевой размер" : "Target size", value: "\(targetSize)x\(targetSize)"),
+            SafetyPreviewDetail(title: "Backup", value: backupPath)
+        ]
+
+        switch action {
+        case .backup:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Сохранить оригинальные обложки?" : "Back up original covers?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa просканирует треки Music и сохранит найденные обложки в backup manifest." : "Syncrosa will scan Music tracks and save found artwork into a backup manifest.",
+                details: details,
+                confirmTitle: lang.selectedLanguage == "ru" ? "Сохранить" : "Back Up",
+                isDestructive: false
+            )
+        case .optimize:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Оптимизировать обложки?" : "Optimize covers?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa создаст backup перед заменой обложек и затем уменьшит их до выбранного размера." : "Syncrosa will create a backup before replacing artwork, then resize covers to the selected size.",
+                details: details,
+                confirmTitle: lang.selectedLanguage == "ru" ? "Оптимизировать" : "Optimize",
+                isDestructive: true
+            )
+        case .restore:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Восстановить оригинальные обложки?" : "Restore original covers?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa попробует вернуть обложки из backup manifest. Треки без backup будут пропущены." : "Syncrosa will try to restore artwork from the backup manifest. Tracks without a backup will be skipped.",
+                details: details,
+                confirmTitle: lang.selectedLanguage == "ru" ? "Восстановить" : "Restore",
+                isDestructive: false
+            )
+        }
+    }
+
+    private func runSafetyAction(_ action: CoversSafetyAction?) {
+        switch action {
+        case .backup:
+            runBackup()
+        case .optimize:
+            runOptimize()
+        case .restore:
+            runRestore()
+        case .none:
+            break
+        }
+    }
     
     private func runBackup() {
         isProcessing = true
@@ -195,6 +259,12 @@ struct CoversOptimizerView: View {
         progressMax = 1
         logs.removeAll()
         log(lang.t("log_backup_started"))
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Covers Optimizer",
+            title: "Backup Original Covers",
+            message: lang.selectedLanguage == "ru" ? "Backup обложек был прерван. Проверьте manifest в Recovery Center перед продолжением." : "Cover backup was interrupted. Check the manifest in Recovery Center before continuing.",
+            backupPath: CoversOptimizerService.shared.backupFolder.path
+        )
         
         DispatchQueue.global(qos: .userInitiated).async {
             let service = CoversOptimizerService.shared
@@ -210,6 +280,7 @@ struct CoversOptimizerView: View {
                     } else {
                         log(lang.t("no_covers_found"))
                     }
+                    OperationRecoveryService.shared.finish(recoveryID)
                     isProcessing = false
                 }
                 return
@@ -234,6 +305,7 @@ struct CoversOptimizerView: View {
             }
             
             DispatchQueue.main.async {
+                OperationRecoveryService.shared.finish(recoveryID)
                 if token.isCancelled {
                     log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
                 } else {
@@ -261,6 +333,12 @@ struct CoversOptimizerView: View {
         progressMax = 1
         logs.removeAll()
         log(lang.t("log_optimize_started", targetSize))
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Covers Optimizer",
+            title: "Optimize Covers",
+            message: lang.selectedLanguage == "ru" ? "Оптимизация обложек была прервана. Оригиналы можно проверить в Recovery Center." : "Cover optimization was interrupted. Originals can be checked in Recovery Center.",
+            backupPath: CoversOptimizerService.shared.backupFolder.path
+        )
         
         DispatchQueue.global(qos: .userInitiated).async {
             let service = CoversOptimizerService.shared
@@ -276,6 +354,7 @@ struct CoversOptimizerView: View {
                     } else {
                         log(lang.t("no_covers_found"))
                     }
+                    OperationRecoveryService.shared.finish(recoveryID)
                     isProcessing = false
                 }
                 return
@@ -310,6 +389,7 @@ struct CoversOptimizerView: View {
             }
             
             DispatchQueue.main.async {
+                OperationRecoveryService.shared.finish(recoveryID)
                 if token.isCancelled {
                     log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
                 } else {
@@ -337,6 +417,12 @@ struct CoversOptimizerView: View {
         progressMax = 1
         logs.removeAll()
         log(lang.t("log_restore_started"))
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Covers Optimizer",
+            title: "Restore Original Covers",
+            message: lang.selectedLanguage == "ru" ? "Восстановление обложек было прервано. Проверьте последние записи в истории операций." : "Cover restore was interrupted. Check the latest Operation History records.",
+            backupPath: CoversOptimizerService.shared.backupFolder.path
+        )
         
         DispatchQueue.global(qos: .userInitiated).async {
             let service = CoversOptimizerService.shared
@@ -352,6 +438,7 @@ struct CoversOptimizerView: View {
                     } else {
                         log(lang.t("no_covers_found"))
                     }
+                    OperationRecoveryService.shared.finish(recoveryID)
                     isProcessing = false
                 }
                 return
@@ -379,6 +466,7 @@ struct CoversOptimizerView: View {
             }
             
             DispatchQueue.main.async {
+                OperationRecoveryService.shared.finish(recoveryID)
                 if token.isCancelled {
                     log(lang.selectedLanguage == "ru" ? "Операция остановлена." : "Operation stopped.")
                 } else {

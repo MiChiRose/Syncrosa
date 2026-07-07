@@ -12,6 +12,7 @@ import threading
 import os
 import time
 from core.localization import _
+from core.operation_history import begin_active_operation, finish_active_operation
 from features.covers_optimizer import (
     get_tracks_with_covers,
     get_last_scan_track_count,
@@ -29,6 +30,7 @@ class OptimizerTab(tk.Frame):
         self.master_app = master_app
         self.running = False
         self.action = None
+        self.active_operation_id = None
         self._ui_thread = threading.current_thread()
         self._log_lines = 0
         self.build_ui()
@@ -156,6 +158,13 @@ class OptimizerTab(tk.Frame):
         self.clear_console()
         
         self.log(_(u"log_backup_started"))
+        self.active_operation_id = begin_active_operation(
+            "Covers Optimizer",
+            "Backup Original Covers",
+            "Cover backup was interrupted.",
+            0,
+            ""
+        )
         worker = threading.Thread(target=self.worker)
         worker.daemon = True
         worker.start()
@@ -181,6 +190,13 @@ class OptimizerTab(tk.Frame):
                 target_size = 1000
                 
             self.log(_(u"log_optimize_started", target_size))
+            self.active_operation_id = begin_active_operation(
+                "Covers Optimizer",
+                "Optimize Covers",
+                "Cover optimization was interrupted.",
+                0,
+                ""
+            )
             worker = threading.Thread(target=self.worker)
             worker.daemon = True
             worker.start()
@@ -193,6 +209,13 @@ class OptimizerTab(tk.Frame):
         self.clear_console()
         
         self.log(_(u"log_restore_started"))
+        self.active_operation_id = begin_active_operation(
+            "Covers Optimizer",
+            "Restore Original Covers",
+            "Cover restore was interrupted.",
+            0,
+            ""
+        )
         worker = threading.Thread(target=self.worker)
         worker.daemon = True
         worker.start()
@@ -276,6 +299,8 @@ class OptimizerTab(tk.Frame):
             self.log("ERROR: " + str(e))
             self.after(0, lambda err=e: tkMessageBox.showerror("Optimizer Error", str(err)))
         finally:
+            finish_active_operation(getattr(self, "active_operation_id", None))
+            self.active_operation_id = None
             self.running = False
             self.action = None
             self.after(0, lambda: self.set_controls_state(True))

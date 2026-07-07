@@ -35,6 +35,44 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
     [storage deleteCharactersInRange:NSMakeRange(0, extra)];
 }
 
+static void IGCoversHDDSafePause(void) {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"]) {
+        [NSThread sleepForTimeInterval:0.01];
+    }
+}
+
+static NSString *IGCoversSupportDir(void) {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    NSString *dir = [base stringByAppendingPathComponent:@"Syncrosa"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    return dir;
+}
+
+static NSString *IGCoversBeginActiveOperation(NSString *title, NSString *message, NSInteger affectedCount, NSString *backupPath) {
+    NSString *identifier = [[NSProcessInfo processInfo] globallyUniqueString];
+    NSDictionary *marker = @{
+        @"id": identifier,
+        @"tool": @"Covers Optimizer",
+        @"title": title ?: @"",
+        @"message": message ?: @"",
+        @"startedAt": @([[NSDate date] timeIntervalSince1970]),
+        @"affectedCount": @(affectedCount),
+        @"backupPath": backupPath ?: @""
+    };
+    NSString *path = [IGCoversSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
+    [marker writeToFile:path atomically:YES];
+    return identifier;
+}
+
+static void IGCoversFinishActiveOperation(NSString *identifier) {
+    NSString *path = [IGCoversSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
+    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:path];
+    if (!identifier || [[marker objectForKey:@"id"] isEqualToString:identifier]) {
+        [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
+    }
+}
+
 @interface IGCoversOptimizerViewController ()
 
 @property (nonatomic, strong) NSTextField *titleLabel;
@@ -50,6 +88,7 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
 @property (nonatomic, assign) BOOL isProcessing;
 @property (nonatomic, assign) NSInteger lastResolvedLibraryTrackCount;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
+@property (nonatomic, strong) NSString *activeOperationID;
 
 @end
 
@@ -784,6 +823,7 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
         if (chunkSaved > 0) {
             [self saveManifest:manifest];
         }
+        IGCoversHDDSafePause();
 #if !__has_feature(objc_arc)
         [pool drain];
 #endif
@@ -974,6 +1014,10 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
     [self.logView setString:@""];
     [self log:[lang t:@"log_backup_started"]];
     [self log:@"If iTunes is closed, Syncrosa will launch it and wait for the library to become ready."];
+    self.activeOperationID = IGCoversBeginActiveOperation(@"Backup Original Covers",
+                                                         @"Cover backup was interrupted while scanning iTunes artwork.",
+                                                         0,
+                                                         [self backupFolderPath]);
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
@@ -983,6 +1027,8 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
             NSString *message = [self emptyCoverScanMessage];
             [self log:message];
             dispatch_async(dispatch_get_main_queue(), ^{
+                IGCoversFinishActiveOperation(self.activeOperationID);
+                self.activeOperationID = nil;
                 self.isProcessing = NO;
                 self.progressIndicator.indeterminate = NO;
                 self.progressIndicator.doubleValue = 0;
@@ -1018,6 +1064,8 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
         }
         [self log:[lang t:@"log_backup_finished" args:@[@(successCount)]]];
         dispatch_async(dispatch_get_main_queue(), ^{
+            IGCoversFinishActiveOperation(self.activeOperationID);
+            self.activeOperationID = nil;
             self.isProcessing = NO;
             self.statusLabel.stringValue = @"";
         });
@@ -1053,6 +1101,10 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
     else if (index == 2) targetSize = 1000;
 
     [self log:[lang t:@"log_optimize_started" args:@[@(targetSize)]]];
+    self.activeOperationID = IGCoversBeginActiveOperation(@"Optimize Covers",
+                                                         @"Cover optimization was interrupted. Check the backup manifest before continuing.",
+                                                         0,
+                                                         [self backupFolderPath]);
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
@@ -1062,6 +1114,8 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
             NSString *message = [self emptyCoverScanMessage];
             [self log:message];
             dispatch_async(dispatch_get_main_queue(), ^{
+                IGCoversFinishActiveOperation(self.activeOperationID);
+                self.activeOperationID = nil;
                 self.isProcessing = NO;
                 self.progressIndicator.indeterminate = NO;
                 self.progressIndicator.doubleValue = 0;
@@ -1101,10 +1155,13 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
             } else {
                 [self log:[lang t:@"error_processing" args:@[t[@"title"]]]];
             }
+            IGCoversHDDSafePause();
         }
 
         [self log:[lang t:@"log_optimize_finished" args:@[@(successCount)]]];
         dispatch_async(dispatch_get_main_queue(), ^{
+            IGCoversFinishActiveOperation(self.activeOperationID);
+            self.activeOperationID = nil;
             self.isProcessing = NO;
             self.statusLabel.stringValue = @"";
         });
@@ -1124,6 +1181,10 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
     self.statusLabel.stringValue = @"Scanning iTunes library for covers...";
     [self.logView setString:@""];
     [self log:[lang t:@"log_restore_started"]];
+    self.activeOperationID = IGCoversBeginActiveOperation(@"Restore Original Covers",
+                                                         @"Cover restore was interrupted. Check Operation History and the backup manifest.",
+                                                         0,
+                                                         [self backupFolderPath]);
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
@@ -1133,6 +1194,8 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
             NSString *message = [self emptyCoverScanMessage];
             [self log:message];
             dispatch_async(dispatch_get_main_queue(), ^{
+                IGCoversFinishActiveOperation(self.activeOperationID);
+                self.activeOperationID = nil;
                 self.isProcessing = NO;
                 self.progressIndicator.indeterminate = NO;
                 self.progressIndicator.doubleValue = 0;
@@ -1161,10 +1224,13 @@ static void IGTrimLogTextView(NSTextView *textView, NSUInteger maxCharacters) {
                 successCount++;
                 [self log:[NSString stringWithFormat:@"Restored: %@", t[@"title"]]];
             }
+            IGCoversHDDSafePause();
         }
 
         [self log:[lang t:@"log_restore_finished" args:@[@(successCount)]]];
         dispatch_async(dispatch_get_main_queue(), ^{
+            IGCoversFinishActiveOperation(self.activeOperationID);
+            self.activeOperationID = nil;
             self.isProcessing = NO;
             self.statusLabel.stringValue = @"";
         });

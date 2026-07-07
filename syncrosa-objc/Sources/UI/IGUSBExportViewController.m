@@ -640,7 +640,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             if (progressBlock) {
                 progressBlock(copiedBytes);
             }
-            if (copiedBytes > 0 && copiedBytes % (16 * 1024 * 1024) == 0) {
+            if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"] &&
+                copiedBytes > 0 &&
+                copiedBytes % (16 * 1024 * 1024) == 0) {
                 [NSThread sleepForTimeInterval:0.005];
             }
         }

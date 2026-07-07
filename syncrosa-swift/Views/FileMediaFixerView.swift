@@ -14,6 +14,11 @@ struct FileItem: Identifiable {
     var status: FileStatus = .pending
 }
 
+private enum FileFixerSafetyAction {
+    case fixMetadata
+    case cleanFilenames
+}
+
 struct FileMediaFixerView: View {
     @ObservedObject var lang = LocalizationService.shared
     @State private var folderPath: String = ""
@@ -23,6 +28,8 @@ struct FileMediaFixerView: View {
     @State private var downloadCovers: Bool = true
     @State private var logLines: [String] = []
     @State private var showHelp: Bool = false
+    @State private var safetyPreview: SafetyPreviewRequest? = nil
+    @State private var pendingSafetyAction: FileFixerSafetyAction? = nil
     
     // Checkbox checklist states
     @State private var fixAlbum: Bool = true
@@ -102,13 +109,13 @@ struct FileMediaFixerView: View {
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(isProcessing)
                         
-                        Button(action: fixFolderMetadata) {
+                        Button(action: { presentSafetyPreview(.fixMetadata) }) {
                             Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
                         }
                         .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(fileItems.isEmpty || isProcessing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics))
 
-                        Button(action: cleanFilenames) {
+                        Button(action: { presentSafetyPreview(.cleanFilenames) }) {
                             Label(lang.selectedLanguage == "ru" ? "Clean Filenames" : "Clean Filenames", systemImage: "textformat")
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
@@ -158,6 +165,21 @@ struct FileMediaFixerView: View {
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
             helpSheetView
+        }
+        .sheet(item: $safetyPreview) { request in
+            SafetyPreviewSheet(
+                request: request,
+                cancel: {
+                    safetyPreview = nil
+                    pendingSafetyAction = nil
+                },
+                confirm: {
+                    let action = pendingSafetyAction
+                    safetyPreview = nil
+                    pendingSafetyAction = nil
+                    runSafetyAction(action)
+                }
+            )
         }
     }
     
@@ -268,6 +290,57 @@ struct FileMediaFixerView: View {
             activeNotification = NotificationMessage(text: lang.t("files_to_process", fileItems.count), isError: false)
         }
     }
+
+    private func presentSafetyPreview(_ action: FileFixerSafetyAction) {
+        guard !fileItems.isEmpty else { return }
+        pendingSafetyAction = action
+        let checkedTags = [
+            fixAlbum ? (lang.selectedLanguage == "ru" ? "Альбом" : "Album") : nil,
+            fixTitle ? (lang.selectedLanguage == "ru" ? "Название" : "Title") : nil,
+            fixArtist ? (lang.selectedLanguage == "ru" ? "Исполнитель" : "Artist") : nil,
+            fixGenre ? (lang.selectedLanguage == "ru" ? "Жанр" : "Genre") : nil,
+            fixTrackNumber ? (lang.selectedLanguage == "ru" ? "Номер трека" : "Track Number") : nil,
+            fixLyrics ? (lang.selectedLanguage == "ru" ? "Текст песен" : "Lyrics") : nil
+        ].compactMap { $0 }.joined(separator: ", ")
+
+        switch action {
+        case .fixMetadata:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Исправить метаданные файлов?" : "Fix local file metadata?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa обработает выбранную папку и применит только отмеченные теги. Для файлов лучше иметь backup или работать с копией." : "Syncrosa will process the selected folder and apply only checked tags. Keep a backup or work on a copy.",
+                details: [
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Папка" : "Folder", value: folderPath),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Файлов" : "Files", value: "\(fileItems.count)"),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Теги" : "Tags", value: checkedTags.isEmpty ? "-" : checkedTags),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Обложки" : "Covers", value: downloadCovers ? "On" : "Off")
+                ],
+                confirmTitle: lang.selectedLanguage == "ru" ? "Исправить" : "Fix",
+                isDestructive: true
+            )
+        case .cleanFilenames:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Очистить имена файлов?" : "Clean filenames?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa заменит вероятно случайные подчёркивания на пробелы. Если встретится ошибка, этот процесс остановится и не затронет другие функции вкладки." : "Syncrosa will convert likely accidental underscores to spaces. If an error happens, this process stops without touching other tab functions.",
+                details: [
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Папка" : "Folder", value: folderPath),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Файлов" : "Files", value: "\(fileItems.count)")
+                ],
+                confirmTitle: lang.selectedLanguage == "ru" ? "Очистить имена" : "Clean Names",
+                isDestructive: false
+            )
+        }
+    }
+
+    private func runSafetyAction(_ action: FileFixerSafetyAction?) {
+        switch action {
+        case .fixMetadata:
+            fixFolderMetadata()
+        case .cleanFilenames:
+            cleanFilenames()
+        case .none:
+            break
+        }
+    }
     
     func fixFolderMetadata() {
         isProcessing = true
@@ -287,6 +360,13 @@ struct FileMediaFixerView: View {
             "trackNumber": fixTrackNumber,
             "lyrics": fixLyrics
         ]
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Folder Fixer",
+            title: "Fix Folder Metadata",
+            message: lang.selectedLanguage == "ru" ? "Исправление метаданных файлов было прервано. Проверьте папку и историю операций." : "Local metadata repair was interrupted. Check the folder and Operation History.",
+            affectedCount: fileItems.count,
+            backupPath: folderPath
+        )
         DispatchQueue.global().async {
             for index in fileItems.indices {
                 DispatchQueue.main.async {
@@ -308,6 +388,7 @@ struct FileMediaFixerView: View {
             }
             
             DispatchQueue.main.async {
+                OperationRecoveryService.shared.finish(recoveryID)
                 isProcessing = false
                 let message = lang.t("done")
                 appendLog(message)
@@ -331,6 +412,13 @@ struct FileMediaFixerView: View {
         for i in fileItems.indices {
             fileItems[i].status = .pending
         }
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Filename Cleaner",
+            title: "Clean Filenames",
+            message: lang.selectedLanguage == "ru" ? "Очистка имён файлов была прервана. Уже переименованные файлы останутся в папке." : "Filename cleanup was interrupted. Already renamed files remain in the folder.",
+            affectedCount: fileItems.count,
+            backupPath: folderPath
+        )
 
         DispatchQueue.global(qos: .userInitiated).async {
             var renamed = 0
@@ -366,6 +454,7 @@ struct FileMediaFixerView: View {
             }
 
             DispatchQueue.main.async {
+                OperationRecoveryService.shared.finish(recoveryID)
                 fileItems = updatedItems
                 isProcessing = false
                 let message = failed

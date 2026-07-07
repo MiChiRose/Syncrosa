@@ -10,6 +10,7 @@ from core.storage_paths import application_support_dir, ensure_dir
 
 
 HISTORY_FILE = os.path.join(application_support_dir(), "operation-history.json")
+ACTIVE_OPERATION_FILE = os.path.join(application_support_dir(), "active-operation.json")
 MAX_ENTRIES = 250
 HISTORY_LOCK = threading.Lock()
 
@@ -57,3 +58,39 @@ def read_history(tool=None):
     if tool and tool != "All":
         return [e for e in entries if e.get("tool") == tool]
     return entries
+
+
+def begin_active_operation(tool, title, message, affected_count=0, backup_path=None):
+    try:
+        ensure_dir(application_support_dir())
+        marker_id = str(uuid.uuid4())
+        marker = {
+            "id": marker_id,
+            "tool": tool,
+            "title": title,
+            "message": message,
+            "startedAt": int(time.time()),
+            "affectedCount": affected_count,
+            "backupPath": backup_path or ""
+        }
+        tmp = ACTIVE_OPERATION_FILE + "." + marker_id + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(json.dumps(marker, ensure_ascii=False, indent=2).encode("utf-8"))
+        os.rename(tmp, ACTIVE_OPERATION_FILE)
+        return marker_id
+    except Exception:
+        return None
+
+
+def finish_active_operation(marker_id=None):
+    try:
+        if marker_id and os.path.exists(ACTIVE_OPERATION_FILE):
+            with open(ACTIVE_OPERATION_FILE, "rb") as f:
+                marker = json.loads(f.read().decode("utf-8"))
+            if marker.get("id") != marker_id:
+                return False
+        if os.path.exists(ACTIVE_OPERATION_FILE):
+            os.remove(ACTIVE_OPERATION_FILE)
+        return True
+    except Exception:
+        return False

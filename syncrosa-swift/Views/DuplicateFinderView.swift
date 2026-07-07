@@ -32,6 +32,7 @@ struct DuplicateFinderView: View {
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
     @State private var showHelp: Bool = false
+    @State private var safetyPreview: SafetyPreviewRequest? = nil
     
     var body: some View {
         SyncrosaPage {
@@ -60,7 +61,7 @@ struct DuplicateFinderView: View {
                         .disabled(isScanning || isApplying)
 
                         if !duplicatePairs.isEmpty {
-                            Button(action: applySelectedActions) {
+                            Button(action: presentApplySafetyPreview) {
                                 if isApplying {
                                     ProgressView().controlSize(.small)
                                 } else {
@@ -141,6 +142,16 @@ struct DuplicateFinderView: View {
         }
         .sheet(isPresented: $showHelp) {
             helpSheetView
+        }
+        .sheet(item: $safetyPreview) { request in
+            SafetyPreviewSheet(
+                request: request,
+                cancel: { safetyPreview = nil },
+                confirm: {
+                    safetyPreview = nil
+                    applySelectedActions()
+                }
+            )
         }
     }
     
@@ -355,6 +366,24 @@ struct DuplicateFinderView: View {
         }
     }
 
+    func presentApplySafetyPreview() {
+        let selected = pendingActions.filter { $0.value != .none }
+        guard !selected.isEmpty else { return }
+        let deleteCount = selected.values.filter { $0 == .deleteTrack1 || $0 == .deleteTrack2 }.count
+        let ignoreCount = selected.values.filter { $0 == .ignore }.count
+        safetyPreview = SafetyPreviewRequest(
+            title: lang.selectedLanguage == "ru" ? "Применить действия к дубликатам?" : "Apply duplicate actions?",
+            message: lang.selectedLanguage == "ru" ? "Syncrosa выполнит выбранные действия одной пачкой и после этого обновит список дубликатов." : "Syncrosa will run the selected actions as one batch, then refresh the duplicate list.",
+            details: [
+                SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Всего действий" : "Total actions", value: "\(selected.count)"),
+                SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Игнорировать" : "Ignore", value: "\(ignoreCount)"),
+                SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Удалить треки" : "Delete tracks", value: "\(deleteCount)")
+            ],
+            confirmTitle: lang.selectedLanguage == "ru" ? "Применить" : "Apply",
+            isDestructive: deleteCount > 0
+        )
+    }
+
     func applySelectedActions() {
         let selected = pendingActions.filter { $0.value != .none }
         guard !selected.isEmpty else { return }
@@ -362,6 +391,12 @@ struct DuplicateFinderView: View {
 
         isApplying = true
         activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Применение действий..." : "Applying duplicate actions...", isError: false)
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Duplicate Finder",
+            title: "Apply Duplicate Actions",
+            message: lang.selectedLanguage == "ru" ? "Пакетная обработка дубликатов была прервана. Проверьте Music и историю операций." : "Duplicate batch processing was interrupted. Check Music and Operation History.",
+            affectedCount: selected.count
+        )
 
         DispatchQueue.global(qos: .userInitiated).async {
             var ignoredList = UserDefaults.standard.stringArray(forKey: "SyncrosaIgnoredDuplicates") ?? []
@@ -398,19 +433,30 @@ struct DuplicateFinderView: View {
             UserDefaults.standard.set(ignoredList, forKey: "SyncrosaIgnoredDuplicates")
 
             DispatchQueue.main.async {
+                OperationRecoveryService.shared.finish(recoveryID)
                 self.pendingActions.removeAll()
                 self.isApplying = false
+                let message: String
                 if failed > 0 {
+                    message = self.lang.selectedLanguage == "ru" ? "Применено: \(applied), ошибок: \(failed)" : "Applied: \(applied), failed: \(failed)"
                     self.activeNotification = NotificationMessage(
-                        text: self.lang.selectedLanguage == "ru" ? "Применено: \(applied), ошибок: \(failed)" : "Applied: \(applied), failed: \(failed)",
+                        text: message,
                         isError: true
                     )
                 } else {
+                    message = self.lang.selectedLanguage == "ru" ? "Применено: \(applied). Обновляю список..." : "Applied \(applied). Refreshing..."
                     self.activeNotification = NotificationMessage(
-                        text: self.lang.selectedLanguage == "ru" ? "Применено: \(applied). Обновляю список..." : "Applied \(applied). Refreshing...",
+                        text: message,
                         isError: false
                     )
                 }
+                OperationHistoryService.shared.record(
+                    tool: "Duplicate Finder",
+                    title: "Apply Duplicate Actions",
+                    status: failed > 0 ? "FAIL" : "OK",
+                    message: message,
+                    affectedCount: applied
+                )
                 self.scanForDuplicates()
             }
         }

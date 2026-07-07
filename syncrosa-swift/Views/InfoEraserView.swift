@@ -15,6 +15,12 @@ struct InfoEraserFileItem: Identifiable {
     var status: InfoEraserStatus = .pending
 }
 
+private enum InfoEraserSafetyAction {
+    case backup
+    case erase
+    case restore
+}
+
 struct InfoEraserView: View {
     @ObservedObject var lang = LocalizationService.shared
     @State private var folderPath = ""
@@ -25,6 +31,8 @@ struct InfoEraserView: View {
     @State private var activeNotification: NotificationMessage? = nil
     @State private var logLines: [String] = []
     @State private var showHelp = false
+    @State private var safetyPreview: SafetyPreviewRequest? = nil
+    @State private var pendingSafetyAction: InfoEraserSafetyAction? = nil
 
     var body: some View {
         SyncrosaPage {
@@ -53,19 +61,19 @@ struct InfoEraserView: View {
                     }
 
                     HStack(spacing: 10) {
-                        Button(action: backupOriginalInfo) {
+                        Button(action: { presentSafetyPreview(.backup) }) {
                             Label(lang.selectedLanguage == "ru" ? "Сохранить исходную инфо" : "Backup Original Info", systemImage: "externaldrive.badge.plus")
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(fileItems.isEmpty || isProcessing)
 
-                        Button(action: confirmErase) {
+                        Button(action: { presentSafetyPreview(.erase) }) {
                             Label(lang.selectedLanguage == "ru" ? "Очистить" : "Erase Info", systemImage: "eraser")
                         }
                         .buttonStyle(SyncrosaDestructiveButtonStyle())
                         .disabled(fileItems.isEmpty || isProcessing)
 
-                        Button(action: restoreOriginalInfo) {
+                        Button(action: { presentSafetyPreview(.restore) }) {
                             Label(lang.selectedLanguage == "ru" ? "Восстановить" : "Restore Info", systemImage: "arrow.uturn.backward")
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
@@ -106,6 +114,21 @@ struct InfoEraserView: View {
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
             helpSheet
+        }
+        .sheet(item: $safetyPreview) { request in
+            SafetyPreviewSheet(
+                request: request,
+                cancel: {
+                    safetyPreview = nil
+                    pendingSafetyAction = nil
+                },
+                confirm: {
+                    let action = pendingSafetyAction
+                    safetyPreview = nil
+                    pendingSafetyAction = nil
+                    runSafetyAction(action)
+                }
+            )
         }
     }
 
@@ -186,21 +209,59 @@ struct InfoEraserView: View {
         }
     }
 
-    private func confirmErase() {
-        let alert = NSAlert()
-        alert.messageText = lang.selectedLanguage == "ru" ? "Точно продолжить?" : "Are you sure?"
-        alert.informativeText = lang.selectedLanguage == "ru" ? "Syncrosa удалит встроенные теги и обложки из поддерживаемых файлов. Это действие нельзя отменить без backup." : "Syncrosa will remove embedded tags and artwork from supported files. This cannot be undone without a backup."
-        alert.addButton(withTitle: lang.selectedLanguage == "ru" ? "Продолжить" : "Continue")
-        alert.addButton(withTitle: lang.selectedLanguage == "ru" ? "Отмена" : "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+    private func presentSafetyPreview(_ action: InfoEraserSafetyAction) {
+        guard !folderPath.isEmpty else { return }
+        pendingSafetyAction = action
 
-        let finalAlert = NSAlert()
-        finalAlert.messageText = lang.selectedLanguage == "ru" ? "Последнее предупреждение" : "Final Warning"
-        finalAlert.informativeText = lang.selectedLanguage == "ru" ? "Запускайте очистку только если вы уже сохранили исходную информацию или работаете с копиями файлов." : "Run erasing only if you already backed up the original info or are working with copied files."
-        finalAlert.addButton(withTitle: lang.selectedLanguage == "ru" ? "Очистить" : "Erase")
-        finalAlert.addButton(withTitle: lang.selectedLanguage == "ru" ? "Отмена" : "Cancel")
-        if finalAlert.runModal() == .alertFirstButtonReturn {
+        let supportedCount = fileItems.filter { isSupportedInfoExtension($0.url.pathExtension.lowercased()) }.count
+        let backupPath = URL(fileURLWithPath: folderPath)
+            .appendingPathComponent(InfoEraserService.shared.backupDirectoryName, isDirectory: true)
+            .path
+        let details = [
+            SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Папка" : "Folder", value: folderPath),
+            SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Файлов найдено" : "Files found", value: "\(fileItems.count)"),
+            SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Поддерживается" : "Supported", value: "\(supportedCount)"),
+            SafetyPreviewDetail(title: "Backup", value: backupPath)
+        ]
+
+        switch action {
+        case .backup:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Сохранить исходную информацию?" : "Back up original info?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa сохранит теги и обложки поддерживаемых файлов в manifest + sidecar backup перед будущей очисткой." : "Syncrosa will save tags and artwork from supported files into a manifest + sidecar backup before future erasing.",
+                details: details,
+                confirmTitle: lang.selectedLanguage == "ru" ? "Сохранить" : "Back Up",
+                isDestructive: false
+            )
+        case .erase:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Очистить встроенную информацию?" : "Erase embedded info?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa удалит встроенные теги и обложки из поддерживаемых файлов. Это действие нельзя отменить без backup." : "Syncrosa will remove embedded tags and artwork from supported files. This cannot be undone without a backup.",
+                details: details,
+                confirmTitle: lang.selectedLanguage == "ru" ? "Очистить" : "Erase",
+                isDestructive: true
+            )
+        case .restore:
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Восстановить информацию?" : "Restore original info?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa восстановит теги из найденного backup. Файлы без записи в manifest будут пропущены." : "Syncrosa will restore tags from the found backup. Files without a manifest entry will be skipped.",
+                details: details,
+                confirmTitle: lang.selectedLanguage == "ru" ? "Восстановить" : "Restore",
+                isDestructive: false
+            )
+        }
+    }
+
+    private func runSafetyAction(_ action: InfoEraserSafetyAction?) {
+        switch action {
+        case .backup:
+            backupOriginalInfo()
+        case .erase:
             eraseInfo()
+        case .restore:
+            restoreOriginalInfo()
+        case .none:
+            break
         }
     }
 
@@ -240,6 +301,14 @@ struct InfoEraserView: View {
         }
 
         let files = fileItems.map(\.url)
+        let backupPath = folder.appendingPathComponent(InfoEraserService.shared.backupDirectoryName, isDirectory: true).path
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Info Eraser",
+            title: title,
+            message: lang.selectedLanguage == "ru" ? "Операция с локальными музыкальными файлами выполнялась, когда приложение было закрыто или упало." : "A local music file operation was running when the app closed or crashed.",
+            affectedCount: files.count,
+            backupPath: backupPath
+        )
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let message = try worker(folder, files) { current, total in
@@ -252,6 +321,7 @@ struct InfoEraserView: View {
                     }
                 }
                 DispatchQueue.main.async {
+                    OperationRecoveryService.shared.finish(recoveryID)
                     isProcessing = false
                     appendLog(message)
                     activeNotification = NotificationMessage(text: message, isError: false)
@@ -261,11 +331,12 @@ struct InfoEraserView: View {
                         status: "OK",
                         message: message,
                         affectedCount: files.count,
-                        backupPath: folder.appendingPathComponent(InfoEraserService.shared.backupDirectoryName).path
+                        backupPath: backupPath
                     )
                 }
             } catch {
                 DispatchQueue.main.async {
+                    OperationRecoveryService.shared.finish(recoveryID)
                     isProcessing = false
                     appendLog("ERROR: \(error.localizedDescription)")
                     activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
@@ -275,7 +346,7 @@ struct InfoEraserView: View {
                         status: "FAIL",
                         message: error.localizedDescription,
                         affectedCount: files.count,
-                        backupPath: folder.appendingPathComponent(InfoEraserService.shared.backupDirectoryName).path
+                        backupPath: backupPath
                     )
                 }
             }

@@ -13,6 +13,12 @@ static NSNumber *IGFileFixerJSONNumber(id value) {
     return [value respondsToSelector:@selector(integerValue)] ? value : @(0);
 }
 
+static void IGFileFixerHDDSafePause(void) {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"]) {
+        [NSThread sleepForTimeInterval:0.01];
+    }
+}
+
 static void IGFileFixerAddCACertIfAvailable(NSMutableArray *args) {
     NSString *caPath = [[NSBundle mainBundle] pathForResource:@"cacert" ofType:@"pem"];
     if (caPath.length > 0) {
@@ -111,6 +117,38 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     [data writeToFile:path atomically:YES];
 }
 
+static NSString *IGFileFixerSupportDir(void) {
+    NSArray *dirs = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = dirs.count > 0 ? [dirs objectAtIndex:0] : NSHomeDirectory();
+    NSString *dir = [base stringByAppendingPathComponent:@"Syncrosa"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    return dir;
+}
+
+static NSString *IGFileFixerBeginActiveOperation(NSString *tool, NSString *title, NSString *message, NSInteger affectedCount, NSString *backupPath) {
+    NSString *identifier = [[NSProcessInfo processInfo] globallyUniqueString];
+    NSDictionary *marker = @{
+        @"id": identifier,
+        @"tool": tool ?: @"Folder Fixer",
+        @"title": title ?: @"",
+        @"message": message ?: @"",
+        @"startedAt": @([[NSDate date] timeIntervalSince1970]),
+        @"affectedCount": @(affectedCount),
+        @"backupPath": backupPath ?: @""
+    };
+    NSString *path = [IGFileFixerSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
+    [marker writeToFile:path atomically:YES];
+    return identifier;
+}
+
+static void IGFileFixerFinishActiveOperation(NSString *identifier) {
+    NSString *path = [IGFileFixerSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
+    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:path];
+    if (!identifier || [[marker objectForKey:@"id"] isEqualToString:identifier]) {
+        [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
+    }
+}
+
 @interface IGFileFixerViewController ()
 @property (nonatomic, strong) NSTextField *folderPathField;
 @property (nonatomic, strong) NSButton *selectFolderButton;
@@ -125,6 +163,8 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
 @property (nonatomic, assign) BOOL underscoreNormalizationEnabledForRun;
 @property (nonatomic, assign) NSInteger folderFixSuccessCount;
 @property (nonatomic, assign) NSInteger folderFixFailureCount;
+@property (nonatomic, strong) NSString *folderFixActiveID;
+@property (nonatomic, strong) NSString *filenameCleanerActiveID;
 
 @property (nonatomic, strong) NSButton *selectAllCheckbox;
 @property (nonatomic, strong) NSButton *albumCheckbox;
@@ -457,6 +497,9 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
             if ([extensions containsObject:[[fileUrl pathExtension] lowercaseString]]) {
                 [matches addObject:fileUrl];
             }
+            if (matches.count % 25 == 0) {
+                IGFileFixerHDDSafePause();
+            }
         }
 
         NSArray *result = [matches copy];
@@ -493,6 +536,11 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     [self log:@"Starting folder fix process..."];
     self.progressIndicator.maxValue = self.foundFiles.count;
     self.progressIndicator.doubleValue = 0;
+    self.folderFixActiveID = IGFileFixerBeginActiveOperation(@"Folder Fixer",
+                                                            @"Fix Folder Metadata",
+                                                            @"Folder Fixer was interrupted while processing local files.",
+                                                            self.foundFiles.count,
+                                                            self.folderPathField.stringValue ?: @"");
 
     [self processFileAtIndex:0];
 }
@@ -511,6 +559,11 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
     self.statusLabel.stringValue = @"Cleaning filenames...";
     self.progressIndicator.maxValue = self.foundFiles.count;
     self.progressIndicator.doubleValue = 0;
+    self.filenameCleanerActiveID = IGFileFixerBeginActiveOperation(@"Filename Cleaner",
+                                                                  @"Clean Filenames",
+                                                                  @"Filename Cleaner was interrupted while renaming local files.",
+                                                                  self.foundFiles.count,
+                                                                  self.folderPathField.stringValue ?: @"");
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -541,6 +594,7 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
                 renamed++;
             }
             [updatedFiles addObject:newURL];
+            IGFileFixerHDDSafePause();
             dispatch_async(dispatch_get_main_queue(), ^{
                 [self log:[NSString stringWithFormat:@"OK: %@", newURL.lastPathComponent ?: @""]];
             });
@@ -556,6 +610,8 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
 
         NSArray *finalFiles = [updatedFiles copy];
         dispatch_async(dispatch_get_main_queue(), ^{
+            IGFileFixerFinishActiveOperation(self.filenameCleanerActiveID);
+            self.filenameCleanerActiveID = nil;
             self.foundFiles = finalFiles;
             self.isProcessing = NO;
             [self updateFixButtonState];
@@ -578,6 +634,8 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
 - (void)processFileAtIndex:(NSInteger)index {
     if (index >= self.foundFiles.count) {
         dispatch_async(dispatch_get_main_queue(), ^{
+            IGFileFixerFinishActiveOperation(self.folderFixActiveID);
+            self.folderFixActiveID = nil;
             self.isProcessing = NO;
             [self updateFixButtonState];
             self.selectFolderButton.enabled = YES;
@@ -642,7 +700,14 @@ static void IGFileFixerRecordHistory(NSString *tool, NSString *title, NSString *
                     [self log:[NSString stringWithFormat:@"Failed to fix: %@", fileName]];
                 }
 
-                [self processFileAtIndex:index + 1];
+                if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"]) {
+                    dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.01 * NSEC_PER_SEC));
+                    dispatch_after(delay, dispatch_get_main_queue(), ^{
+                        [self processFileAtIndex:index + 1];
+                    });
+                } else {
+                    [self processFileAtIndex:index + 1];
+                }
             });
         }];
     });

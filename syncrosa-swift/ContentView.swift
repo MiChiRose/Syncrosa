@@ -64,6 +64,7 @@ struct ContentView: View {
         case fixer
         case folderFix
         case infoEraser
+        case recoveryCenter
         case libraryDoctor
         case duplicateFinder
         case usbExport
@@ -103,6 +104,10 @@ struct ContentView: View {
 
                     NavigationLink(value: Tab.infoEraser) {
                         Label("Info Eraser", systemImage: "eraser.line.dashed")
+                    }
+
+                    NavigationLink(value: Tab.recoveryCenter) {
+                        Label(lang.selectedLanguage == "ru" ? "Восстановление" : "Recovery Center", systemImage: "cross.case")
                     }
 
                     NavigationLink(value: Tab.libraryDoctor) {
@@ -161,6 +166,7 @@ struct ContentView: View {
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
                             case .infoEraser: InfoEraserView()
+                            case .recoveryCenter: RecoveryCenterView()
                             case .libraryDoctor: LibraryDoctorView()
                             case .duplicateFinder: DuplicateFinderView()
                             case .usbExport: USBExportView()
@@ -170,17 +176,19 @@ struct ContentView: View {
                                     libraryStatus: musicLibraryStatus,
                                     isRefreshingLibraryStatus: isRefreshingLibraryStatus,
                                     refreshLibraryStatus: refreshMusicLibraryStatus,
-                                    openLibraryDoctor: openLibraryDoctorIfAvailable
+                                    openLibraryDoctor: openLibraryDoctorIfAvailable,
+                                    openRecoveryCenter: { selectedTab = .recoveryCenter }
                                 )
                             case .settings: SettingsView()
                             case .none:
                                 if musicLibraryStatus.isAvailable {
                                     OverviewView(
-                                        libraryStatus: musicLibraryStatus,
-                                        isRefreshingLibraryStatus: isRefreshingLibraryStatus,
-                                        refreshLibraryStatus: refreshMusicLibraryStatus,
-                                        openLibraryDoctor: openLibraryDoctorIfAvailable
-                                    )
+                                    libraryStatus: musicLibraryStatus,
+                                    isRefreshingLibraryStatus: isRefreshingLibraryStatus,
+                                    refreshLibraryStatus: refreshMusicLibraryStatus,
+                                    openLibraryDoctor: openLibraryDoctorIfAvailable,
+                                    openRecoveryCenter: { selectedTab = .recoveryCenter }
+                                )
                                 } else {
                                     MusicLibraryUnavailableView(
                                         status: musicLibraryStatus,
@@ -271,7 +279,7 @@ struct ContentView: View {
         switch tab {
         case .playlist, .offlinePlaylist, .fixer, .libraryDoctor, .duplicateFinder, .usbExport, .coversOptimizer:
             return true
-        case .overview, .folderFix, .infoEraser, .settings, .none:
+        case .overview, .folderFix, .infoEraser, .recoveryCenter, .settings, .none:
             return false
         }
     }

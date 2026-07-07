@@ -13,7 +13,7 @@ except ImportError:
 import threading
 
 from features.info_eraser import backup_original_info, erase_info, find_music_files, has_restore_backup, restore_info
-from core.operation_history import record_operation
+from core.operation_history import begin_active_operation, finish_active_operation, record_operation
 
 SUPPORTED_INFO_EXTENSIONS = (".mp3", ".m4a", ".mp4", ".aac", ".alac")
 
@@ -123,6 +123,13 @@ class InfoEraserTab(tk.Frame):
         self.status.config(text=title)
         self.clear_log()
         self.log(title)
+        marker_id = begin_active_operation(
+            "Info Eraser",
+            title,
+            "Info Eraser was interrupted while working on local music files.",
+            len(self.files),
+            self.folder_path
+        )
 
         def progress(curr, total):
             self.after(0, lambda c=curr, t=total: self.progress.config(value=c, maximum=max(1, t)))
@@ -138,6 +145,7 @@ class InfoEraserTab(tk.Frame):
                 self.after(0, lambda err=e: self.log("ERROR: " + str(err)))
                 self.after(0, lambda err=e: tkMessageBox.showerror("Info Eraser", str(err)))
             finally:
+                finish_active_operation(marker_id)
                 self.after(0, lambda: self.set_busy(False))
 
         threading.Thread(target=task).start()
