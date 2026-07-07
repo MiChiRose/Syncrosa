@@ -25,7 +25,7 @@ The application is available in **three distinct versions**, tailored for differ
 A completely rewritten, native **SwiftUI** application designed exclusively for modern macOS (macOS 14 Sonoma and newer) running on Apple Silicon (M1/M2/M3/M4) chips.
 
 - **Deep Music.app Integration:** Seamlessly interacts with the modern macOS Music application.
-- **Modern UI:** Fast, fluid interface with a native iOS-style HUD notification system.
+- **Liquid Glass UI:** A refreshed macOS 14+ interface with glassy controls, system Light/Dark appearance, and a native HUD notification system.
 - **Advanced Security:** Uses macOS Keychain to securely store your API keys and employs Hardened Runtime for process safety.
 - **Multi-Provider AI:** Supports generating playlists via Gemini, Groq, and OpenRouter (bypassing geo-blocks).
 - **USB Export:** Transfer playlists directly to USB drives with format compatibility check and size optimization (.fitAvailable).
@@ -38,6 +38,7 @@ A native, high-performance rewrite of the legacy track, built from the ground up
 - **Backwards-Compatible SDK:** Compiled to run natively on classic systems while maintaining modern parity.
 - **Secure Keychain Storage:** Separate Keychain item storage for each AI provider.
 - **Resilient Network Layer:** Spawns curl subprocesses when system openssl is too old to establish TLS 1.2+ handshakes.
+- **Mavericks-Safe Cocoa UI:** AppKit controls are kept compatible with OS X 10.9 and Xcode 6.2-era behavior.
 - **USB Export Tab:** Native Cocoa control panel for copying files to USB drives.
 
 ### 3. [syncrosa-python](./syncrosa-python) (Legacy Python Track)
@@ -65,11 +66,20 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines. |
-| `Syncrosa_Python_v3.4.0.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available. |
-| `Syncrosa_SwiftUI_v3.4.0.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with system Light/Dark appearance; not intended for vintage Macs. |
+| `Syncrosa_Cocoa_v3.4.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; includes the 10.9 Cocoa launch fix. |
+| `Syncrosa_Python_v3.4.1.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available. |
+| `Syncrosa_SwiftUI_v3.4.1.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with Liquid Glass styling and system Light/Dark appearance. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
+
+### Latest Release: 3.4.1
+
+Syncrosa 3.4.1 is a polish and stability release across all three app tracks:
+
+- **SwiftUI:** refreshed Liquid Glass design system for cards, menus, segmented controls, buttons, toggles, and utility surfaces.
+- **Objective-C:** fixed a Mavericks launch crash caused by a modern `NSTextField` line-break selector and centered the Library Doctor tabs.
+- **Python:** refreshed release package alongside the native builds so all three download options stay aligned.
+- **Docs:** README download instructions now point at the current 3.4.1 packages.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.

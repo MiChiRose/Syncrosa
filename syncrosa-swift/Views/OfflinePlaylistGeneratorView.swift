@@ -24,6 +24,21 @@ struct OfflinePlaylistGeneratorView: View {
         }
         return list
     }
+
+    var genreOptions: [SyncrosaMenuOption<String>] {
+        [SyncrosaMenuOption(title: lang.selectedLanguage == "ru" ? "Все жанры" : "All Genres", value: "All")] +
+        genres.map { SyncrosaMenuOption(title: $0, value: $0) }
+    }
+
+    var yearFromOptions: [SyncrosaMenuOption<Int?>] {
+        [SyncrosaMenuOption<Int?>(title: lang.selectedLanguage == "ru" ? "Любой" : "Any", value: nil)] +
+        yearsList.map { SyncrosaMenuOption<Int?>(title: String($0), value: $0) }
+    }
+
+    var yearToOptions: [SyncrosaMenuOption<Int?>] {
+        [SyncrosaMenuOption<Int?>(title: lang.selectedLanguage == "ru" ? "Любой" : "Any", value: nil)] +
+        filteredYearsTo.map { SyncrosaMenuOption<Int?>(title: String($0), value: $0) }
+    }
     
     @State private var checkedDecades: [String: Bool] = [
         "60s": false,
@@ -47,21 +62,13 @@ struct OfflinePlaylistGeneratorView: View {
     @State private var emptyLibraryMessage: String? = nil
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                // Title with Help
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.selectedLanguage == "ru" ? "Генератор офлайн плейлистов" : "Offline Playlist Generator", systemImage: "music.note.house")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.selectedLanguage == "ru" ? "Генератор офлайн плейлистов" : "Offline Playlist Generator",
+                systemImage: "music.note.house",
+                subtitle: lang.selectedLanguage == "ru" ? "Собирайте плейлисты локально, без обращения к AI." : "Build playlists locally without sending anything to AI.",
+                helpAction: { showHelp = true }
+            )
                 
                 if isLoading {
                     VStack(spacing: 15) {
@@ -72,23 +79,18 @@ struct OfflinePlaylistGeneratorView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
+                    .syncrosaCard()
                 } else if let emptyLibraryMessage = emptyLibraryMessage {
-                    VStack(spacing: 15) {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 42))
-                            .foregroundColor(SyncrosaTheme.placeholderIcon)
-                        Text(emptyLibraryMessage)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 60)
+                    SyncrosaEmptyState(
+                        systemImage: "music.note.list",
+                        title: emptyLibraryMessage,
+                        message: lang.selectedLanguage == "ru" ? "Добавьте треки в Music и вернитесь сюда снова." : "Add tracks to Music, then return here."
+                    )
+                    .syncrosaCard(padding: 0)
                 } else {
                     // Card 1: Custom Filters
                     VStack(alignment: .leading, spacing: 20) {
-                        Text(lang.selectedLanguage == "ru" ? "НАСТРОЙКА ФИЛЬТРОВ" : "FILTER CONFIGURATION")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "НАСТРОЙКА ФИЛЬТРОВ" : "FILTER CONFIGURATION", systemImage: "slider.horizontal.3")
                         
                         // Genre Dropdown
                         VStack(alignment: .leading, spacing: 5) {
@@ -96,14 +98,11 @@ struct OfflinePlaylistGeneratorView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             
-                            Picker("", selection: $selectedGenre) {
-                                Text(lang.selectedLanguage == "ru" ? "Все жанры" : "All Genres").tag("All")
-                                ForEach(genres, id: \.self) { genre in
-                                    Text(genre).tag(genre)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .labelsHidden()
+                            SyncrosaGlassMenu(
+                                selection: $selectedGenre,
+                                options: genreOptions,
+                                width: 240
+                            )
                         }
                         
                         // Year Range
@@ -113,15 +112,11 @@ struct OfflinePlaylistGeneratorView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
-                                Picker("", selection: $yearFrom) {
-                                    Text(lang.selectedLanguage == "ru" ? "Любой" : "Any").tag(nil as Int?)
-                                    ForEach(yearsList, id: \.self) { yr in
-                                        Text(String(yr)).tag(yr as Int?)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                .frame(width: 120)
+                                SyncrosaGlassMenu(
+                                    selection: $yearFrom,
+                                    options: yearFromOptions,
+                                    width: 120
+                                )
                             }
                             
                             VStack(alignment: .leading, spacing: 5) {
@@ -129,15 +124,11 @@ struct OfflinePlaylistGeneratorView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
-                                Picker("", selection: $yearTo) {
-                                    Text(lang.selectedLanguage == "ru" ? "Любой" : "Any").tag(nil as Int?)
-                                    ForEach(filteredYearsTo, id: \.self) { yr in
-                                        Text(String(yr)).tag(yr as Int?)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                .frame(width: 120)
+                                SyncrosaGlassMenu(
+                                    selection: $yearTo,
+                                    options: yearToOptions,
+                                    width: 120
+                                )
                             }
                         }
                         
@@ -207,18 +198,14 @@ struct OfflinePlaylistGeneratorView: View {
                                 Label(lang.selectedLanguage == "ru" ? "Создать плейлист" : "Create Playlist", systemImage: "plus.circle")
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(allTracks.isEmpty || isCreatingPlaylist || playlistName.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
-                    .padding()
-                    .background(SyncrosaTheme.panelBackground)
-                    .cornerRadius(12)
+                    .syncrosaCard()
                     
                     // Card 2: Decades Section
                     VStack(alignment: .leading, spacing: 20) {
-                        Text(lang.selectedLanguage == "ru" ? "СОЗДАНИЕ ПО ЭПОХАМ (ДЕСЯТИЛЕТИЯ)" : "GENERATE BY EPOCHS (DECADES)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "СОЗДАНИЕ ПО ЭПОХАМ (ДЕСЯТИЛЕТИЯ)" : "GENERATE BY EPOCHS (DECADES)", systemImage: "calendar")
                         
                         // Decades Checkboxes Grid
                         let decadeKeys = ["60s", "70s", "80s", "90s", "2000s", "2010s", "Modern (2020+)"]
@@ -242,17 +229,13 @@ struct OfflinePlaylistGeneratorView: View {
                                 Label(lang.selectedLanguage == "ru" ? "Создать плейлисты по эпохам" : "Generate Playlists by Epochs", systemImage: "calendar.badge.plus")
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(allTracks.isEmpty || isGeneratingEpochs || !checkedDecades.values.contains(true))
                     }
-                    .padding()
-                    .background(SyncrosaTheme.panelBackground)
-                    .cornerRadius(12)
+                    .syncrosaCard()
                 }
                 
                 Spacer()
-            }
-            .padding(30)
         }
         .onAppear(perform: loadLibrary)
         .onChange(of: yearFrom) { oldValue, newValue in
@@ -294,7 +277,7 @@ struct OfflinePlaylistGeneratorView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()

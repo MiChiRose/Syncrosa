@@ -15,22 +15,23 @@ struct NotificationModifier: ViewModifier {
             .overlay(alignment: .top) {
                 if let msg = message {
                     notificationBanner(for: msg)
-                        .padding(.top, 10)
-                        .padding(.horizontal, 24)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 14)
+                        .padding(.horizontal, 28)
+                        .transition(.scale(scale: 0.98, anchor: .top).combined(with: .opacity))
                         .zIndex(100)
                 }
             }
-            .animation(.easeInOut(duration: 0.18), value: message?.id)
+            .animation(.easeOut(duration: 0.18), value: message?.id)
     }
 
     private func notificationBanner(for msg: NotificationMessage) -> some View {
         HStack(spacing: 12) {
             Image(systemName: msg.isError ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                .foregroundColor(msg.isError ? .red : .blue)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundColor(msg.isError ? SyncrosaTheme.destructive : SyncrosaTheme.accent)
 
             Text(msg.text)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 14, weight: .semibold))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -45,16 +46,17 @@ struct NotificationModifier: ViewModifier {
                     .foregroundColor(.secondary)
                     .font(.system(size: 16))
             }
+            .buttonStyle(SyncrosaGlassIconButtonStyle(size: 28))
         }
-        .padding()
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: SyncrosaTheme.cardRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(SyncrosaTheme.panelBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: SyncrosaTheme.cardRadius, style: .continuous)
+                .stroke(SyncrosaTheme.panelBorder.opacity(0.75), lineWidth: 1)
         )
-        .shadow(color: SyncrosaTheme.softShadow, radius: 10, x: 0, y: 5)
-        .buttonStyle(.plain)
+        .shadow(color: SyncrosaTheme.softShadow, radius: 18, x: 0, y: 8)
         .onAppear {
             // Auto-hide short status messages; progress messages keep updating until the task finishes.
             if !msg.text.contains("...") {

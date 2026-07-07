@@ -13,6 +13,18 @@
 #import "IGLocalizationService.h"
 #import "IGLogger.h"
 
+static void IGSetTextFieldLineBreakMode(NSTextField *textField, NSLineBreakMode mode)
+{
+    if (!textField) {
+        return;
+    }
+
+    NSCell *cell = [textField cell];
+    if ([cell respondsToSelector:@selector(setLineBreakMode:)]) {
+        [cell setLineBreakMode:mode];
+    }
+}
+
 @class IGMainWindowController;
 
 @interface IGOverviewViewController : NSViewController
@@ -44,7 +56,7 @@
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
     self.statusLabel.alignment = NSCenterTextAlignment;
-    self.statusLabel.lineBreakMode = NSLineBreakByWordWrapping;
+    IGSetTextFieldLineBreakMode(self.statusLabel, NSLineBreakByWordWrapping);
     [self.view addSubview:self.statusLabel];
 
     y -= 70;
@@ -149,11 +161,15 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [self.view addSubview:title];
 
     y -= 45;
-    self.toolSelector = [[[NSSegmentedControl alloc] initWithFrame:NSMakeRect(70, y, 440, 26)] autorelease];
+    CGFloat toolSelectorWidth = 360.0;
+    self.toolSelector = [[[NSSegmentedControl alloc] initWithFrame:NSMakeRect((580.0 - toolSelectorWidth) / 2.0, y, toolSelectorWidth, 26)] autorelease];
     self.toolSelector.segmentCount = 3;
     [self.toolSelector setLabel:@"Cover Restore" forSegment:0];
     [self.toolSelector setLabel:@"Cover Audit" forSegment:1];
     [self.toolSelector setLabel:@"Library Audit" forSegment:2];
+    [self.toolSelector setWidth:(toolSelectorWidth / 3.0) forSegment:0];
+    [self.toolSelector setWidth:(toolSelectorWidth / 3.0) forSegment:1];
+    [self.toolSelector setWidth:(toolSelectorWidth / 3.0) forSegment:2];
     [self.toolSelector setSelectedSegment:1];
     [self.view addSubview:self.toolSelector];
 
@@ -561,7 +577,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         statusLabel.font = [NSFont systemFontOfSize:10.0];
         statusLabel.textColor = [NSColor colorWithCalibratedWhite:0.38 alpha:1.0];
         statusLabel.alignment = NSCenterTextAlignment;
-        statusLabel.lineBreakMode = NSLineBreakByWordWrapping;
+        IGSetTextFieldLineBreakMode(statusLabel, NSLineBreakByWordWrapping);
         statusLabel.stringValue = @"iTunes status unknown.";
         statusLabel.autoresizingMask = NSViewWidthSizable;
         self.libraryStatusLabel = statusLabel;

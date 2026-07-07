@@ -11,26 +11,23 @@ struct LibraryDoctorView: View {
     private let toolNames = ["Cover Restore", "Cover Audit", "Library Audit"]
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                HStack(spacing: 10) {
-                    Label("Library Doctor", systemImage: "stethoscope")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Spacer()
-                    Picker("", selection: $selectedTool) {
-                        ForEach(0..<toolNames.count, id: \.self) { index in
-                            Text(toolNames[index]).tag(index)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 430)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: "Library Doctor",
+                systemImage: "stethoscope",
+                subtitle: lang.selectedLanguage == "ru" ? "Быстрая диагностика медиатеки и восстановление обложек." : "Quick diagnostics for library health and cover restore tasks."
+            )
 
                 VStack(alignment: .leading, spacing: 12) {
+                    SyncrosaGlassSegmentedPicker(
+                        selection: $selectedTool,
+                        options: toolNames.indices.map { SyncrosaMenuOption(title: toolNames[$0], value: $0) },
+                        minSegmentWidth: 112
+                    )
+
                     Text(descriptionText)
                         .foregroundColor(.secondary)
-                    HStack(spacing: 12) {
+                    SyncrosaAdaptiveRow(spacing: 12) {
                         Button(action: runSelectedTool) {
                             if isRunning {
                                 ProgressView().controlSize(.small)
@@ -38,38 +35,15 @@ struct LibraryDoctorView: View {
                                 Label(buttonTitle, systemImage: selectedTool == 0 ? "arrow.uturn.backward.circle" : "checklist")
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(isRunning)
                         ProgressView(value: progress, total: progressMax)
                             .opacity(isRunning || progress > 0 ? 1 : 0.35)
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(10)
+                .syncrosaCard()
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("LOG")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(logs.enumerated()), id: \.offset) { _, line in
-                                Text(line)
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundColor(.green)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(minHeight: 280)
-                    .background(Color.black)
-                    .cornerRadius(8)
-                }
-            }
-            .padding(30)
+            SyncrosaLogConsole(title: "LOG", lines: logs, minHeight: 280)
         }
     }
 

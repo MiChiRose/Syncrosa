@@ -40,27 +40,17 @@ struct MediaFixerView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                // Title with Help Button
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.t("media_fixer"), systemImage: "wrench.and.screwdriver")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.t("media_fixer"),
+                systemImage: "wrench.and.screwdriver",
+                subtitle: lang.selectedLanguage == "ru" ? "Исправление метаданных внутри Music с выбором конкретных тегов." : "Repair Music metadata while choosing exactly which tags may change.",
+                helpAction: { showHelp = true }
+            )
                 
                 // Checklist Card (New requirement)
                 VStack(alignment: .leading, spacing: 15) {
-                    Text(lang.selectedLanguage == "ru" ? "ВЫБЕРИТЕ ТЕГИ ДЛЯ ОБНОВЛЕНИЯ" : "SELECT TAGS TO UPDATE")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "ВЫБЕРИТЕ ТЕГИ ДЛЯ ОБНОВЛЕНИЯ" : "SELECT TAGS TO UPDATE", systemImage: "checklist")
                     
                     Toggle(isOn: selectAllBinding) {
                         Text(lang.selectedLanguage == "ru" ? "Выбрать все" : "Select All")
@@ -85,9 +75,7 @@ struct MediaFixerView: View {
                             .toggleStyle(.checkbox)
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Card 1: Controls
                 VStack(alignment: .leading, spacing: 15) {
@@ -95,7 +83,7 @@ struct MediaFixerView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    HStack(spacing: 15) {
+                    SyncrosaAdaptiveRow(spacing: 15) {
                         Button(action: analyzeLibrary) {
                             if isAnalyzing {
                                 ProgressView().controlSize(.small)
@@ -103,43 +91,34 @@ struct MediaFixerView: View {
                                 Label(lang.selectedLanguage == "ru" ? "Анализ медиатеки" : "Analyze Library", systemImage: "magnifyingglass")
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(isAnalyzing)
                         
                         Button(action: updateMetadata) {
                             Label(lang.selectedLanguage == "ru" ? "Обновить метаданные" : "Update Metadata", systemImage: "arrow.triangle.2.circlepath")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(isAnalyzing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics))
                         
                         Button(action: fixMetadata) {
                             Label(lang.selectedLanguage == "ru" ? "Объединить альбомы" : "Merge Selected", systemImage: "wrench.and.screwdriver")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(mergeCandidates.isEmpty || isAnalyzing)
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Card 2: Split Album Results
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(lang.selectedLanguage == "ru" ? "РЕЗУЛЬТАТЫ ПОИСКА РАЗБИТЫХ АЛЬБОМОВ" : "SPLIT ALBUMS SEARCH RESULTS")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "РЕЗУЛЬТАТЫ ПОИСКА РАЗБИТЫХ АЛЬБОМОВ" : "SPLIT ALBUMS SEARCH RESULTS", systemImage: "rectangle.stack")
                     
                     if mergeCandidates.isEmpty {
-                        VStack(spacing: 15) {
-                            Image(systemName: "music.note.list")
-                                .font(.system(size: 40))
-                                .foregroundColor(SyncrosaTheme.placeholderIcon)
-                            Text(lang.selectedLanguage == "ru" ? "Проблем с разбитыми альбомами не обнаружено." : "No split album issues detected yet.")
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
+                        SyncrosaEmptyState(
+                            systemImage: "music.note.list",
+                            title: lang.selectedLanguage == "ru" ? "Проблем с разбитыми альбомами не обнаружено." : "No split album issues detected yet.",
+                            message: lang.selectedLanguage == "ru" ? "Запустите анализ, чтобы проверить медиатеку." : "Run analysis to scan your library."
+                        )
                     } else {
                         ForEach(mergeCandidates) { group in
                             HStack {
@@ -154,7 +133,7 @@ struct MediaFixerView: View {
                                 Text("\(group.trackIDs.count) tracks")
                                     .font(.system(size: 10))
                                     .padding(4)
-                                    .background(Color.blue.opacity(0.1))
+                                    .background(SyncrosaTheme.accent.opacity(0.1))
                                     .cornerRadius(4)
                             }
                             .padding(.vertical, 4)
@@ -162,13 +141,9 @@ struct MediaFixerView: View {
                         }
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 Spacer()
-            }
-            .padding(30)
         }
         .notification(message: $activeNotification)
         .alert(isPresented: $showAlert) {
@@ -188,7 +163,7 @@ struct MediaFixerView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()

@@ -25,6 +25,7 @@ let package = Package(
             sources: [
                 "SyncrosaApp.swift",
                 "ContentView.swift",
+                "Views/SyncrosaDesignSystem.swift",
                 "Views/PlaylistGeneratorView.swift",
                 "Views/MediaFixerView.swift",
                 "Views/FileMediaFixerView.swift",

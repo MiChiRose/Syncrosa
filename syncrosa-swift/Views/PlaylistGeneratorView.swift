@@ -24,21 +24,13 @@ struct PlaylistGeneratorView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                // Title with Help Button
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.t("ai_playlist"), systemImage: "music.note.list")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.t("ai_playlist"),
+                systemImage: "music.note.list",
+                subtitle: lang.selectedLanguage == "ru" ? "Создавайте плейлист по настроению из уже существующей медиатеки." : "Create a mood-based playlist from tracks already in your library.",
+                helpAction: { showHelp = true }
+            )
                 
                 // Card 1: Configuration
                 VStack(alignment: .leading, spacing: 20) {
@@ -119,9 +111,7 @@ struct PlaylistGeneratorView: View {
                         Spacer()
                         
                         VStack(alignment: .trailing, spacing: 4) {
-                            Text("ACTIVE CONFIG")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            SyncrosaSectionLabel(text: "ACTIVE CONFIG", systemImage: "cpu")
                             Text("\(selectedProvider)")
                                 .font(.caption)
                                 .fontWeight(.bold)
@@ -131,9 +121,7 @@ struct PlaylistGeneratorView: View {
                         }
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Action Button
                 Button(action: generatePlaylist) {
@@ -146,13 +134,11 @@ struct PlaylistGeneratorView: View {
                             .fontWeight(.bold)
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(SyncrosaPrimaryButtonStyle())
                 .controlSize(.large)
                 .disabled(prompt.isEmpty || playlistName.isEmpty || isGenerating)
                 
                 Spacer()
-            }
-            .padding(30)
         }
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
@@ -169,7 +155,7 @@ struct PlaylistGeneratorView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()

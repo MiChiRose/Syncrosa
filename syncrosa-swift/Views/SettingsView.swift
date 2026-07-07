@@ -22,6 +22,18 @@ struct SettingsView: View {
     let providers = ["Gemini", "Groq", "OpenRouter"]
     let geminiModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
     let groqModels = ["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma-7b-it"]
+    let languageOptions = [
+        SyncrosaMenuOption(title: "English", value: "en"),
+        SyncrosaMenuOption(title: "Русский", value: "ru"),
+        SyncrosaMenuOption(title: "Беларуская", value: "be"),
+        SyncrosaMenuOption(title: "한국어", value: "ko"),
+        SyncrosaMenuOption(title: "日本語", value: "ja"),
+        SyncrosaMenuOption(title: "中文", value: "zh"),
+        SyncrosaMenuOption(title: "Deutsch", value: "de"),
+        SyncrosaMenuOption(title: "Polski", value: "pl"),
+        SyncrosaMenuOption(title: "Eesti", value: "et"),
+        SyncrosaMenuOption(title: "Español", value: "es")
+    ]
     @State private var openRouterModels: [String] = AIService.shared.cachedOpenRouterModels
     @State private var isSyncingModels: Bool = false
     @State private var isSyncingLibrary: Bool = false
@@ -37,48 +49,31 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.t("settings"), systemImage: "gearshape")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.bottom, 5)
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.t("settings"),
+                systemImage: "gearshape",
+                subtitle: lang.selectedLanguage == "ru" ? "Язык, безопасность процессов и подключение AI-провайдера." : "Language, process safety, and AI provider setup.",
+                helpAction: { showHelp = true }
+            )
                 
                 // Group 0: Language
                 VStack(alignment: .leading, spacing: 10) {
                     Label(lang.t("lang_section"), systemImage: "globe")
                         .font(.headline)
                     
-                    Picker("Select Language", selection: Binding(
-                        get: { self.lang.selectedLanguage },
-                        set: { self.lang.selectedLanguage = $0 }
-                    )) {
-                        Text("English").tag("en")
-                        Text("Русский").tag("ru")
-                        Text("Беларуская").tag("be")
-                        Text("한국어").tag("ko")
-                        Text("日本語").tag("ja")
-                        Text("中文").tag("zh")
-                        Text("Deutsch").tag("de")
-                        Text("Polski").tag("pl")
-                        Text("Eesti").tag("et")
-                        Text("Español").tag("es")
+                    SyncrosaAdaptiveRow(spacing: 12) {
+                        Text("Select Language")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        SyncrosaGlassMenu(selection: Binding(
+                            get: { self.lang.selectedLanguage },
+                            set: { self.lang.selectedLanguage = $0 }
+                        ), options: languageOptions, width: 230)
                     }
-                    .pickerStyle(.menu)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
 
                 // Group 1a: Safety
                 VStack(alignment: .leading, spacing: 10) {
@@ -94,17 +89,14 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .toggleStyle(.switch)
+                    .toggleStyle(SyncrosaSwitchToggleStyle())
 
                     Button(action: { showHistory = true }) {
                         Label(lang.selectedLanguage == "ru" ? "Открыть историю операций" : "Open Operation History", systemImage: "clock.arrow.circlepath")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Group 1: iTunes Library
                 VStack(alignment: .leading, spacing: 10) {
@@ -122,24 +114,28 @@ struct SettingsView: View {
                             Text(lang.t("sync_library"))
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
                     .disabled(isSyncingLibrary)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Group 2: AI Configuration
                 VStack(alignment: .leading, spacing: 15) {
                     Label(lang.t("provider"), systemImage: "cpu")
                         .font(.headline)
                     
-                    Picker(lang.t("select_provider"), selection: $selectedProvider) {
-                        ForEach(providers, id: \.self) { Text($0).tag($0) }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(lang.t("select_provider"))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        SyncrosaGlassSegmentedPicker(
+                            selection: $selectedProvider,
+                            options: providers.map { SyncrosaMenuOption(title: $0, value: $0) },
+                            minSegmentWidth: 104
+                        )
+                        .onChange(of: selectedProvider) { _, _ in isKeyValidated = false }
                     }
-                    .pickerStyle(.segmented)
-                    .onChange(of: selectedProvider) { _, _ in isKeyValidated = false }
                     
                     VStack(alignment: .leading, spacing: 15) {
                         if selectedProvider == "Gemini" {
@@ -155,13 +151,11 @@ struct SettingsView: View {
                                     .foregroundColor(.secondary)
                                 
                                 HStack(alignment: .center, spacing: 10) {
-                                    Picker("", selection: $openrouterModel) {
-                                        ForEach(openRouterModels, id: \.self) { model in
-                                            Text(model).tag(model)
-                                        }
-                                    }
-                                    .labelsHidden()
-                                    .frame(minWidth: 200)
+                                    SyncrosaGlassMenu(
+                                        selection: $openrouterModel,
+                                        options: openRouterModels.map { SyncrosaMenuOption(title: $0, value: $0) },
+                                        width: 360
+                                    )
                                     
                                     Button(action: syncModels) {
                                         if isSyncingModels {
@@ -171,7 +165,7 @@ struct SettingsView: View {
                                                 .font(.system(size: 11, weight: .bold))
                                         }
                                     }
-                                    .buttonStyle(.bordered)
+                                    .buttonStyle(SyncrosaSecondaryButtonStyle())
                                     .controlSize(.regular)
                                     .disabled(isSyncingModels)
                                 }
@@ -192,17 +186,13 @@ struct SettingsView: View {
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(SyncrosaPrimaryButtonStyle())
                     .controlSize(.large)
                     .disabled(isValidating || isKeyEmpty)
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 Spacer()
-            }
-            .padding(30)
         }
         .notification(message: $activeNotification)
         .onAppear {
@@ -227,7 +217,7 @@ struct SettingsView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()
@@ -264,13 +254,11 @@ struct SettingsView: View {
             Text(lang.t("select_model"))
                 .font(.caption2)
                 .foregroundColor(.secondary)
-            Picker("", selection: selection) {
-                ForEach(models, id: \.self) { model in
-                    Text(model).tag(model)
-                }
-            }
-            .labelsHidden()
-            .frame(minWidth: 200)
+            SyncrosaGlassMenu(
+                selection: selection,
+                options: models.map { SyncrosaMenuOption(title: $0, value: $0) },
+                width: 300
+            )
         }
     }
     

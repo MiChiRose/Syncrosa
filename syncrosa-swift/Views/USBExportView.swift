@@ -31,27 +31,36 @@ struct USBExportView: View {
     var selectedDrive: USBDrive? {
         usbService.availableDrives.first { $0.id == selectedDriveId }
     }
+
+    var driveOptions: [SyncrosaMenuOption<String>] {
+        [SyncrosaMenuOption(title: "-", value: "")] +
+        usbService.availableDrives.map { drive in
+            SyncrosaMenuOption(
+                title: "\(drive.name) (\(drive.filesystemLabel)) - \(lang.t("free_space", ByteCountFormatter.string(fromByteCount: drive.freeSpace, countStyle: .file)))",
+                value: drive.id
+            )
+        }
+    }
+
+    var playlistOptions: [SyncrosaMenuOption<String>] {
+        [SyncrosaMenuOption(title: "-", value: "")] +
+        playlists.map { playlist in
+            SyncrosaMenuOption(title: "\(playlist.name) (\(lang.t("tracks_count", playlist.trackCount)))", value: playlist.name)
+        }
+    }
     
     var formattedPlaylistSize: String {
         ByteCountFormatter.string(fromByteCount: playlistSize, countStyle: .file)
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                // Title with Help Button
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.t("usb_export"), systemImage: "externaldrive.fill")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.t("usb_export"),
+                systemImage: "externaldrive.fill",
+                subtitle: lang.selectedLanguage == "ru" ? "Экспорт плейлистов на внешний накопитель с проверкой места." : "Export playlists to an external drive with space checks.",
+                helpAction: { showHelp = true }
+            )
                 
                 // Card 1: Select Volume & Playlist
                 VStack(alignment: .leading, spacing: 20) {
@@ -68,9 +77,9 @@ struct USBExportView: View {
                                 loadPlaylists()
                             }) {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.caption2)
+                                    .font(.system(size: 11, weight: .semibold))
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(SyncrosaGlassIconButtonStyle(size: 24))
                             .disabled(usbService.isSearching)
                             .help(lang.selectedLanguage == "ru" ? "Обновить" : "Refresh")
                         }
@@ -92,13 +101,11 @@ struct USBExportView: View {
                             }
                             .padding(.vertical, 8)
                         } else {
-                            Picker("", selection: $selectedDriveId) {
-                                Text("-").tag("")
-                                ForEach(usbService.availableDrives) { drive in
-                                    Text("\(drive.name) (\(drive.filesystemLabel)) - \(lang.t("free_space", ByteCountFormatter.string(fromByteCount: drive.freeSpace, countStyle: .file)))").tag(drive.id)
-                                }
-                            }
-                            .labelsHidden()
+                            SyncrosaGlassMenu(
+                                selection: $selectedDriveId,
+                                options: driveOptions,
+                                width: 520
+                            )
                             .onChange(of: selectedDriveId) { _, newId in
                                 if let drive = usbService.availableDrives.first(where: { $0.id == newId }),
                                    !drive.isAndroidCompatible {
@@ -123,23 +130,18 @@ struct USBExportView: View {
                             }
                             .padding(.vertical, 8)
                         } else {
-                            Picker("", selection: $selectedPlaylistName) {
-                                Text("-").tag("")
-                                ForEach(playlists, id: \.name) { pl in
-                                    Text("\(pl.name) (\(lang.t("tracks_count", pl.trackCount)))").tag(pl.name)
-                                }
-                            }
-                            .labelsHidden()
+                            SyncrosaGlassMenu(
+                                selection: $selectedPlaylistName,
+                                options: playlistOptions,
+                                width: 360
+                            )
                             .onChange(of: selectedPlaylistName) { _, newName in
                                 updatePlaylistDetails(newName)
                             }
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Card 2: Playlist Info & Export Button
                 if !selectedPlaylistName.isEmpty && selectedDrive != nil {
@@ -172,18 +174,14 @@ struct USBExportView: View {
                                 Text(lang.t("export_button"))
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(SyncrosaPrimaryButtonStyle())
                             .controlSize(.large)
                         }
                     }
-                    .padding()
-                    .background(SyncrosaTheme.panelBackground)
-                    .cornerRadius(12)
+                    .syncrosaCard()
                 }
                 
                 Spacer()
-            }
-            .padding(30)
         }
         .notification(message: $activeNotification)
         // Incompatible filesystem warning dialog
@@ -212,7 +210,7 @@ struct USBExportView: View {
                         Text(lang.t("fit_available"))
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(SyncrosaPrimaryButtonStyle())
                     
                     Button(action: {
                         showSpaceAlert = false
@@ -220,7 +218,7 @@ struct USBExportView: View {
                         Text(lang.t("cancel"))
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
                 }
                 .padding()
             }
@@ -244,7 +242,7 @@ struct USBExportView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()

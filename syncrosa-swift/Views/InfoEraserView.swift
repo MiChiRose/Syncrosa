@@ -27,34 +27,18 @@ struct InfoEraserView: View {
     @State private var showHelp = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                HStack(spacing: 10) {
-                    Label("Info Eraser", systemImage: "eraser.line.dashed")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: "Info Eraser",
+                systemImage: "eraser.line.dashed",
+                subtitle: lang.selectedLanguage == "ru" ? "Деструктивная очистка локальных файлов с backup/restore." : "Destructive local-file cleanup with backup and restore.",
+                helpAction: { showHelp = true }
+            )
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(lang.selectedLanguage == "ru" ? "ВНИМАНИЕ" : "WARNING")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                    Text(lang.selectedLanguage == "ru" ? "Эта вкладка окончательно удаляет встроенную информацию и обложки из локальных музыкальных файлов. Работайте только с копией папки или сначала сохраните резервную копию." : "This tab permanently removes embedded song information and artwork from local music files. Work on a copied folder or create a backup first.")
-                        .font(.subheadline)
-                }
-                .foregroundColor(SyncrosaTheme.warningForeground)
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.warningBackground)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(SyncrosaTheme.warningBorder, lineWidth: 1))
-                .cornerRadius(8)
+            SyncrosaWarningPanel(
+                title: lang.selectedLanguage == "ru" ? "ВНИМАНИЕ" : "WARNING",
+                message: lang.selectedLanguage == "ru" ? "Эта вкладка окончательно удаляет встроенную информацию и обложки из локальных музыкальных файлов. Работайте только с копией папки или сначала сохраните резервную копию." : "This tab permanently removes embedded song information and artwork from local music files. Work on a copied folder or create a backup first."
+            )
 
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 12) {
@@ -64,7 +48,7 @@ struct InfoEraserView: View {
                         Button(action: selectFolder) {
                             Label(lang.selectedLanguage == "ru" ? "Выбрать папку" : "Select Folder", systemImage: "folder")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(isProcessing)
                     }
 
@@ -72,45 +56,35 @@ struct InfoEraserView: View {
                         Button(action: backupOriginalInfo) {
                             Label(lang.selectedLanguage == "ru" ? "Сохранить исходную инфо" : "Backup Original Info", systemImage: "externaldrive.badge.plus")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(fileItems.isEmpty || isProcessing)
 
                         Button(action: confirmErase) {
                             Label(lang.selectedLanguage == "ru" ? "Очистить" : "Erase Info", systemImage: "eraser")
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
+                        .buttonStyle(SyncrosaDestructiveButtonStyle())
                         .disabled(fileItems.isEmpty || isProcessing)
 
                         Button(action: restoreOriginalInfo) {
                             Label(lang.selectedLanguage == "ru" ? "Восстановить" : "Restore Info", systemImage: "arrow.uturn.backward")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(folderPath.isEmpty || isProcessing)
                     }
 
                     ProgressView(value: progressValue, total: progressTotal)
                         .opacity(isProcessing || progressValue > 0 ? 1 : 0.35)
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(8)
+                .syncrosaCard()
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(fileSummary)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    SyncrosaSectionLabel(text: fileSummary, systemImage: "doc.text.magnifyingglass")
 
                     if fileItems.isEmpty {
-                        VStack(spacing: 12) {
-                            Image(systemName: "music.note.list")
-                                .font(.system(size: 38))
-                                .foregroundColor(SyncrosaTheme.placeholderIcon)
-                            Text(lang.selectedLanguage == "ru" ? "Выберите папку с музыкой." : "Select a folder with music files.")
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 34)
+                        SyncrosaEmptyState(
+                            systemImage: "music.note.list",
+                            title: lang.selectedLanguage == "ru" ? "Выберите папку с музыкой." : "Select a folder with music files."
+                        )
                     } else {
                         ForEach(fileItems) { item in
                             HStack(spacing: 10) {
@@ -125,33 +99,9 @@ struct InfoEraserView: View {
                         }
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(8)
+                .syncrosaCard()
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("LOG")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(logLines.enumerated()), id: \.offset) { _, line in
-                                Text("> \(line)")
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundColor(.green)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 130)
-                    .background(Color.black)
-                    .cornerRadius(6)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(30)
+            SyncrosaLogConsole(title: "LOG", lines: logLines, minHeight: 150, prefixLines: true)
         }
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {

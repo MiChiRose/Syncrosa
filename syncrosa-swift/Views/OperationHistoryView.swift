@@ -20,28 +20,33 @@ struct OperationHistoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text(lang.selectedLanguage == "ru" ? "История операций" : "Operation History")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-                Picker("", selection: $selectedTool) {
-                    ForEach(tools, id: \.self) { Text($0).tag($0) }
+                HStack(spacing: 10) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 22, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(SyncrosaTheme.accent)
+                    Text(lang.selectedLanguage == "ru" ? "История операций" : "Operation History")
+                        .font(.title2)
+                        .fontWeight(.bold)
                 }
-                .frame(width: 220)
+                Spacer()
+                SyncrosaGlassMenu(
+                    selection: $selectedTool,
+                    options: tools.map { SyncrosaMenuOption(title: $0, value: $0) },
+                    width: 220
+                )
                 Button(lang.selectedLanguage == "ru" ? "Очистить" : "Clear") {
                     history.clear()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
 
             if filteredEntries.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 42))
-                        .foregroundColor(SyncrosaTheme.placeholderIcon)
-                    Text(lang.selectedLanguage == "ru" ? "История пока пустая." : "No operation history yet.")
-                        .foregroundColor(.secondary)
-                }
+                SyncrosaEmptyState(
+                    systemImage: "clock.arrow.circlepath",
+                    title: lang.selectedLanguage == "ru" ? "История пока пустая." : "No operation history yet.",
+                    message: lang.selectedLanguage == "ru" ? "Завершённые операции появятся здесь автоматически." : "Completed operations will appear here automatically."
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(filteredEntries) { entry in

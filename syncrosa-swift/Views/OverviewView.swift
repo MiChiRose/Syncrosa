@@ -13,87 +13,79 @@ struct OverviewView: View {
     let openLibraryDoctor: () -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                HStack(spacing: 10) {
-                    Label("Overview", systemImage: "gauge.with.dots.needle.33percent")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Spacer()
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: "Overview",
+                systemImage: "gauge.with.dots.needle.33percent",
+                subtitle: lang.selectedLanguage == "ru" ? "Состояние медиатеки, режимы безопасности и быстрые действия." : "Library status, safety modes, and quick actions."
+            ) {
+                SyncrosaAdaptiveRow(spacing: 10) {
                     Button(action: { showWizard = true }) {
                         Label(lang.selectedLanguage == "ru" ? "Мастер первого запуска" : "First Launch Setup", systemImage: "sparkles")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
+
                     Button(action: { showHistory = true }) {
                         Label(lang.selectedLanguage == "ru" ? "История" : "History", systemImage: "clock.arrow.circlepath")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
                 }
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 14)], spacing: 14) {
-                    overviewCard(
-                        title: lang.selectedLanguage == "ru" ? "Медиатека" : "Library",
-                        value: libraryStatusText,
-                        icon: "music.note.list",
-                        tint: libraryStatus.isAvailable ? .green : .orange
-                    )
-                    overviewCard(
-                        title: lang.selectedLanguage == "ru" ? "Режим без сети" : "Only Local Mode",
-                        value: onlyLocalMode ? (lang.selectedLanguage == "ru" ? "Включён" : "Enabled") : (lang.selectedLanguage == "ru" ? "Выключен" : "Disabled"),
-                        icon: "wifi.slash",
-                        tint: onlyLocalMode ? .blue : .secondary
-                    )
-                    overviewCard(
-                        title: lang.selectedLanguage == "ru" ? "Резервные копии" : "Backups",
-                        value: SyncrosaStorage.backupsDirectory.path,
-                        icon: "externaldrive.badge.plus",
-                        tint: .purple
-                    )
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ? "Быстрые действия" : "Quick Actions")
-                        .font(.headline)
-                    HStack(spacing: 12) {
-                        Button(action: refreshLibraryStatus) {
-                            if isRefreshingLibraryStatus {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Label(lang.selectedLanguage == "ru" ? "Проверить Music" : "Check Music", systemImage: "arrow.clockwise")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isRefreshingLibraryStatus)
-
-                        Button(action: openLibraryDoctor) {
-                            Label(lang.selectedLanguage == "ru" ? "Открыть Library Doctor" : "Open Library Doctor", systemImage: "stethoscope")
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(libraryStatus.shouldBlockLibraryTools)
-
-                        Toggle(lang.selectedLanguage == "ru" ? "Only Local" : "Only Local", isOn: $onlyLocalMode)
-                            .toggleStyle(.switch)
-                    }
-                }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(10)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(lang.selectedLanguage == "ru" ? "Что сейчас защищено" : "Current Safeguards")
-                        .font(.headline)
-                    safetyRow("Music/iTunes tabs are blocked when the library is confirmed empty.")
-                    safetyRow("Long scans run in chunks and show visible progress.")
-                    safetyRow("Info Eraser keeps restore metadata in a sidecar backup and records the operation.")
-                    safetyRow("Only Local Mode skips online metadata lookups when you want disk-local work only.")
-                }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(10)
             }
-            .padding(30)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 14)], spacing: 14) {
+                overviewCard(
+                    title: lang.selectedLanguage == "ru" ? "Медиатека" : "Library",
+                    value: libraryStatusText,
+                    icon: "music.note.list",
+                    tint: libraryStatus.isAvailable ? SyncrosaTheme.success : SyncrosaTheme.caution
+                )
+                overviewCard(
+                    title: lang.selectedLanguage == "ru" ? "Режим без сети" : "Only Local Mode",
+                    value: onlyLocalMode ? (lang.selectedLanguage == "ru" ? "Включён" : "Enabled") : (lang.selectedLanguage == "ru" ? "Выключен" : "Disabled"),
+                    icon: "wifi.slash",
+                    tint: onlyLocalMode ? SyncrosaTheme.accent : .secondary
+                )
+                overviewCard(
+                    title: lang.selectedLanguage == "ru" ? "Резервные копии" : "Backups",
+                    value: SyncrosaStorage.backupsDirectory.path,
+                    icon: "externaldrive.badge.plus",
+                    tint: .purple
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "Быстрые действия" : "Quick Actions", systemImage: "bolt")
+                SyncrosaAdaptiveRow(spacing: 12) {
+                    Button(action: refreshLibraryStatus) {
+                        if isRefreshingLibraryStatus {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label(lang.selectedLanguage == "ru" ? "Проверить Music" : "Check Music", systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .buttonStyle(SyncrosaPrimaryButtonStyle())
+                    .disabled(isRefreshingLibraryStatus)
+
+                    Button(action: openLibraryDoctor) {
+                        Label(lang.selectedLanguage == "ru" ? "Открыть Library Doctor" : "Open Library Doctor", systemImage: "stethoscope")
+                    }
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
+                    .disabled(libraryStatus.shouldBlockLibraryTools)
+
+                    Toggle(lang.selectedLanguage == "ru" ? "Only Local" : "Only Local", isOn: $onlyLocalMode)
+                        .toggleStyle(SyncrosaSwitchToggleStyle())
+                }
+            }
+            .syncrosaCard()
+
+            VStack(alignment: .leading, spacing: 10) {
+                SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "Что сейчас защищено" : "Current Safeguards", systemImage: "checkmark.shield")
+                safetyRow("Music/iTunes tabs are blocked when the library is confirmed empty.")
+                safetyRow("Long scans run in chunks and show visible progress.")
+                safetyRow("Info Eraser keeps restore metadata in a sidecar backup and records the operation.")
+                safetyRow("Only Local Mode skips online metadata lookups when you want disk-local work only.")
+            }
+            .syncrosaCard()
         }
         .onAppear {
             if !hasSeenSetupWizard {
@@ -144,8 +136,7 @@ struct OverviewView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, minHeight: 130, alignment: .leading)
-        .background(SyncrosaTheme.panelBackground)
-        .cornerRadius(10)
+        .syncrosaCard(padding: 0)
     }
 
     private func safetyRow(_ text: String) -> some View {
@@ -173,7 +164,7 @@ struct FirstLaunchSetupWizard: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     dismiss()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
 
             Divider()

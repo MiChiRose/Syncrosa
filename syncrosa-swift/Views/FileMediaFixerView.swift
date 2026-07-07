@@ -48,27 +48,17 @@ struct FileMediaFixerView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                // Title with Help Button
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.t("folder_fix"),
+                systemImage: "folder.badge.gearshape",
+                subtitle: lang.selectedLanguage == "ru" ? "Работа с локальными файлами в выбранной папке." : "Repair local music files inside a selected folder.",
+                helpAction: { showHelp = true }
+            )
                 
                 // Checklist Card
                 VStack(alignment: .leading, spacing: 15) {
-                    Text(lang.selectedLanguage == "ru" ? "ПРИМЕНЯТЬ ТОЛЬКО ОТМЕЧЕННЫЕ ТЕГИ" : "APPLY ONLY CHECKED TAGS")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "ПРИМЕНЯТЬ ТОЛЬКО ОТМЕЧЕННЫЕ ТЕГИ" : "APPLY ONLY CHECKED TAGS", systemImage: "checklist")
                     
                     Toggle(isOn: selectAllBinding) {
                         Text(lang.selectedLanguage == "ru" ? "Выбрать все" : "Select All")
@@ -93,9 +83,7 @@ struct FileMediaFixerView: View {
                             .toggleStyle(.checkbox)
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Card 1: Folder Selection & Controls
                 VStack(alignment: .leading, spacing: 15) {
@@ -103,7 +91,7 @@ struct FileMediaFixerView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    HStack(spacing: 15) {
+                    SyncrosaAdaptiveRow(spacing: 15) {
                         TextField(lang.t("no_folder"), text: $folderPath)
                             .textFieldStyle(.roundedBorder)
                             .disabled(true)
@@ -111,19 +99,19 @@ struct FileMediaFixerView: View {
                         Button(action: selectFolder) {
                             Label(lang.t("select_folder"), systemImage: "folder")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(isProcessing)
                         
                         Button(action: fixFolderMetadata) {
                             Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(fileItems.isEmpty || isProcessing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics))
 
                         Button(action: cleanFilenames) {
                             Label(lang.selectedLanguage == "ru" ? "Clean Filenames" : "Clean Filenames", systemImage: "textformat")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(fileItems.isEmpty || isProcessing)
                     }
                     
@@ -133,27 +121,17 @@ struct FileMediaFixerView: View {
                     }
                     .toggleStyle(.checkbox)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Card 2: File List
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(lang.t("files_to_process", fileItems.count))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    SyncrosaSectionLabel(text: lang.t("files_to_process", fileItems.count), systemImage: "doc.text")
                     
                     if fileItems.isEmpty {
-                        VStack(spacing: 15) {
-                            Image(systemName: "music.note.list")
-                                .font(.system(size: 40))
-                                .foregroundColor(SyncrosaTheme.placeholderIcon)
-                            Text(lang.t("select_folder_msg"))
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
+                        SyncrosaEmptyState(
+                            systemImage: "music.note.list",
+                            title: lang.t("select_folder_msg")
+                        )
                     } else {
                         ForEach(fileItems) { item in
                             HStack {
@@ -171,35 +149,11 @@ struct FileMediaFixerView: View {
                         }
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("LOG")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(logLines.enumerated()), id: \.offset) { _, line in
-                                Text(line)
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundColor(.green)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 120)
-                    .background(Color.black)
-                    .cornerRadius(8)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                SyncrosaLogConsole(title: "LOG", lines: logLines, minHeight: 130)
                 
                 Spacer()
-            }
-            .padding(30)
         }
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
@@ -216,7 +170,7 @@ struct FileMediaFixerView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()

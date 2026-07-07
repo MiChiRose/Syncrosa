@@ -208,12 +208,11 @@ struct ContentView: View {
                 // Floating Help Button (Only for Settings)
                 if selectedTab == .settings {
                     Button(action: { showHelp.toggle() }) {
-                        Image(systemName: "questionmark.circle.fill")
-                            .font(.system(size: 24))
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 18, weight: .semibold))
                             .symbolRenderingMode(.hierarchical)
-                            .foregroundColor(.blue)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(SyncrosaGlassIconButtonStyle(size: 34, tint: SyncrosaTheme.accent))
                     .padding(20)
                     .popover(isPresented: $showHelp, arrowEdge: .trailing) {
                         HelpPopoverView()
@@ -299,10 +298,10 @@ struct MusicLibrarySidebarStatusView: View {
                         .controlSize(.small)
                 } else {
                     Image(systemName: "arrow.clockwise")
-                        .font(.caption2)
+                        .font(.system(size: 11, weight: .semibold))
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SyncrosaGlassIconButtonStyle(size: 24))
             .disabled(isRefreshing)
             .help(lang.selectedLanguage == "ru" ? "Проверить Music ещё раз" : "Check Music again")
         }
@@ -348,25 +347,25 @@ struct MusicLibraryUnavailableView: View {
             if status == .checking || isRefreshing {
                 ProgressView()
                     .controlSize(.large)
+                Text(title)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                Text(message)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 520)
             } else {
-                Image(systemName: status == .empty ? "tray" : "music.note.list")
-                    .font(.system(size: 54))
-                    .foregroundColor(SyncrosaTheme.placeholderIcon)
+                SyncrosaEmptyState(
+                    systemImage: status == .empty ? "tray" : "music.note.list",
+                    title: title,
+                    message: message
+                )
             }
-
-            Text(title)
-                .font(.title3)
-                .fontWeight(.semibold)
-
-            Text(message)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 520)
 
             Button(action: refreshAction) {
                 Label(lang.selectedLanguage == "ru" ? "Проверить ещё раз" : "Check Again", systemImage: "arrow.clockwise")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(SyncrosaSecondaryButtonStyle())
             .disabled(isRefreshing)
         }
         .padding(40)
@@ -443,19 +442,15 @@ struct SetupRequiredView: View {
     @Binding var selectedTab: ContentView.Tab?
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "lock.shield")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
-            Text(lang.t("setup_required"))
-                .font(.title)
-            Text(lang.t("setup_instr"))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding()
+            SyncrosaEmptyState(
+                systemImage: "lock.shield",
+                title: lang.t("setup_required"),
+                message: lang.t("setup_instr")
+            )
             Button(lang.t("go_settings")) {
                 selectedTab = .settings
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(SyncrosaPrimaryButtonStyle())
         }
     }
 }

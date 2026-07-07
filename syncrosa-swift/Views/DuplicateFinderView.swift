@@ -34,21 +34,13 @@ struct DuplicateFinderView: View {
     @State private var showHelp: Bool = false
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                // Title with Help Button
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.selectedLanguage == "ru" ? "Поиск дубликатов" : "Duplicate Finder", systemImage: "arrow.2.squarepath")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.selectedLanguage == "ru" ? "Поиск дубликатов" : "Duplicate Finder",
+                systemImage: "arrow.2.squarepath",
+                subtitle: lang.selectedLanguage == "ru" ? "Сравнение повторяющихся треков и пакетное применение действий." : "Compare duplicate pairs and apply actions in one batch.",
+                helpAction: { showHelp = true }
+            )
                 
                 // Card 1: Controls
                 VStack(alignment: .leading, spacing: 15) {
@@ -64,7 +56,7 @@ struct DuplicateFinderView: View {
                                 Label(lang.selectedLanguage == "ru" ? "Показать дубликаты" : "Show Duplicates", systemImage: "magnifyingglass")
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(isScanning || isApplying)
 
                         if !duplicatePairs.isEmpty {
@@ -75,7 +67,7 @@ struct DuplicateFinderView: View {
                                     Label(lang.selectedLanguage == "ru" ? "Применить" : "Apply Selected", systemImage: "checkmark.circle")
                                 }
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(SyncrosaPrimaryButtonStyle())
                             .disabled(isScanning || isApplying || selectedActionCount == 0)
                         }
                         
@@ -86,32 +78,23 @@ struct DuplicateFinderView: View {
                             }) {
                                 Text(lang.selectedLanguage == "ru" ? "Очистить список" : "Clear List")
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(SyncrosaSecondaryButtonStyle())
                             .disabled(isScanning || isApplying)
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 // Card 2: Duplicate Pairs List
                 VStack(alignment: .leading, spacing: 15) {
-                    Text(lang.selectedLanguage == "ru" ? "НАЙДЕННЫЕ ДУБЛИКАТЫ" : "FOUND DUPLICATES")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "НАЙДЕННЫЕ ДУБЛИКАТЫ" : "FOUND DUPLICATES", systemImage: "square.on.square")
                     
                     if duplicatePairs.isEmpty {
-                        VStack(spacing: 15) {
-                            Image(systemName: "square.on.square.dashed")
-                                .font(.system(size: 40))
-                                .foregroundColor(SyncrosaTheme.placeholderIcon)
-                            Text(lang.selectedLanguage == "ru" ? "Нет дубликатов для показа. Нажмите сканировать." : "No duplicates to show. Click scan to begin.")
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
+                        SyncrosaEmptyState(
+                            systemImage: "square.on.square.dashed",
+                            title: lang.selectedLanguage == "ru" ? "Нет дубликатов для показа." : "No duplicates to show.",
+                            message: lang.selectedLanguage == "ru" ? "Нажмите сканировать, чтобы начать." : "Click scan to begin."
+                        )
                     } else {
                         ForEach(duplicatePairs) { pair in
                             VStack(alignment: .leading, spacing: 12) {
@@ -129,13 +112,12 @@ struct DuplicateFinderView: View {
                                         .stroke(SyncrosaTheme.panelBorder, lineWidth: 1)
                                 )
                                 
-                                Picker("", selection: actionBinding(for: pair.pairKey)) {
-                                    Text(lang.selectedLanguage == "ru" ? "Не трогать" : "No Action").tag(DuplicateAction.none)
-                                    Text(lang.selectedLanguage == "ru" ? "Игнор" : "Ignore").tag(DuplicateAction.ignore)
-                                    Text(lang.selectedLanguage == "ru" ? "Удалить 1" : "Delete 1").tag(DuplicateAction.deleteTrack1)
-                                    Text(lang.selectedLanguage == "ru" ? "Удалить 2" : "Delete 2").tag(DuplicateAction.deleteTrack2)
-                                }
-                                .pickerStyle(.segmented)
+                                SyncrosaGlassSegmentedPicker(
+                                    selection: actionBinding(for: pair.pairKey),
+                                    options: duplicateActionOptions,
+                                    minSegmentWidth: 86,
+                                    isDisabled: isScanning || isApplying
+                                )
                                 .disabled(isScanning || isApplying)
                                 .padding(.horizontal, 5)
                                 
@@ -145,13 +127,9 @@ struct DuplicateFinderView: View {
                         }
                     }
                 }
-                .padding()
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(12)
+                .syncrosaCard()
                 
                 Spacer()
-            }
-            .padding(30)
         }
         .notification(message: $activeNotification)
         .alert(isPresented: $showAlert) {
@@ -218,7 +196,7 @@ struct DuplicateFinderView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()
@@ -259,6 +237,15 @@ struct DuplicateFinderView: View {
 
     var selectedActionCount: Int {
         pendingActions.values.filter { $0 != .none }.count
+    }
+
+    var duplicateActionOptions: [SyncrosaMenuOption<DuplicateAction>] {
+        [
+            SyncrosaMenuOption(title: lang.selectedLanguage == "ru" ? "Не трогать" : "No Action", value: .none),
+            SyncrosaMenuOption(title: lang.selectedLanguage == "ru" ? "Игнор" : "Ignore", value: .ignore),
+            SyncrosaMenuOption(title: lang.selectedLanguage == "ru" ? "Удалить 1" : "Delete 1", value: .deleteTrack1),
+            SyncrosaMenuOption(title: lang.selectedLanguage == "ru" ? "Удалить 2" : "Delete 2", value: .deleteTrack2)
+        ]
     }
 
     func actionBinding(for pairKey: String) -> Binding<DuplicateAction> {

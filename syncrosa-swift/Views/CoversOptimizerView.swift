@@ -39,39 +39,29 @@ struct CoversOptimizerView: View {
     ]
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                // Title with Help Button
-                HStack(alignment: .center, spacing: 10) {
-                    Label(lang.t("covers_optimizer"), systemImage: "photo.on.rectangle.angled")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Button(action: { showHelp = true }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+        SyncrosaPage {
+            SyncrosaPageHeader(
+                title: lang.t("covers_optimizer"),
+                systemImage: "photo.on.rectangle.angled",
+                subtitle: lang.selectedLanguage == "ru" ? "Резервное копирование, сжатие и восстановление обложек." : "Back up, resize, and restore embedded cover art.",
+                helpAction: { showHelp = true }
+            )
                 
                 // Card 1: Configuration
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack(spacing: 15) {
+                    SyncrosaAdaptiveRow(spacing: 15) {
                         Text(lang.t("select_device"))
                             .font(.body)
-                        Picker("", selection: $targetSize) {
-                            ForEach(devices, id: \.size) { device in
-                                Text(device.name).tag(device.size)
-                            }
-                        }
-                        .pickerStyle(DefaultPickerStyle())
-                        .frame(width: 320)
+                        SyncrosaGlassMenu(
+                            selection: $targetSize,
+                            options: devices.map { SyncrosaMenuOption(title: $0.name, value: $0.size) },
+                            width: 360
+                        )
                         .disabled(isProcessing)
                     }
                     
                     // Action Buttons
-                    HStack(spacing: 15) {
+                    SyncrosaAdaptiveRow(spacing: 15) {
                         Button(action: runBackup) {
                             Text(lang.t("btn_backup_covers"))
                                 .frame(minWidth: 160)
@@ -98,15 +88,11 @@ struct CoversOptimizerView: View {
                             }) {
                                 Label(lang.selectedLanguage == "ru" ? "Стоп" : "Stop", systemImage: "stop.circle")
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(SyncrosaSecondaryButtonStyle())
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SyncrosaTheme.panelBackground)
-                .cornerRadius(10)
-                .shadow(color: SyncrosaTheme.softShadow, radius: 5, x: 0, y: 2)
+                .syncrosaCard()
                 
                 // Current track/status
                 if isProcessing {
@@ -119,45 +105,15 @@ struct CoversOptimizerView: View {
                         ProgressView(value: progressValue, total: progressMax)
                             .progressViewStyle(LinearProgressViewStyle())
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(SyncrosaTheme.panelBackground)
-                    .cornerRadius(10)
-                    .shadow(color: SyncrosaTheme.softShadow, radius: 5, x: 0, y: 2)
+                    .syncrosaCard()
                 }
                 
                 // Terminal Console Logs
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(lang.selectedLanguage == "ru" ? "Лог консоли:" : "Console Log:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    ScrollView {
-                        ScrollViewReader { proxy in
-                            VStack(alignment: .leading, spacing: 4) {
-                                ForEach(0..<logs.count, id: \.self) { idx in
-                                    Text(logs[idx])
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.green)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .id(idx)
-                                }
-                            }
-                            .padding(10)
-                            .onChange(of: logs.count) { oldValue, newValue in
-                                if newValue > 0 {
-                                    proxy.scrollTo(newValue - 1, anchor: .bottom)
-                                }
-                            }
-                        }
-                    }
-                    .frame(height: 250)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.black)
-                    .cornerRadius(8)
-                }
-            }
-            .padding(30)
+            SyncrosaLogConsole(
+                title: lang.selectedLanguage == "ru" ? "Лог консоли:" : "Console Log:",
+                lines: logs,
+                minHeight: 250
+            )
         }
         .alert(isPresented: $showBackupAlert) {
             Alert(
@@ -183,7 +139,7 @@ struct CoversOptimizerView: View {
                 Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
                     showHelp = false
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
             }
             
             Divider()
