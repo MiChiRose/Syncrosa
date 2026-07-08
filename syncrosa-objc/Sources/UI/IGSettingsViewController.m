@@ -25,6 +25,141 @@ static NSString *IGSettingsCurrentVersion(void) {
     return version.length > 0 ? version : @"Development";
 }
 
+static NSString *IGSettingsTempPath(NSString *extension) {
+    NSString *baseName = [NSString stringWithFormat:@"syncrosa-update-%@", [[NSProcessInfo processInfo] globallyUniqueString]];
+    return [NSTemporaryDirectory() stringByAppendingPathComponent:[baseName stringByAppendingPathExtension:extension]];
+}
+
+static BOOL IGSettingsCreatePrivateFile(NSString *path) {
+    NSDictionary *attrs = @{NSFilePosixPermissions: [NSNumber numberWithUnsignedLong:0600]};
+    return [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:attrs];
+}
+
+static NSString *IGSettingsDecodeUTF8(NSData *data) {
+    if (data.length == 0) {
+        return @"";
+    }
+    NSString *text = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+    if (!text) {
+        text = [[[NSString alloc] initWithData:data encoding:NSMacOSRomanStringEncoding] autorelease];
+    }
+    return text ?: @"";
+}
+
+static NSString *IGSettingsBundledReleaseNotes(void) {
+    return @"Syncrosa Legacy Update Notes\n\n"
+           "This build includes the latest bundled release notes available inside the app.\n\n"
+           "What's improved:\n"
+           "- Safer update buttons and release notes fallback for older OS X systems.\n"
+           "- Recovery Center layout fixes for the legacy Cocoa interface.\n"
+           "- Library Doctor now uses simple native tab buttons instead of fragile Mavericks segmented controls.\n"
+           "- Duplicate Finder progress bar now uses the same native style as the other legacy tools.\n\n"
+           "If this Mac cannot reach GitHub because of old system certificates, open the Syncrosa releases page manually from a newer browser:\n"
+           "https://github.com/MiChiRose/Syncrosa/releases";
+}
+
+static NSString *IGSettingsFriendlyUpdateError(NSString *technicalError) {
+    NSString *details = technicalError.length > 0 ? technicalError : @"Unknown network error.";
+    return [NSString stringWithFormat:
+            @"Syncrosa could not reach GitHub Releases from this Mac.\n\n"
+            "Older OS X systems can reject modern TLS certificate chains even when the app ships a fresh CA bundle. Syncrosa did not disable certificate checks.\n\n"
+            "Technical details:\n%@\n\n"
+            "Manual releases page:\nhttps://github.com/MiChiRose/Syncrosa/releases\n\n%@",
+            details,
+            IGSettingsBundledReleaseNotes()];
+}
+
+static void IGSettingsFetchURLWithCurl(NSURL *url, NSDictionary *headers, void(^completionBlock)(NSData *data, NSError *error)) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *stdoutPath = IGSettingsTempPath(@"stdout");
+        NSString *stderrPath = IGSettingsTempPath(@"stderr");
+        IGSettingsCreatePrivateFile(stdoutPath);
+        IGSettingsCreatePrivateFile(stderrPath);
+
+        NSFileHandle *stdoutHandle = [NSFileHandle fileHandleForWritingAtPath:stdoutPath];
+        NSFileHandle *stderrHandle = [NSFileHandle fileHandleForWritingAtPath:stderrPath];
+        if (!stdoutHandle || !stderrHandle) {
+            NSError *fileError = [NSError errorWithDomain:@"IGSettingsCurlError"
+                                                     code:-2
+                                                 userInfo:@{NSLocalizedDescriptionKey: @"Could not create temporary curl output files."}];
+            completionBlock(nil, fileError);
+            return;
+        }
+
+        NSMutableArray *args = [NSMutableArray arrayWithObjects:
+                                @"-q",
+                                @"--silent",
+                                @"--show-error",
+                                @"--location",
+                                @"--max-time", @"60",
+                                nil];
+        NSString *caPath = [[NSBundle mainBundle] pathForResource:@"cacert" ofType:@"pem"];
+        if (caPath.length > 0) {
+            [args addObjectsFromArray:@[@"--cacert", caPath]];
+        }
+
+        [args addObjectsFromArray:@[@"--header", @"User-Agent: Syncrosa-Legacy/1.0"]];
+        for (NSString *key in headers) {
+            NSString *value = [headers objectForKey:key];
+            if (key.length > 0 && value.length > 0) {
+                [args addObjectsFromArray:@[@"--header", [NSString stringWithFormat:@"%@: %@", key, value]]];
+            }
+        }
+        [args addObject:url.absoluteString ?: @""];
+
+        NSTask *task = [[[NSTask alloc] init] autorelease];
+        [task setLaunchPath:@"/usr/bin/curl"];
+        [task setArguments:args];
+        if (caPath.length > 0) {
+            NSMutableDictionary *environment = [NSMutableDictionary dictionaryWithDictionary:[[NSProcessInfo processInfo] environment]];
+            [environment setObject:caPath forKey:@"SSL_CERT_FILE"];
+            [environment setObject:caPath forKey:@"CURL_CA_BUNDLE"];
+            [task setEnvironment:environment];
+        }
+        [task setStandardOutput:stdoutHandle];
+        [task setStandardError:stderrHandle];
+
+        @try {
+            [task launch];
+            [task waitUntilExit];
+        } @catch (NSException *exception) {
+            [stdoutHandle closeFile];
+            [stderrHandle closeFile];
+            [[NSFileManager defaultManager] removeItemAtPath:stdoutPath error:nil];
+            [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
+            NSString *reason = exception.reason ?: @"Could not launch curl.";
+            NSError *launchError = [NSError errorWithDomain:@"IGSettingsCurlException"
+                                                       code:-1
+                                                   userInfo:@{NSLocalizedDescriptionKey: reason}];
+            completionBlock(nil, launchError);
+            return;
+        }
+
+        [stdoutHandle closeFile];
+        [stderrHandle closeFile];
+
+        NSData *curlData = [NSData dataWithContentsOfFile:stdoutPath];
+        NSData *stderrData = [NSData dataWithContentsOfFile:stderrPath];
+        NSString *stderrText = IGSettingsDecodeUTF8(stderrData);
+
+        [[NSFileManager defaultManager] removeItemAtPath:stdoutPath error:nil];
+        [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
+
+        if ([task terminationStatus] == 0 && curlData.length > 0) {
+            completionBlock(curlData, nil);
+            return;
+        }
+
+        NSString *message = stderrText.length > 0 ?
+            [NSString stringWithFormat:@"Curl failed with status %d: %@", [task terminationStatus], stderrText] :
+            [NSString stringWithFormat:@"Curl failed with status %d", [task terminationStatus]];
+        NSError *curlError = [NSError errorWithDomain:@"IGSettingsCurlError"
+                                                 code:[task terminationStatus]
+                                             userInfo:@{NSLocalizedDescriptionKey: message}];
+        completionBlock(nil, curlError);
+    });
+}
+
 static NSArray *IGSettingsVersionParts(NSString *version) {
     NSMutableArray *parts = [NSMutableArray array];
     NSScanner *scanner = [NSScanner scannerWithString:version ?: @""];
@@ -486,8 +621,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
                       [active objectForKey:@"backupPath"] ?: @""];
     }
     NSString *text = [NSString stringWithFormat:
-                      @"Recovery Center\n\n"
-                      "Interrupted operations:\n"
+                      @"Interrupted operations:\n"
                       "%@\n\n"
                       "Backups:\n%@\n\n"
                       "Operation History:\n%@\n\n"
@@ -505,11 +639,19 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
 }
 
 - (void)showTextSheetWithTitle:(NSString *)title text:(NSString *)text monospace:(BOOL)monospace {
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 520, 360)
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 540, 380)
                                                   styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:YES];
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 480, 280)];
+    NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(24, 338, 492, 24)];
+    titleLabel.stringValue = title ?: @"";
+    titleLabel.font = [NSFont boldSystemFontOfSize:15];
+    titleLabel.editable = NO;
+    titleLabel.bordered = NO;
+    titleLabel.drawsBackground = NO;
+    [sheet.contentView addSubview:titleLabel];
+
+    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(24, 62, 492, 258)];
     scroll.hasVerticalScroller = YES;
     scroll.borderType = NSBezelBorder;
     NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
@@ -519,15 +661,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     scroll.documentView = textView;
     [sheet.contentView addSubview:scroll];
 
-    NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 325, 480, 22)];
-    titleLabel.stringValue = title ?: @"";
-    titleLabel.font = [NSFont boldSystemFontOfSize:14];
-    titleLabel.editable = NO;
-    titleLabel.bordered = NO;
-    titleLabel.drawsBackground = NO;
-    [sheet.contentView addSubview:titleLabel];
-
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(210, 15, 100, 30)];
+    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(220, 16, 100, 30)];
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     closeButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Закрыть" : @"Close";
     closeButton.bezelStyle = NSRoundedBezelStyle;
@@ -712,17 +846,21 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
     NSURL *url = [NSURL URLWithString:@"https://api.github.com/repos/MiChiRose/Syncrosa/releases/latest"];
     NSDictionary *headers = @{@"Accept": @"application/vnd.github+json"};
 
-    [[IGAIService sharedService] makeRequestToURL:url method:@"GET" headers:headers body:nil completion:^(NSData *data, NSError *error) {
+    IGSettingsFetchURLWithCurl(url, headers, ^(NSData *data, NSError *error) {
         NSString *message = nil;
         NSString *targetURL = @"https://github.com/MiChiRose/Syncrosa/releases/latest";
         BOOL isError = NO;
         BOOL updateAvailable = NO;
 
         if (error) {
-            message = [NSString stringWithFormat:@"Could not check updates: %@", error.localizedDescription];
+            message = @"Could not check updates on this Mac. Open Release Notes for details.";
+            self.latestReleaseTitle = @"Update Check Details";
+            self.latestReleaseNotes = IGSettingsFriendlyUpdateError(error.localizedDescription);
             isError = YES;
         } else if (data.length == 0) {
             message = @"GitHub returned an empty response.";
+            self.latestReleaseTitle = @"Update Check Details";
+            self.latestReleaseNotes = @"GitHub returned an empty response while checking for updates.";
             isError = YES;
         } else {
             NSError *jsonError = nil;
@@ -786,7 +924,7 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
             self.releaseNotesButton.enabled = (self.latestReleaseNotes.length > 0);
             [IGNotificationView showInView:self.view message:self.updateStatusLabel.stringValue isError:isError];
         });
-    }];
+    });
 }
 
 - (void)openUpdateClicked:(id)sender {

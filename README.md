@@ -66,22 +66,22 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.4.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds folder playlist import, external AI JSON handoff, and legacy-safe playlist protections. |
-| `Syncrosa_Python_v3.4.4.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available, with folder playlist tools and aligned library doctor polish. |
-| `Syncrosa_SwiftUI_v3.4.4.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with folder playlist import in iTunes Media Fixer, clearer checkboxes, Markdown release notes, and help sheets. |
+| `Syncrosa_Cocoa_v3.4.5.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; stabilizes Library Doctor, Duplicate Finder, Recovery Center, and updater details on old AppKit. |
+| `Syncrosa_Python_v3.4.5.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as a 3.4.5 package to stay aligned with the current release set. |
+| `Syncrosa_SwiftUI_v3.4.5.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build; rebuilt as a 3.4.5 package with the current release metadata and update flow. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.4.4
+### Latest Release: 3.4.5
 
-Syncrosa 3.4.4 focuses on creating playlists from local folders, smoother external AI handoff, and small UI fixes found during hands-on SwiftUI testing:
+Syncrosa 3.4.5 focuses on stabilizing the legacy Cocoa interface on OS X 10.9 while keeping the Python and SwiftUI packages aligned with the same release number:
 
-- **Folder Playlist Import:** Pick a local music folder, enter a playlist name, and let Syncrosa import the tracks into Music.app or iTunes as a playlist.
-- **External AI JSON Flow:** Export a folder manifest for an outside AI/friend, then import the returned JSON selection back into Syncrosa.
-- **Safer Replace Flow:** Folder playlist import now clearly warns when an existing playlist name will be cleared and rebuilt.
-- **Library Doctor:** SwiftUI Library Doctor and Recovery Center now include top-level help buttons explaining what each screen does.
-- **SwiftUI Polish:** Empty checkbox boxes are visible again, and release notes render Markdown instead of raw formatting symbols.
-- **Docs:** README download instructions now point at the current 3.4.4 packages.
+- **Legacy Library Doctor:** Replaced the fragile Mavericks segmented control with simple native tab buttons to avoid clipped labels, blank screens, and old-AppKit crashes.
+- **Duplicate Finder:** Progress now uses the same native bar style as the other legacy tools, with cleaner spacing for action controls and duplicate rows.
+- **Legacy UI Cleanup:** Direct File Fixing, USB Export, Recovery Center, update details, and first-launch guidance received small layout fixes for older Mac displays.
+- **Updater Resilience:** Cocoa release notes now fall back to a readable bundled explanation when old OS X certificate chains prevent GitHub checks.
+- **Aligned Packages:** Python and SwiftUI builds are republished as 3.4.5 packages so all download assets stay in sync.
+- **Docs:** README download instructions now point at the current 3.4.5 packages.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.

@@ -258,7 +258,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     [self.view addSubview:self.selectFolderButton];
 
     // Grid of Checkboxes
-    y -= 30;
+    y -= 22;
     self.selectAllCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 150, 20)];
     [self.selectAllCheckbox setButtonType:NSSwitchButton];
     self.selectAllCheckbox.title = [lang t:@"select_all"];
@@ -317,14 +317,14 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.lyricsCheckbox.action = @selector(tagCheckboxClicked:);
     [self.view addSubview:self.lyricsCheckbox];
 
-    y -= 28;
-    self.downloadCoversButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 20)];
+    y -= 25;
+    self.downloadCoversButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 220, 20)];
     [self.downloadCoversButton setButtonType:NSSwitchButton];
     self.downloadCoversButton.title = @"Download Album Covers";
     self.downloadCoversButton.state = NSOnState;
     [self.view addSubview:self.downloadCoversButton];
 
-    y -= 24;
+    y -= 33;
     self.cleanFilenamesButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y - 4, 130, 30)];
     self.cleanFilenamesButton.title = @"Clean Filenames";
     self.cleanFilenamesButton.bezelStyle = NSRoundedBezelStyle;

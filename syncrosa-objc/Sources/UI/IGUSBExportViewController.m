@@ -164,20 +164,20 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     self.modePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 208, 340, 26) pullsDown:NO];
     [self.view addSubview:self.modePopup];
 
-    self.m3uButton = [[NSButton alloc] initWithFrame:NSMakeRect(200, 178, 70, 20)];
+    self.m3uButton = [[NSButton alloc] initWithFrame:NSMakeRect(195, 176, 90, 20)];
     [self.m3uButton setButtonType:NSSwitchButton];
     self.m3uButton.title = @".m3u";
     self.m3uButton.enabled = NO;
     [self.view addSubview:self.m3uButton];
 
-    self.m3u8Button = [[NSButton alloc] initWithFrame:NSMakeRect(280, 178, 70, 20)];
+    self.m3u8Button = [[NSButton alloc] initWithFrame:NSMakeRect(305, 176, 95, 20)];
     [self.m3u8Button setButtonType:NSSwitchButton];
     self.m3u8Button.title = @".m3u8";
     self.m3u8Button.state = NSOnState;
     self.m3u8Button.enabled = NO;
     [self.view addSubview:self.m3u8Button];
 
-    self.ipodSafeButton = [[NSButton alloc] initWithFrame:NSMakeRect(360, 178, 180, 20)];
+    self.ipodSafeButton = [[NSButton alloc] initWithFrame:NSMakeRect(415, 176, 125, 20)];
     [self.ipodSafeButton setButtonType:NSSwitchButton];
     self.ipodSafeButton.title = @"iPod-safe names";
     [self.ipodSafeButton setToolTip:@"Shortens and cleans filenames for older iPods, car stereos, and FAT/exFAT drives."];
@@ -185,7 +185,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.ipodSafeButton];
 
     // Export Button
-    self.exportButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, 150, 200, 40)];
+    self.exportButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, 138, 200, 40)];
     self.exportButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.exportButton.target = self;
     self.exportButton.action = @selector(exportClicked:);
@@ -193,14 +193,14 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.exportButton];
 
     // Progress bar
-    self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, 110, 500, 20)];
+    self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, 106, 500, 20)];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
     self.progressIndicator.indeterminate = NO;
     self.progressIndicator.hidden = YES;
     [self.view addSubview:self.progressIndicator];
 
     // Status text
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 80, 500, 20)];
+    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 76, 500, 20)];
     self.statusLabel.font = [NSFont systemFontOfSize:12];
     self.statusLabel.alignment = NSCenterTextAlignment;
     self.statusLabel.editable = NO;

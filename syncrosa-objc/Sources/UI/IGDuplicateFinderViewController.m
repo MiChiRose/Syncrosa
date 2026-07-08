@@ -41,7 +41,6 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
 @property (nonatomic, strong) NSTextField *titleLabel;
 @property (nonatomic, strong) NSButton *scanButton;
 @property (nonatomic, strong) NSButton *applyButton;
-@property (nonatomic, strong) NSBox *progressBorderBox;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSScrollView *scrollView;
@@ -62,9 +61,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
 - (void)setupUI {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     self.pendingActions = [NSMutableDictionary dictionary];
-    CGFloat y = 430;
-    
-    self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)];
+    self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 426, 540, 30)];
     self.titleLabel.stringValue = [lang t:@"duplicate_finder"];
     self.titleLabel.font = [NSFont boldSystemFontOfSize:18];
     self.titleLabel.editable = NO;
@@ -73,22 +70,21 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
     self.titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.titleLabel];
     
-    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
+    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, 428, 25, 25)];
     helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
     [self.view addSubview:helpButton];
     
-    y -= 45;
-    self.scanButton = [[NSButton alloc] initWithFrame:NSMakeRect(130, y, 160, 35)];
+    self.scanButton = [[NSButton alloc] initWithFrame:NSMakeRect(120, 374, 165, 32)];
     self.scanButton.title = @"Show Duplicates";
     self.scanButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.scanButton.target = self;
     self.scanButton.action = @selector(scanClicked:);
     [self.view addSubview:self.scanButton];
 
-    self.applyButton = [[NSButton alloc] initWithFrame:NSMakeRect(300, y, 150, 35)];
+    self.applyButton = [[NSButton alloc] initWithFrame:NSMakeRect(295, 374, 165, 32)];
     self.applyButton.title = @"Apply Selected";
     self.applyButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.applyButton.target = self;
@@ -96,37 +92,33 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
     self.applyButton.enabled = NO;
     [self.view addSubview:self.applyButton];
     
-    y -= 30;
-    self.progressBorderBox = [[NSBox alloc] initWithFrame:NSMakeRect(40, y, 500, 20)];
-    self.progressBorderBox.boxType = NSBoxCustom;
-    self.progressBorderBox.borderType = NSLineBorder;
-    self.progressBorderBox.titlePosition = NSNoTitle;
-    self.progressBorderBox.hidden = YES;
-    [self.view addSubview:self.progressBorderBox];
-
-    self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(41, y + 1, 498, 18)];
+    self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, 334, 500, 20)];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
-    self.progressIndicator.indeterminate = YES;
-    self.progressIndicator.displayedWhenStopped = NO;
-    self.progressIndicator.hidden = YES;
+    self.progressIndicator.indeterminate = NO;
+    self.progressIndicator.minValue = 0;
+    self.progressIndicator.maxValue = 1;
+    self.progressIndicator.doubleValue = 0;
+    self.progressIndicator.displayedWhenStopped = YES;
+    self.progressIndicator.hidden = NO;
     [self.view addSubview:self.progressIndicator];
     
-    y -= 25;
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
+    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 306, 500, 20)];
     self.statusLabel.stringValue = @"Ready to scan for duplicates";
+    self.statusLabel.font = [NSFont systemFontOfSize:11];
+    self.statusLabel.textColor = [NSColor grayColor];
     self.statusLabel.editable = NO;
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
     self.statusLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.statusLabel];
     
-    self.scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(10, 70, 560, 240)];
+    self.scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(30, 70, 520, 220)];
     self.scrollView.hasVerticalScroller = YES;
     self.scrollView.hasHorizontalScroller = NO;
     self.scrollView.borderType = NSBezelBorder;
     self.scrollView.autoresizesSubviews = YES;
     
-    self.documentView = [[IGFlippedView alloc] initWithFrame:NSMakeRect(0, 0, 540, 240)];
+    self.documentView = [[IGFlippedView alloc] initWithFrame:NSMakeRect(0, 0, 500, 220)];
     self.scrollView.documentView = self.documentView;
     [self.view addSubview:self.scrollView];
     
@@ -198,12 +190,12 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
 }
 
 - (void)setProgressVisible:(BOOL)visible {
-    self.progressBorderBox.hidden = !visible;
-    self.progressIndicator.hidden = !visible;
     if (visible) {
-        [self.progressIndicator startAnimation:nil];
+        self.progressIndicator.indeterminate = NO;
+        self.progressIndicator.doubleValue = 0.15;
+        [self.progressIndicator displayIfNeeded];
     } else {
-        [self.progressIndicator stopAnimation:nil];
+        self.progressIndicator.doubleValue = 0;
     }
 }
 
@@ -263,6 +255,10 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
             });
             return;
         }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.progressIndicator.doubleValue = 0.35;
+            self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning %@ library tracks for duplicates...", countParts[1]];
+        });
 
         NSString *script =
             @"on replaceText(theText, oldText, newText)\n"
@@ -440,21 +436,21 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
     [oldSubviews release];
 #endif
 
-    CGFloat rowHeight = 96;
+    CGFloat rowHeight = 100;
     CGFloat width = self.scrollView.contentView.bounds.size.width;
-    if (width < 520) width = 540;
+    if (width < 500) width = 500;
     CGFloat visibleHeight = self.scrollView.contentView.bounds.size.height;
-    if (visibleHeight < 220) visibleHeight = 240;
+    if (visibleHeight < 220) visibleHeight = 220;
     CGFloat totalHeight = self.duplicatePairs.count * rowHeight;
     if (totalHeight < visibleHeight) totalHeight = visibleHeight;
     
     self.documentView.frame = NSMakeRect(0, 0, width, totalHeight);
 
-    CGFloat padding = 10;
-    CGFloat gap = 10;
-    CGFloat actionWidth = 74;
+    CGFloat padding = 12;
+    CGFloat gap = 12;
+    CGFloat actionWidth = 78;
     CGFloat columnWidth = floor((width - (padding * 2) - (gap * 2) - actionWidth) / 2.0);
-    if (columnWidth < 190) columnWidth = 190;
+    if (columnWidth < 180) columnWidth = 180;
     CGFloat originalX = padding;
     CGFloat copyX = originalX + columnWidth + gap;
     CGFloat actionX = width - padding - actionWidth;
@@ -469,7 +465,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
         NSView *rowView = [[NSView alloc] initWithFrame:NSMakeRect(0, y, width, rowHeight)];
         
         // Track 1 (Original)
-        NSTextField *origLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(originalX, 9, columnWidth, 78)];
+        NSTextField *origLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(originalX, 11, columnWidth, 78)];
         origLabel.editable = NO;
         origLabel.bordered = NO;
         origLabel.drawsBackground = NO;
@@ -491,7 +487,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
 #endif
         
         // Track 2 (Copy)
-        NSTextField *copyLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(copyX, 9, columnWidth, 78)];
+        NSTextField *copyLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(copyX, 11, columnWidth, 78)];
         copyLabel.editable = NO;
         copyLabel.bordered = NO;
         copyLabel.drawsBackground = NO;
@@ -512,7 +508,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
         [copyLabel release];
 #endif
         
-        NSButton *ignoreRadio = [[NSButton alloc] initWithFrame:NSMakeRect(actionX, 53, actionWidth, 20)];
+        NSButton *ignoreRadio = [[NSButton alloc] initWithFrame:NSMakeRect(actionX, 56, actionWidth, 20)];
         [ignoreRadio setButtonType:NSRadioButton];
         ignoreRadio.title = @"Ignore";
         ignoreRadio.font = [NSFont systemFontOfSize:10];
@@ -525,7 +521,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
         [ignoreRadio release];
 #endif
         
-        NSButton *deleteRadio = [[NSButton alloc] initWithFrame:NSMakeRect(actionX, 27, actionWidth, 20)];
+        NSButton *deleteRadio = [[NSButton alloc] initWithFrame:NSMakeRect(actionX, 30, actionWidth, 20)];
         [deleteRadio setButtonType:NSRadioButton];
         deleteRadio.title = @"Delete";
         deleteRadio.font = [NSFont systemFontOfSize:10];

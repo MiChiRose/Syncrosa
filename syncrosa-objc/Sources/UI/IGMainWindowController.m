@@ -25,6 +25,21 @@ static void IGSetTextFieldLineBreakMode(NSTextField *textField, NSLineBreakMode 
     }
 }
 
+static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont *font, NSColor *color, NSTextAlignment alignment)
+{
+    NSTextField *label = [[[NSTextField alloc] initWithFrame:frame] autorelease];
+    label.stringValue = text ?: @"";
+    label.font = font;
+    label.textColor = color ?: [NSColor textColor];
+    label.alignment = alignment;
+    label.editable = NO;
+    label.selectable = NO;
+    label.bordered = NO;
+    label.drawsBackground = NO;
+    IGSetTextFieldLineBreakMode(label, NSLineBreakByWordWrapping);
+    return label;
+}
+
 @class IGMainWindowController;
 
 @interface IGOverviewViewController : NSViewController
@@ -76,7 +91,7 @@ static void IGSetTextFieldLineBreakMode(NSTextField *textField, NSLineBreakMode 
 
     y -= 65;
     NSButton *wizard = [[[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 34)] autorelease];
-    wizard.title = @"Show First Launch Setup";
+    wizard.title = @"Show First Launch Guide";
     wizard.bezelStyle = NSRoundedBezelStyle;
     wizard.target = self;
     wizard.action = @selector(wizardClicked:);
@@ -95,21 +110,20 @@ static void IGSetTextFieldLineBreakMode(NSTextField *textField, NSLineBreakMode 
 }
 
 - (void)wizardClicked:(id)sender {
-    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-    [alert setMessageText:@"Syncrosa First Launch Setup"];
-    [alert setInformativeText:@"1. Allow iTunes automation if OS X asks.\n2. Check Overview before using library tools.\n3. Work on copies before destructive local file operations.\n4. Use Only Local Mode in Settings when you want to avoid online metadata lookups."];
-    [alert addButtonWithTitle:@"OK"];
-    [alert runModal];
+    [(id)self.mainController showFirstLaunchGuideMarkingSeen:NO];
 }
 
 @end
 
 @interface IGLibraryDoctorViewController : NSViewController
-@property (nonatomic, strong) NSSegmentedControl *toolSelector;
+@property (nonatomic, strong) NSArray *toolButtons;
 @property (nonatomic, strong) NSButton *runButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
+@property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextView *logView;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, assign) BOOL isRunning;
+@property (nonatomic, assign) NSInteger selectedToolIndex;
 @end
 
 @implementation IGLibraryDoctorViewController
@@ -149,9 +163,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
 - (void)loadView {
     self.view = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)] autorelease];
-    CGFloat y = 430;
 
-    NSTextField *title = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)] autorelease];
+    NSTextField *title = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, 426, 540, 30)] autorelease];
     title.stringValue = @"Library Doctor";
     title.font = [NSFont boldSystemFontOfSize:18];
     title.editable = NO;
@@ -160,40 +173,57 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     title.alignment = NSCenterTextAlignment;
     [self.view addSubview:title];
 
-    y -= 45;
-    CGFloat toolSelectorWidth = 500.0;
-    self.toolSelector = [[[NSSegmentedControl alloc] initWithFrame:NSMakeRect((580.0 - toolSelectorWidth) / 2.0, y, toolSelectorWidth, 26)] autorelease];
-    self.toolSelector.segmentCount = 5;
-    [self.toolSelector setLabel:@"Cover Restore" forSegment:0];
-    [self.toolSelector setLabel:@"Cover Audit" forSegment:1];
-    [self.toolSelector setLabel:@"Library Audit" forSegment:2];
-    [self.toolSelector setLabel:@"iPod Report" forSegment:3];
-    [self.toolSelector setLabel:@"Broken" forSegment:4];
-    [self.toolSelector setWidth:110 forSegment:0];
-    [self.toolSelector setWidth:105 forSegment:1];
-    [self.toolSelector setWidth:105 forSegment:2];
-    [self.toolSelector setWidth:95 forSegment:3];
-    [self.toolSelector setWidth:85 forSegment:4];
-    [self.toolSelector setSelectedSegment:1];
-    [self.view addSubview:self.toolSelector];
+    NSButton *helpButton = [[[NSButton alloc] initWithFrame:NSMakeRect(520, 428, 25, 25)] autorelease];
+    helpButton.bezelStyle = NSHelpButtonBezelStyle;
+    helpButton.title = @"";
+    helpButton.target = self;
+    helpButton.action = @selector(helpClicked:);
+    [self.view addSubview:helpButton];
 
-    y -= 48;
-    self.runButton = [[[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 34)] autorelease];
+    NSArray *tabTitles = @[@"Restore", @"Covers", @"Library", @"iPod", @"Broken"];
+    NSMutableArray *buttons = [NSMutableArray arrayWithCapacity:[tabTitles count]];
+    self.selectedToolIndex = 1;
+    for (NSInteger i = 0; i < (NSInteger)[tabTitles count]; i++) {
+        NSButton *tabButton = [[[NSButton alloc] initWithFrame:NSMakeRect(40 + (i * 100), 382, 96, 28)] autorelease];
+        tabButton.title = [tabTitles objectAtIndex:i];
+        tabButton.font = [NSFont systemFontOfSize:12];
+        tabButton.bezelStyle = NSTexturedRoundedBezelStyle;
+        [tabButton setButtonType:NSPushOnPushOffButton];
+        tabButton.tag = i;
+        tabButton.target = self;
+        tabButton.action = @selector(doctorToolChanged:);
+        [self.view addSubview:tabButton];
+        [buttons addObject:tabButton];
+    }
+    self.toolButtons = buttons;
+    [self updateDoctorToolButtons];
+
+    self.runButton = [[[NSButton alloc] initWithFrame:NSMakeRect(190, 335, 200, 34)] autorelease];
     self.runButton.title = @"Run Doctor";
     self.runButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.runButton.target = self;
     self.runButton.action = @selector(runClicked:);
     [self.view addSubview:self.runButton];
 
-    y -= 35;
-    self.progressIndicator = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, y, 500, 18)] autorelease];
+    self.progressIndicator = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, 296, 500, 20)] autorelease];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
     self.progressIndicator.indeterminate = NO;
+    self.progressIndicator.minValue = 0;
     self.progressIndicator.maxValue = 1;
+    self.progressIndicator.doubleValue = 0;
     [self.view addSubview:self.progressIndicator];
 
-    y -= 215;
-    NSScrollView *scroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect(40, y, 500, 200)] autorelease];
+    self.statusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(40, 268, 500, 20)] autorelease];
+    self.statusLabel.stringValue = @"Ready. Choose a doctor check and run it.";
+    self.statusLabel.font = [NSFont systemFontOfSize:11];
+    self.statusLabel.textColor = [NSColor grayColor];
+    self.statusLabel.editable = NO;
+    self.statusLabel.bordered = NO;
+    self.statusLabel.drawsBackground = NO;
+    self.statusLabel.alignment = NSCenterTextAlignment;
+    [self.view addSubview:self.statusLabel];
+
+    NSScrollView *scroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect(40, 70, 500, 185)] autorelease];
     scroll.hasVerticalScroller = YES;
     scroll.borderType = NSBezelBorder;
     self.logView = [[[NSTextView alloc] initWithFrame:scroll.bounds] autorelease];
@@ -203,6 +233,86 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     scroll.documentView = self.logView;
     [self.view addSubview:scroll];
+}
+
+- (NSArray *)toolDescriptions {
+    return @[
+        @"Restore cover backups from Covers Optimizer.",
+        @"Count tracks with embedded artwork.",
+        @"Check whether the iTunes library is readable.",
+        @"Audit formats and filenames for older iPods.",
+        @"Find missing or unreadable local files."
+    ];
+}
+
+- (void)updateDoctorToolButtons {
+    for (NSButton *button in self.toolButtons) {
+        BOOL selected = (button.tag == self.selectedToolIndex);
+        button.state = selected ? NSOnState : NSOffState;
+        button.font = selected ? [NSFont boldSystemFontOfSize:12] : [NSFont systemFontOfSize:12];
+    }
+}
+
+- (void)doctorToolChanged:(id)sender {
+    if ([sender isKindOfClass:[NSButton class]]) {
+        self.selectedToolIndex = [(NSButton *)sender tag];
+    }
+    [self updateDoctorToolButtons];
+    NSInteger selected = self.selectedToolIndex;
+    NSArray *descriptions = [self toolDescriptions];
+    if (selected >= 0 && selected < (NSInteger)descriptions.count) {
+        self.statusLabel.stringValue = [descriptions objectAtIndex:selected];
+    }
+}
+
+- (void)helpClicked:(id)sender {
+    NSString *helpText = @"Library Doctor Help\n\n"
+                         "Use this page for quick health checks before running library tools.\n\n"
+                         "Restore: points you to the Covers Optimizer restore flow.\n"
+                         "Covers: counts tracks with embedded cover artwork.\n"
+                         "Library: verifies that iTunes can be read.\n"
+                         "iPod: reports formats, long names, missing files, and large files.\n"
+                         "Broken: lists missing or unreadable file references.";
+
+    NSWindow *sheet = [[[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
+                                                   styleMask:NSTitledWindowMask
+                                                     backing:NSBackingStoreBuffered
+                                                       defer:YES] autorelease];
+    NSScrollView *scroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)] autorelease];
+    scroll.hasVerticalScroller = YES;
+    scroll.borderType = NSBezelBorder;
+
+    NSTextView *textView = [[[NSTextView alloc] initWithFrame:scroll.bounds] autorelease];
+    textView.editable = NO;
+    textView.string = helpText;
+    textView.font = [NSFont systemFontOfSize:12];
+    scroll.documentView = textView;
+    [sheet.contentView addSubview:scroll];
+
+    NSButton *closeButton = [[[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)] autorelease];
+    closeButton.title = @"OK";
+    closeButton.bezelStyle = NSRoundedBezelStyle;
+    closeButton.target = self;
+    closeButton.action = @selector(closeHelpSheet:);
+    [sheet.contentView addSubview:closeButton];
+
+    self.helpSheetWindow = sheet;
+    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
+        [self.view.window beginSheet:sheet completionHandler:nil];
+    } else {
+        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
+    }
+}
+
+- (void)closeHelpSheet:(id)sender {
+    if (!self.helpSheetWindow) return;
+    if ([self.view.window respondsToSelector:@selector(endSheet:)]) {
+        [self.view.window endSheet:self.helpSheetWindow];
+    } else {
+        [NSApp endSheet:self.helpSheetWindow];
+    }
+    [self.helpSheetWindow orderOut:nil];
+    self.helpSheetWindow = nil;
 }
 
 - (void)clearLog {
@@ -225,11 +335,12 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     self.progressIndicator.doubleValue = 0;
     [self clearLog];
 
-    NSInteger selected = self.toolSelector.selectedSegment;
+    NSInteger selected = self.selectedToolIndex;
     NSArray *titles = @[@"Cover Restore", @"Cover Audit", @"Library Audit", @"iPod Report", @"Broken Tracks"];
     NSString *selectedTitle = (selected >= 0 && selected < (NSInteger)titles.count) ? [titles objectAtIndex:selected] : @"Library Audit";
     __block NSString *historyMessage = @"Library Doctor finished.";
     __block NSString *historyStatus = @"OK";
+    self.statusLabel.stringValue = [NSString stringWithFormat:@"Running %@...", selectedTitle];
     [self log:@"Library Doctor started."];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         if (selected == 0) {
@@ -377,6 +488,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
             self.progressIndicator.doubleValue = 1;
             self.isRunning = NO;
             self.runButton.enabled = YES;
+            self.statusLabel.stringValue = historyMessage;
             [self log:@"Library Doctor finished."];
             IGLibraryDoctorRecordHistory(selectedTitle, historyStatus, historyMessage);
         });
@@ -392,6 +504,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 @property (nonatomic, strong) NSMutableArray *sidebarButtons;
 @property (nonatomic, strong) NSTextField *libraryStatusLabel;
 @property (nonatomic, strong) NSButton *libraryRefreshButton;
+@property (nonatomic, strong) NSWindow *firstLaunchSheetWindow;
 @property (nonatomic, assign) NSInteger libraryTrackCount;
 @property (nonatomic, assign) BOOL libraryStatusKnown;
 @property (nonatomic, assign) BOOL refreshingLibraryStatus;
@@ -443,6 +556,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [_sidebarButtons release];
 	    [_libraryStatusLabel release];
 	    [_libraryRefreshButton release];
+	    [_firstLaunchSheetWindow release];
 	    [_geniusVC release];
 	    [_fixerVC release];
 	    [_fileFixerVC release];
@@ -519,6 +633,117 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     } else {
         [self switchViewToIndex:10];
     }
+
+    [self performSelector:@selector(showFirstLaunchSetupIfNeeded) withObject:nil afterDelay:0.45];
+}
+
+- (void)showFirstLaunchSetupIfNeeded {
+    NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    if (!version || version.length == 0) {
+        version = @"development";
+    }
+
+    NSString *seenVersion = [[NSUserDefaults standardUserDefaults] stringForKey:@"syncrosa_first_launch_guide_seen_version"];
+    if (![seenVersion isEqualToString:version]) {
+        [self showFirstLaunchGuideMarkingSeen:YES];
+    }
+}
+
+- (void)showFirstLaunchGuideMarkingSeen:(BOOL)markSeen {
+    if (self.firstLaunchSheetWindow) {
+        [self.firstLaunchSheetWindow makeKeyAndOrderFront:nil];
+        return;
+    }
+
+    NSRect sheetRect = NSMakeRect(0, 0, 560, 380);
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:sheetRect
+                                                  styleMask:NSTitledWindowMask
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:NO];
+    sheet.title = @"Syncrosa First Launch Guide";
+    self.firstLaunchSheetWindow = sheet;
+#if !__has_feature(objc_arc)
+    [sheet release];
+#endif
+
+    NSView *content = [self.firstLaunchSheetWindow contentView];
+    NSImageView *iconView = [[[NSImageView alloc] initWithFrame:NSMakeRect(28, 288, 64, 64)] autorelease];
+    iconView.image = [NSApp applicationIconImage];
+    iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
+    [content addSubview:iconView];
+
+    NSTextField *title = IGCreateGuideTextField(@"Before You Start", NSMakeRect(110, 322, 410, 26),
+                                                [NSFont boldSystemFontOfSize:18],
+                                                [NSColor colorWithCalibratedWhite:0.10 alpha:1.0],
+                                                NSLeftTextAlignment);
+    [content addSubview:title];
+
+    NSTextField *subtitle = IGCreateGuideTextField(@"A quick setup guide for old iTunes libraries and slower Macs.", NSMakeRect(110, 292, 410, 40),
+                                                   [NSFont systemFontOfSize:12],
+                                                   [NSColor colorWithCalibratedWhite:0.35 alpha:1.0],
+                                                   NSLeftTextAlignment);
+    [content addSubview:subtitle];
+
+    NSArray *stepTitles = @[
+        @"1. Allow iTunes automation",
+        @"2. Start from Overview",
+        @"3. Work on copies for destructive tools",
+        @"4. Use Only Local Mode when needed"
+    ];
+    NSArray *stepBodies = @[
+        @"If OS X asks for permission, allow Syncrosa to control iTunes so it can read tracks and playlists.",
+        @"Overview checks whether the iTunes library is readable before library tools are enabled.",
+        @"Info Eraser and direct file fixing can rewrite files. Test them on copies before touching the only copy of a folder.",
+        @"In Settings, Only Local Mode skips online metadata lookups and keeps older HDD Macs calmer."
+    ];
+
+    CGFloat y = 250.0;
+    for (NSInteger i = 0; i < [stepTitles count]; i++) {
+        NSTextField *stepTitle = IGCreateGuideTextField([stepTitles objectAtIndex:i], NSMakeRect(42, y, 475, 20),
+                                                        [NSFont boldSystemFontOfSize:12],
+                                                        [NSColor colorWithCalibratedWhite:0.15 alpha:1.0],
+                                                        NSLeftTextAlignment);
+        [content addSubview:stepTitle];
+
+        NSTextField *stepBody = IGCreateGuideTextField([stepBodies objectAtIndex:i], NSMakeRect(58, y - 34, 460, 34),
+                                                       [NSFont systemFontOfSize:11],
+                                                       [NSColor colorWithCalibratedWhite:0.35 alpha:1.0],
+                                                       NSLeftTextAlignment);
+        [content addSubview:stepBody];
+        y -= 54.0;
+    }
+
+    NSButton *okButton = [[[NSButton alloc] initWithFrame:NSMakeRect(425, 16, 105, 32)] autorelease];
+    okButton.title = @"Got It";
+    okButton.bezelStyle = NSRoundedBezelStyle;
+    okButton.target = self;
+    okButton.action = @selector(closeFirstLaunchGuide:);
+    [content addSubview:okButton];
+
+    if (markSeen) {
+        NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+        if (!version || version.length == 0) {
+            version = @"development";
+        }
+        [[NSUserDefaults standardUserDefaults] setObject:version forKey:@"syncrosa_first_launch_guide_seen_version"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+    }
+
+    [NSApp beginSheet:self.firstLaunchSheetWindow
+       modalForWindow:self.window
+        modalDelegate:nil
+       didEndSelector:NULL
+          contextInfo:NULL];
+}
+
+- (void)closeFirstLaunchGuide:(id)sender {
+    if (!self.firstLaunchSheetWindow) {
+        return;
+    }
+
+    [NSApp endSheet:self.firstLaunchSheetWindow];
+    [self.firstLaunchSheetWindow orderOut:nil];
+    self.firstLaunchSheetWindow = nil;
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification {
