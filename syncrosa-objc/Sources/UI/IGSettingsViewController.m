@@ -69,6 +69,10 @@ static NSString *IGSettingsFriendlyUpdateError(NSString *technicalError) {
             IGSettingsBundledReleaseNotes()];
 }
 
+static NSString *IGSettingsUpdateErrorSummary(void) {
+    return @"Network update error. Open Release Notes for details.";
+}
+
 static void IGSettingsFetchURLWithCurl(NSURL *url, NSDictionary *headers, void(^completionBlock)(NSData *data, NSError *error)) {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSString *stdoutPath = IGSettingsTempPath(@"stdout");
@@ -853,12 +857,12 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
         BOOL updateAvailable = NO;
 
         if (error) {
-            message = @"Could not check updates on this Mac. Open Release Notes for details.";
+            message = IGSettingsUpdateErrorSummary();
             self.latestReleaseTitle = @"Update Check Details";
             self.latestReleaseNotes = IGSettingsFriendlyUpdateError(error.localizedDescription);
             isError = YES;
         } else if (data.length == 0) {
-            message = @"GitHub returned an empty response.";
+            message = IGSettingsUpdateErrorSummary();
             self.latestReleaseTitle = @"Update Check Details";
             self.latestReleaseNotes = @"GitHub returned an empty response while checking for updates.";
             isError = YES;
@@ -866,7 +870,9 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
             NSError *jsonError = nil;
             id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
             if (![parsed isKindOfClass:[NSDictionary class]]) {
-                message = @"GitHub returned an unexpected response.";
+                message = IGSettingsUpdateErrorSummary();
+                self.latestReleaseTitle = @"Update Check Details";
+                self.latestReleaseNotes = @"GitHub returned an unexpected response while checking for updates.";
                 isError = YES;
             } else {
                 NSDictionary *release = (NSDictionary *)parsed;
@@ -903,7 +909,9 @@ static NSComparisonResult IGSettingsCompareVersions(NSString *left, NSString *ri
 
                 NSString *current = IGSettingsCurrentVersion();
                 if (latest.length == 0) {
-                    message = @"Could not read the latest Syncrosa version.";
+                    message = IGSettingsUpdateErrorSummary();
+                    self.latestReleaseTitle = @"Update Check Details";
+                    self.latestReleaseNotes = @"GitHub did not include a readable Syncrosa version in the latest release response.";
                     isError = YES;
                 } else if ([current isEqualToString:@"Development"]) {
                     message = [NSString stringWithFormat:@"Latest release: Syncrosa %@. This is a development build.", latest];

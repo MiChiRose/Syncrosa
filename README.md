@@ -13,7 +13,15 @@
 </p>
 </div>
 
-Welcome to the central hub for the **Syncrosa** ecosystem. This repository serves as the landing page and documentation hub for the project. 
+Welcome to the central hub for the **Syncrosa** ecosystem. This repository serves as the landing page and documentation hub for the project.
+
+## What Syncrosa Is For
+
+Syncrosa is a practical toolkit for people who still care about local music libraries, iTunes/Music collections, old iPods, and Macs from more than one era. It started life as **iGeniusAI**, then grew into a broader music-library assistant focused on keeping both modern Apple Silicon Macs and older Intel Macs useful.
+
+In plain language: Syncrosa helps clean up the messy parts of a music library. It can find duplicate tracks, repair metadata, work with album covers, export playlists to USB drives, create playlists, keep recovery backups, and run safer long operations without assuming that every user lives entirely inside streaming services.
+
+The project is intentionally split into separate app tracks because old Macs and new Macs need different engineering choices. The modern SwiftUI build targets current Apple Silicon machines, while the Objective-C/Cocoa build keeps support alive for vintage Intel Macs running OS X Mavericks and iTunes. The Python track remains as the original legacy version, but the main focus is now the SwiftUI and Objective-C apps.
 
 The application is available in **three distinct versions**, tailored for different eras of Apple hardware.
 
