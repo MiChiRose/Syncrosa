@@ -59,14 +59,29 @@ static NSString *IGSettingsBundledReleaseNotes(void) {
 }
 
 static NSString *IGSettingsFriendlyUpdateError(NSString *technicalError) {
-    NSString *details = technicalError.length > 0 ? technicalError : @"Unknown network error.";
+    NSString *summary = @"Unknown network error.";
+    if (technicalError.length > 0) {
+        NSArray *lines = [technicalError componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+        NSString *firstLine = lines.count > 0 ? [lines objectAtIndex:0] : technicalError;
+        if ([technicalError rangeOfString:@"status 60"].location != NSNotFound ||
+            [technicalError rangeOfString:@"SSL certificate"].location != NSNotFound) {
+            summary = @"curl status 60 (SSL certificate verification failed)";
+        } else if (firstLine.length > 0) {
+            summary = firstLine;
+        }
+    }
     return [NSString stringWithFormat:
-            @"Syncrosa could not reach GitHub Releases from this Mac.\n\n"
-            "Older OS X systems can reject modern TLS certificate chains even when the app ships a fresh CA bundle. Syncrosa did not disable certificate checks.\n\n"
-            "Technical details:\n%@\n\n"
-            "Manual releases page:\nhttps://github.com/MiChiRose/Syncrosa/releases\n\n%@",
-            details,
-            IGSettingsBundledReleaseNotes()];
+            @"Syncrosa could not check GitHub updates from this Mac.\n\n"
+            "Most likely cause:\n"
+            "This OS X version rejected GitHub's current TLS certificate chain.\n\n"
+            "What to try:\n"
+            "1. Check that the Mac date and time are correct.\n"
+            "2. If the error remains, open the releases page from a newer browser and download the Cocoa build manually.\n\n"
+            "Syncrosa keeps certificate verification enabled for safety.\n\n"
+            "Manual releases page:\n"
+            "https://github.com/MiChiRose/Syncrosa/releases\n\n"
+            "Technical summary:\n%@",
+            summary];
 }
 
 static NSString *IGSettingsUpdateErrorSummary(void) {
