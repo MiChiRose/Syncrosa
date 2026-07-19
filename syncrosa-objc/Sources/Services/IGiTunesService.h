@@ -6,6 +6,16 @@
 + (instancetype)sharedService;
 
 /**
+ * Returns YES when iTunes is already running. This check does not launch iTunes.
+ */
+- (BOOL)iTunesIsRunning;
+
+/**
+ * Opens iTunes only after a user-facing confirmation happened in the UI layer.
+ */
+- (BOOL)launchITunesForUserActionWithOperation:(NSString *)operation;
+
+/**
  * Checks whether the iTunes library is readable and how many tracks it has.
  * trackCount is -1 when the library cannot be read.
  */

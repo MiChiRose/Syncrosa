@@ -12,6 +12,7 @@
 #import "IGKeychainHelper.h"
 #import "IGLocalizationService.h"
 #import "IGLogger.h"
+#import "IGTheme.h"
 
 static void IGSetTextFieldLineBreakMode(NSTextField *textField, NSLineBreakMode mode)
 {
@@ -100,9 +101,12 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
 
 - (void)refreshClicked:(id)sender {
     self.statusLabel.stringValue = @"Checking iTunes...";
-    [self.mainController refreshLibraryStatusWithCompletion:^{
+    BOOL started = [self.mainController refreshLibraryStatusWithCompletion:^{
         self.statusLabel.stringValue = @"iTunes status refreshed. Use the sidebar status for the current track count.";
     }];
+    if (!started) {
+        self.statusLabel.stringValue = @"iTunes check cancelled.";
+    }
 }
 
 - (void)openDoctorClicked:(id)sender {
@@ -189,6 +193,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         tabButton.font = [NSFont systemFontOfSize:12];
         tabButton.bezelStyle = NSTexturedRoundedBezelStyle;
         [tabButton setButtonType:NSPushOnPushOffButton];
+        IGApplyThemeToButton(tabButton, IGThemeButtonRoleTab);
         tabButton.tag = i;
         tabButton.target = self;
         tabButton.action = @selector(doctorToolChanged:);
@@ -250,6 +255,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         BOOL selected = (button.tag == self.selectedToolIndex);
         button.state = selected ? NSOnState : NSOffState;
         button.font = selected ? [NSFont boldSystemFontOfSize:12] : [NSFont systemFontOfSize:12];
+        IGApplyThemeToButton(button, IGThemeButtonRoleTab);
+        [button setNeedsDisplay:YES];
     }
 }
 
@@ -501,12 +508,15 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 @property (nonatomic, strong) NSSplitView *splitView;
 @property (nonatomic, strong) NSView *sidebarContainer;
 @property (nonatomic, strong) NSView *contentContainer;
+@property (nonatomic, strong) NSView *sidebarBackgroundView;
 @property (nonatomic, strong) NSMutableArray *sidebarButtons;
 @property (nonatomic, strong) NSTextField *libraryStatusLabel;
 @property (nonatomic, strong) NSButton *libraryRefreshButton;
 @property (nonatomic, strong) NSWindow *firstLaunchSheetWindow;
+@property (nonatomic, strong) NSWindow *libraryBusySheetWindow;
 @property (nonatomic, assign) NSInteger libraryTrackCount;
 @property (nonatomic, assign) BOOL libraryStatusKnown;
+@property (nonatomic, assign) BOOL libraryStatusReadable;
 @property (nonatomic, assign) BOOL refreshingLibraryStatus;
 @property (nonatomic, assign) NSInteger activeIndex;
 
@@ -530,6 +540,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                                                    styleMask:(NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask)
                                                      backing:NSBackingStoreBuffered
                                                        defer:NO];
+    [window setContentView:IGCreateThemedBackgroundView(NSMakeRect(0, 0, 800, 500), IGThemeBackgroundRoleWindow)];
     [window center];
     window.title = @"Syncrosa";
     
@@ -540,6 +551,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    if (self) {
 	        _libraryTrackCount = -1;
 	        _libraryStatusKnown = NO;
+	        _libraryStatusReadable = NO;
 	        _refreshingLibraryStatus = NO;
 	        _activeIndex = -1;
 	        [self setupUI];
@@ -553,10 +565,12 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [_splitView release];
 	    [_sidebarContainer release];
 	    [_contentContainer release];
+	    [_sidebarBackgroundView release];
 	    [_sidebarButtons release];
 	    [_libraryStatusLabel release];
 	    [_libraryRefreshButton release];
 	    [_firstLaunchSheetWindow release];
+	    [_libraryBusySheetWindow release];
 	    [_geniusVC release];
 	    [_fixerVC release];
 	    [_fileFixerVC release];
@@ -589,16 +603,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [self.contentContainer release];
 #endif
     
-    // Add a classic textured background to the sidebar
-    NSBox *sidebarBackground = [[NSBox alloc] initWithFrame:self.sidebarContainer.bounds];
-    sidebarBackground.boxType = NSBoxCustom;
-    sidebarBackground.borderType = NSNoBorder;
-    sidebarBackground.fillColor = [NSColor colorWithCalibratedWhite:0.92 alpha:1.0];
-    sidebarBackground.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-	    [self.sidebarContainer addSubview:sidebarBackground];
-#if !__has_feature(objc_arc)
-	    [sidebarBackground release];
-#endif
+    self.sidebarBackgroundView = IGCreateThemedBackgroundView(self.sidebarContainer.bounds, IGThemeBackgroundRoleSidebar);
+	    [self.sidebarContainer addSubview:self.sidebarBackgroundView];
     
     [self.splitView addSubview:self.sidebarContainer];
     [self.splitView addSubview:self.contentContainer];
@@ -621,9 +627,10 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                                                object:nil];
 
     [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(applicationDidBecomeActive:)
-                                                 name:NSApplicationDidBecomeActiveNotification
+                                             selector:@selector(themeChanged:)
+                                                 name:IGThemeDidChangeNotification
                                                object:nil];
+    [self applyTheme];
     
     // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
 	    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"Gemini";
@@ -635,6 +642,26 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     }
 
     [self performSelector:@selector(showFirstLaunchSetupIfNeeded) withObject:nil afterDelay:0.45];
+}
+
+- (void)themeChanged:(NSNotification *)notification {
+    (void)notification;
+    [self applyTheme];
+}
+
+- (void)applyTheme {
+    [self.window setBackgroundColor:IGThemeContentColor()];
+    [self.window.contentView setNeedsDisplay:YES];
+    [self.sidebarBackgroundView setNeedsDisplay:YES];
+    self.libraryStatusLabel.textColor = IGThemeMutedTextColor();
+    IGApplyThemeToButton(self.libraryRefreshButton, IGThemeButtonRoleSecondary);
+    for (NSButton *button in self.sidebarButtons) {
+        IGApplyThemeToButton(button, IGThemeButtonRoleSidebar);
+    }
+    IGApplyThemeToViewHierarchy(self.contentContainer);
+    IGRefreshThemedViews(self.window.contentView);
+    [self.contentContainer setNeedsDisplay:YES];
+    [self.sidebarContainer setNeedsDisplay:YES];
 }
 
 - (void)showFirstLaunchSetupIfNeeded {
@@ -667,6 +694,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #endif
 
     NSView *content = [self.firstLaunchSheetWindow contentView];
+    IGInstallThemedContentBackground(content);
     NSImageView *iconView = [[[NSImageView alloc] initWithFrame:NSMakeRect(28, 288, 64, 64)] autorelease];
     iconView.image = [NSApp applicationIconImage];
     iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
@@ -718,6 +746,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     okButton.bezelStyle = NSRoundedBezelStyle;
     okButton.target = self;
     okButton.action = @selector(closeFirstLaunchGuide:);
+    IGApplyThemeToButton(okButton, IGThemeButtonRolePrimary);
     [content addSubview:okButton];
 
     if (markSeen) {
@@ -734,6 +763,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         modalDelegate:nil
        didEndSelector:NULL
           contextInfo:NULL];
+    IGApplyThemeToViewHierarchy(content);
 }
 
 - (void)closeFirstLaunchGuide:(id)sender {
@@ -746,13 +776,6 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     self.firstLaunchSheetWindow = nil;
 }
 
-- (void)applicationDidBecomeActive:(NSNotification *)notification {
-    if (self.libraryStatusKnown || self.refreshingLibraryStatus) {
-        return;
-    }
-    [self updateButtonStates];
-}
-
 - (void)drivesUpdatedNotification:(NSNotification *)notification {
     [self updateButtonStates];
 }
@@ -762,7 +785,15 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 }
 
 - (BOOL)libraryIsConfirmedEmpty {
-    return (self.libraryStatusKnown && self.libraryTrackCount == 0);
+    return (self.libraryStatusKnown && self.libraryStatusReadable && self.libraryTrackCount == 0);
+}
+
+- (BOOL)libraryIsUnreadable {
+    return (self.libraryStatusKnown && !self.libraryStatusReadable);
+}
+
+- (BOOL)libraryBlocksTools {
+    return [self libraryIsConfirmedEmpty] || [self libraryIsUnreadable];
 }
 
 - (void)showEmptyLibraryAlert {
@@ -775,12 +806,128 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #endif
 }
 
-- (void)refreshLibraryStatusWithCompletion:(void(^)(void))completionBlock {
-    if (self.refreshingLibraryStatus) {
-        if (completionBlock) {
-            completionBlock();
-        }
+- (void)showUnreadableLibraryAlert {
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:@"Could Not Read iTunes"];
+    [alert setInformativeText:@"Syncrosa could not read the iTunes library. Open iTunes, wait until it finishes loading, then click Refresh iTunes."];
+    [alert runModal];
+#if !__has_feature(objc_arc)
+    [alert release];
+#endif
+}
+
+- (NSString *)libraryActionNameForIndex:(NSInteger)index {
+    switch (index) {
+        case 1: return @"AI Playlist";
+        case 2: return @"iTunes Media Fixer";
+        case 4: return @"USB Export";
+        case 5: return @"Covers Optimizer";
+        case 6: return @"Duplicate Finder";
+        case 7: return @"Offline Playlist";
+        case 9: return @"Library Doctor";
+        default: return @"this tool";
+    }
+}
+
+- (BOOL)confirmOpeningITunesForAction:(NSString *)action {
+    if ([[IGiTunesService sharedService] iTunesIsRunning]) {
+        return YES;
+    }
+
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:@"Open iTunes?"];
+    NSString *toolName = [action length] > 0 ? action : @"this tool";
+    [alert setInformativeText:[NSString stringWithFormat:@"Syncrosa needs iTunes to read your music library for %@. It will show a waiting screen while the library is checked.", toolName]];
+    [alert addButtonWithTitle:@"Open iTunes"];
+    [alert addButtonWithTitle:@"Cancel"];
+    NSInteger result = [alert runModal];
+#if !__has_feature(objc_arc)
+    [alert release];
+#endif
+    return result == NSAlertFirstButtonReturn;
+}
+
+- (void)showLibraryBusySheetWithMessage:(NSString *)message {
+    if (self.libraryBusySheetWindow) {
+        [self dismissLibraryBusySheet];
+    }
+
+    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 430, 150)
+                                                  styleMask:NSTitledWindowMask
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:NO];
+    sheet.title = @"Syncrosa";
+    self.libraryBusySheetWindow = sheet;
+#if !__has_feature(objc_arc)
+    [sheet release];
+#endif
+
+    IGInstallThemedContentBackground(self.libraryBusySheetWindow.contentView);
+
+    NSProgressIndicator *spinner = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(34, 82, 32, 32)] autorelease];
+    spinner.style = NSProgressIndicatorSpinningStyle;
+    spinner.indeterminate = YES;
+    [spinner startAnimation:nil];
+    [self.libraryBusySheetWindow.contentView addSubview:spinner];
+
+    NSTextField *title = IGCreateGuideTextField(@"Please Wait", NSMakeRect(80, 94, 310, 22),
+                                                [NSFont boldSystemFontOfSize:15],
+                                                [NSColor colorWithCalibratedWhite:0.12 alpha:1.0],
+                                                NSLeftTextAlignment);
+    [self.libraryBusySheetWindow.contentView addSubview:title];
+
+    NSTextField *body = IGCreateGuideTextField(message ?: @"Syncrosa is checking iTunes.",
+                                               NSMakeRect(80, 48, 320, 44),
+                                               [NSFont systemFontOfSize:12],
+                                               [NSColor colorWithCalibratedWhite:0.35 alpha:1.0],
+                                               NSLeftTextAlignment);
+    [self.libraryBusySheetWindow.contentView addSubview:body];
+    IGApplyThemeToViewHierarchy(self.libraryBusySheetWindow.contentView);
+
+    [NSApp beginSheet:self.libraryBusySheetWindow
+       modalForWindow:self.window
+        modalDelegate:nil
+       didEndSelector:NULL
+          contextInfo:NULL];
+    [self.window display];
+}
+
+- (void)dismissLibraryBusySheet {
+    if (!self.libraryBusySheetWindow) {
         return;
+    }
+    [NSApp endSheet:self.libraryBusySheetWindow];
+    [self.libraryBusySheetWindow orderOut:nil];
+    self.libraryBusySheetWindow = nil;
+}
+
+- (BOOL)refreshLibraryStatusForAction:(NSString *)action completion:(void(^)(void))completionBlock {
+    if (self.refreshingLibraryStatus) {
+        return NO;
+    }
+
+    if (![[IGiTunesService sharedService] iTunesIsRunning]) {
+        if (![self confirmOpeningITunesForAction:action]) {
+            self.libraryStatusLabel.stringValue = @"iTunes status not checked.";
+            [self updateButtonStates];
+            return NO;
+        }
+        [self showLibraryBusySheetWithMessage:@"Opening iTunes and preparing the library check..."];
+        if (![[IGiTunesService sharedService] launchITunesForUserActionWithOperation:(action ?: @"library check")]) {
+            [self dismissLibraryBusySheet];
+            self.libraryStatusLabel.stringValue = @"iTunes did not open.";
+            NSAlert *alert = [[NSAlert alloc] init];
+            [alert setMessageText:@"Could Not Open iTunes"];
+            [alert setInformativeText:@"Open iTunes manually, then click Refresh iTunes again."];
+            [alert runModal];
+#if !__has_feature(objc_arc)
+            [alert release];
+#endif
+            [self updateButtonStates];
+            return NO;
+        }
+    } else {
+        [self showLibraryBusySheetWithMessage:@"Syncrosa is checking your iTunes library. This can take a moment on older hard drives."];
     }
 
     void (^completionCopy)(void) = completionBlock ? [completionBlock copy] : nil;
@@ -791,8 +938,10 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
     [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
         self.refreshingLibraryStatus = NO;
-        self.libraryStatusKnown = YES;
+        [self dismissLibraryBusySheet];
         self.libraryTrackCount = trackCount;
+        self.libraryStatusReadable = (trackCount >= 0);
+        self.libraryStatusKnown = YES;
         self.libraryRefreshButton.enabled = YES;
 
         if (trackCount == 0) {
@@ -800,13 +949,13 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         } else if (trackCount > 0) {
             self.libraryStatusLabel.stringValue = [NSString stringWithFormat:@"iTunes tracks: %ld", (long)trackCount];
         } else {
-            self.libraryStatusLabel.stringValue = @"iTunes status unknown.";
+            self.libraryStatusLabel.stringValue = @"Could not read iTunes.";
             [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Could not read iTunes library count: %@", errorMessage ?: @""]];
         }
 
         [self updateButtonStates];
 
-        if ([self libraryIsConfirmedEmpty] && [self indexRequiresReadableLibrary:self.activeIndex]) {
+        if ([self libraryBlocksTools] && [self indexRequiresReadableLibrary:self.activeIndex]) {
             [self switchViewToIndex:0];
         }
 
@@ -817,6 +966,11 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #endif
         }
     }];
+    return YES;
+}
+
+- (BOOL)refreshLibraryStatusWithCompletion:(void(^)(void))completionBlock {
+    return [self refreshLibraryStatusForAction:@"refreshing iTunes status" completion:completionBlock];
 }
 
 - (void)refreshLibraryButtonClicked:(id)sender {
@@ -831,17 +985,19 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
         NSButton *btn = self.sidebarButtons[i];
-        BOOL disabledByEmptyLibrary = ([self libraryIsConfirmedEmpty] && [self indexRequiresReadableLibrary:i]);
+        BOOL disabledByLibraryState = ([self libraryBlocksTools] && [self indexRequiresReadableLibrary:i]);
         if (i == 1) { // Only Genius Playlist requires an API key
-            btn.enabled = hasKey && !disabledByEmptyLibrary && !self.refreshingLibraryStatus;
+            btn.enabled = hasKey && !disabledByLibraryState && !self.refreshingLibraryStatus;
         } else if (i == 4) { // USB Export button
-            btn.enabled = !isUSBSearching && !disabledByEmptyLibrary && !self.refreshingLibraryStatus;
+            btn.enabled = !isUSBSearching && !disabledByLibraryState && !self.refreshingLibraryStatus;
         } else if ([self indexRequiresReadableLibrary:i]) {
-            btn.enabled = !disabledByEmptyLibrary && !self.refreshingLibraryStatus;
+            btn.enabled = !disabledByLibraryState && !self.refreshingLibraryStatus;
         } else {
             btn.enabled = YES;
         }
+        [btn setNeedsDisplay:YES];
     }
+    [self.libraryRefreshButton setNeedsDisplay:YES];
 }
 
 - (void)setupSidebar {
@@ -875,6 +1031,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         btn.action = @selector(sidebarClicked:);
         btn.tag = i;
         btn.autoresizingMask = NSViewWidthSizable;
+        IGApplyThemeToButton(btn, IGThemeButtonRoleSidebar);
 	        [self.sidebarContainer addSubview:btn];
 	        [self.sidebarButtons addObject:btn];
 #if !__has_feature(objc_arc)
@@ -893,7 +1050,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         statusLabel.textColor = [NSColor colorWithCalibratedWhite:0.38 alpha:1.0];
         statusLabel.alignment = NSCenterTextAlignment;
         IGSetTextFieldLineBreakMode(statusLabel, NSLineBreakByWordWrapping);
-        statusLabel.stringValue = @"iTunes status unknown.";
+        statusLabel.stringValue = @"iTunes status not checked.";
         statusLabel.autoresizingMask = NSViewWidthSizable;
         self.libraryStatusLabel = statusLabel;
         [self.sidebarContainer addSubview:statusLabel];
@@ -911,6 +1068,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         refreshButton.target = self;
         refreshButton.action = @selector(refreshLibraryButtonClicked:);
         refreshButton.autoresizingMask = NSViewWidthSizable;
+        IGApplyThemeToButton(refreshButton, IGThemeButtonRoleSecondary);
         self.libraryRefreshButton = refreshButton;
         [self.sidebarContainer addSubview:refreshButton];
 #if !__has_feature(objc_arc)
@@ -964,22 +1122,45 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
     if ([self indexRequiresReadableLibrary:index] && !self.libraryStatusKnown) {
         if (!self.refreshingLibraryStatus) {
-            [self refreshLibraryStatusWithCompletion:^{
+            BOOL started = [self refreshLibraryStatusForAction:[self libraryActionNameForIndex:index] completion:^{
                 if ([self libraryIsConfirmedEmpty]) {
                     [self showEmptyLibraryAlert];
+                    [self switchViewToIndex:0];
+                } else if ([self libraryIsUnreadable]) {
+                    [self showUnreadableLibraryAlert];
                     [self switchViewToIndex:0];
                 } else {
                     [self switchViewToIndex:index];
                 }
             }];
+            if (!started) {
+                [self updateButtonStates];
+            }
         }
         return;
     }
 
-    if ([self indexRequiresReadableLibrary:index] && [self libraryIsConfirmedEmpty]) {
-        [self showEmptyLibraryAlert];
+    if ([self indexRequiresReadableLibrary:index] && self.libraryStatusKnown && self.libraryStatusReadable && ![[IGiTunesService sharedService] iTunesIsRunning]) {
+        self.libraryStatusKnown = NO;
+        self.libraryStatusReadable = NO;
+        self.libraryTrackCount = -1;
+        self.libraryStatusLabel.stringValue = @"iTunes status not checked.";
+        [self updateButtonStates];
+        [self switchViewToIndex:index];
         return;
     }
+
+	    if ([self indexRequiresReadableLibrary:index] && [self libraryIsConfirmedEmpty]) {
+	        [self showEmptyLibraryAlert];
+	        return;
+	    }
+
+	    if ([self indexRequiresReadableLibrary:index] && [self libraryIsUnreadable]) {
+	        [self showUnreadableLibraryAlert];
+	        return;
+	    }
+
+    @try {
 
     self.activeIndex = index;
 
@@ -1117,11 +1298,27 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            break;
     }
     
-    if (targetVC) {
-        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view showing %@ for index=%ld", NSStringFromClass([targetVC class]), (long)index]];
-        targetVC.view.frame = self.contentContainer.bounds;
-        targetVC.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-        [self.contentContainer addSubview:targetVC.view];
+	    if (targetVC) {
+	        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view showing %@ for index=%ld", NSStringFromClass([targetVC class]), (long)index]];
+	        targetVC.view.frame = self.contentContainer.bounds;
+	        targetVC.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+	        IGInstallThemedContentBackground(targetVC.view);
+	        IGApplyThemeToViewHierarchy(targetVC.view);
+	        [self.contentContainer addSubview:targetVC.view];
+	    }
+    } @catch (NSException *exception) {
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view exception index=%ld: %@ - %@", (long)index, exception.name, exception.reason]];
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view stack: %@", exception.callStackSymbols]];
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setMessageText:@"Syncrosa could not open this tab."];
+        [alert setInformativeText:[NSString stringWithFormat:@"The app stayed open and returned to Overview.\n\n%@", exception.reason ?: @"Unknown error."]];
+        [alert runModal];
+#if !__has_feature(objc_arc)
+        [alert release];
+#endif
+        if (index != 0) {
+            [self switchViewToIndex:0];
+        }
     }
 }
 

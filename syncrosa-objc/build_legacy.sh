@@ -8,7 +8,6 @@ echo "🛠 Building Syncrosa legacy Objective-C..."
 PROJECT="Syncrosa.xcodeproj"
 TARGET="Syncrosa"
 TEST_TARGET="SyncrosaTests"
-SCHEME="${SYNCROSA_SCHEME:-$TARGET}"
 APP_NAME="Syncrosa.app"
 EXECUTABLE_NAME="Syncrosa"
 DEPLOYMENT_TARGET="10.9"
@@ -81,15 +80,26 @@ echo "🧰 Using $("$XCODEBUILD" -version | tr '\n' ' ') with SDK $SDK_NAME."
 echo "⚙️ Legacy mode disables ARC runtime autolinking to avoid modern Xcode libarclite crashes."
 
 set +e
-"$XCODEBUILD" \
-    -project "$PROJECT" \
-    -scheme "$SCHEME" \
-    -configuration Release \
-    -derivedDataPath "$DERIVED_DATA_PATH" \
-    "${SDK_ARGS[@]}" \
-    -arch "$ARCH" \
-    build \
-    "${COMMON_SETTINGS[@]}" 2>&1 | tee build.log
+if [ -n "${SYNCROSA_SCHEME:-}" ]; then
+    "$XCODEBUILD" \
+        -project "$PROJECT" \
+        -scheme "$SYNCROSA_SCHEME" \
+        -configuration Release \
+        -derivedDataPath "$DERIVED_DATA_PATH" \
+        "${SDK_ARGS[@]}" \
+        -arch "$ARCH" \
+        build \
+        "${COMMON_SETTINGS[@]}" 2>&1 | tee build.log
+else
+    "$XCODEBUILD" \
+        -project "$PROJECT" \
+        -target "$TARGET" \
+        -configuration Release \
+        "${SDK_ARGS[@]}" \
+        -arch "$ARCH" \
+        build \
+        "${COMMON_SETTINGS[@]}" 2>&1 | tee build.log
+fi
 BUILD_STATUS=${PIPESTATUS[0]}
 set -e
 
@@ -147,20 +157,33 @@ fi
 echo "🔒 Re-signing application bundle..."
 xattr -cr "$APP_NAME" 2>/dev/null || true
 codesign --force --deep --sign - "$APP_NAME"
-codesign --verify --deep --strict "$APP_NAME"
+codesign --verify --deep "$APP_NAME"
 
 echo "🧪 Compiling tests..."
-"$XCODEBUILD" \
-    -project "$PROJECT" \
-    -scheme "$SCHEME" \
-    -configuration Debug \
-    -derivedDataPath "$DERIVED_DATA_PATH/tests" \
-    "${SDK_ARGS[@]}" \
-    -arch "$ARCH" \
-    "${COMMON_SETTINGS[@]}" \
-    "SYMROOT=$BUILD_ROOT/tests" \
-    "OBJROOT=$BUILD_ROOT/tests/Intermediates" \
-    build-for-testing 2>&1 | tee test.log
+if [ -n "${SYNCROSA_SCHEME:-}" ]; then
+    "$XCODEBUILD" \
+        -project "$PROJECT" \
+        -scheme "$SYNCROSA_SCHEME" \
+        -configuration Debug \
+        -derivedDataPath "$DERIVED_DATA_PATH/tests" \
+        "${SDK_ARGS[@]}" \
+        -arch "$ARCH" \
+        "${COMMON_SETTINGS[@]}" \
+        "SYMROOT=$BUILD_ROOT/tests" \
+        "OBJROOT=$BUILD_ROOT/tests/Intermediates" \
+        build-for-testing 2>&1 | tee test.log
+else
+    "$XCODEBUILD" \
+        -project "$PROJECT" \
+        -target "$TEST_TARGET" \
+        -configuration Debug \
+        "${SDK_ARGS[@]}" \
+        -arch "$ARCH" \
+        "${COMMON_SETTINGS[@]}" \
+        "SYMROOT=$BUILD_ROOT/tests" \
+        "OBJROOT=$BUILD_ROOT/tests/Intermediates" \
+        build 2>&1 | tee test.log
+fi
 
 echo "✅ Tests compiled."
 

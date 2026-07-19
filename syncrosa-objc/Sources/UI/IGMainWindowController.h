@@ -6,6 +6,6 @@
 
 - (void)updateButtonStates;
 - (void)switchViewToIndex:(NSInteger)index;
-- (void)refreshLibraryStatusWithCompletion:(void(^)(void))completionBlock;
+- (BOOL)refreshLibraryStatusWithCompletion:(void(^)(void))completionBlock;
 
 @end

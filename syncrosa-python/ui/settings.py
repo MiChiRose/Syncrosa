@@ -347,7 +347,7 @@ class SetupWindow(tk.Toplevel):
         self.btn_release_notes.config(state="disabled")
         self.release_title = ""
         self.release_notes = ""
-        self.update_status_label.config(text="Checking GitHub Releases...")
+        self.update_status_label.config(text="Checking Syncrosa updates...")
 
         def task():
             try:

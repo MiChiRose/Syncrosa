@@ -14,7 +14,7 @@ The goal of this project is to replace the Python-based legacy version with a pu
 ### ✨ Features (Planned & In-Progress)
 - **AI Playlist Generator:** Native integration with Gemini, Groq, and OpenRouter APIs.
 - **Advanced Media Fixer:** High-speed metadata restoration and library organization.
-- **Resilient Networking:** Built-in SSL/TLS bypass for uninterrupted API connections on OS X 10.9+.
+- **Resilient Networking:** Bundled CA certificates and clear manual-update fallback for older OS X systems.
 - **Lightweight Footprint:** Optimized for older hardware (Core 2 Duo / Early Core i series).
 
 ### 🛠 Tech Stack

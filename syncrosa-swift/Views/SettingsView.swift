@@ -389,9 +389,9 @@ struct SettingsView: View {
         updateURL = nil
         latestReleaseTitle = ""
         latestReleaseNotes = ""
-        updateStatusText = lang.selectedLanguage == "ru" ? "Проверяю GitHub Releases..." : "Checking GitHub Releases..."
+        updateStatusText = lang.selectedLanguage == "ru" ? "Проверяю обновления Syncrosa..." : "Checking Syncrosa updates..."
 
-        guard let url = URL(string: "https://api.github.com/repos/MiChiRose/Syncrosa/releases/latest") else {
+        guard let url = URL(string: "https://syncrosa-updates.telegraphica.workers.dev/v1/update-manifest?platform=macos&track=swiftui&channel=stable") else {
             isCheckingUpdates = false
             return
         }
@@ -400,7 +400,7 @@ struct SettingsView: View {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 30
         request.setValue("Syncrosa/\(currentAppVersion)", forHTTPHeaderField: "User-Agent")
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         URLSession.shared.dataTask(with: request) { data, _, error in
             let result = self.parseUpdateResponse(data: data, error: error)
@@ -475,27 +475,28 @@ struct SettingsView: View {
     }
 
     func parseUpdateResponse(data: Data?, error: Error?) -> (message: String, url: URL?, available: Bool, isError: Bool, releaseTitle: String, releaseNotes: String) {
-        if let error = error {
-            let message = lang.selectedLanguage == "ru" ? "Не удалось проверить обновления: \(error.localizedDescription)" : "Could not check updates: \(error.localizedDescription)"
+        if error != nil {
+            let message = lang.selectedLanguage == "ru" ? "Не удалось проверить обновления Syncrosa." : "Could not check Syncrosa updates."
             return (message, nil, false, true, "", "")
         }
 
         guard let data = data,
               let object = try? JSONSerialization.jsonObject(with: data),
               let json = object as? [String: Any] else {
-            let message = lang.selectedLanguage == "ru" ? "GitHub вернул неожиданный ответ." : "GitHub returned an unexpected response."
+            let message = lang.selectedLanguage == "ru" ? "Сервис обновлений вернул неожиданный ответ." : "The update service returned an unexpected response."
             return (message, nil, false, true, "", "")
         }
 
         let latestVersion = ((json["tag_name"] as? String) ?? (json["name"] as? String) ?? "").replacingOccurrences(of: "v", with: "")
         let releaseTitle = (json["name"] as? String) ?? "Syncrosa \(latestVersion)"
         let releaseNotes = (json["body"] as? String) ?? ""
-        let htmlURL = URL(string: json["html_url"] as? String ?? "https://github.com/MiChiRose/Syncrosa/releases/latest")
+        let htmlURL = URL(string: (json["html_url"] as? String) ?? (json["release_url"] as? String) ?? "https://github.com/MiChiRose/Syncrosa/releases/latest")
+        let manifestDownload = URL(string: (json["download_url"] as? String) ?? (json["downloadURL"] as? String) ?? "")
         var assetURL: URL? = nil
         if let assets = json["assets"] as? [[String: Any]] {
             for asset in assets {
                 let name = asset["name"] as? String ?? ""
-                if name.contains("Syncrosa_SwiftUI_v"), let download = asset["browser_download_url"] as? String {
+                if name.contains("Syncrosa_SwiftUI_v"), let download = (asset["browser_download_url"] as? String) ?? (asset["download_url"] as? String) {
                     assetURL = URL(string: download)
                     break
                 }
@@ -515,7 +516,7 @@ struct SettingsView: View {
         let comparison = compareVersions(latestVersion, currentAppVersion)
         if comparison == .orderedDescending {
             let message = lang.selectedLanguage == "ru" ? "Доступна Syncrosa \(latestVersion). Нажмите Update App." : "Syncrosa \(latestVersion) is available. Click Update App."
-            return (message, assetURL ?? htmlURL, true, false, releaseTitle, releaseNotes)
+            return (message, assetURL ?? manifestDownload ?? htmlURL, true, false, releaseTitle, releaseNotes)
         }
 
         let message = lang.selectedLanguage == "ru" ? "У вас актуальная версия Syncrosa \(currentAppVersion)." : "You are up to date on Syncrosa \(currentAppVersion)."

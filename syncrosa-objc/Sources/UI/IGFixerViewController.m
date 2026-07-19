@@ -4,6 +4,8 @@
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
 #import "IGLogger.h"
+#import "IGTrack.h"
+#import "IGPlaylistJSONSupport.h"
 
 static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -38,6 +40,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 @property (nonatomic, strong) NSButton *genreCheckbox;
 @property (nonatomic, strong) NSButton *trackNumberCheckbox;
 @property (nonatomic, strong) NSButton *lyricsCheckbox;
+@property (nonatomic, strong) NSButton *exportLibraryJSONButton;
+@property (nonatomic, strong) NSButton *importLibraryJSONButton;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, assign) BOOL isRunning;
 
@@ -168,6 +172,19 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     self.startButton.action = @selector(startClicked:);
     [self.view addSubview:self.startButton];
 
+    y -= 38;
+    self.exportLibraryJSONButton = [[NSButton alloc] initWithFrame:NSMakeRect(80, y, 200, 30)];
+    self.exportLibraryJSONButton.bezelStyle = NSRoundedBezelStyle;
+    self.exportLibraryJSONButton.target = self;
+    self.exportLibraryJSONButton.action = @selector(exportLibraryJSONClicked:);
+    [self.view addSubview:self.exportLibraryJSONButton];
+
+    self.importLibraryJSONButton = [[NSButton alloc] initWithFrame:NSMakeRect(300, y, 200, 30)];
+    self.importLibraryJSONButton.bezelStyle = NSRoundedBezelStyle;
+    self.importLibraryJSONButton.target = self;
+    self.importLibraryJSONButton.action = @selector(importLibraryJSONClicked:);
+    [self.view addSubview:self.importLibraryJSONButton];
+
     // Footer
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 15, 540, 30)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
@@ -196,6 +213,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     self.genreCheckbox.title = [lang t:@"tag_genre"];
     self.trackNumberCheckbox.title = [lang t:@"tag_track_number"];
     self.lyricsCheckbox.title = [lang t:@"tag_lyrics"];
+    self.exportLibraryJSONButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Экспорт JSON медиатеки" : @"Export Library JSON";
+    self.importLibraryJSONButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Импорт JSON плейлиста" : @"Import Playlist JSON";
     
     if (self.statusLabel.stringValue.length == 0 ||
         [self.statusLabel.stringValue isEqualToString:@"Ready to scan for metadata issues"] ||
@@ -253,6 +272,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 
 - (void)updateStartButtonState {
     self.startButton.enabled = (!self.isRunning && [self hasSelectedTags]);
+    self.exportLibraryJSONButton.enabled = !self.isRunning;
+    self.importLibraryJSONButton.enabled = !self.isRunning;
 }
 
 - (void)tagCheckboxClicked:(id)sender {
@@ -270,7 +291,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     NSString *helpText = @"iTunes Media Fixer Help\n\n"
                           "This utility scans your iTunes/Music library for split albums and missing metadata (Album, Title, Artist, Genre, Track Number, and Lyrics).\n\n"
                           "1. Select All / Individual Tags: Use the checkboxes to choose which metadata tags should be corrected. Only the checked tags will be updated via AppleScript.\n"
-                          "2. Safe Operation: Every single track operation is wrapped in a safe error handling block, ensuring that if any track write fails (due to write permissions, locked files, etc.), the app will skip it and continue without crashing.";
+                          "2. Library JSON: Export a clean list of your iTunes tracks, give it to an external AI helper, then import a returned JSON selection to create a playlist.\n"
+                          "3. Safe Operation: Every single track operation is wrapped in a safe error handling block, ensuring that if any track write fails (due to write permissions, locked files, etc.), the app will skip it and continue without crashing.";
     
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
                                                   styleMask:NSTitledWindowMask
@@ -315,8 +337,355 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     }
 }
 
+- (void)showSimpleAlertWithTitle:(NSString *)title message:(NSString *)message {
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:title ?: @"Syncrosa"];
+    [alert setInformativeText:message ?: @""];
+    [alert runModal];
+}
+
+- (void)showWaitSheetWithMessage:(NSString *)message {
+    if (self.helpSheetWindow) {
+        [self closeHelpSheet:nil];
+    }
+
+    NSWindow *sheet = [[[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 140)
+                                                   styleMask:NSTitledWindowMask
+                                                     backing:NSBackingStoreBuffered
+                                                       defer:YES] autorelease];
+    sheet.title = @"Syncrosa";
+
+    NSProgressIndicator *spinner = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(32, 78, 32, 32)] autorelease];
+    spinner.style = NSProgressIndicatorSpinningStyle;
+    spinner.indeterminate = YES;
+    [spinner startAnimation:nil];
+    [sheet.contentView addSubview:spinner];
+
+    NSTextField *label = [[[NSTextField alloc] initWithFrame:NSMakeRect(78, 58, 310, 54)] autorelease];
+    label.stringValue = message ?: @"Please wait...";
+    label.font = [NSFont systemFontOfSize:12];
+    label.editable = NO;
+    label.selectable = NO;
+    label.bordered = NO;
+    label.drawsBackground = NO;
+    [[label cell] setWraps:YES];
+    [sheet.contentView addSubview:label];
+
+    self.helpSheetWindow = sheet;
+    [NSApp beginSheet:self.helpSheetWindow
+       modalForWindow:self.view.window
+        modalDelegate:nil
+       didEndSelector:NULL
+          contextInfo:NULL];
+    [self.view.window display];
+    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+}
+
+- (BOOL)prepareITunesForUserAction:(NSString *)action {
+    if ([[IGiTunesService sharedService] iTunesIsRunning]) {
+        return YES;
+    }
+
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:@"Open iTunes?"];
+    [alert setInformativeText:[NSString stringWithFormat:@"Syncrosa needs iTunes for %@. It will not open iTunes unless you allow it.", action ?: @"this action"]];
+    [alert addButtonWithTitle:@"Open iTunes"];
+    [alert addButtonWithTitle:@"Cancel"];
+    NSInteger result = [alert runModal];
+    if (result != NSAlertFirstButtonReturn) {
+        self.statusLabel.stringValue = @"iTunes action cancelled.";
+        [self log:@"iTunes action cancelled by user."];
+        return NO;
+    }
+
+    self.statusLabel.stringValue = @"Opening iTunes...";
+    [self log:@"Opening iTunes after user confirmation..."];
+    [self showWaitSheetWithMessage:@"Opening iTunes. Please wait while Syncrosa prepares the library operation..."];
+    if (![[IGiTunesService sharedService] launchITunesForUserActionWithOperation:(action ?: @"media fixer action")]) {
+        [self closeHelpSheet:nil];
+        self.statusLabel.stringValue = @"Could not open iTunes.";
+        [self log:@"Could not open iTunes."];
+        [self showSimpleAlertWithTitle:@"Could Not Open iTunes" message:@"Open iTunes manually, then try again."];
+        return NO;
+    }
+    [self closeHelpSheet:nil];
+    return YES;
+}
+
+- (void)finishLibraryJSONOperationWithStatus:(NSString *)status error:(BOOL)isError {
+    self.statusLabel.stringValue = status ?: @"";
+    self.isRunning = NO;
+    [self.progressIndicator stopAnimation:nil];
+    self.progressIndicator.indeterminate = NO;
+    [self updateStartButtonState];
+    if ([status length] > 0) {
+        [IGNotificationView showInView:self.view message:status isError:isError];
+    }
+}
+
+- (NSString *)promptForPlaylistNameWithDefault:(NSString *)defaultName {
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:@"Name Playlist"];
+    [alert setInformativeText:@"Enter a name for the iTunes playlist Syncrosa should create from this JSON selection."];
+    [alert addButtonWithTitle:@"Create"];
+    [alert addButtonWithTitle:@"Cancel"];
+
+    NSTextField *field = [[[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 300, 24)] autorelease];
+    field.stringValue = ([defaultName length] > 0) ? defaultName : @"AI Playlist";
+    [alert setAccessoryView:field];
+
+    NSInteger response = [alert runModal];
+    if (response != NSAlertFirstButtonReturn) {
+        return @"";
+    }
+    NSString *name = [field.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return ([name length] > 0) ? name : @"";
+}
+
+- (BOOL)confirmPlaylistImportWithRequestedCount:(NSUInteger)requestedCount matchedCount:(NSUInteger)matchedCount missingCount:(NSUInteger)missingCount {
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:@"Create iTunes Playlist?"];
+    [alert setInformativeText:[NSString stringWithFormat:
+                               @"Syncrosa found %lu matching tracks from %lu requested IDs.\n\n%lu IDs were not found in this iTunes library.\n\nIf a playlist with the same name already exists, Syncrosa will replace its contents.",
+                               (unsigned long)matchedCount,
+                               (unsigned long)requestedCount,
+                               (unsigned long)missingCount]];
+    [alert addButtonWithTitle:@"Continue"];
+    [alert addButtonWithTitle:@"Cancel"];
+    return [alert runModal] == NSAlertFirstButtonReturn;
+}
+
+- (void)exportLibraryJSONClicked:(id)sender {
+    if (self.isRunning) {
+        return;
+    }
+
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    [panel setAllowedFileTypes:[NSArray arrayWithObject:@"json"]];
+    [panel setNameFieldStringValue:@"Syncrosa-iTunes-Library.json"];
+    [panel setTitle:@"Export iTunes Library JSON"];
+    if ([panel runModal] != NSFileHandlingPanelOKButton) {
+        return;
+    }
+
+    NSURL *destinationURL = [panel URL];
+    if (!destinationURL) {
+        return;
+    }
+    if (![self prepareITunesForUserAction:@"exporting the iTunes library JSON"]) {
+        return;
+    }
+
+    [self clearLogView];
+    self.isRunning = YES;
+    [self updateStartButtonState];
+    self.statusLabel.stringValue = @"Checking iTunes library...";
+    self.progressIndicator.indeterminate = YES;
+    [self.progressIndicator startAnimation:nil];
+    [self log:@"Preparing full-library JSON export..."];
+
+    [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
+        if (trackCount < 0) {
+            NSString *message = errorMessage ?: @"Could not read iTunes library.";
+            [self log:message];
+            [self finishLibraryJSONOperationWithStatus:message error:YES];
+            return;
+        }
+        if (trackCount == 0) {
+            NSString *message = @"iTunes has no tracks to export.";
+            [self log:message];
+            [self finishLibraryJSONOperationWithStatus:message error:YES];
+            return;
+        }
+
+        self.progressIndicator.indeterminate = NO;
+        self.progressIndicator.maxValue = trackCount;
+        self.progressIndicator.doubleValue = 0;
+        self.statusLabel.stringValue = @"Exporting library track list...";
+
+        [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
+            self.progressIndicator.maxValue = total;
+            self.progressIndicator.doubleValue = current;
+            self.statusLabel.stringValue = [NSString stringWithFormat:@"Exporting %ld / %ld tracks...", (long)current, (long)total];
+        } completion:^(NSArray *tracks) {
+            if ([tracks count] == 0) {
+                NSString *message = @"No readable iTunes tracks were returned.";
+                [self log:message];
+                [self finishLibraryJSONOperationWithStatus:message error:YES];
+                return;
+            }
+
+            NSMutableArray *jsonTracks = [NSMutableArray arrayWithCapacity:[tracks count]];
+            for (IGTrack *track in tracks) {
+                if ([track isKindOfClass:[IGTrack class]] && [track.persistentID length] > 0) {
+                    [jsonTracks addObject:IGPlaylistJSONObjectForTrack(track)];
+                }
+            }
+
+            NSDictionary *manifest = [NSDictionary dictionaryWithObjectsAndKeys:
+                                      @"syncrosa-itunes-library-v1", @"schema",
+                                      @"Syncrosa", @"app",
+                                      ([[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"] ?: @""), @"appVersion",
+                                      [NSNumber numberWithDouble:[[NSDate date] timeIntervalSince1970]], @"exportedAt",
+                                      [NSNumber numberWithUnsignedInteger:[jsonTracks count]], @"trackCount",
+                                      @"Ask an external AI agent to return JSON with either {\"playlistName\":\"Name\",\"persistentIDs\":[\"...\"]} or {\"playlistName\":\"Name\",\"tracks\":[{\"persistentID\":\"...\"}]}.", @"instructions",
+                                      jsonTracks, @"tracks",
+                                      nil];
+
+            NSError *jsonError = nil;
+            NSData *data = [NSJSONSerialization dataWithJSONObject:manifest options:NSJSONWritingPrettyPrinted error:&jsonError];
+            if (![data isKindOfClass:[NSData class]]) {
+                NSString *message = [NSString stringWithFormat:@"Could not prepare JSON: %@", [jsonError localizedDescription] ?: @"unknown error"];
+                [self log:message];
+                [self finishLibraryJSONOperationWithStatus:message error:YES];
+                return;
+            }
+
+            NSError *writeError = nil;
+            BOOL wrote = [data writeToURL:destinationURL options:NSDataWritingAtomic error:&writeError];
+            if (!wrote) {
+                NSString *message = [NSString stringWithFormat:@"Could not save JSON: %@", [writeError localizedDescription] ?: @"unknown error"];
+                [self log:message];
+                [self finishLibraryJSONOperationWithStatus:message error:YES];
+                return;
+            }
+
+            NSString *message = [NSString stringWithFormat:@"Exported %lu tracks to JSON.", (unsigned long)[jsonTracks count]];
+            [self log:message];
+            [self finishLibraryJSONOperationWithStatus:message error:NO];
+        }];
+    }];
+}
+
+- (void)importLibraryJSONClicked:(id)sender {
+    if (self.isRunning) {
+        return;
+    }
+
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    [panel setAllowedFileTypes:[NSArray arrayWithObject:@"json"]];
+    [panel setAllowsMultipleSelection:NO];
+    [panel setCanChooseDirectories:NO];
+    [panel setTitle:@"Import Playlist JSON"];
+    if ([panel runModal] != NSFileHandlingPanelOKButton) {
+        return;
+    }
+
+    NSURL *sourceURL = [panel URL];
+    if (!sourceURL) {
+        return;
+    }
+
+    NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:[sourceURL path] error:nil];
+    unsigned long long fileSize = [[attrs objectForKey:NSFileSize] unsignedLongLongValue];
+    if (fileSize > (10ULL * 1024ULL * 1024ULL)) {
+        [self showSimpleAlertWithTitle:@"Import JSON" message:@"This JSON file is too large for the legacy importer."];
+        return;
+    }
+
+    NSError *readError = nil;
+    NSData *data = [NSData dataWithContentsOfURL:sourceURL options:0 error:&readError];
+    if (![data isKindOfClass:[NSData class]] || [data length] == 0) {
+        [self showSimpleAlertWithTitle:@"Import JSON" message:[NSString stringWithFormat:@"Could not read JSON: %@", [readError localizedDescription] ?: @"unknown error"]];
+        return;
+    }
+
+    NSError *jsonError = nil;
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+    if (!json) {
+        [self showSimpleAlertWithTitle:@"Import JSON" message:[NSString stringWithFormat:@"Could not parse JSON: %@", [jsonError localizedDescription] ?: @"unknown error"]];
+        return;
+    }
+    NSArray *requestedIDs = IGPlaylistJSONPersistentIDsFromJSONObject(json);
+    if ([requestedIDs count] == 0) {
+        [self showSimpleAlertWithTitle:@"Import JSON" message:@"This file does not contain readable iTunes persistent IDs."];
+        return;
+    }
+    if ([requestedIDs count] > 10000) {
+        [self showSimpleAlertWithTitle:@"Import JSON" message:@"This JSON selection is too large. Please import no more than 10,000 track IDs at once."];
+        return;
+    }
+    if (![self prepareITunesForUserAction:@"creating a playlist from JSON"]) {
+        return;
+    }
+
+    NSString *suggestedName = IGPlaylistJSONPlaylistNameFromJSONObject(json);
+    [self clearLogView];
+    self.isRunning = YES;
+    [self updateStartButtonState];
+    self.statusLabel.stringValue = @"Checking JSON tracks against iTunes...";
+    self.progressIndicator.indeterminate = YES;
+    [self.progressIndicator startAnimation:nil];
+    [self log:[NSString stringWithFormat:@"Import JSON contains %lu requested track IDs.", (unsigned long)[requestedIDs count]]];
+
+    [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
+        self.progressIndicator.indeterminate = NO;
+        self.progressIndicator.maxValue = total;
+        self.progressIndicator.doubleValue = current;
+        self.statusLabel.stringValue = [NSString stringWithFormat:@"Checking %ld / %ld iTunes tracks...", (long)current, (long)total];
+    } completion:^(NSArray *tracks) {
+        if ([tracks count] == 0) {
+            NSString *message = @"No readable iTunes tracks were returned.";
+            [self log:message];
+            [self finishLibraryJSONOperationWithStatus:message error:YES];
+            return;
+        }
+
+        NSMutableSet *availableIDs = [NSMutableSet setWithCapacity:[tracks count]];
+        for (IGTrack *track in tracks) {
+            if ([track isKindOfClass:[IGTrack class]] && [track.persistentID length] > 0) {
+                [availableIDs addObject:[[track.persistentID stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] uppercaseString]];
+            }
+        }
+
+        NSMutableArray *matchedIDs = [NSMutableArray array];
+        for (NSString *pid in requestedIDs) {
+            if ([availableIDs containsObject:pid]) {
+                [matchedIDs addObject:pid];
+            }
+        }
+
+        NSUInteger missingCount = [requestedIDs count] >= [matchedIDs count] ? ([requestedIDs count] - [matchedIDs count]) : 0;
+        [self log:[NSString stringWithFormat:@"Matched %lu IDs, missing %lu.", (unsigned long)[matchedIDs count], (unsigned long)missingCount]];
+        if ([matchedIDs count] == 0) {
+            NSString *message = @"None of the JSON tracks were found in this iTunes library.";
+            [self finishLibraryJSONOperationWithStatus:message error:YES];
+            [self showSimpleAlertWithTitle:@"Import JSON" message:message];
+            return;
+        }
+
+        if (![self confirmPlaylistImportWithRequestedCount:[requestedIDs count] matchedCount:[matchedIDs count] missingCount:missingCount]) {
+            [self finishLibraryJSONOperationWithStatus:@"Playlist import cancelled." error:NO];
+            return;
+        }
+
+        NSString *playlistName = [self promptForPlaylistNameWithDefault:suggestedName];
+        if ([playlistName length] == 0) {
+            [self finishLibraryJSONOperationWithStatus:@"Playlist import cancelled." error:NO];
+            return;
+        }
+
+        self.statusLabel.stringValue = @"Creating iTunes playlist...";
+        self.progressIndicator.indeterminate = YES;
+        [self.progressIndicator startAnimation:nil];
+        [self log:[NSString stringWithFormat:@"Creating playlist '%@' from JSON selection...", playlistName]];
+
+        [[IGiTunesService sharedService] createPlaylistWithName:playlistName persistentIDs:matchedIDs completion:^(NSInteger addedCount) {
+            NSString *message = [NSString stringWithFormat:@"Created playlist '%@' with %ld tracks.", playlistName, (long)addedCount];
+            if (addedCount <= 0) {
+                message = @"iTunes did not add any tracks to the playlist.";
+            }
+            [self log:message];
+            [self finishLibraryJSONOperationWithStatus:message error:(addedCount <= 0)];
+        }];
+    }];
+}
+
 - (void)startClicked:(id)sender {
     if (![self hasSelectedTags]) {
+        return;
+    }
+    if (![self prepareITunesForUserAction:@"iTunes Media Fixer"]) {
         return;
     }
     [self clearLogView];
@@ -329,7 +698,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
                                   (long)self.lyricsCheckbox.state]];
 
     self.isRunning = YES;
-    self.startButton.enabled = NO;
+    [self updateStartButtonState];
     self.statusLabel.stringValue = @"Checking iTunes library...";
 
     [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {

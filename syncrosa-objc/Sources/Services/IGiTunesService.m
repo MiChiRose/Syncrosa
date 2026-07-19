@@ -1,6 +1,8 @@
 #import "IGiTunesService.h"
 #import "IGLogger.h"
 #import <Cocoa/Cocoa.h>
+#import <signal.h>
+#import <errno.h>
 
 @implementation IGiTunesService
 
@@ -57,6 +59,28 @@ static NSString *IGTargetApplicationNameForScript(NSString *source) {
     return nil;
 }
 
+static BOOL IGProcessIsRunningWithPGrep(NSString *processName) {
+    if (processName.length == 0) {
+        return NO;
+    }
+
+    @try {
+        NSTask *task = [[[NSTask alloc] init] autorelease];
+        [task setLaunchPath:@"/usr/bin/pgrep"];
+        [task setArguments:@[@"-x", processName]];
+        [task setStandardOutput:[NSPipe pipe]];
+        [task setStandardError:[NSPipe pipe]];
+        [task launch];
+        [task waitUntilExit];
+        return [task terminationStatus] == 0;
+    } @catch (NSException *exception) {
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"pgrep running check failed for %@: %@",
+                                      processName,
+                                      exception.reason ?: @"unknown error"]];
+        return NO;
+    }
+}
+
 static BOOL IGApplicationIsRunning(NSString *appName) {
     if (appName.length == 0) return NO;
 
@@ -64,10 +88,21 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     for (NSDictionary *appInfo in runningApps) {
         NSString *runningName = [appInfo objectForKey:@"NSApplicationName"];
         if ([runningName isEqualToString:appName]) {
+            NSNumber *pidNumber = [appInfo objectForKey:@"NSApplicationProcessIdentifier"];
+            pid_t pid = [pidNumber respondsToSelector:@selector(intValue)] ? (pid_t)[pidNumber intValue] : 0;
+            if (pid > 0) {
+                errno = 0;
+                return (kill(pid, 0) == 0 || errno == EPERM);
+            }
             return YES;
         }
     }
-    return NO;
+
+    BOOL runningByProcessName = IGProcessIsRunningWithPGrep(appName);
+    if (runningByProcessName) {
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"NSWorkspace did not list %@, but pgrep confirmed it is running.", appName]];
+    }
+    return runningByProcessName;
 }
 
 + (instancetype)sharedService {
@@ -79,14 +114,31 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     return sharedInstance;
 }
 
+- (BOOL)iTunesIsRunning {
+    return IGApplicationIsRunning(@"iTunes");
+}
+
+- (BOOL)launchITunesForUserActionWithOperation:(NSString *)operation {
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"User approved iTunes launch for %@.", operation ?: @"iTunes operation"]];
+    BOOL launched = [[NSWorkspace sharedWorkspace] launchApplication:@"iTunes"];
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:12.0];
+    while (!IGApplicationIsRunning(@"iTunes") && [deadline timeIntervalSinceNow] > 0.0) {
+        [NSThread sleepForTimeInterval:0.20];
+    }
+    BOOL running = IGApplicationIsRunning(@"iTunes");
+    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"User-approved iTunes launch result launched=%@ running=%@.",
+                                  launched ? @"YES" : @"NO",
+                                  running ? @"YES" : @"NO"]];
+    return running;
+}
+
 - (BOOL)ensureApplicationReady:(NSString *)appName forOperation:(NSString *)operation timeout:(NSTimeInterval)timeout {
     if (appName.length == 0) return YES;
 
     BOOL wasRunning = IGApplicationIsRunning(appName);
     if (!wasRunning) {
-        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"AppleScript '%@' needs %@; launching application.", operation ?: @"", appName]];
-        BOOL launched = [[NSWorkspace sharedWorkspace] launchApplication:appName];
-        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Launch request for %@ returned %@.", appName, launched ? @"YES" : @"NO"]];
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"AppleScript '%@' needs %@, but automatic app launch is disabled.", operation ?: @"", appName]];
+        return NO;
     }
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeout];
@@ -109,6 +161,13 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
 - (NSInteger)readLibraryTrackCountSyncWithErrorMessage:(NSString **)errorMessage {
     if (errorMessage) {
         *errorMessage = nil;
+    }
+
+    if (![self iTunesIsRunning]) {
+        if (errorMessage) {
+            *errorMessage = @"iTunes is not running. Open iTunes or allow Syncrosa to open it when asked.";
+        }
+        return -1;
     }
 
     NSString *script =
@@ -139,8 +198,24 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
         return [[parts objectAtIndex:1] integerValue];
     }
 
+    NSString *simpleScript =
+        @"tell application \"iTunes\"\n"
+        "    try\n"
+        "        return \"OK\" & tab & ((count of every track of library playlist 1) as text)\n"
+        "    on error errMsg number errNum\n"
+        "        return \"ERROR\" & tab & ((errNum as text) & \" \" & errMsg)\n"
+        "    end try\n"
+        "end tell";
+    NSString *simpleRaw = [self runAppleScriptNamed:@"library.count.simpleFallback" source:simpleScript];
+    NSArray *simpleParts = simpleRaw.length > 0 ? [simpleRaw componentsSeparatedByString:@"\t"] : nil;
+    if (simpleParts.count >= 2 && [[simpleParts objectAtIndex:0] isEqualToString:@"OK"]) {
+        return [[simpleParts objectAtIndex:1] integerValue];
+    }
+
     if (errorMessage) {
-        if (parts.count >= 2 && [[parts objectAtIndex:0] isEqualToString:@"ERROR"]) {
+        if (simpleParts.count >= 2 && [[simpleParts objectAtIndex:0] isEqualToString:@"ERROR"]) {
+            *errorMessage = [simpleParts objectAtIndex:1];
+        } else if (parts.count >= 2 && [[parts objectAtIndex:0] isEqualToString:@"ERROR"]) {
             *errorMessage = [parts objectAtIndex:1];
         } else {
             *errorMessage = @"Could not read iTunes library.";
@@ -191,7 +266,7 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     @synchronized ([IGiTunesService class]) {
     @try {
         if (targetAppName.length > 0 && ![self ensureApplicationReady:targetAppName forOperation:name timeout:90.0]) {
-            stderrText = [NSString stringWithFormat:@"%@ is not ready for AppleScript operation %@", targetAppName, name ?: @""];
+            stderrText = [NSString stringWithFormat:@"%@ is not running. Syncrosa did not launch it automatically.", targetAppName];
             result = [@"" copy];
         } else if (![source writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:nil]) {
             stderrText = [NSString stringWithFormat:@"Failed to write temp AppleScript: %@", scriptPath];

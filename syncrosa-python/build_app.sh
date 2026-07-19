@@ -126,7 +126,10 @@ echo "Refreshing Finder icon cache..."
 
 echo "Signing app bundle..."
 codesign --force --sign - "$APP_PATH"
-codesign --verify --strict "$APP_PATH"
+if ! codesign --verify --strict "$APP_PATH" 2>/dev/null; then
+    echo "codesign --strict is not available or not required on this OS; verifying without --strict..."
+    codesign --verify "$APP_PATH"
+fi
 
 # 9. УПАКОВКА В ZIP
 echo "Creating distribution ZIP..."

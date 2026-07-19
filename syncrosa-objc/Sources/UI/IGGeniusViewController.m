@@ -52,7 +52,6 @@
 }
 
 - (void)setupUI {
-    IGLocalizationService *lang = [IGLocalizationService sharedService];
     CGFloat y = 430;
     
     // Title

@@ -10,7 +10,7 @@ import webbrowser
 
 from core.network import make_request
 
-RELEASE_API_URL = "https://api.github.com/repos/MiChiRose/Syncrosa/releases/latest"
+RELEASE_API_URL = "https://syncrosa-updates.telegraphica.workers.dev/v1/update-manifest?platform=macos&track=python&channel=stable"
 RELEASE_PAGE_URL = "https://github.com/MiChiRose/Syncrosa/releases/latest"
 PYTHON_ASSET_MARKER = "Syncrosa_Python_v"
 
@@ -73,24 +73,27 @@ def compare_versions(left, right):
 
 
 def _find_python_asset(release):
+    download_url = release.get("download_url") or release.get("downloadURL")
+    if download_url:
+        return download_url
     for asset in release.get("assets", []):
         name = asset.get("name", "")
         if PYTHON_ASSET_MARKER in name and name.endswith(".zip"):
-            return asset.get("browser_download_url")
+            return asset.get("browser_download_url") or asset.get("download_url")
     return None
 
 
 def check_for_updates():
     ok, result = make_request(
         RELEASE_API_URL,
-        {"Accept": "application/vnd.github+json"},
+        {"Accept": "application/json"},
         timeout_sec=30
     )
     if not ok:
         return {
             "ok": False,
             "available": False,
-            "message": "Could not check updates: " + str(result)[:240],
+            "message": "Could not check Syncrosa updates.",
             "url": RELEASE_PAGE_URL
         }
 
@@ -100,14 +103,14 @@ def check_for_updates():
         return {
             "ok": False,
             "available": False,
-            "message": "Could not parse GitHub response: " + str(exc),
+            "message": "Could not parse the Syncrosa update response.",
             "url": RELEASE_PAGE_URL
         }
 
-    latest = (release.get("tag_name") or release.get("name") or "").lstrip("v")
+    latest = (release.get("tag_name") or release.get("version") or release.get("name") or "").lstrip("v")
     release_title = release.get("name") or "Syncrosa " + latest
     release_notes = release.get("body") or ""
-    html_url = release.get("html_url") or RELEASE_PAGE_URL
+    html_url = release.get("html_url") or release.get("release_url") or RELEASE_PAGE_URL
     asset_url = _find_python_asset(release) or html_url
     current = current_version()
 
