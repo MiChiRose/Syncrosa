@@ -43,12 +43,23 @@ static void IGAppStartupLog(NSString *message) {
         self.mainWindowController = [[IGMainWindowController alloc] init];
         [[IGLogger sharedLogger] log:@"main window controller created"];
         IGAppStartupLog(@"main window controller created");
-        [self.mainWindowController showWindow:self];
-        [[IGLogger sharedLogger] log:@"main window shown"];
-        IGAppStartupLog(@"main window shown");
-        if ([IGLogger desktopDiagnosticsEnabled]) {
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                [[IGiTunesService sharedService] writeStartupDiagnostics];
+	        [self.mainWindowController showWindow:self];
+	        [[IGLogger sharedLogger] log:@"main window shown"];
+	        IGAppStartupLog(@"main window shown");
+#ifdef DEBUG
+	        NSString *devTab = [[[NSProcessInfo processInfo] environment] objectForKey:@"SYNCROSA_DEV_OPEN_TAB_INDEX"];
+	        if ([IGLogger desktopDiagnosticsEnabled] && [devTab length] > 0) {
+	            NSInteger tabIndex = [devTab integerValue];
+	            IGMainWindowController *controller = self.mainWindowController;
+	            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+	                [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Developer auto-opening tab index=%ld", (long)tabIndex]];
+	                [controller switchViewToIndex:tabIndex];
+	            });
+	        }
+#endif
+	        if ([IGLogger desktopDiagnosticsEnabled]) {
+	            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+	                [[IGiTunesService sharedService] writeStartupDiagnostics];
             });
         }
     } @catch (NSException *exception) {

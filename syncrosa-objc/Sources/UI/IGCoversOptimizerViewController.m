@@ -1013,7 +1013,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
     self.statusLabel.stringValue = @"Scanning iTunes library for covers...";
     [self.logView setString:@""];
     [self log:[lang t:@"log_backup_started"]];
-    [self log:@"If iTunes is closed, Syncrosa will launch it and wait for the library to become ready."];
+    [self log:@"If iTunes is closed, open it first or use Refresh iTunes when Syncrosa asks for permission."];
     self.activeOperationID = IGCoversBeginActiveOperation(@"Backup Original Covers",
                                                          @"Cover backup was interrupted while scanning iTunes artwork.",
                                                          0,

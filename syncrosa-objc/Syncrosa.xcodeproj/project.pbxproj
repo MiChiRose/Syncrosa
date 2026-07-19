@@ -11,6 +11,9 @@
 		EB17A9FF5DE74A2A8145574B /* main.m in Build */ = {isa = PBXBuildFile; fileRef = EDE5A007CE47410C985AFE3F /* main.m */; };
 		45F976B84D6F4AAB82A9012F /* AppDelegate.m in Build */ = {isa = PBXBuildFile; fileRef = AFC37F0A11EB4D2C9F7CF50F /* AppDelegate.m */; };
 		55E17EDC96C34EE2B003EC06 /* IGSettingsViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 0EA22F9DFA6C4F7AADE200A3 /* IGSettingsViewController.m */; };
+		A34601000000000000000001 /* IGUpdateSupport.m in Build */ = {isa = PBXBuildFile; fileRef = A34601000000000000000004 /* IGUpdateSupport.m */; };
+		A34601000000000000000002 /* IGTheme.m in Build */ = {isa = PBXBuildFile; fileRef = A34601000000000000000006 /* IGTheme.m */; };
+		B34601000000000000000001 /* IGPlaylistJSONSupport.m in Build */ = {isa = PBXBuildFile; fileRef = B34601000000000000000003 /* IGPlaylistJSONSupport.m */; };
 		71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */; };
 		602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */; };
 		72FECC5191E0484D8D030A5E /* IGFileFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 739BF74E464946A2AA4C0110 /* IGFileFixerViewController.m */; };
@@ -57,6 +60,10 @@
 		8B41285364BE4E2A8AD8C9E6 /* IGMainWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGMainWindowController.h"; sourceTree = "<group>"; };
 		D75B17AE88F841A79B4ACA43 /* IGNotificationView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGNotificationView.h"; sourceTree = "<group>"; };
 		0EA22F9DFA6C4F7AADE200A3 /* IGSettingsViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGSettingsViewController.m"; sourceTree = "<group>"; };
+		A34601000000000000000003 /* IGUpdateSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUpdateSupport.h"; sourceTree = "<group>"; };
+		A34601000000000000000004 /* IGUpdateSupport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUpdateSupport.m"; sourceTree = "<group>"; };
+		A34601000000000000000005 /* IGTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGTheme.h"; sourceTree = "<group>"; };
+		A34601000000000000000006 /* IGTheme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGTheme.m"; sourceTree = "<group>"; };
 		9B6D3098017744EEB46C1F27 /* IGDuplicateFinderViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGDuplicateFinderViewController.h"; sourceTree = "<group>"; };
 		7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGOfflinePlaylistViewController.m"; sourceTree = "<group>"; };
 		F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
@@ -93,6 +100,8 @@
 		BDA7BC4E1F23482BAAF8CDB8 /* IGLyricsService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLyricsService.m"; sourceTree = "<group>"; };
 		74DEE8B60F624245A89DC53E /* IGMediaFixerManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGMediaFixerManager.m"; sourceTree = "<group>"; };
 		25322633809E4586877D1F54 /* IGiTunesService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGiTunesService.m"; sourceTree = "<group>"; };
+		B34601000000000000000002 /* IGPlaylistJSONSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGPlaylistJSONSupport.h"; sourceTree = "<group>"; };
+		B34601000000000000000003 /* IGPlaylistJSONSupport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGPlaylistJSONSupport.m"; sourceTree = "<group>"; };
 		0ABE16C410434605B191B33F /* IGAIService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGAIService.h"; sourceTree = "<group>"; };
 		3123DACEAF52423BA9E8296E /* IGLocalizationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLocalizationService.h"; sourceTree = "<group>"; };
 		74988E5C7C364D7AA8302DEB /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
@@ -186,6 +195,8 @@
 				BDA7BC4E1F23482BAAF8CDB8 /* IGLyricsService.m */,
 				74DEE8B60F624245A89DC53E /* IGMediaFixerManager.m */,
 				25322633809E4586877D1F54 /* IGiTunesService.m */,
+				B34601000000000000000002 /* IGPlaylistJSONSupport.h */,
+				B34601000000000000000003 /* IGPlaylistJSONSupport.m */,
 				0ABE16C410434605B191B33F /* IGAIService.h */,
 				3123DACEAF52423BA9E8296E /* IGLocalizationService.h */,
 				74988E5C7C364D7AA8302DEB /* IGLogger.h */,
@@ -210,6 +221,10 @@
 				8B41285364BE4E2A8AD8C9E6 /* IGMainWindowController.h */,
 				D75B17AE88F841A79B4ACA43 /* IGNotificationView.h */,
 				0EA22F9DFA6C4F7AADE200A3 /* IGSettingsViewController.m */,
+				A34601000000000000000003 /* IGUpdateSupport.h */,
+				A34601000000000000000004 /* IGUpdateSupport.m */,
+				A34601000000000000000005 /* IGTheme.h */,
+				A34601000000000000000006 /* IGTheme.m */,
 				9B6D3098017744EEB46C1F27 /* IGDuplicateFinderViewController.h */,
 				7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */,
 				F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */,
@@ -384,6 +399,8 @@
 				EB17A9FF5DE74A2A8145574B /* main.m in Sources */,
 				45F976B84D6F4AAB82A9012F /* AppDelegate.m in Sources */,
 				55E17EDC96C34EE2B003EC06 /* IGSettingsViewController.m in Sources */,
+				A34601000000000000000001 /* IGUpdateSupport.m in Sources */,
+				A34601000000000000000002 /* IGTheme.m in Sources */,
 				71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Sources */,
 				602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Sources */,
 				72FECC5191E0484D8D030A5E /* IGFileFixerViewController.m in Sources */,
@@ -402,6 +419,7 @@
 				301D2062B6FC4B75A9844BF0 /* IGLyricsService.m in Sources */,
 				926668244C544F2F8A5D0E77 /* IGMediaFixerManager.m in Sources */,
 				26C43F4A34364DBBA8D76048 /* IGiTunesService.m in Sources */,
+				B34601000000000000000001 /* IGPlaylistJSONSupport.m in Sources */,
 				9F60C8D49F284C8ABB40C455 /* IGKeychainHelper.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
