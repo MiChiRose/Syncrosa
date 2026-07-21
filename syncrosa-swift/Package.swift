@@ -20,7 +20,8 @@ let package = Package(
                 "build_arm.sh",
                 "Info.plist",
                 "Syncrosa.entitlements",
-                "Syncrosa.xcodeproj"
+                "Syncrosa.xcodeproj",
+                "Tests"
             ],
             sources: [
                 "SyncrosaApp.swift",
@@ -43,9 +44,12 @@ let package = Package(
                 "Services/FileMetadataService.swift",
                 "Services/InfoEraserService.swift",
                 "Services/SyncrosaStorage.swift",
+                "Services/AppearanceService.swift",
                 "Services/OperationHistoryService.swift",
                 "Services/OperationRecoveryService.swift",
+                "Services/LibraryToolkitService.swift",
                 "Services/FolderPlaylistImportService.swift",
+                "Services/MusicLibraryExchangeService.swift",
                 "Services/LocalizationService.swift",
                 "Services/KeychainHelper.swift",
                 "Services/USBService.swift",
@@ -61,8 +65,15 @@ let package = Package(
                 .process("AppIcon.icns")
             ],
             swiftSettings: [
-                .unsafeFlags(["-emit-module", "-emit-library"]), // Encourage dynamic behavior
                 .define("DEBUG", .when(configuration: .debug))
+            ]
+        ),
+        .testTarget(
+            name: "SyncrosaTests",
+            dependencies: ["Syncrosa"],
+            path: "Tests/SyncrosaTests",
+            sources: [
+                "LibraryToolkitServiceTests.swift"
             ]
         )
     ]

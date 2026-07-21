@@ -5,22 +5,19 @@ struct OperationHistoryView: View {
     @ObservedObject var lang = LocalizationService.shared
     @ObservedObject private var history = OperationHistoryService.shared
     @State private var selectedTool = "All"
+    @State private var showClearConfirmation = false
 
-    private let tools = [
-        "All",
-        "Overview",
-        "Library Doctor",
-        "Folder Fixer",
-        "Filename Cleaner",
-        "Info Eraser",
-        "Media Fixer",
-        "Covers Optimizer",
-        "USB Export"
-    ]
+    private var toolOptions: [SyncrosaMenuOption<String>] {
+        let values = ["All", "Overview", "Library Doctor", "Folder Fixer", "Filename Cleaner", "Info Eraser", "Media Fixer", "Covers Optimizer", "USB Export"]
+        let russian = ["Все", "Обзор", "Диагностика", "Фиксер папок", "Очистка имён", "Удаление информации", "Медиа-фиксер", "Оптимизатор обложек", "USB-экспорт"]
+        return values.indices.map {
+            SyncrosaMenuOption(title: lang.selectedLanguage == "ru" ? russian[$0] : values[$0], value: values[$0])
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
+            SyncrosaAdaptiveRow(spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 22, weight: .semibold))
@@ -33,13 +30,14 @@ struct OperationHistoryView: View {
                 Spacer()
                 SyncrosaGlassMenu(
                     selection: $selectedTool,
-                    options: tools.map { SyncrosaMenuOption(title: $0, value: $0) },
-                    width: 220
+                    options: toolOptions,
+                    minWidth: 220
                 )
                 Button(lang.selectedLanguage == "ru" ? "Очистить" : "Clear") {
-                    history.clear()
+                    showClearConfirmation = true
                 }
                 .buttonStyle(SyncrosaSecondaryButtonStyle())
+                .disabled(history.entries.isEmpty)
 
                 Button(action: { dismiss() }) {
                     Label(lang.selectedLanguage == "ru" ? "Закрыть" : "Close", systemImage: "xmark")
@@ -86,7 +84,17 @@ struct OperationHistoryView: View {
             }
         }
         .padding(24)
-        .frame(minWidth: 720, minHeight: 480)
+        .frame(minWidth: 620, idealWidth: 780, maxWidth: 940, minHeight: 480)
+        .alert(lang.selectedLanguage == "ru" ? "Очистить историю операций?" : "Clear operation history?", isPresented: $showClearConfirmation) {
+            Button(lang.selectedLanguage == "ru" ? "Отмена" : "Cancel", role: .cancel) {}
+            Button(lang.selectedLanguage == "ru" ? "Очистить" : "Clear", role: .destructive) {
+                history.clear()
+            }
+        } message: {
+            Text(lang.selectedLanguage == "ru"
+                 ? "Все записи истории будут удалены. Backup-файлы и пакеты восстановления останутся на месте."
+                 : "All history entries will be removed. Backup files and recovery packages will not be deleted.")
+        }
     }
 
     private var filteredEntries: [OperationHistoryEntry] {

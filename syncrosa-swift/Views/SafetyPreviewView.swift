@@ -49,18 +49,17 @@ struct SafetyPreviewSheet: View {
             if !request.details.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(request.details) { detail in
-                        HStack(alignment: .top, spacing: 12) {
-                            Text(detail.title)
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 140, alignment: .leading)
-                            Text(detail.value)
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
-                                .lineLimit(2)
-                                .truncationMode(.middle)
-                            Spacer(minLength: 0)
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .top, spacing: 12) {
+                                detailTitle(detail.title)
+                                    .frame(width: 130, alignment: .leading)
+                                detailValue(detail.value)
+                                Spacer(minLength: 0)
+                            }
+                            VStack(alignment: .leading, spacing: 5) {
+                                detailTitle(detail.title)
+                                detailValue(detail.value)
+                            }
                         }
                         .padding(.vertical, 9)
 
@@ -109,6 +108,19 @@ struct SafetyPreviewSheet: View {
             }
         }
         .padding(24)
-        .frame(width: 560)
+        .frame(minWidth: 520, idealWidth: 620, maxWidth: 720, minHeight: 420)
+    }
+
+    private func detailTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+
+    private func detailValue(_ value: String) -> some View {
+        Text(value)
+            .font(.caption.monospaced())
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

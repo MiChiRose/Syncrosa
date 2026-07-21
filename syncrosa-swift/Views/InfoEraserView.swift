@@ -37,7 +37,7 @@ struct InfoEraserView: View {
     var body: some View {
         SyncrosaPage {
             SyncrosaPageHeader(
-                title: "Info Eraser",
+                title: lang.t("info_eraser"),
                 systemImage: "eraser.line.dashed",
                 subtitle: lang.selectedLanguage == "ru" ? "Деструктивная очистка локальных файлов с backup/restore." : "Destructive local-file cleanup with backup and restore.",
                 helpAction: { showHelp = true }
@@ -49,7 +49,7 @@ struct InfoEraserView: View {
             )
 
                 VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 12) {
+                    SyncrosaAdaptiveRow(spacing: 12) {
                         TextField(lang.selectedLanguage == "ru" ? "Папка не выбрана" : "No folder selected", text: $folderPath)
                             .textFieldStyle(.roundedBorder)
                             .disabled(true)
@@ -60,7 +60,7 @@ struct InfoEraserView: View {
                         .disabled(isProcessing)
                     }
 
-                    HStack(spacing: 10) {
+                    SyncrosaAdaptiveRow(spacing: 10) {
                         Button(action: { presentSafetyPreview(.backup) }) {
                             Label(lang.selectedLanguage == "ru" ? "Сохранить исходную инфо" : "Backup Original Info", systemImage: "externaldrive.badge.plus")
                         }
@@ -78,6 +78,12 @@ struct InfoEraserView: View {
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(!canRestoreOriginalInfo || isProcessing)
+                    }
+
+                    if !folderPath.isEmpty && !canRestoreOriginalInfo && !isProcessing {
+                        SyncrosaDisabledReason(text: lang.selectedLanguage == "ru"
+                            ? "Восстановление станет доступно после создания совместимого backup для этой папки."
+                            : "Restore becomes available after a compatible backup is created for this folder.")
                     }
 
                     ProgressView(value: progressValue, total: progressTotal)
@@ -109,7 +115,7 @@ struct InfoEraserView: View {
                 }
                 .syncrosaCard()
 
-            SyncrosaLogConsole(title: "LOG", lines: logLines, minHeight: 150, prefixLines: true)
+            SyncrosaLogConsole(title: lang.t("log").uppercased(), lines: logLines, minHeight: 150, prefixLines: true)
         }
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
@@ -143,33 +149,33 @@ struct InfoEraserView: View {
     }
 
     private var helpSheet: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label(lang.selectedLanguage == "ru" ? "Справка: Info Eraser" : "Help: Info Eraser", systemImage: "questionmark.circle")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .keyboardShortcut(.cancelAction)
-            }
-
-            Text(lang.selectedLanguage == "ru" ?
-                 "Info Eraser работает только с выбранной локальной папкой и её вложенными папками. Он не меняет медиатеку Music/iTunes напрямую." :
-                 "Info Eraser works only with the selected local folder and its subfolders. It does not edit your Music/iTunes library directly.")
-
-            Text(lang.selectedLanguage == "ru" ?
-                 "Поддерживается очистка MP3 ID3-тегов и M4A/MP4/AAC/ALAC metadata atom. Для MP4-подобных файлов Syncrosa заменяет metadata atom на free-блок того же размера, не перекодируя аудио." :
-                 "It can erase MP3 ID3 tags and the metadata atom in M4A/MP4/AAC/ALAC files. For MP4-like files, Syncrosa replaces the metadata atom with a same-size free atom without transcoding audio.")
-
-            Text(lang.selectedLanguage == "ru" ?
-                 "Кнопка Backup Original Info создаёт папку SyncrosaInfoEraserBackup с manifest.json и sidecar-файлами тегов. Restore возвращает информацию только из этого backup." :
-                 "Backup Original Info creates a SyncrosaInfoEraserBackup folder with manifest.json and sidecar tag files. Restore uses only that backup.")
-                .foregroundColor(.secondary)
-        }
-        .padding(24)
-        .frame(width: 520)
+        SyncrosaHelpSheet(
+            title: lang.t("info_eraser"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Безвозвратно удаляет встроенные теги и обложки из поддерживаемых файлов в выбранной локальной папке."
+                : "Permanently removes embedded tags and artwork from supported files in a selected local folder.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Выберите папку и проверьте список найденных файлов.",
+                "Сначала сохраните исходную информацию: будет создан локальный backup и его копия в Application Support.",
+                "Нажмите «Очистить» и подтвердите операцию.",
+                "Для возврата данных выберите ту же папку и нажмите «Восстановить»."
+            ] : [
+                "Select a folder and review the detected files.",
+                "Back up the original information first; Syncrosa creates a local backup and an Application Support copy.",
+                "Choose Erase and confirm the operation.",
+                "To recover metadata, select the same folder and choose Restore."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Изменяется только выбранная папка и её подпапки; медиатека Music напрямую не редактируется.",
+                "Очистка поддерживается для MP3, M4A, MP4, AAC и ALAC без перекодирования аудио.",
+                "Восстановление возможно только при наличии созданного Syncrosa backup."
+            ] : [
+                "Only the selected folder and subfolders are changed; the Music library is not edited directly.",
+                "Erasing supports MP3, M4A, MP4, AAC, and ALAC without audio transcoding.",
+                "Restore requires a backup previously created by Syncrosa."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
 
     private func isSupportedInfoExtension(_ ext: String) -> Bool {
@@ -180,13 +186,13 @@ struct InfoEraserView: View {
     private func statusIcon(_ status: InfoEraserStatus) -> some View {
         switch status {
         case .pending:
-            Text("WAITING").font(.caption2).foregroundColor(.secondary)
+            Text(lang.t("waiting").uppercased()).font(.caption2).foregroundColor(.secondary)
         case .processing:
             ProgressView().controlSize(.mini)
         case .done:
             Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
         case .skipped:
-            Text("SKIP").font(.caption2).foregroundColor(.secondary)
+            Text(lang.t("skipped").uppercased()).font(.caption2).foregroundColor(.secondary)
         case .error:
             Image(systemName: "xmark.circle.fill").foregroundColor(.red)
         }
@@ -315,8 +321,9 @@ struct InfoEraserView: View {
                     DispatchQueue.main.async {
                         progressValue = Double(current)
                         progressTotal = Double(max(1, total))
-                        if current - 1 < fileItems.count {
-                            fileItems[current - 1].status = .done
+                        let completedIndex = current - 1
+                        if completedIndex >= fileItems.startIndex && completedIndex < fileItems.endIndex {
+                            fileItems[completedIndex].status = .done
                         }
                     }
                 }

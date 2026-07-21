@@ -6,16 +6,17 @@ extension SyncrosaTheme {
     static let pageVerticalPadding: CGFloat = 28
     static let cardRadius: CGFloat = 12
     static let controlRadius: CGFloat = 9
-    static let accent = Color(nsColor: .controlAccentColor)
+    static var accent: Color { SyncrosaAppearanceService.shared.selectedTheme.accent }
+    static var secondaryAccent: Color { SyncrosaAppearanceService.shared.selectedTheme.secondaryAccent }
     static let destructive = Color(nsColor: .systemRed)
     static let success = Color(nsColor: .systemGreen)
     static let caution = Color(nsColor: .systemOrange)
-    static let elevatedFill = Color(nsColor: .controlBackgroundColor).opacity(0.78)
+    static var elevatedFill: Color { SyncrosaAppearanceService.shared.selectedTheme.panelBackground.opacity(0.82) }
     static let consoleBackground = Color(nsColor: .textColor).opacity(0.94)
     static let consoleForeground = Color(nsColor: .systemGreen)
     static let glassHighlight = Color.white.opacity(0.24)
-    static let glassHairline = Color.primary.opacity(0.14)
-    static let glassFill = Color(nsColor: .controlBackgroundColor).opacity(0.30)
+    static var glassHairline: Color { SyncrosaAppearanceService.shared.selectedTheme.border.opacity(0.88) }
+    static var glassFill: Color { SyncrosaAppearanceService.shared.selectedTheme.panelBackground.opacity(0.34) }
 }
 
 struct SyncrosaPage<Content: View>: View {
@@ -92,8 +93,8 @@ struct SyncrosaPageHeader<Trailing: View>: View {
                     Text(title)
                         .font(.system(size: 28, weight: .bold, design: .default))
                         .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.86)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     if let helpAction {
                         SyncrosaIconButton(systemImage: "questionmark.circle", action: helpAction)
@@ -150,19 +151,12 @@ struct SyncrosaCardModifier: ViewModifier {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .background(SyncrosaTheme.glassFill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(SyncrosaTheme.elevatedFill.opacity(0.45), in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(SyncrosaTheme.glassHighlight, lineWidth: 1)
-                    .blendMode(.screen)
+                    .stroke(SyncrosaTheme.panelBorder.opacity(0.72), lineWidth: 1)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(SyncrosaTheme.glassHairline, lineWidth: 1)
-                    .blendMode(.multiply)
-            )
-            .shadow(color: Color.white.opacity(0.12), radius: 1, x: 0, y: -1)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(0.28), radius: 12, x: 0, y: 5)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(0.22), radius: 6, x: 0, y: 3)
     }
 }
 
@@ -257,6 +251,7 @@ struct SyncrosaGlassMenu<Value: Hashable>: View {
 }
 
 struct SyncrosaGlassSegmentedPicker<Value: Hashable>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: Value
     let options: [SyncrosaMenuOption<Value>]
     var minSegmentWidth: CGFloat = 88
@@ -267,7 +262,7 @@ struct SyncrosaGlassSegmentedPicker<Value: Hashable>: View {
             ForEach(options.indices, id: \.self) { index in
                 let option = options[index]
                 Button {
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.84)) {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
                         selection = option.value
                     }
                 } label: {
@@ -474,6 +469,9 @@ struct SyncrosaStatusBadge: View {
 }
 
 struct SyncrosaSwitchToggleStyle: ToggleStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         Button {
             configuration.isOn.toggle()
@@ -485,7 +483,7 @@ struct SyncrosaSwitchToggleStyle: ToggleStyle {
 
                 ZStack(alignment: configuration.isOn ? .trailing : .leading) {
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(configuration.isOn ? SyncrosaTheme.accent.opacity(0.92) : Color.primary.opacity(0.18))
+                        .fill(configuration.isOn ? SyncrosaTheme.accent : Color.primary.opacity(0.16))
                         .overlay(
                             RoundedRectangle(cornerRadius: 15, style: .continuous)
                                 .stroke(configuration.isOn ? SyncrosaTheme.accent.opacity(0.35) : Color.primary.opacity(0.28), lineWidth: 1)
@@ -501,12 +499,14 @@ struct SyncrosaSwitchToggleStyle: ToggleStyle {
                         .padding(3)
                 }
                 .frame(width: 54, height: 30)
-                .animation(.spring(response: 0.22, dampingFraction: 0.82), value: configuration.isOn)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: configuration.isOn)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityValue(configuration.isOn ? "On" : "Off")
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.48)
+        .accessibilityValue(configuration.isOn ? LocalizationService.shared.t("state_on") : LocalizationService.shared.t("state_off"))
     }
 }
 
@@ -546,45 +546,42 @@ struct SyncrosaCheckboxToggleStyle: ToggleStyle {
         }
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.52)
-        .accessibilityValue(configuration.isOn ? "On" : "Off")
+        .accessibilityValue(configuration.isOn ? LocalizationService.shared.t("state_on") : LocalizationService.shared.t("state_off"))
     }
 }
 
 struct SyncrosaSecondaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+
         configuration.label
             .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
+            .foregroundStyle(isEnabled ? Color.primary : Color.secondary.opacity(0.62))
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .frame(minHeight: 30)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             .background(
-                (configuration.isPressed ? Color.primary.opacity(0.09) : SyncrosaTheme.glassFill),
-                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                isEnabled
+                    ? Color(nsColor: .controlBackgroundColor).opacity(configuration.isPressed ? 0.68 : 0.92)
+                    : Color.primary.opacity(0.035),
+                in: shape
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(SyncrosaTheme.glassHighlight.opacity(isEnabled ? 0.9 : 0.35), lineWidth: 1)
-                    .blendMode(.screen)
+                shape.stroke(Color.primary.opacity(isEnabled ? 0.24 : 0.07), lineWidth: 1)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(Color.primary.opacity(isEnabled ? 0.15 : 0.07), lineWidth: 1)
-                    .blendMode(.multiply)
-            )
-            .shadow(color: Color.white.opacity(isEnabled ? 0.10 : 0), radius: 1, x: 0, y: -1)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.24 : 0), radius: 6, x: 0, y: 3)
-            .opacity(isEnabled ? 1 : 0.55)
+            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.16 : 0), radius: 3, x: 0, y: 2)
+            .opacity(isEnabled ? 1 : 0.46)
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
 struct SyncrosaPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var tint: Color = SyncrosaTheme.accent
 
     func makeBody(configuration: Configuration) -> some View {
@@ -592,50 +589,82 @@ struct SyncrosaPrimaryButtonStyle: ButtonStyle {
 
         configuration.label
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(isEnabled ? Color.white : Color.secondary.opacity(0.72))
+            .foregroundStyle(isEnabled ? Color.white : Color.secondary.opacity(0.58))
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .frame(minHeight: 32)
-            .background(.regularMaterial, in: shape)
             .background(
-                LinearGradient(
-                    colors: [
-                        tint.opacity(isEnabled ? (configuration.isPressed ? 0.80 : 0.95) : 0.08),
-                        tint.opacity(isEnabled ? (configuration.isPressed ? 0.66 : 0.78) : 0.04)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: shape
+                Group {
+                    if isEnabled {
+                        tint.opacity(configuration.isPressed ? 0.84 : 1)
+                    } else {
+                        Color.primary.opacity(0.045)
+                    }
+                }
+                .clipShape(shape)
             )
             .overlay(
                 shape
-                    .stroke(Color.white.opacity(isEnabled ? 0.32 : 0.12), lineWidth: 1)
+                    .stroke(Color.white.opacity(isEnabled ? 0.36 : 0.16), lineWidth: 1)
                     .blendMode(.screen)
             )
             .overlay(
                 shape
-                    .stroke(Color.black.opacity(isEnabled ? 0.10 : 0.04), lineWidth: 1)
+                    .stroke(Color.black.opacity(isEnabled ? 0.14 : 0.05), lineWidth: 1)
                     .blendMode(.multiply)
             )
-            .shadow(color: Color.white.opacity(isEnabled ? 0.10 : 0), radius: 1, x: 0, y: -1)
-            .shadow(color: tint.opacity(isEnabled ? 0.14 : 0), radius: 7, x: 0, y: 3)
-            .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.20 : 0), radius: 6, x: 0, y: 3)
-            .opacity(isEnabled ? 1 : 0.48)
+            .shadow(color: Color.white.opacity(isEnabled ? 0.12 : 0), radius: 1, x: 0, y: -1)
+            .shadow(color: tint.opacity(isEnabled ? 0.24 : 0), radius: 6, x: 0, y: 3)
+            .opacity(isEnabled ? 1 : 0.46)
             .scaleEffect(configuration.isPressed ? 0.982 : 1)
-            .animation(.spring(response: 0.20, dampingFraction: 0.82), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.20, dampingFraction: 0.82), value: configuration.isPressed)
     }
 }
 
 struct SyncrosaDestructiveButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
-        SyncrosaPrimaryButtonStyle(tint: SyncrosaTheme.destructive)
-            .makeBody(configuration: configuration)
+        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(isEnabled ? Color.white : Color.secondary.opacity(0.58))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .frame(minHeight: 32)
+            .background(
+                Group {
+                    if isEnabled {
+                        SyncrosaTheme.destructive.opacity(configuration.isPressed ? 0.84 : 1)
+                    } else {
+                        Color.primary.opacity(0.045)
+                    }
+                }
+                .clipShape(shape)
+            )
+            .overlay(
+                shape
+                    .stroke(Color.white.opacity(isEnabled ? 0.34 : 0.16), lineWidth: 1)
+                    .blendMode(.screen)
+            )
+            .overlay(
+                shape
+                    .stroke(Color.black.opacity(isEnabled ? 0.14 : 0.05), lineWidth: 1)
+                    .blendMode(.multiply)
+            )
+            .shadow(color: Color.white.opacity(isEnabled ? 0.12 : 0), radius: 1, x: 0, y: -1)
+            .shadow(color: SyncrosaTheme.destructive.opacity(isEnabled ? 0.24 : 0), radius: 6, x: 0, y: 3)
+            .opacity(isEnabled ? 1 : 0.46)
+            .scaleEffect(configuration.isPressed ? 0.982 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.20, dampingFraction: 0.82), value: configuration.isPressed)
     }
 }
 
 struct SyncrosaGlassIconButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var size: CGFloat = 30
     var tint: Color = .primary
 
@@ -651,7 +680,7 @@ struct SyncrosaGlassIconButtonStyle: ButtonStyle {
             .shadow(color: SyncrosaTheme.softShadow.opacity(isEnabled ? 0.22 : 0), radius: 5, x: 0, y: 2)
             .opacity(isEnabled ? 1 : 0.50)
             .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -680,5 +709,85 @@ struct SyncrosaAdaptiveRow<Content: View>: View {
                 content
             }
         }
+    }
+}
+
+struct SyncrosaHelpSheet: View {
+    @ObservedObject private var lang = LocalizationService.shared
+
+    let title: String
+    let summary: String
+    let steps: [String]
+    var notes: [String] = []
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 12) {
+                Label(title, systemImage: "questionmark.circle")
+                    .font(.title3.weight(.bold))
+                    .lineLimit(2)
+                Spacer(minLength: 16)
+                Button(lang.t("close"), action: dismiss)
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
+                    .keyboardShortcut(.cancelAction)
+            }
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(summary)
+                        .font(.body)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if !steps.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(lang.t("how_to_use"))
+                                .font(.headline)
+                            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("\(index + 1)")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(SyncrosaTheme.accent)
+                                        .frame(width: 22, height: 22)
+                                        .background(SyncrosaTheme.accent.opacity(0.12), in: Circle())
+                                    Text(step)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
+
+                    if !notes.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(lang.t("good_to_know"))
+                                .font(.headline)
+                            ForEach(notes, id: \.self) { note in
+                                Label(note, systemImage: "info.circle")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 8)
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 520, idealWidth: 620, maxWidth: 720, minHeight: 360, idealHeight: 460, maxHeight: 620)
+    }
+}
+
+struct SyncrosaDisabledReason: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "info.circle")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

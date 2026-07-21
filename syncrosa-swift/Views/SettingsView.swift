@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var lang = LocalizationService.shared
+    @ObservedObject private var appearance = SyncrosaAppearanceService.shared
     
     @State private var geminiKey: String = ""
     @State private var groqKey: String = ""
@@ -61,9 +62,51 @@ struct SettingsView: View {
             SyncrosaPageHeader(
                 title: lang.t("settings"),
                 systemImage: "gearshape",
-                subtitle: lang.selectedLanguage == "ru" ? "Язык, безопасность процессов и подключение AI-провайдера." : "Language, process safety, and AI provider setup.",
+                subtitle: lang.selectedLanguage == "ru" ? "Оформление, язык, безопасность процессов и подключение AI-провайдера." : "Appearance, language, process safety, and AI provider setup.",
                 helpAction: { showHelp = true }
             )
+
+                VStack(alignment: .leading, spacing: 14) {
+                    Label(lang.selectedLanguage == "ru" ? "Оформление" : "Appearance", systemImage: "paintpalette")
+                        .font(.headline)
+
+                    Text(lang.selectedLanguage == "ru"
+                         ? "Системный режим автоматически повторяет светлую или тёмную тему macOS, включая переключение по расписанию."
+                         : "System mode automatically follows the macOS light or dark appearance, including scheduled changes.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    SyncrosaGlassSegmentedPicker(
+                        selection: Binding(
+                            get: { appearance.appearanceMode },
+                            set: { appearance.appearanceMode = $0 }
+                        ),
+                        options: SyncrosaAppearanceMode.allCases.map {
+                            SyncrosaMenuOption(title: $0.displayName(language: lang.selectedLanguage), value: $0)
+                        },
+                        minSegmentWidth: 104
+                    )
+
+                    Divider()
+
+                    SyncrosaSectionLabel(
+                        text: lang.selectedLanguage == "ru" ? "ЦВЕТОВАЯ ТЕМА" : "COLOR THEME",
+                        systemImage: "swatchpalette"
+                    )
+
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 148), spacing: 10)], spacing: 10) {
+                        ForEach(SyncrosaThemeChoice.allCases) { theme in
+                            SyncrosaThemeChoiceButton(
+                                theme: theme,
+                                selectedTheme: appearance.selectedTheme,
+                                language: lang.selectedLanguage,
+                                action: { appearance.selectedTheme = theme }
+                            )
+                        }
+                    }
+                }
+                .syncrosaCard()
                 
                 // Group 0: Language
                 VStack(alignment: .leading, spacing: 10) {
@@ -71,7 +114,7 @@ struct SettingsView: View {
                         .font(.headline)
                     
                     SyncrosaAdaptiveRow(spacing: 12) {
-                        Text("Select Language")
+                        Text(lang.t("select_language"))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
@@ -85,12 +128,12 @@ struct SettingsView: View {
 
                 // Group 1a: Safety
                 VStack(alignment: .leading, spacing: 10) {
-                    Label(lang.selectedLanguage == "ru" ? "Безопасность процессов" : "Process Safety", systemImage: "shield.lefthalf.filled")
+                    Label(lang.t("process_safety"), systemImage: "shield.lefthalf.filled")
                         .font(.headline)
 
                     Toggle(isOn: $onlyLocalMode) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Only Local Mode")
+                            Text(lang.t("only_local_mode"))
                                 .fontWeight(.semibold)
                             Text(lang.selectedLanguage == "ru" ? "Пропускать сетевые запросы метаданных и работать только с локальными файлами/медиатекой." : "Skip online metadata lookups and work only with local files/library data.")
                                 .font(.caption)
@@ -100,7 +143,7 @@ struct SettingsView: View {
                     .toggleStyle(SyncrosaSwitchToggleStyle())
 
                     Button(action: { showHistory = true }) {
-                        Label(lang.selectedLanguage == "ru" ? "Открыть историю операций" : "Open Operation History", systemImage: "clock.arrow.circlepath")
+                        Label(lang.t("operation_history"), systemImage: "clock.arrow.circlepath")
                     }
                     .buttonStyle(SyncrosaSecondaryButtonStyle())
                 }
@@ -108,7 +151,7 @@ struct SettingsView: View {
                 
                 // Group 1b: Updates
                 VStack(alignment: .leading, spacing: 12) {
-                    Label(lang.selectedLanguage == "ru" ? "Обновления" : "Updates", systemImage: "arrow.down.circle")
+                    Label(lang.t("updates"), systemImage: "arrow.down.circle")
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -119,25 +162,25 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    HStack(spacing: 10) {
+                    SyncrosaAdaptiveRow(spacing: 10) {
                         Button(action: checkForUpdates) {
                             if isCheckingUpdates {
                                 ProgressView().controlSize(.small)
                             } else {
-                                Label(lang.selectedLanguage == "ru" ? "Проверить обновления" : "Check Updates", systemImage: "arrow.clockwise")
+                                Label(lang.t("check_updates"), systemImage: "arrow.clockwise")
                             }
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(isCheckingUpdates)
 
                         Button(action: openUpdateURL) {
-                            Label(lang.selectedLanguage == "ru" ? "Обновить приложение" : "Update App", systemImage: "square.and.arrow.down")
+                            Label(lang.t("update_app"), systemImage: "square.and.arrow.down")
                         }
                         .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(!isUpdateAvailable)
 
                         Button(action: { showReleaseNotes = true }) {
-                            Label(lang.selectedLanguage == "ru" ? "Что нового" : "Release Notes", systemImage: "doc.text")
+                            Label(lang.t("release_notes"), systemImage: "doc.text")
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(latestReleaseNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -259,42 +302,33 @@ struct SettingsView: View {
     }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: Настройки" : "Help: Settings")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "В разделе «Настройки» вы можете настроить язык приложения и параметры подключения к облачным провайдерам искусственного интеллекта (Gemini, Groq, OpenRouter).\n\n" +
-                         "Ключевые шаги:\n" +
-                         "1. Выберите язык интерфейса.\n" +
-                         "2. Выберите нужного ИИ-провайдера и укажите его API-ключ.\n" +
-                         "3. Нажмите кнопку «Проверить и сохранить» для сохранения ключа в безопасной системной связке ключей (Keychain).\n" +
-                         "4. Используйте кнопку синхронизации моделей для автоматического обновления доступных нейросетей." :
-                         
-                         "In the Settings section, you can configure the interface language and connectivity options for AI providers (Gemini, Groq, OpenRouter).\n\n" +
-                         "Key Steps:\n" +
-                         "1. Select the interface language.\n" +
-                         "2. Choose your preferred AI provider and enter your API Key.\n" +
-                         "3. Click 'Validate & Save Key' to verify the API key and store it securely in the macOS Keychain.\n" +
-                         "4. Use the sync buttons to update available models or manually refresh the local music database cache."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.selectedLanguage == "ru" ? "Настройки" : "Settings",
+            summary: lang.selectedLanguage == "ru"
+                ? "Здесь настраиваются оформление, язык, безопасный локальный режим, обновления и подключение к AI-провайдерам."
+                : "Configure appearance, language, local-only safety, updates, and AI provider access.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Выберите системную, светлую или тёмную схему и цветовой акцент.",
+                "Выберите язык интерфейса.",
+                "Включите локальный режим, если сетевые запросы метаданных не нужны.",
+                "Выберите AI-провайдера, модель и введите API-ключ.",
+                "Проверьте ключ. После успешной проверки он сохраняется в macOS Keychain."
+            ] : [
+                "Choose system, light, or dark appearance and a color accent.",
+                "Choose the interface language.",
+                "Enable local-only mode when online metadata lookups are not needed.",
+                "Choose an AI provider and model, then enter its API key.",
+                "Validate the key. A valid key is stored securely in macOS Keychain."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Кнопка обновления становится активной только после обнаружения более новой версии.",
+                "Sync Library перечитывает Music и может занять время на большой медиатеке."
+            ] : [
+                "Update App becomes available only after a newer version is found.",
+                "Sync Library rereads Music and can take time for a large library."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
 
     
@@ -402,8 +436,8 @@ struct SettingsView: View {
         request.setValue("Syncrosa/\(currentAppVersion)", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            let result = self.parseUpdateResponse(data: data, error: error)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            let result = self.parseUpdateResponse(data: data, response: response as? HTTPURLResponse, error: error)
             DispatchQueue.main.async {
                 self.isCheckingUpdates = false
                 self.isUpdateAvailable = result.available
@@ -423,7 +457,7 @@ struct SettingsView: View {
                     .font(.title3)
                     .fontWeight(.bold)
                 Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
+                Button(lang.t("close")) {
                     showReleaseNotes = false
                 }
                 .buttonStyle(SyncrosaSecondaryButtonStyle())
@@ -431,16 +465,13 @@ struct SettingsView: View {
             }
 
             ScrollView {
-                Text(releaseNotesAttributed)
-                    .font(.system(size: 13))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                ReleaseNotesMarkdownView(markdown: normalizedReleaseNotesMarkdown(latestReleaseNotes))
                     .padding(2)
             }
             .frame(minHeight: 320)
         }
         .padding(24)
-        .frame(width: 680, height: 460)
+        .frame(minWidth: 520, idealWidth: 680, maxWidth: 840, minHeight: 380, idealHeight: 460, maxHeight: 640)
     }
 
     var releaseNotesAttributed: AttributedString {
@@ -474,9 +505,16 @@ struct SettingsView: View {
             .replacingOccurrences(of: "# ", with: "")
     }
 
-    func parseUpdateResponse(data: Data?, error: Error?) -> (message: String, url: URL?, available: Bool, isError: Bool, releaseTitle: String, releaseNotes: String) {
+    func parseUpdateResponse(data: Data?, response: HTTPURLResponse?, error: Error?) -> (message: String, url: URL?, available: Bool, isError: Bool, releaseTitle: String, releaseNotes: String) {
         if error != nil {
             let message = lang.selectedLanguage == "ru" ? "Не удалось проверить обновления Syncrosa." : "Could not check Syncrosa updates."
+            return (message, nil, false, true, "", "")
+        }
+
+        if let response, !(200...299).contains(response.statusCode) {
+            let message = lang.selectedLanguage == "ru"
+                ? "Сервис обновлений временно недоступен. Попробуйте позже."
+                : "The update service is temporarily unavailable. Try again later."
             return (message, nil, false, true, "", "")
         }
 
@@ -571,4 +609,164 @@ struct SettingsView: View {
             }
         }
     }
+}
+
+private struct SyncrosaThemeChoiceButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let theme: SyncrosaThemeChoice
+    let selectedTheme: SyncrosaThemeChoice
+    let language: String
+    let action: () -> Void
+
+    private var isSelected: Bool { theme == selectedTheme }
+
+    var body: some View {
+        Button {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                action()
+            }
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(theme.secondaryAccent)
+                        .frame(width: 24, height: 24)
+                        .offset(x: 5, y: -2)
+                    Circle()
+                        .fill(theme.accent)
+                        .frame(width: 24, height: 24)
+                        .offset(x: -5, y: 2)
+                        .overlay(Circle().stroke(Color.white.opacity(0.38), lineWidth: 1).offset(x: -5, y: 2))
+                }
+                .frame(width: 34, height: 30)
+
+                Text(theme.displayName(language: language))
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? theme.accent : Color.secondary.opacity(0.45))
+            }
+            .padding(.horizontal, 11)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(
+                isSelected ? theme.accent.opacity(0.12) : SyncrosaTheme.panelBackground.opacity(0.45),
+                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(isSelected ? theme.accent.opacity(0.72) : SyncrosaTheme.panelBorder.opacity(0.62), lineWidth: isSelected ? 1.5 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(theme.displayName(language: language))
+        .accessibilityValue(isSelected ? (language == "ru" ? "Выбрано" : "Selected") : "")
+    }
+}
+
+private struct ReleaseNotesMarkdownView: View {
+    let markdown: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                blockView(block)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .textSelection(.enabled)
+    }
+
+    private var blocks: [ReleaseNotesBlock] {
+        var output: [ReleaseNotesBlock] = []
+        var paragraph: [String] = []
+        var inCode = false
+
+        func flushParagraph() {
+            guard !paragraph.isEmpty else { return }
+            output.append(.paragraph(paragraph.joined(separator: " ")))
+            paragraph.removeAll()
+        }
+
+        for rawLine in markdown.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.hasPrefix("```") {
+                flushParagraph()
+                inCode.toggle()
+                continue
+            }
+            if inCode {
+                if !line.isEmpty {
+                    output.append(.code(rawLine))
+                }
+                continue
+            }
+            if line.isEmpty {
+                flushParagraph()
+                continue
+            }
+            if line.hasPrefix("#") {
+                flushParagraph()
+                let level = line.prefix { $0 == "#" }.count
+                let title = cleanInlineMarkdown(String(line.dropFirst(level)).trimmingCharacters(in: .whitespaces))
+                output.append(.heading(title, min(level, 3)))
+                continue
+            }
+            if line.hasPrefix("- ") || line.hasPrefix("* ") {
+                flushParagraph()
+                output.append(.bullet(cleanInlineMarkdown(String(line.dropFirst(2)))))
+                continue
+            }
+            paragraph.append(cleanInlineMarkdown(line))
+        }
+        flushParagraph()
+        return output
+    }
+
+    @ViewBuilder
+    private func blockView(_ block: ReleaseNotesBlock) -> some View {
+        switch block {
+        case .heading(let text, let level):
+            Text(text)
+                .font(level == 1 ? .title3.weight(.bold) : .headline.weight(.bold))
+                .padding(.top, level == 1 ? 4 : 10)
+        case .paragraph(let text):
+            Text(text)
+                .font(.system(size: 13))
+                .fixedSize(horizontal: false, vertical: true)
+        case .bullet(let text):
+            HStack(alignment: .top, spacing: 8) {
+                Text("•")
+                    .font(.system(size: 13, weight: .bold))
+                Text(text)
+                    .font(.system(size: 13))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        case .code(let text):
+            Text(text)
+                .font(.system(size: 12, design: .monospaced))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(SyncrosaTheme.subtleBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+
+    private func cleanInlineMarkdown(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private enum ReleaseNotesBlock {
+    case heading(String, Int)
+    case paragraph(String)
+    case bullet(String)
+    case code(String)
 }

@@ -25,6 +25,27 @@ struct MusicBatchImportResult {
     let errors: [String]
 }
 
+struct MusicLibraryToolkitRawTrack: Identifiable, Codable, Equatable {
+    var id: String { persistentID.isEmpty ? path : persistentID }
+    let persistentID: String
+    let name: String
+    let artist: String
+    let album: String
+    let albumArtist: String
+    let genre: String
+    let composer: String
+    let comments: String
+    let path: String
+    let kind: String
+    let year: Int
+    let trackNumber: Int
+    let discNumber: Int
+    let bpm: Int
+    let rating: Int
+    let size: Int64
+    let hasArtwork: Bool
+}
+
 class MusicService {
     static let shared = MusicService()
     private let scriptQueue = DispatchQueue(label: "com.michirose.syncrosa.scriptQueue")
@@ -172,10 +193,12 @@ class MusicService {
             return 0
         }
 
-        let idsString = "{\"" + persistentIDs.joined(separator: "\", \"") + "\"}"
+        let cleanName = escapeAppleScriptString(name.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !cleanName.isEmpty else { return 0 }
+        let idsString = "{\"" + persistentIDs.map(escapeAppleScriptString).joined(separator: "\", \"") + "\"}"
         let script = """
         tell application "Music"
-            set plName to "\(name.replacingOccurrences(of: "\"", with: "\\\""))"
+            set plName to "\(cleanName)"
             set addedCount to 0
             set idList to \(idsString)
             set tracksToAdd to {}
@@ -404,6 +427,135 @@ class MusicService {
         }
         return references
     }
+
+    func getLibraryToolkitRawTracks(progress: @escaping (Int, Int) -> Void) -> [MusicLibraryToolkitRawTrack] {
+        let countScript = "tell application \"Music\" to count every file track of library playlist 1"
+        guard let countText = runAppleScript(countScript),
+              let total = Int(countText.trimmingCharacters(in: .whitespacesAndNewlines)),
+              total > 0 else {
+            return []
+        }
+
+        var tracks: [MusicLibraryToolkitRawTrack] = []
+        let chunkSize = 220
+
+        for start in stride(from: 1, through: total, by: chunkSize) {
+            let end = min(start + chunkSize - 1, total)
+            let script = """
+            \(cleanFieldHandler)
+            set output to ""
+            tell application "Music"
+                set allFileTracks to every file track of library playlist 1
+                repeat with trackIndex from \(start) to \(end)
+                    if trackIndex is greater than (count of allFileTracks) then exit repeat
+                    set t to item trackIndex of allFileTracks
+                    set pid to ""
+                    set nm to ""
+                    set art to ""
+                    set alb to ""
+                    set albArt to ""
+                    set gen to ""
+                    set comp to ""
+                    set comm to ""
+                    set pth to ""
+                    set knd to ""
+                    set yr to "0"
+                    set tn to "0"
+                    set dn to "0"
+                    set bpmVal to "0"
+                    set ratingVal to "0"
+                    set sz to "0"
+                    set hasArt to "false"
+
+                    try
+                        set pid to persistent ID of t as text
+                    end try
+                    try
+                        set nm to name of t as text
+                    end try
+                    try
+                        set art to artist of t as text
+                    end try
+                    try
+                        set alb to album of t as text
+                    end try
+                    try
+                        set albArt to album artist of t as text
+                    end try
+                    try
+                        set gen to genre of t as text
+                    end try
+                    try
+                        set comp to composer of t as text
+                    end try
+                    try
+                        set comm to comment of t as text
+                    end try
+                    try
+                        set knd to kind of t as text
+                    end try
+                    try
+                        set yr to year of t as text
+                    end try
+                    try
+                        set tn to track number of t as text
+                    end try
+                    try
+                        set dn to disc number of t as text
+                    end try
+                    try
+                        set bpmVal to bpm of t as text
+                    end try
+                    try
+                        set ratingVal to rating of t as text
+                    end try
+                    try
+                        set sz to size of t as text
+                    end try
+                    try
+                        if (count of artwork of t) is greater than 0 then set hasArt to "true"
+                    end try
+                    try
+                        set loc to location of t
+                        if loc is not missing value then set pth to POSIX path of loc
+                    end try
+
+                    set output to output & my syncrosaCleanField(pid) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(alb) & tab & my syncrosaCleanField(albArt) & tab & my syncrosaCleanField(gen) & tab & my syncrosaCleanField(comp) & tab & my syncrosaCleanField(comm) & tab & my syncrosaCleanField(pth) & tab & my syncrosaCleanField(knd) & tab & yr & tab & tn & tab & dn & tab & bpmVal & tab & ratingVal & tab & sz & tab & hasArt & linefeed
+                end repeat
+            end tell
+            return output
+            """
+
+            if let result = runAppleScript(script) {
+                for line in result.components(separatedBy: .newlines) where line.contains(fieldSeparator) {
+                    let parts = line.components(separatedBy: fieldSeparator)
+                    guard parts.count >= 17 else { continue }
+                    tracks.append(MusicLibraryToolkitRawTrack(
+                        persistentID: parts[0],
+                        name: parts[1],
+                        artist: parts[2],
+                        album: parts[3],
+                        albumArtist: parts[4],
+                        genre: parts[5],
+                        composer: parts[6],
+                        comments: parts[7],
+                        path: parts[8],
+                        kind: parts[9],
+                        year: Int(parts[10]) ?? 0,
+                        trackNumber: Int(parts[11]) ?? 0,
+                        discNumber: Int(parts[12]) ?? 0,
+                        bpm: Int(parts[13]) ?? 0,
+                        rating: Int(parts[14]) ?? 0,
+                        size: Int64(parts[15]) ?? 0,
+                        hasArtwork: parts[16].lowercased() == "true"
+                    ))
+                }
+            }
+            progress(end, total)
+        }
+
+        return tracks
+    }
     
     private func escapeAppleScriptString(_ str: String) -> String {
         return str
@@ -458,6 +610,10 @@ class MusicService {
             return true
         }
         return false
+    }
+
+    func updateTrackAlbum(persistentID: String, album: String) -> Bool {
+        updateTrack(persistentID: persistentID, properties: ["album": album])
     }
     
     func deleteTrack(persistentID: String) -> Bool {

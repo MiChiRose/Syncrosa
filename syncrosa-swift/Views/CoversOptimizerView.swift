@@ -62,9 +62,9 @@ struct CoversOptimizerView: View {
                         SyncrosaGlassMenu(
                             selection: $targetSize,
                             options: devices.map { SyncrosaMenuOption(title: $0.name, value: $0.size) },
-                            width: 360
+                            minWidth: 300,
+                            isDisabled: isProcessing
                         )
-                        .disabled(isProcessing)
                     }
                     
                     // Action Buttons
@@ -73,6 +73,7 @@ struct CoversOptimizerView: View {
                             Text(lang.t("btn_backup_covers"))
                                 .frame(minWidth: 160)
                         }
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(isProcessing)
                         
                         Button(action: { presentSafetyPreview(.optimize) }) {
@@ -80,12 +81,14 @@ struct CoversOptimizerView: View {
                                 .bold()
                                 .frame(minWidth: 160)
                         }
+                        .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(isProcessing)
                         
                         Button(action: { presentSafetyPreview(.restore) }) {
                             Text(lang.t("btn_restore_covers"))
                                 .frame(minWidth: 160)
                         }
+                        .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(isProcessing || !hasCoverBackup)
 
                         if isProcessing {
@@ -97,6 +100,12 @@ struct CoversOptimizerView: View {
                             }
                             .buttonStyle(SyncrosaSecondaryButtonStyle())
                         }
+                    }
+
+                    if !hasCoverBackup && !isProcessing {
+                        SyncrosaDisabledReason(text: lang.selectedLanguage == "ru"
+                            ? "Восстановление станет доступно после создания резервной копии обложек."
+                            : "Restore becomes available after you create a cover backup.")
                     }
                 }
                 .syncrosaCard()
@@ -150,42 +159,31 @@ struct CoversOptimizerView: View {
     }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: Оптимизатор обложек" : "Help: Covers Optimizer")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "Этот инструмент оптимизирует размер обложек ваших музыкальных альбомов для старых или портативных устройств (например, iPod Classic, iPhone 4s).\n\n" +
-                         "Шаги использования:\n" +
-                         "1. Сделайте резервную копию ваших обложек, нажав «Резервная копия обложек» (сохранит в Library/Application Support/Syncrosa/Backups/AlbumCovers).\n" +
-                         "2. Выберите целевой размер обложки из выпадающего списка.\n" +
-                         "3. Нажмите «Оптимизировать обложки» для запуска процесса сжатия.\n" +
-                         "4. Если что-то пойдет не так, вы всегда сможете восстановить исходные обложки, нажав «Восстановить обложки»." :
-                         
-                         "This tool optimizes the size of your album cover art for older or vintage portable devices (like iPod Classic, iPhone 4s).\n\n" +
-                         "How to use:\n" +
-                         "1. Backup your original cover arts first by clicking 'Backup Original Covers' (saves them to Library/Application Support/Syncrosa/Backups/AlbumCovers).\n" +
-                         "2. Select the target cover size from the dropdown.\n" +
-                         "3. Click 'Optimize Covers' to compress the artwork for all tracks.\n" +
-                         "4. If needed, restore the original high-resolution cover art by clicking 'Restore Original Covers'."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("covers_optimizer"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Уменьшает обложки для старых iPod, автомагнитол и устройств с ограниченной памятью."
+                : "Downsizes artwork for older iPods, car stereos, and devices with limited memory.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Сначала создайте резервную копию исходных обложек.",
+                "Выберите целевое разрешение для устройства.",
+                "Запустите оптимизацию и дождитесь завершения журнала.",
+                "При необходимости восстановите оригиналы из созданного backup."
+            ] : [
+                "Create a backup of original artwork first.",
+                "Choose a target resolution for your device.",
+                "Run optimization and wait for the log to finish.",
+                "Restore the originals from the backup if needed."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Backup хранится в Application Support/Syncrosa/Backups/AlbumCovers.",
+                "Кнопка восстановления активна только когда найден совместимый backup."
+            ] : [
+                "Backups are stored in Application Support/Syncrosa/Backups/AlbumCovers.",
+                "Restore is enabled only when a compatible backup exists."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
 
     
@@ -202,10 +200,11 @@ struct CoversOptimizerView: View {
     private func presentSafetyPreview(_ action: CoversSafetyAction) {
         pendingSafetyAction = action
         let backupPath = CoversOptimizerService.shared.backupFolder.path
-        let libraryCount = MusicService.shared.getLibraryTrackCount()
-        let countText = libraryCount.map { "\($0)" } ?? (lang.selectedLanguage == "ru" ? "не удалось прочитать" : "unavailable")
         let details = [
-            SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Треков Music" : "Music tracks", value: countText),
+            SafetyPreviewDetail(
+                title: lang.selectedLanguage == "ru" ? "Медиатека" : "Library",
+                value: lang.selectedLanguage == "ru" ? "Будет проверена после подтверждения" : "Checked after confirmation"
+            ),
             SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Целевой размер" : "Target size", value: "\(targetSize)x\(targetSize)"),
             SafetyPreviewDetail(title: "Backup", value: backupPath)
         ]

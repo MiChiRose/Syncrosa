@@ -222,7 +222,7 @@ struct USBExportView: View {
             Alert(
                 title: Text(lang.selectedLanguage == "ru" ? "Внимание" : "Warning"),
                 message: Text(lang.t("incompatible_fs", selectedDrive?.filesystemLabel ?? "")),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text(lang.t("close")))
             )
         }
         // Insufficient space action dialog
@@ -267,46 +267,33 @@ struct USBExportView: View {
     }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: USB Экспорт" : "Help: USB Export")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "Этот инструмент позволяет экспортировать выбранные плейлисты из Apple Music на ваш внешний USB-накопитель.\n\n" +
-                         "Шаги использования:\n" +
-                         "1. Вставьте USB-накопитель и выберите его в списке.\n" +
-                         "2. Выберите плейлист, который хотите скопировать.\n" +
-                         "3. Нажмите «Отправить на USB Flash». На накопителе будет создана папка с именем плейлиста, и треки будут скопированы внутрь неё.\n" +
-                         "4. Включите .m3u/.m3u8, если устройству нужен отдельный файл плейлиста.\n" +
-                         "5. iPod-safe names сокращает и чистит имена файлов для старых iPod, магнитол и FAT/exFAT накопителей.\n" +
-                         "6. Если на накопителе недостаточно места, программа предложит скопировать случайную выборку песен, которая поместится на флешку." :
-                         
-                         "This tool allows you to export selected playlists from Apple Music to your external USB storage.\n\n" +
-                         "How to use:\n" +
-                         "1. Connect your USB drive and select it from the list.\n" +
-                         "2. Choose the playlist you want to copy.\n" +
-                         "3. Click 'Export to USB Flash'. A folder named after the playlist will be created on the drive, and tracks will be copied into it.\n" +
-                         "4. Enable .m3u/.m3u8 when the target device expects a playlist file.\n" +
-                         "5. iPod-safe names shortens and cleans filenames for older iPods, car stereos, and FAT/exFAT drives.\n" +
-                         "6. If space is insufficient, you will be prompted to either cancel or copy a random subset that fits."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("usb_export"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Копирует локальные треки выбранного плейлиста в отдельную папку на USB-накопителе."
+                : "Copies local tracks from a selected playlist into its own folder on a USB drive.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Подключите накопитель и выберите его в списке.",
+                "Выберите плейлист и режим экспорта.",
+                "При необходимости включите M3U/M3U8 и безопасные имена для старых устройств.",
+                "Проверьте расчёт размера и запустите экспорт."
+            ] : [
+                "Connect a drive and choose it from the list.",
+                "Choose a playlist and export mode.",
+                "Enable M3U/M3U8 and legacy-safe filenames when the target device needs them.",
+                "Review the size estimate and start export."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Треки копируются в папку с именем плейлиста, а не в корень накопителя.",
+                "Облачные треки без локального файла не копируются.",
+                "При нехватке места Syncrosa предложит отмену или случайную выборку, которая помещается."
+            ] : [
+                "Tracks go into a folder named after the playlist, not the drive root.",
+                "Cloud-only tracks without a local file are skipped.",
+                "If space is insufficient, Syncrosa offers cancellation or a random subset that fits."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
 
     

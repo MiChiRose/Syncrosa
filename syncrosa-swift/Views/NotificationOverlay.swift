@@ -4,6 +4,13 @@ struct NotificationMessage: Identifiable {
     let id = UUID()
     let text: String
     let isError: Bool
+    let dismissAfter: TimeInterval?
+
+    init(text: String, isError: Bool, dismissAfter: TimeInterval? = nil) {
+        self.text = text
+        self.isError = isError
+        self.dismissAfter = dismissAfter ?? (isError ? nil : 4)
+    }
 }
 
 struct NotificationModifier: ViewModifier {
@@ -32,7 +39,7 @@ struct NotificationModifier: ViewModifier {
 
             Text(msg.text)
                 .font(.system(size: 14, weight: .semibold))
-                .lineLimit(2)
+                .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -58,9 +65,8 @@ struct NotificationModifier: ViewModifier {
         )
         .shadow(color: SyncrosaTheme.softShadow, radius: 18, x: 0, y: 8)
         .onAppear {
-            // Auto-hide short status messages; progress messages keep updating until the task finishes.
-            if !msg.text.contains("...") {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if let dismissAfter = msg.dismissAfter {
+                DispatchQueue.main.asyncAfter(deadline: .now() + dismissAfter) {
                     withAnimation {
                         if message?.id == msg.id {
                             message = nil

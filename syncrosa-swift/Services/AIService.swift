@@ -14,12 +14,20 @@ class AIService {
     }
     
     func fetchOpenRouterModels(completion: @escaping ([String]?) -> Void) {
-        let url = URL(string: "https://openrouter.ai/api/v1/models")!
+        guard let url = URL(string: "https://openrouter.ai/api/v1/models") else {
+            completion(nil)
+            return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         
         URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data, error == nil else {
+            guard let data,
+                  error == nil,
+                  let response = response as? HTTPURLResponse,
+                  (200...299).contains(response.statusCode) else {
                 completion(nil)
                 return
             }
@@ -57,7 +65,11 @@ class AIService {
         var request: URLRequest
         
         if provider == "Groq" {
-            url = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
+            guard let endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions") else {
+                completion(false, "Invalid service endpoint")
+                return
+            }
+            url = endpoint
             request = URLRequest(url: url)
             request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
             request.httpMethod = "POST"
@@ -69,7 +81,11 @@ class AIService {
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         } else if provider == "OpenRouter" {
-            url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+            guard let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
+                completion(false, "Invalid service endpoint")
+                return
+            }
+            url = endpoint
             request = URLRequest(url: url)
             request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
             request.httpMethod = "POST"
@@ -82,7 +98,11 @@ class AIService {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         } else {
             // Gemini
-            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
+            guard let endpoint = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
+                completion(false, "Invalid model name")
+                return
+            }
+            url = endpoint
             request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -93,6 +113,8 @@ class AIService {
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         }
+        request.timeoutInterval = 30
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
@@ -100,8 +122,13 @@ class AIService {
                 return
             }
             
-            guard let data = data else {
+            guard let data,
+                  let response = response as? HTTPURLResponse else {
                 completion(false, "No data received")
+                return
+            }
+            guard (200...299).contains(response.statusCode) else {
+                completion(false, "Service rejected the key (HTTP \(response.statusCode))")
                 return
             }
             
@@ -144,7 +171,11 @@ class AIService {
         """
 
         if provider == "Groq" {
-            url = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
+            guard let endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions") else {
+                completion(nil)
+                return
+            }
+            url = endpoint
             request = URLRequest(url: url)
             request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
             request.httpMethod = "POST"
@@ -159,7 +190,11 @@ class AIService {
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         } else if provider == "OpenRouter" {
-            url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+            guard let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
+                completion(nil)
+                return
+            }
+            url = endpoint
             request = URLRequest(url: url)
             request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
             request.httpMethod = "POST"
@@ -177,7 +212,11 @@ class AIService {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         } else {
             // Gemini
-            url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
+            guard let endpoint = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
+                completion(nil)
+                return
+            }
+            url = endpoint
             request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -187,9 +226,14 @@ class AIService {
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         }
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         
         URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data, error == nil else {
+            guard let data,
+                  error == nil,
+                  let response = response as? HTTPURLResponse,
+                  (200...299).contains(response.statusCode) else {
                 completion(nil)
                 return
             }

@@ -137,7 +137,7 @@ struct DuplicateFinderView: View {
             Alert(
                 title: Text(lang.selectedLanguage == "ru" ? "Поиск дубликатов" : "Duplicate Finder"),
                 message: Text(alertMessage),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text(lang.t("close")))
             )
         }
         .sheet(isPresented: $showHelp) {
@@ -199,44 +199,31 @@ struct DuplicateFinderView: View {
     }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: Поиск дубликатов" : "Help: Duplicate Finder")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "Этот модуль помогает находить и устранять дублирующиеся треки в вашей медиатеке Apple Music.\n\n" +
-                         "Шаги использования:\n" +
-                         "1. Нажмите «Показать дубликаты» для сканирования вашей библиотеки.\n" +
-                         "2. Просмотрите найденные пары дубликатов side-by-side.\n" +
-                         "3. Вы можете сравнить размер, формат файлов и полноту метаданных.\n" +
-                         "4. Для каждой пары выберите «Игнор», «Удалить 1» или «Удалить 2».\n" +
-                         "5. Нажмите «Применить», чтобы выполнить выбранные действия одной пачкой и обновить список." :
-                         
-                         "This module helps you find and resolve duplicate tracks in your Apple Music library.\n\n" +
-                         "How to use:\n" +
-                         "1. Click 'Show Duplicates' to scan your library.\n" +
-                         "2. View the duplicate pairs side-by-side.\n" +
-                         "3. Compare the file format, size, and metadata completeness percentages.\n" +
-                         "4. Select 'Ignore', 'Delete 1', or 'Delete 2' for each pair.\n" +
-                         "5. Click 'Apply Selected' to run all chosen actions in one batch and refresh the list."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("duplicate_finder"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Находит вероятные дубликаты в Music и позволяет принять решения одной подтверждаемой пачкой."
+                : "Finds likely duplicates in Music and lets you apply reviewed decisions as one confirmed batch.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Запустите сканирование медиатеки.",
+                "Сравните каждую пару по названию, формату, размеру и заполненности метаданных.",
+                "Для пары выберите: игнорировать, удалить первый или удалить второй трек.",
+                "Проверьте количество выбранных действий и нажмите «Применить»."
+            ] : [
+                "Scan the Music library.",
+                "Compare each pair by title, format, size, and metadata completeness.",
+                "Choose Ignore, Delete First, or Delete Second for each pair.",
+                "Review the selected-action count and choose Apply."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Syncrosa показывает кандидатов, а не гарантированно одинаковые аудиофайлы.",
+                "Удаление выполняется только после общего подтверждения."
+            ] : [
+                "Syncrosa shows candidates, not guaranteed bit-identical audio files.",
+                "Deletion runs only after the final batch confirmation."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
     
     func formatSize(_ bytes: Int64) -> String {
