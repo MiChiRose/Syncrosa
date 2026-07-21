@@ -4,12 +4,8 @@
 #import <Cocoa/Cocoa.h>
 
 extern NSString * const IGThemeDefaultsKey;
+extern NSString * const IGAppearanceModeDefaultsKey;
 extern NSString * const IGThemeDidChangeNotification;
-
-NSArray *IGThemeIdentifiers(void);
-NSString *IGThemeDisplayNameForIdentifier(NSString *identifier);
-NSString *IGActiveThemeIdentifier(void);
-void IGSetActiveThemeIdentifier(NSString *identifier);
 
 typedef NSInteger IGThemeBackgroundRole;
 enum {
@@ -26,6 +22,18 @@ enum {
     IGThemeButtonRoleSidebar = 3,
     IGThemeButtonRoleTab = 4
 };
+
+NSArray *IGThemeIdentifiers(void);
+NSString *IGThemeDisplayNameForIdentifier(NSString *identifier);
+NSString *IGActiveThemeIdentifier(void);
+void IGSetActiveThemeIdentifier(NSString *identifier);
+
+NSArray *IGAppearanceModeIdentifiers(void);
+NSString *IGAppearanceModeDisplayNameForIdentifier(NSString *identifier);
+NSString *IGActiveAppearanceModeIdentifier(void);
+void IGSetActiveAppearanceModeIdentifier(NSString *identifier);
+
+BOOL IGSystemAppearanceDetectionAvailable(void);
 
 NSColor *IGThemeWindowColor(void);
 NSColor *IGThemeSidebarColor(void);
@@ -45,5 +53,6 @@ void IGInstallThemedContentBackground(NSView *view);
 void IGApplyThemeToButton(NSButton *button, IGThemeButtonRole role);
 void IGApplyThemeToViewHierarchy(NSView *view);
 void IGRefreshThemedViews(NSView *view);
+void IGApplyThemeToWindow(NSWindow *window);
 
 #endif

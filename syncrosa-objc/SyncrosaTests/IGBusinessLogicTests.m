@@ -4,6 +4,7 @@
 #import "IGMediaFixerManager.h"
 #import "IGPlaylistJSONSupport.h"
 #import "IGUpdateSupport.h"
+#import "IGTheme.h"
 
 @interface IGBusinessLogicTests : XCTestCase @end
 
@@ -92,6 +93,46 @@
         [defaults removeObjectForKey:key];
     }
     [previous release];
+}
+
+- (void)testLegacyAppearanceChoicesAndPersistence {
+    NSArray *themeIDs = IGThemeIdentifiers();
+    NSMutableArray *displayNames = [NSMutableArray arrayWithCapacity:[themeIDs count]];
+    for (NSString *identifier in themeIDs) {
+        [displayNames addObject:IGThemeDisplayNameForIdentifier(identifier)];
+    }
+    XCTAssertEqual([themeIDs count], (NSUInteger)6);
+    XCTAssertEqualObjects(displayNames, (@[@"Classic Graphite", @"Aqua Blue", @"Sage Graphite", @"Soft Plum", @"Ruby Graphite", @"Ocean Mist"]));
+    XCTAssertEqualObjects(IGAppearanceModeIdentifiers(), (@[@"system", @"light", @"dark"]));
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *savedTheme = [[defaults stringForKey:IGThemeDefaultsKey] copy];
+    NSString *savedAppearance = [[defaults stringForKey:IGAppearanceModeDefaultsKey] copy];
+    @try {
+        IGSetActiveThemeIdentifier([themeIDs objectAtIndex:4]);
+        IGSetActiveAppearanceModeIdentifier(@"dark");
+        XCTAssertEqualObjects(IGActiveThemeIdentifier(), @"ruby-graphite");
+        XCTAssertEqualObjects(IGActiveAppearanceModeIdentifier(), @"dark");
+
+        IGSetActiveThemeIdentifier(@"unsupported-theme");
+        IGSetActiveAppearanceModeIdentifier(@"unsupported-mode");
+        XCTAssertEqualObjects(IGActiveThemeIdentifier(), @"classic-graphite");
+        XCTAssertEqualObjects(IGActiveAppearanceModeIdentifier(), @"system");
+    } @finally {
+        if ([savedTheme length] > 0) {
+            [defaults setObject:savedTheme forKey:IGThemeDefaultsKey];
+        } else {
+            [defaults removeObjectForKey:IGThemeDefaultsKey];
+        }
+        if ([savedAppearance length] > 0) {
+            [defaults setObject:savedAppearance forKey:IGAppearanceModeDefaultsKey];
+        } else {
+            [defaults removeObjectForKey:IGAppearanceModeDefaultsKey];
+        }
+        [defaults synchronize];
+        [savedTheme release];
+        [savedAppearance release];
+    }
 }
 
 @end

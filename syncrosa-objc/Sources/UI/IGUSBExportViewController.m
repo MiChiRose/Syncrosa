@@ -3,6 +3,7 @@
 #import "IGiTunesService.h"
 #import "IGNotificationView.h"
 #import "IGLocalizationService.h"
+#import "IGTheme.h"
 
 typedef NS_ENUM(NSInteger, IGExportMode) {
     IGExportModeAll = 0,
@@ -97,7 +98,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     // Subtitle instructions
     self.instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 395, 500, 30)];
     self.instrLabel.font = [NSFont systemFontOfSize:11];
-    self.instrLabel.textColor = [NSColor grayColor];
+    self.instrLabel.textColor = IGThemeMutedTextColor();
     self.instrLabel.editable = NO;
     self.instrLabel.bordered = NO;
     self.instrLabel.drawsBackground = NO;
@@ -126,7 +127,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
     self.driveInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 322, 340, 18)];
     self.driveInfoLabel.font = [NSFont systemFontOfSize:11];
-    self.driveInfoLabel.textColor = [NSColor grayColor];
+    self.driveInfoLabel.textColor = IGThemeMutedTextColor();
     self.driveInfoLabel.editable = NO;
     self.driveInfoLabel.bordered = NO;
     self.driveInfoLabel.drawsBackground = NO;
@@ -147,7 +148,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
     self.playlistInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 252, 340, 18)];
     self.playlistInfoLabel.font = [NSFont systemFontOfSize:11];
-    self.playlistInfoLabel.textColor = [NSColor grayColor];
+    self.playlistInfoLabel.textColor = IGThemeMutedTextColor();
     self.playlistInfoLabel.editable = NO;
     self.playlistInfoLabel.bordered = NO;
     self.playlistInfoLabel.drawsBackground = NO;
@@ -211,7 +212,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     // Footer
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
@@ -870,6 +871,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];

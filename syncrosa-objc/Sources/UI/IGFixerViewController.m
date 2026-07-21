@@ -6,6 +6,7 @@
 #import "IGLogger.h"
 #import "IGTrack.h"
 #import "IGPlaylistJSONSupport.h"
+#import "IGTheme.h"
 
 static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -158,8 +159,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     
     self.logView = [[NSTextView alloc] initWithFrame:scrollView.bounds];
     self.logView.editable = NO;
-    self.logView.backgroundColor = [NSColor blackColor];
-    self.logView.textColor = [NSColor greenColor];
+    self.logView.backgroundColor = IGThemePanelInsetColor();
+    self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     
     scrollView.documentView = self.logView;
@@ -188,7 +189,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     // Footer
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 15, 540, 30)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
@@ -233,7 +234,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer UI: %@", text ?: @""]];
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text];
-        NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}];
+        NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: IGThemeAccentColor()}];
         NSTextStorage *storage = self.logView.textStorage;
         [storage appendAttributedString:attrLine];
         if (storage.length > 30000) {
@@ -316,7 +317,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     closeButton.target = self;
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
-    
+
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -371,6 +373,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     [[label cell] setWraps:YES];
     [sheet.contentView addSubview:label];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     [NSApp beginSheet:self.helpSheetWindow
        modalForWindow:self.view.window

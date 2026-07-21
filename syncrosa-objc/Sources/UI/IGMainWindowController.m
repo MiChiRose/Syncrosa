@@ -67,7 +67,7 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
     self.statusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 70)] autorelease];
     self.statusLabel.stringValue = @"Syncrosa keeps iTunes tools disabled when the library is empty, runs long tasks in chunks, and stores restore data in safe backup folders.";
     self.statusLabel.font = [NSFont systemFontOfSize:13];
-    self.statusLabel.textColor = [NSColor colorWithCalibratedWhite:0.30 alpha:1.0];
+    self.statusLabel.textColor = IGThemeMutedTextColor();
     self.statusLabel.editable = NO;
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
@@ -221,7 +221,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     self.statusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(40, 268, 500, 20)] autorelease];
     self.statusLabel.stringValue = @"Ready. Choose a doctor check and run it.";
     self.statusLabel.font = [NSFont systemFontOfSize:11];
-    self.statusLabel.textColor = [NSColor grayColor];
+    self.statusLabel.textColor = IGThemeMutedTextColor();
     self.statusLabel.editable = NO;
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
@@ -233,8 +233,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     scroll.borderType = NSBezelBorder;
     self.logView = [[[NSTextView alloc] initWithFrame:scroll.bounds] autorelease];
     self.logView.editable = NO;
-    self.logView.backgroundColor = [NSColor blackColor];
-    self.logView.textColor = [NSColor greenColor];
+    self.logView.backgroundColor = IGThemePanelInsetColor();
+    self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     scroll.documentView = self.logView;
     [self.view addSubview:scroll];
@@ -303,6 +303,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -329,7 +330,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 - (void)log:(NSString *)text {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text ?: @""];
-        NSAttributedString *attr = [[[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}] autorelease];
+        NSAttributedString *attr = [[[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: IGThemeAccentColor()}] autorelease];
         [self.logView.textStorage appendAttributedString:attr];
         [self.logView scrollRangeToVisible:NSMakeRange(self.logView.textStorage.length, 0)];
     });
@@ -630,6 +631,10 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                                              selector:@selector(themeChanged:)
                                                  name:IGThemeDidChangeNotification
                                                object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(systemAppearanceChanged:)
+                                                 name:@"NSApplicationDidChangeEffectiveAppearanceNotification"
+                                               object:nil];
     [self applyTheme];
     
     // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
@@ -649,6 +654,13 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [self applyTheme];
 }
 
+- (void)systemAppearanceChanged:(NSNotification *)notification {
+    (void)notification;
+    if ([IGActiveAppearanceModeIdentifier() isEqualToString:@"system"]) {
+        [self applyTheme];
+    }
+}
+
 - (void)applyTheme {
     [self.window setBackgroundColor:IGThemeContentColor()];
     [self.window.contentView setNeedsDisplay:YES];
@@ -659,6 +671,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         IGApplyThemeToButton(button, IGThemeButtonRoleSidebar);
     }
     IGApplyThemeToViewHierarchy(self.contentContainer);
+    IGApplyThemeToWindow(self.firstLaunchSheetWindow);
+    IGApplyThemeToWindow(self.libraryBusySheetWindow);
     IGRefreshThemedViews(self.window.contentView);
     [self.contentContainer setNeedsDisplay:YES];
     [self.sidebarContainer setNeedsDisplay:YES];
@@ -763,7 +777,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         modalDelegate:nil
        didEndSelector:NULL
           contextInfo:NULL];
-    IGApplyThemeToViewHierarchy(content);
+    IGApplyThemeToWindow(self.firstLaunchSheetWindow);
 }
 
 - (void)closeFirstLaunchGuide:(id)sender {
@@ -882,7 +896,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                                                [NSColor colorWithCalibratedWhite:0.35 alpha:1.0],
                                                NSLeftTextAlignment);
     [self.libraryBusySheetWindow.contentView addSubview:body];
-    IGApplyThemeToViewHierarchy(self.libraryBusySheetWindow.contentView);
+    IGApplyThemeToWindow(self.libraryBusySheetWindow);
 
     [NSApp beginSheet:self.libraryBusySheetWindow
        modalForWindow:self.window
@@ -1047,7 +1061,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         statusLabel.bordered = NO;
         statusLabel.drawsBackground = NO;
         statusLabel.font = [NSFont systemFontOfSize:10.0];
-        statusLabel.textColor = [NSColor colorWithCalibratedWhite:0.38 alpha:1.0];
+        statusLabel.textColor = IGThemeMutedTextColor();
         statusLabel.alignment = NSCenterTextAlignment;
         IGSetTextFieldLineBreakMode(statusLabel, NSLineBreakByWordWrapping);
         statusLabel.stringValue = @"iTunes status not checked.";

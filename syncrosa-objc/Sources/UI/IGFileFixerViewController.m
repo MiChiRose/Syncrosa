@@ -3,6 +3,7 @@
 #import "IGNotificationView.h"
 #import "IGiTunesService.h"
 #import "IGLyricsService.h"
+#import "IGTheme.h"
 #import <objc/message.h>
 #import <math.h>
 
@@ -237,7 +238,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     NSTextField *instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 35)];
     instrLabel.stringValue = [lang t:@"file_instr"];
     instrLabel.font = [NSFont systemFontOfSize:11];
-    instrLabel.textColor = [NSColor grayColor];
+    instrLabel.textColor = IGThemeMutedTextColor();
     instrLabel.editable = NO;
     instrLabel.bordered = NO;
     instrLabel.drawsBackground = NO;
@@ -389,8 +390,8 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
 
     self.logView = [[NSTextView alloc] initWithFrame:scrollView.bounds];
     self.logView.editable = NO;
-    self.logView.backgroundColor = [NSColor blackColor];
-    self.logView.textColor = [NSColor greenColor];
+    self.logView.backgroundColor = IGThemePanelInsetColor();
+    self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     scrollView.documentView = self.logView;
     [self.view addSubview:scrollView];
@@ -408,7 +409,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 10, 540, 35)];
     footer.stringValue = [lang t:@"footer"];
     footer.font = [NSFont systemFontOfSize:10];
-    footer.textColor = [NSColor grayColor];
+    footer.textColor = IGThemeMutedTextColor();
     footer.alignment = NSCenterTextAlignment;
     footer.editable = NO;
     footer.bordered = NO;
@@ -495,6 +496,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -518,7 +520,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
 - (void)log:(NSString *)text {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text];
-        NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}];
+        NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: IGThemeAccentColor()}];
         NSTextStorage *storage = self.logView.textStorage;
         [storage appendAttributedString:attrLine];
         if (storage.length > 30000) {

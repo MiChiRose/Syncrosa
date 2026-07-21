@@ -1,4 +1,5 @@
 #import "IGInfoEraserViewController.h"
+#import "IGTheme.h"
 #import "IGNotificationView.h"
 #include <stdint.h>
 
@@ -180,7 +181,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
     NSTextField *warning = [[[NSTextField alloc] initWithFrame:NSMakeRect(50, y + 8, 480, 42)] autorelease];
     warning.stringValue = @"WARNING: this tab permanently removes embedded song information and artwork from local files. Use only on a copied folder or after creating a backup.";
     warning.font = [NSFont boldSystemFontOfSize:11];
-    warning.textColor = [NSColor colorWithCalibratedRed:0.55 green:0.0 blue:0.06 alpha:1.0];
+    warning.textColor = IGThemeDangerColor();
     warning.editable = NO;
     warning.bordered = NO;
     warning.drawsBackground = NO;
@@ -238,8 +239,8 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
     scrollView.borderType = NSBezelBorder;
     self.logView = [[[NSTextView alloc] initWithFrame:scrollView.bounds] autorelease];
     self.logView.editable = NO;
-    self.logView.backgroundColor = [NSColor blackColor];
-    self.logView.textColor = [NSColor greenColor];
+    self.logView.backgroundColor = IGThemePanelInsetColor();
+    self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     scrollView.documentView = self.logView;
     [self.view addSubview:scrollView];
@@ -265,7 +266,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
 - (void)log:(NSString *)text {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text ?: @""];
-        NSAttributedString *attrLine = [[[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}] autorelease];
+        NSAttributedString *attrLine = [[[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: IGThemeAccentColor()}] autorelease];
         [self.logView.textStorage appendAttributedString:attrLine];
         if (self.logView.textStorage.length > 30000) {
             [self.logView.textStorage deleteCharactersInRange:NSMakeRange(0, self.logView.textStorage.length - 30000)];

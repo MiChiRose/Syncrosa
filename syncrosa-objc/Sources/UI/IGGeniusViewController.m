@@ -3,6 +3,7 @@
 #import "IGAIService.h"
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
+#import "IGTheme.h"
 
 @interface IGGeniusViewController () <NSTextFieldDelegate>
 
@@ -74,7 +75,7 @@
     // Active configuration label
     self.configLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 16)];
     self.configLabel.font = [NSFont systemFontOfSize:11];
-    self.configLabel.textColor = [NSColor grayColor];
+    self.configLabel.textColor = IGThemeMutedTextColor();
     self.configLabel.editable = NO;
     self.configLabel.bordered = NO;
     self.configLabel.drawsBackground = NO;
@@ -92,7 +93,7 @@
     
     self.nameCounterLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(400, y, 160, 20)];
     self.nameCounterLabel.font = [NSFont systemFontOfSize:11];
-    self.nameCounterLabel.textColor = [NSColor grayColor];
+    self.nameCounterLabel.textColor = IGThemeMutedTextColor();
     self.nameCounterLabel.alignment = NSRightTextAlignment;
     self.nameCounterLabel.editable = NO;
     self.nameCounterLabel.bordered = NO;
@@ -116,7 +117,7 @@
     
     self.promptCounterLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(400, y, 160, 20)];
     self.promptCounterLabel.font = [NSFont systemFontOfSize:11];
-    self.promptCounterLabel.textColor = [NSColor grayColor];
+    self.promptCounterLabel.textColor = IGThemeMutedTextColor();
     self.promptCounterLabel.alignment = NSRightTextAlignment;
     self.promptCounterLabel.editable = NO;
     self.promptCounterLabel.bordered = NO;
@@ -176,7 +177,7 @@
     // Footer
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
@@ -402,7 +403,8 @@
     closeButton.target = self;
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
-    
+
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];

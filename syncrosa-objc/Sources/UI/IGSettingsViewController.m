@@ -56,6 +56,8 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @property (nonatomic, strong) NSPopUpButton *langPopup;
 @property (nonatomic, strong) NSTextField *themeLabel;
 @property (nonatomic, strong) NSPopUpButton *themePopup;
+@property (nonatomic, strong) NSTextField *appearanceLabel;
+@property (nonatomic, strong) NSPopUpButton *appearancePopup;
 @property (nonatomic, strong) NSTextField *providerLabel;
 @property (nonatomic, strong) NSComboBox *providerCombo;
 @property (nonatomic, strong) NSTextField *modelLabel;
@@ -156,8 +158,26 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.themePopup.target = self;
     self.themePopup.action = @selector(themePopupChanged:);
     [self.view addSubview:self.themePopup];
+
+    y -= 32.0;
+    self.appearanceLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 140, 20)];
+    self.appearanceLabel.font = [NSFont systemFontOfSize:13];
+    self.appearanceLabel.editable = NO;
+    self.appearanceLabel.bordered = NO;
+    self.appearanceLabel.drawsBackground = NO;
+    [self.view addSubview:self.appearanceLabel];
+
+    self.appearancePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26) pullsDown:NO];
+    NSArray *appearanceIDs = IGAppearanceModeIdentifiers();
+    for (NSString *identifier in appearanceIDs) {
+        [self.appearancePopup addItemWithTitle:IGAppearanceModeDisplayNameForIdentifier(identifier)];
+    }
+    self.appearancePopup.target = self;
+    self.appearancePopup.action = @selector(appearancePopupChanged:);
+    self.appearancePopup.toolTip = @"System follows macOS appearance where supported. On OS X 10.9 it safely uses light Classic Graphite.";
+    [self.view addSubview:self.appearancePopup];
     
-    y -= rowGap;
+    y -= rowGap - 10.0;
     // AI Provider Section
     self.providerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)];
     self.providerLabel.font = [NSFont systemFontOfSize:13];
@@ -262,7 +282,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     
     self.syncLibStatusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(230, y + 3, 330, 20)];
     self.syncLibStatusLabel.font = [NSFont systemFontOfSize:11];
-    self.syncLibStatusLabel.textColor = [NSColor grayColor];
+    self.syncLibStatusLabel.textColor = IGThemeMutedTextColor();
     self.syncLibStatusLabel.editable = NO;
     self.syncLibStatusLabel.bordered = NO;
     self.syncLibStatusLabel.drawsBackground = NO;
@@ -292,7 +312,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 
     self.updateStatusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y - 24, 540, 20)];
     self.updateStatusLabel.font = [NSFont systemFontOfSize:11];
-    self.updateStatusLabel.textColor = [NSColor grayColor];
+    self.updateStatusLabel.textColor = IGThemeMutedTextColor();
     self.updateStatusLabel.editable = NO;
     self.updateStatusLabel.bordered = NO;
     self.updateStatusLabel.drawsBackground = NO;
@@ -310,7 +330,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     // Footer
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 4, 500, 30)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
@@ -326,6 +346,13 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.titleLabel.stringValue = [lang t:@"settings"];
     self.langLabel.stringValue = [NSString stringWithFormat:@"%@:", [lang t:@"lang_section"]];
     self.themeLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Тема:" : @"Theme:";
+    self.appearanceLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Режим оформления:" : @"Appearance mode:";
+    NSArray *appearanceTitles = [lang.selectedLanguage isEqualToString:@"ru"] ?
+        @[@"Как в системе", @"Светлая", @"Тёмная"] :
+        @[@"System", @"Light", @"Dark"];
+    for (NSInteger i = 0; i < (NSInteger)[appearanceTitles count] && i < [self.appearancePopup numberOfItems]; i++) {
+        [[self.appearancePopup itemAtIndex:i] setTitle:[appearanceTitles objectAtIndex:i]];
+    }
     self.providerLabel.stringValue = [lang t:@"select_provider"];
     self.modelLabel.stringValue = [lang t:@"select_model"];
     self.syncModelsBtn.title = [lang t:@"sync_models"];
@@ -376,6 +403,14 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     }
 }
 
+- (void)appearancePopupChanged:(id)sender {
+    NSArray *modeIDs = IGAppearanceModeIdentifiers();
+    NSInteger index = [self.appearancePopup indexOfSelectedItem];
+    if (index >= 0 && index < (NSInteger)[modeIDs count]) {
+        IGSetActiveAppearanceModeIdentifier([modeIDs objectAtIndex:index]);
+    }
+}
+
 - (void)themeChanged:(NSNotification *)notification {
     (void)notification;
     [self applyThemeColors];
@@ -387,9 +422,21 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     if (themeIndex != NSNotFound && themeIndex < [self.themePopup numberOfItems]) {
         [self.themePopup selectItemAtIndex:themeIndex];
     }
+    NSArray *modeIDs = IGAppearanceModeIdentifiers();
+    NSInteger appearanceIndex = [modeIDs indexOfObject:IGActiveAppearanceModeIdentifier()];
+    if (appearanceIndex != NSNotFound && appearanceIndex < [self.appearancePopup numberOfItems]) {
+        [self.appearancePopup selectItemAtIndex:appearanceIndex];
+    }
+    BOOL usesMavericksSystemFallback = [IGActiveAppearanceModeIdentifier() isEqualToString:@"system"] && !IGSystemAppearanceDetectionAvailable();
+    self.themePopup.enabled = !usesMavericksSystemFallback;
+    self.themePopup.toolTip = usesMavericksSystemFallback ? @"System mode uses light Classic Graphite on this version of OS X." : @"Choose the color palette used throughout Syncrosa.";
+    if (usesMavericksSystemFallback) {
+        [self.themePopup selectItemAtIndex:0];
+    }
     self.titleLabel.textColor = IGThemeTextColor();
     self.langLabel.textColor = IGThemeTextColor();
     self.themeLabel.textColor = IGThemeTextColor();
+    self.appearanceLabel.textColor = IGThemeTextColor();
     self.providerLabel.textColor = IGThemeTextColor();
     self.modelLabel.textColor = IGThemeTextColor();
     self.apiKeyLabel.textColor = IGThemeTextColor();
@@ -452,7 +499,8 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     closeButton.target = self;
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
-    
+
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -508,6 +556,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -587,6 +636,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -742,6 +792,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [[label cell] setWraps:YES];
     [sheet.contentView addSubview:label];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     [NSApp beginSheet:self.helpSheetWindow
        modalForWindow:self.view.window

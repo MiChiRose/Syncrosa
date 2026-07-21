@@ -2,6 +2,7 @@
 #import "IGiTunesService.h"
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
+#import "IGTheme.h"
 
 static NSString *IGDuplicateAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -105,7 +106,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
     self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 306, 500, 20)];
     self.statusLabel.stringValue = @"Ready to scan for duplicates";
     self.statusLabel.font = [NSFont systemFontOfSize:11];
-    self.statusLabel.textColor = [NSColor grayColor];
+    self.statusLabel.textColor = IGThemeMutedTextColor();
     self.statusLabel.editable = NO;
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
@@ -126,7 +127,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 15, 540, 30)];
     self.footerLabel.stringValue = [lang t:@"footer"];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
@@ -164,7 +165,8 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
     closeButton.target = self;
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
-    
+
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -543,6 +545,7 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
 #endif
         
         [self.documentView addSubview:rowView];
+        IGApplyThemeToViewHierarchy(rowView);
 #if !__has_feature(objc_arc)
         [rowView release];
 #endif

@@ -2,6 +2,7 @@
 #import "IGLocalizationService.h"
 #import "IGiTunesService.h"
 #import "IGLogger.h"
+#import "IGTheme.h"
 
 static NSString *IGCoverAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -188,8 +189,8 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
 
     self.logView = [[NSTextView alloc] initWithFrame:scrollView.bounds];
     self.logView.editable = NO;
-    self.logView.backgroundColor = [NSColor blackColor];
-    self.logView.textColor = [NSColor greenColor];
+    self.logView.backgroundColor = IGThemePanelInsetColor();
+    self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
 
     scrollView.documentView = self.logView;
@@ -222,7 +223,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         NSTextStorage *storage = self.logView.textStorage;
         [storage beginEditing];
         NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{
-            NSForegroundColorAttributeName: [NSColor greenColor],
+            NSForegroundColorAttributeName: IGThemeAccentColor(),
             NSFontAttributeName: [NSFont fontWithName:@"Monaco" size:10]
         }];
         [storage appendAttributedString:attrLine];
@@ -1283,6 +1284,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
