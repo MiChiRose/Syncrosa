@@ -29,7 +29,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "Library Cleanup", "merge_instr": "Identify split albums and restore missing metadata via iTunes Search API.",
         "analyze_lib": "Analyze Library", "fix_selected": "Fix Selected", "results": "Analysis Results",
         "no_issues": "No issues detected yet.", "tracks": "{} tracks", "file_fixing": "Direct File Fixing",
-        "file_instr": "Fix metadata for music files directly on your disk (MP3, FLAC, etc).", "no_folder": "No folder selected",
+        "file_instr": "Look up artist and title, rename local music files, and optionally save cover art beside them.", "no_folder": "No folder selected",
         "select_folder": "Select Folder", "files_to_process": "Files to Process ({})", "fix_all": "Fix All Files",
         "replace_underscores": "Replace _ with spaces in filenames",
         "select_folder_msg": "Select a folder to see music files.", "checking": "Checking connection...",
@@ -70,7 +70,43 @@ class LocalizationService: ObservableObject {
         "log_restore_started": "Starting restoration of original covers...",
         "log_restore_finished": "Restoration finished! Restored {} tracks.",
         "no_covers_found": "No covers found to process.",
-        "error_processing": "Error processing track: {}"
+        "error_processing": "Error processing track: {}",
+        "overview": "Overview",
+        "offline_playlist": "Offline Playlist",
+        "info_eraser": "Info Eraser",
+        "recovery_center": "Recovery Center",
+        "library_doctor": "Library Doctor",
+        "duplicate_finder": "Duplicate Finder",
+        "close": "Close",
+        "how_to_use": "How to use",
+        "good_to_know": "Good to know",
+        "state_on": "On",
+        "state_off": "Off",
+        "waiting": "Waiting",
+        "skipped": "Skipped",
+        "log": "Activity Log",
+        "select_language": "Select Language",
+        "process_safety": "Process Safety",
+        "only_local_mode": "Only Local Mode",
+        "operation_history": "Operation History",
+        "updates": "Updates",
+        "check_updates": "Check Updates",
+        "update_app": "Update App",
+        "release_notes": "Release Notes",
+        "rename_format": "Filename Format",
+        "rename_artist_title": "Artist - Title",
+        "rename_track_artist_title": "Track Number · Artist - Title",
+        "rename_album_track_title": "Album · Track Number · Title",
+        "rename_preview": "Filename Preview",
+        "apply_rename": "Rename Files",
+        "clean_filenames": "Clean Filenames",
+        "select_all": "Select All",
+        "album": "Album",
+        "title": "Title",
+        "artist": "Artist",
+        "genre": "Genre",
+        "track_number": "Track Number",
+        "lyrics": "Lyrics"
     ]
     
     private let ru: [String: String] = [
@@ -88,7 +124,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "Очистка медиатеки", "merge_instr": "Поиск разбитых альбомов и восстановление метаданных через iTunes Search API.",
         "analyze_lib": "Анализ медиатеки", "fix_selected": "Исправить выбранное", "results": "Результаты анализа",
         "no_issues": "Проблем пока не обнаружено.", "tracks": "{} треков", "file_fixing": "Работа с файлами",
-        "file_instr": "Исправление метаданных музыкальных файлов напрямую на диске (MP3, FLAC и др.).", "no_folder": "Папка не выбрана",
+        "file_instr": "Поиск исполнителя и названия, переименование локальных файлов и необязательное сохранение обложек рядом с ними.", "no_folder": "Папка не выбрана",
         "select_folder": "Выбрать папку", "files_to_process": "Файлов для обработки ({})", "fix_all": "Исправить все файлы",
         "replace_underscores": "Заменять _ на пробелы в именах файлов",
         "select_folder_msg": "Выберите папку, чтобы увидеть файлы.", "checking": "Проверка подключения...",
@@ -129,7 +165,43 @@ class LocalizationService: ObservableObject {
         "log_restore_started": "Запуск восстановления оригинальных обложек...",
         "log_restore_finished": "Восстановление завершено! Восстановлено {} треков.",
         "no_covers_found": "Обложки для обработки не найдены.",
-        "error_processing": "Ошибка обработки трека: {}"
+        "error_processing": "Ошибка обработки трека: {}",
+        "overview": "Обзор",
+        "offline_playlist": "Офлайн-плейлист",
+        "info_eraser": "Удаление информации",
+        "recovery_center": "Центр восстановления",
+        "library_doctor": "Диагностика медиатеки",
+        "duplicate_finder": "Поиск дубликатов",
+        "close": "Закрыть",
+        "how_to_use": "Как пользоваться",
+        "good_to_know": "Важно знать",
+        "state_on": "Включено",
+        "state_off": "Выключено",
+        "waiting": "Ожидание",
+        "skipped": "Пропущено",
+        "log": "Журнал действий",
+        "select_language": "Выберите язык",
+        "process_safety": "Безопасность процессов",
+        "only_local_mode": "Только локальная работа",
+        "operation_history": "История операций",
+        "updates": "Обновления",
+        "check_updates": "Проверить обновления",
+        "update_app": "Обновить приложение",
+        "release_notes": "Что нового",
+        "rename_format": "Формат имени файла",
+        "rename_artist_title": "Исполнитель - Название",
+        "rename_track_artist_title": "Номер трека · Исполнитель - Название",
+        "rename_album_track_title": "Альбом · Номер трека · Название",
+        "rename_preview": "Предпросмотр имени",
+        "apply_rename": "Переименовать файлы",
+        "clean_filenames": "Очистить имена файлов",
+        "select_all": "Выбрать все",
+        "album": "Альбом",
+        "title": "Название",
+        "artist": "Исполнитель",
+        "genre": "Жанр",
+        "track_number": "Номер трека",
+        "lyrics": "Текст песни"
     ]
     
     private let be: [String: String] = [
@@ -147,7 +219,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "Ачыстка медыятэкі", "merge_instr": "Пошук разбітых альбомаў і аднаўленне метададзеных праз iTunes Search API.",
         "analyze_lib": "Аналіз медыятэкі", "fix_selected": "Выправіць абранае", "results": "Вынікі аналізу",
         "no_issues": "Праблем пакуль не выяўлена.", "tracks": "{} трэкаў", "file_fixing": "Праца з файламі",
-        "file_instr": "Выпраўленне метададзеных музычных файлаў непасрэдна на дыску (MP3, FLAC і інш.).", "no_folder": "Папка не абраная",
+        "file_instr": "Пошук выканаўцы і назвы, перайменаванне лакальных файлаў і неабавязковае захаванне вокладак побач з імі.", "no_folder": "Папка не абраная",
         "select_folder": "Выбраць папку", "files_to_process": "Файлаў для апрацоўкі ({})", "fix_all": "Выправіць усе файлы",
         "select_folder_msg": "Абярыце папку, каб убачыць файлы.", "checking": "Праверка падключэння...",
         "welcome": "Паспяхова! Сардэчна запрашаем.", "val_failed": "Памылка праверкі: {}", "lang_section": "Мова", "refresh_cache": "Абнавіць кэш музычнай базы.",
@@ -188,7 +260,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "보관함 정리", "merge_instr": "iTunes 검색 API를 통해 분할된 앨범을 식별하고 누락된 메타데이터를 복원합니다.",
         "analyze_lib": "보관함 분석", "fix_selected": "선택한 항목 수정", "results": "분석 결과",
         "no_issues": "아직 문제가 발견되지 않았습니다.", "tracks": "{}개 트랙", "file_fixing": "직접 파일 수정",
-        "file_instr": "디스크에 있는 음악 파일(MP3, FLAC 등)의 메타데이터를 직접 수정합니다.", "no_folder": "선택된 폴더 없음",
+        "file_instr": "아티스트와 제목을 검색하고 로컬 음악 파일의 이름을 변경하며 선택적으로 표지를 같은 폴더에 저장합니다.", "no_folder": "선택된 폴더 없음",
         "select_folder": "폴더 선택", "files_to_process": "처리할 파일 ({})", "fix_all": "모든 파일 수정",
         "select_folder_msg": "음악 파일을 보려면 폴더를 선택하십시오.", "checking": "연결 확인 중...",
         "welcome": "성공! 환영합니다.", "val_failed": "확인 실패: {}", "lang_section": "언어", "refresh_cache": "로컬 음악 데이터베이스 캐시를 새로 고칩니다.",
@@ -229,7 +301,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "ライブラリのクリーンアップ", "merge_instr": "iTunes検索APIを介して分割されたアルバムを特定し、不足しているメタデータを復元します。",
         "analyze_lib": "ライブラリを分析", "fix_selected": "選択したものを修正", "results": "分析結果",
         "no_issues": "まだ問題は見つかりませんでした。", "tracks": "{}曲", "file_fixing": "直接ファイル修正",
-        "file_instr": "ディスク上の音楽ファイル（MP3、FLACなど）のメタデータを直接修正します。", "no_folder": "フォルダが選択されていません",
+        "file_instr": "アーティストと曲名を検索してローカル音楽ファイルを改名し、必要に応じて同じフォルダにアートワークを保存します。", "no_folder": "フォルダが選択されていません",
         "select_folder": "フォルダを選択", "files_to_process": "処理するファイル ({})", "fix_all": "すべてのファイルを修正",
         "select_folder_msg": "音楽ファイルを表示するにはフォルダを選択してください。", "checking": "接続を確認中...",
         "welcome": "成功しました！ようこそ。", "val_failed": "検証に失敗しました: {}", "lang_section": "言語", "refresh_cache": "ローカル音楽データベースのキャッシュを更新します。",
@@ -270,7 +342,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "资料库清理", "merge_instr": "通过 iTunes 搜索 API 识别拆分的专辑并恢复缺失的元数据。",
         "analyze_lib": "分析资料库", "fix_selected": "修复选中项", "results": "分析结果",
         "no_issues": "尚未检测到问题。", "tracks": "{} 首曲目", "file_fixing": "直接文件修复",
-        "file_instr": "直接修复磁盘上的音乐文件（MP3、FLAC 等）的元数据。", "no_folder": "未选择文件夹",
+        "file_instr": "查找艺人和标题、重命名本地音乐文件，并可选择将封面保存到同一文件夹。", "no_folder": "未选择文件夹",
         "select_folder": "选择文件夹", "files_to_process": "待处理文件 ({})", "fix_all": "修复所有文件",
         "select_folder_msg": "选择一个文件夹以查看音乐文件。", "checking": "正在检查连接...",
         "welcome": "成功！欢迎。", "val_failed": "验证失败: {}", "lang_section": "语言", "refresh_cache": "刷新本地音乐数据库缓存。",
@@ -311,7 +383,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "Mediathek-Bereinigung", "merge_instr": "Identifizieren Sie geteilte Alben und stellen Sie fehlende Metadaten über die iTunes-Suche wieder her.",
         "analyze_lib": "Mediathek analysieren", "fix_selected": "Auswahl reparieren", "results": "Analyse-Ergebnisse",
         "no_issues": "Noch keine Probleme erkannt.", "tracks": "{} Titel", "file_fixing": "Direkte Dateireparatur",
-        "file_instr": "Metadaten für Musikdateien direkt auf der Festplatte reparieren (MP3, FLAC usw.).", "no_folder": "Kein Ordner ausgewählt",
+        "file_instr": "Interpret und Titel suchen, lokale Musikdateien umbenennen und optional Cover im selben Ordner speichern.", "no_folder": "Kein Ordner ausgewählt",
         "select_folder": "Ordner wählen", "files_to_process": "Dateien zu verarbeiten ({})", "fix_all": "Alle Dateien reparieren",
         "select_folder_msg": "Wählen Sie einen Ordner, um Musikdateien zu sehen.", "checking": "Verbindung wird geprüft...",
         "welcome": "Erfolgreich! Willkommen.", "val_failed": "Validierung fehlgeschlagen: {}", "lang_section": "Sprache", "refresh_cache": "Lokalen Musikdatenbank-Cache aktualisieren.",
@@ -352,7 +424,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "Oczyszczanie biblioteki", "merge_instr": "Zidentyfikuj podzielone albumy i przywróć brakujące metadane za pomocą iTunes Search API.",
         "analyze_lib": "Analizuj bibliotekę", "fix_selected": "Napraw wybrane", "results": "Wyniki analizy",
         "no_issues": "Nie wykryto jeszcze problemów.", "tracks": "{} utworów", "file_fixing": "Bezpośrednia naprawa plików",
-        "file_instr": "Napraw metadane plików muzycznych bezpośrednio na dysku (MP3, FLAC itp.).", "no_folder": "Nie wybrano folderu",
+        "file_instr": "Wyszukaj wykonawcę i tytuł, zmień nazwy lokalnych plików muzycznych i opcjonalnie zapisz obok okładki.", "no_folder": "Nie wybrano folderu",
         "select_folder": "Wybierz folder", "files_to_process": "Pliki do przetworzenia ({})", "fix_all": "Napraw wszystkie pliki",
         "select_folder_msg": "Wybierz folder, aby zobaczyć pliki muzyczne.", "checking": "Sprawdzanie połączenia...",
         "welcome": "Sukces! Witamy.", "val_failed": "Weryfikacja nie powiodła się: {}", "lang_section": "Język", "refresh_cache": "Odśwież pamięć podręczną lokalnej bazy danych muzyki.",
@@ -393,7 +465,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "Raamatukogu puhastamine", "merge_instr": "Tuvastage jagatud albumid ja taastage puuduvad metaandmed iTunes'i otsingu API kaudu.",
         "analyze_lib": "Analüüsi raamatukogu", "fix_selected": "Paranda valitud", "results": "Analüüsi tulemused",
         "no_issues": "Probleeme veel ei tuvastatud.", "tracks": "{} lugu", "file_fixing": "Failide otsene parandamine",
-        "file_instr": "Parandage muusikafailide metaandmeid otse kettal (MP3, FLAC jne).", "no_folder": "Kausta pole valitud",
+        "file_instr": "Otsi esitaja ja pealkiri, nimeta kohalikud muusikafailid ümber ning soovi korral salvesta kaanepilt samasse kausta.", "no_folder": "Kausta pole valitud",
         "select_folder": "Vali kaust", "files_to_process": "Töödeldavad failid ({})", "fix_all": "Paranda kõik failid",
         "select_folder_msg": "Muusikafailide nägemiseks valige kaust.", "checking": "Ühenduse kontrollimine...",
         "welcome": "Edukas! Tere tulemast.", "val_failed": "Valideerimine ebaõnnestus: {}", "lang_section": "Keel", "refresh_cache": "Värskendage kohaliku muusikaandmebaasi vahemälu.",
@@ -434,7 +506,7 @@ class LocalizationService: ObservableObject {
         "lib_cleanup": "Limpieza de biblioteca", "merge_instr": "Identifique álbumes divididos y restaure metadatos faltantes mediante la API de búsqueda de iTunes.",
         "analyze_lib": "Analizar biblioteca", "fix_selected": "Reparar seleccionados", "results": "Resultados del análisis",
         "no_issues": "Aún no se han detectado problemas.", "tracks": "{} pistas", "file_fixing": "Reparación directa de archivos",
-        "file_instr": "Reparar metadatos de archivos de música directamente en su disco (MP3, FLAC, etc.).", "no_folder": "Ninguna carpeta seleccionada",
+        "file_instr": "Busque artista y título, cambie el nombre de archivos locales y guarde opcionalmente las portadas junto a ellos.", "no_folder": "Ninguna carpeta seleccionada",
         "select_folder": "Seleccionar carpeta", "files_to_process": "Archivos a procesar ({})", "fix_all": "Reparar todos los archivos",
         "select_folder_msg": "Seleccione una carpeta para ver los archivos de música.", "checking": "Comprobando conexión...",
         "welcome": "¡Éxito! Bienvenido.", "val_failed": "Validación fallida: {}", "lang_section": "Idioma", "refresh_cache": "Actualizar el caché de la base de datos de música local.",
@@ -466,10 +538,87 @@ class LocalizationService: ObservableObject {
             "zh": zh, "de": de, "pl": pl, "et": et, "es": es
         ]
     }
+
+    private var supplementalTranslations: [String: [String: String]] {
+        [
+            "be": [
+                "overview": "Агляд", "offline_playlist": "Афлайн-плэйліст", "info_eraser": "Выдаленне інфармацыі",
+                "recovery_center": "Цэнтр аднаўлення", "library_doctor": "Дыягностыка медыятэкі", "duplicate_finder": "Пошук дублікатаў",
+                "close": "Закрыць", "how_to_use": "Як карыстацца", "good_to_know": "Варта ведаць", "state_on": "Укл.", "state_off": "Выкл.",
+                "waiting": "Чаканне", "skipped": "Прапушчана", "log": "Журнал дзеянняў", "select_language": "Абярыце мову",
+                "process_safety": "Бяспека працэсаў", "only_local_mode": "Толькі лакальны рэжым", "operation_history": "Гісторыя аперацый",
+                "updates": "Абнаўленні", "check_updates": "Праверыць абнаўленні", "update_app": "Абнавіць праграму",
+                "release_notes": "Нататкі да выпуску", "rename_format": "Фармат імя файла", "apply_rename": "Перайменаваць файлы"
+            ],
+            "ko": [
+                "overview": "개요", "offline_playlist": "오프라인 플레이리스트", "info_eraser": "정보 지우기",
+                "recovery_center": "복구 센터", "library_doctor": "라이브러리 진단", "duplicate_finder": "중복 곡 찾기",
+                "close": "닫기", "how_to_use": "사용 방법", "good_to_know": "알아두기", "state_on": "켬", "state_off": "끔",
+                "waiting": "대기 중", "skipped": "건너뜀", "log": "작업 로그", "select_language": "언어 선택",
+                "process_safety": "작업 안전", "only_local_mode": "로컬 전용 모드", "operation_history": "작업 기록",
+                "updates": "업데이트", "check_updates": "업데이트 확인", "update_app": "앱 업데이트",
+                "release_notes": "릴리스 노트", "rename_format": "파일 이름 형식", "apply_rename": "파일 이름 변경"
+            ],
+            "ja": [
+                "overview": "概要", "offline_playlist": "オフラインプレイリスト", "info_eraser": "情報消去",
+                "recovery_center": "リカバリーセンター", "library_doctor": "ライブラリ診断", "duplicate_finder": "重複曲検索",
+                "close": "閉じる", "how_to_use": "使い方", "good_to_know": "知っておくこと", "state_on": "オン", "state_off": "オフ",
+                "waiting": "待機中", "skipped": "スキップ", "log": "操作ログ", "select_language": "言語を選択",
+                "process_safety": "操作の安全性", "only_local_mode": "ローカル専用モード", "operation_history": "操作履歴",
+                "updates": "アップデート", "check_updates": "アップデートを確認", "update_app": "アプリを更新",
+                "release_notes": "リリースノート", "rename_format": "ファイル名の形式", "apply_rename": "ファイル名を変更"
+            ],
+            "zh": [
+                "overview": "概览", "offline_playlist": "离线播放列表", "info_eraser": "清除信息",
+                "recovery_center": "恢复中心", "library_doctor": "音乐库诊断", "duplicate_finder": "查找重复曲目",
+                "close": "关闭", "how_to_use": "使用方法", "good_to_know": "注意事项", "state_on": "开", "state_off": "关",
+                "waiting": "等待中", "skipped": "已跳过", "log": "操作日志", "select_language": "选择语言",
+                "process_safety": "操作安全", "only_local_mode": "仅本地模式", "operation_history": "操作历史",
+                "updates": "更新", "check_updates": "检查更新", "update_app": "更新应用",
+                "release_notes": "发行说明", "rename_format": "文件名格式", "apply_rename": "重命名文件"
+            ],
+            "de": [
+                "overview": "Übersicht", "offline_playlist": "Offline-Playlist", "info_eraser": "Informationen löschen",
+                "recovery_center": "Wiederherstellung", "library_doctor": "Mediathek-Diagnose", "duplicate_finder": "Duplikate suchen",
+                "close": "Schließen", "how_to_use": "Verwendung", "good_to_know": "Gut zu wissen", "state_on": "Ein", "state_off": "Aus",
+                "waiting": "Warten", "skipped": "Übersprungen", "log": "Aktivitätsprotokoll", "select_language": "Sprache auswählen",
+                "process_safety": "Prozesssicherheit", "only_local_mode": "Nur lokaler Modus", "operation_history": "Vorgangsverlauf",
+                "updates": "Updates", "check_updates": "Nach Updates suchen", "update_app": "App aktualisieren",
+                "release_notes": "Versionshinweise", "rename_format": "Dateinamenformat", "apply_rename": "Dateien umbenennen"
+            ],
+            "pl": [
+                "overview": "Przegląd", "offline_playlist": "Playlista offline", "info_eraser": "Usuwanie informacji",
+                "recovery_center": "Centrum odzyskiwania", "library_doctor": "Diagnostyka biblioteki", "duplicate_finder": "Wyszukiwanie duplikatów",
+                "close": "Zamknij", "how_to_use": "Jak używać", "good_to_know": "Warto wiedzieć", "state_on": "Wł.", "state_off": "Wył.",
+                "waiting": "Oczekiwanie", "skipped": "Pominięto", "log": "Dziennik działań", "select_language": "Wybierz język",
+                "process_safety": "Bezpieczeństwo operacji", "only_local_mode": "Tylko tryb lokalny", "operation_history": "Historia operacji",
+                "updates": "Aktualizacje", "check_updates": "Sprawdź aktualizacje", "update_app": "Zaktualizuj aplikację",
+                "release_notes": "Informacje o wydaniu", "rename_format": "Format nazwy pliku", "apply_rename": "Zmień nazwy plików"
+            ],
+            "et": [
+                "overview": "Ülevaade", "offline_playlist": "Võrguühenduseta esitusloend", "info_eraser": "Teabe eemaldamine",
+                "recovery_center": "Taastekeskus", "library_doctor": "Muusikakogu diagnostika", "duplicate_finder": "Duplikaatide otsing",
+                "close": "Sulge", "how_to_use": "Kasutamine", "good_to_know": "Hea teada", "state_on": "Sees", "state_off": "Väljas",
+                "waiting": "Ootel", "skipped": "Vahele jäetud", "log": "Tegevuslogi", "select_language": "Vali keel",
+                "process_safety": "Toimingute ohutus", "only_local_mode": "Ainult kohalik režiim", "operation_history": "Toimingute ajalugu",
+                "updates": "Uuendused", "check_updates": "Kontrolli uuendusi", "update_app": "Uuenda rakendust",
+                "release_notes": "Väljalaskemärkmed", "rename_format": "Failinime vorming", "apply_rename": "Nimeta failid ümber"
+            ],
+            "es": [
+                "overview": "Resumen", "offline_playlist": "Lista sin conexión", "info_eraser": "Borrar información",
+                "recovery_center": "Centro de recuperación", "library_doctor": "Diagnóstico de biblioteca", "duplicate_finder": "Buscar duplicados",
+                "close": "Cerrar", "how_to_use": "Cómo usar", "good_to_know": "Conviene saber", "state_on": "Activado", "state_off": "Desactivado",
+                "waiting": "En espera", "skipped": "Omitido", "log": "Registro de actividad", "select_language": "Seleccionar idioma",
+                "process_safety": "Seguridad de procesos", "only_local_mode": "Modo solo local", "operation_history": "Historial de operaciones",
+                "updates": "Actualizaciones", "check_updates": "Buscar actualizaciones", "update_app": "Actualizar aplicación",
+                "release_notes": "Notas de la versión", "rename_format": "Formato del nombre", "apply_rename": "Renombrar archivos"
+            ]
+        ]
+    }
     
     func t(_ key: String, _ args: Any...) -> String {
         let langDict = languages[selectedLanguage] ?? en
-        let text = langDict[key] ?? en[key] ?? key
+        let text = langDict[key] ?? supplementalTranslations[selectedLanguage]?[key] ?? en[key] ?? key
         if args.isEmpty { return text }
         
         var formattedText = text

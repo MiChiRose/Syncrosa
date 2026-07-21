@@ -16,13 +16,31 @@ struct iTunesResponse: Codable {
 
 class MetadataService {
     static let shared = MetadataService()
+
+    func searchURL(for track: String, artist: String) -> URL? {
+        var components = URLComponents(string: "https://itunes.apple.com/search")
+        components?.queryItems = [
+            URLQueryItem(name: "term", value: "\(track) \(artist)"),
+            URLQueryItem(name: "entity", value: "song"),
+            URLQueryItem(name: "limit", value: "1")
+        ]
+        return components?.url
+    }
     
     func fetchMetadata(for track: String, artist: String, completion: @escaping (iTunesResult?) -> Void) {
-        let query = "\(track) \(artist)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let url = URL(string: "https://itunes.apple.com/search?term=\(query)&entity=song&limit=1")!
+        guard let url = searchURL(for: track, artist: artist) else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            guard let data = data, error == nil else {
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data,
+                  error == nil,
+                  let response = response as? HTTPURLResponse,
+                  (200...299).contains(response.statusCode) else {
                 completion(nil)
                 return
             }

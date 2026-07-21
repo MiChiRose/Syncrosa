@@ -18,8 +18,37 @@ struct FileItem: Identifiable {
 private enum FileFixerSafetyAction {
     case fixMetadata
     case cleanFilenames
+    case applyRenameTemplate
     case importFolderPlaylist
     case importExternalSelection([FolderPlaylistTrack])
+}
+
+private enum FileRenameFormat: String, CaseIterable, Hashable {
+    case artistTitle
+    case trackArtistTitle
+    case albumTrackTitle
+
+    var template: String {
+        switch self {
+        case .artistTitle:
+            return "{artist} - {title}"
+        case .trackArtistTitle:
+            return "{track} {artist} - {title}"
+        case .albumTrackTitle:
+            return "{album} - {track} {title}"
+        }
+    }
+
+    func title(language: String) -> String {
+        switch self {
+        case .artistTitle:
+            return language == "ru" ? "Исполнитель - Название" : "Artist - Title"
+        case .trackArtistTitle:
+            return language == "ru" ? "Номер. Исполнитель - Название" : "Track. Artist - Title"
+        case .albumTrackTitle:
+            return language == "ru" ? "Альбом - Номер. Название" : "Album - Track. Title"
+        }
+    }
 }
 
 struct FileMediaFixerView: View {
@@ -36,26 +65,19 @@ struct FileMediaFixerView: View {
     @State private var folderPlaylistTracks: [FolderPlaylistTrack] = []
     @State private var playlistName: String = ""
     @State private var importProgressText: String = ""
+    @State private var renameFormat: FileRenameFormat = .artistTitle
     
     // Checkbox checklist states
-    @State private var fixAlbum: Bool = true
     @State private var fixTitle: Bool = true
     @State private var fixArtist: Bool = true
-    @State private var fixGenre: Bool = true
-    @State private var fixTrackNumber: Bool = true
-    @State private var fixLyrics: Bool = true
     
     // Select All Binding
     var selectAllBinding: Binding<Bool> {
         Binding<Bool>(
-            get: { fixAlbum && fixTitle && fixArtist && fixGenre && fixTrackNumber && fixLyrics },
+            get: { fixTitle && fixArtist },
             set: { newValue in
-                fixAlbum = newValue
                 fixTitle = newValue
                 fixArtist = newValue
-                fixGenre = newValue
-                fixTrackNumber = newValue
-                fixLyrics = newValue
             }
         )
     }
@@ -82,6 +104,14 @@ struct FileMediaFixerView: View {
             ? " FLAC может быть пропущен Music.app."
             : " FLAC may be skipped by Music.app.")
     }
+
+    private var renameTemplate: String {
+        renameFormat.template
+    }
+
+    private var renameFormatTitle: String {
+        renameFormat.title(language: lang.selectedLanguage)
+    }
     
     var body: some View {
         SyncrosaPage {
@@ -94,7 +124,14 @@ struct FileMediaFixerView: View {
                 
                 // Checklist Card
                 VStack(alignment: .leading, spacing: 15) {
-                    SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "ПРИМЕНЯТЬ ТОЛЬКО ОТМЕЧЕННЫЕ ТЕГИ" : "APPLY ONLY CHECKED TAGS", systemImage: "checklist")
+                    SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "ДАННЫЕ ДЛЯ ИМЕНИ ФАЙЛА" : "DATA USED FOR FILENAMES", systemImage: "checklist")
+
+                    Text(lang.selectedLanguage == "ru"
+                         ? "Syncrosa ищет исполнителя и название, затем безопасно переименовывает файл. Встроенные аудиотеги этой операцией не перезаписываются."
+                         : "Syncrosa looks up artist and title, then safely renames the file. This operation does not rewrite embedded audio tags.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     
                     Toggle(isOn: selectAllBinding) {
                         Text(lang.selectedLanguage == "ru" ? "Выбрать все" : "Select All")
@@ -105,19 +142,60 @@ struct FileMediaFixerView: View {
                     Divider()
                     
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], alignment: .leading, spacing: 12) {
-                        Toggle(lang.selectedLanguage == "ru" ? "Альбом" : "Album", isOn: $fixAlbum)
-                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                         Toggle(lang.selectedLanguage == "ru" ? "Название" : "Title", isOn: $fixTitle)
                             .toggleStyle(SyncrosaCheckboxToggleStyle())
                         Toggle(lang.selectedLanguage == "ru" ? "Исполнитель" : "Artist", isOn: $fixArtist)
                             .toggleStyle(SyncrosaCheckboxToggleStyle())
-                        Toggle(lang.selectedLanguage == "ru" ? "Жанр" : "Genre", isOn: $fixGenre)
-                            .toggleStyle(SyncrosaCheckboxToggleStyle())
-                        Toggle(lang.selectedLanguage == "ru" ? "Номер трека" : "Track Number", isOn: $fixTrackNumber)
-                            .toggleStyle(SyncrosaCheckboxToggleStyle())
-                        Toggle(lang.selectedLanguage == "ru" ? "Текст песен" : "Lyrics", isOn: $fixLyrics)
-                            .toggleStyle(SyncrosaCheckboxToggleStyle())
                     }
+                }
+                .syncrosaCard()
+
+                VStack(alignment: .leading, spacing: 14) {
+                    SyncrosaSectionLabel(text: lang.t("rename_format").uppercased(), systemImage: "textformat.abc")
+                    Text(lang.selectedLanguage == "ru"
+                         ? "Выберите готовый безопасный формат. Syncrosa сохранит расширение каждого файла."
+                         : "Choose a safe, ready-made format. Syncrosa keeps each file extension.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    SyncrosaGlassMenu(
+                        selection: $renameFormat,
+                        options: FileRenameFormat.allCases.map {
+                            SyncrosaMenuOption(title: $0.title(language: lang.selectedLanguage), value: $0)
+                        },
+                        minWidth: 280,
+                        isDisabled: isProcessing
+                    )
+
+                    if let preview = renameTemplatePreview {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(lang.selectedLanguage == "ru" ? "Предварительный просмотр" : "Preview")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(preview.old)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.down")
+                                    .foregroundStyle(.secondary)
+                                Text(preview.new)
+                                    .font(.caption.monospaced())
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                        }
+                        .padding(12)
+                        .background(SyncrosaTheme.subtleBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+
+                    Button(action: { presentSafetyPreview(.applyRenameTemplate) }) {
+                        Label(lang.t("apply_rename"), systemImage: "checkmark.shield")
+                    }
+                    .buttonStyle(SyncrosaPrimaryButtonStyle())
+                    .disabled(fileItems.isEmpty || isProcessing)
                 }
                 .syncrosaCard()
                 
@@ -139,10 +217,10 @@ struct FileMediaFixerView: View {
                         .disabled(isProcessing)
                         
                         Button(action: { presentSafetyPreview(.fixMetadata) }) {
-                            Label(lang.t("fix_all"), systemImage: "wrench.and.screwdriver")
+                            Label(lang.selectedLanguage == "ru" ? "Найти данные и переименовать" : "Look Up & Rename", systemImage: "wrench.and.screwdriver")
                         }
                         .buttonStyle(SyncrosaPrimaryButtonStyle())
-                        .disabled(fileItems.isEmpty || isProcessing || (!fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics))
+                        .disabled(fileItems.isEmpty || isProcessing || (!fixTitle && !fixArtist))
 
                         Button(action: { presentSafetyPreview(.cleanFilenames) }) {
                             Label(lang.selectedLanguage == "ru" ? "Clean Filenames" : "Clean Filenames", systemImage: "textformat")
@@ -187,7 +265,7 @@ struct FileMediaFixerView: View {
                 }
                 .syncrosaCard()
 
-                SyncrosaLogConsole(title: "LOG", lines: logLines, minHeight: 130)
+                    SyncrosaLogConsole(title: lang.t("log").uppercased(), lines: logLines, minHeight: 130)
                 
                 Spacer()
         }
@@ -211,53 +289,53 @@ struct FileMediaFixerView: View {
             )
         }
     }
+
+    var renameTemplatePreview: (old: String, new: String)? {
+        guard let item = fileItems.first,
+              let newPath = LibraryToolkitService.shared.renamedPath(
+                for: localSnapshot(for: item.url),
+                template: renameTemplate
+              ) else {
+            return nil
+        }
+        return (item.url.lastPathComponent, URL(fileURLWithPath: newPath).lastPathComponent)
+    }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: Работа с файлами" : "Help: Folder Fixer")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "Этот инструмент предназначен для прямого переименования и упорядочивания музыкальных файлов (MP3, FLAC, M4A и др.) в выбранной папке на диске.\n\n" +
-                         "Инструкция по использованию:\n" +
-                         "1. Выберите в панели тегов те свойства, которые вы хотите применить к переименованию файлов.\n" +
-                         "2. Укажите, нужно ли автоматически скачивать обложку альбома в ту же папку.\n" +
-                         "3. Нажмите «Выбрать папку» и укажите директорию с вашей музыкой.\n" +
-                         "4. Для отдельной чистки имён файлов используйте кнопку Clean Filenames. Она заменяет подчёркивания на пробелы отдельным процессом.\n" +
-                         "5. Нажмите «Исправить все файлы». Программа запросит корректные данные из iTunes Search API и переименует файлы по шаблону «Исполнитель - Название.расширение», применяя только выбранные теги." :
-                         
-                         "This tool is designed to directly rename and organize music files (MP3, FLAC, M4A, etc.) in a folder on your disk.\n\n" +
-                         "How to use:\n" +
-                         "1. Select the specific tags in the tags panel that you wish to apply to the file processing/renaming.\n" +
-                         "2. Select whether to download album covers to the folder.\n" +
-                         "3. Click 'Select Folder' and choose the directory containing your music files.\n" +
-                         "4. Use Clean Filenames as a separate process when you only want underscores converted to spaces.\n" +
-                         "5. Click 'Fix All Files' to process the files. The app will search iTunes Search API and rename files to '[Artist] - [Title].[ext]' based only on the checked tags."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("folder_fix"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Исправляет метаданные и имена локальных музыкальных файлов только в выбранной папке и её подпапках."
+                : "Repairs metadata and filenames only inside the selected local folder and its subfolders.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Выберите, использовать ли найденного исполнителя и название в новом имени файла.",
+                "Выберите папку. Syncrosa покажет найденные музыкальные файлы.",
+                "Для метаданных нажмите «Исправить все файлы»; для подчёркиваний используйте отдельную очистку имён.",
+                "Для пакетного переименования выберите понятный формат и проверьте пример перед подтверждением."
+            ] : [
+                "Choose whether the discovered artist and title should be used in the new filename.",
+                "Select a folder. Syncrosa lists the music files it finds.",
+                "Use Fix All Files for metadata; use Clean Filenames separately for accidental underscores.",
+                "For batch renaming, choose a named format and review the example before confirming."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Работайте с копией папки или заранее сделайте backup.",
+                "Переименование создаёт пакет отмены в Recovery Center.",
+                "FLAC поддерживается не всеми действиями Music и системными метаданными."
+            ] : [
+                "Work on a copied folder or make a backup first.",
+                "Renaming creates an undo package in Recovery Center.",
+                "FLAC is not supported by every Music or system metadata operation."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
     
     @ViewBuilder
     func statusIcon(for status: FileStatus) -> some View {
         switch status {
         case .pending:
-            Text("WAITING")
+            Text(lang.t("waiting").uppercased())
                 .font(.system(size: 9, weight: .bold))
                 .foregroundColor(.secondary)
                 .padding(4)
@@ -292,19 +370,28 @@ struct FileMediaFixerView: View {
     }
     
     func scanFolder(_ url: URL) {
-        let scannedTracks = FolderPlaylistImportService.shared.scanFolder(url)
-        let matches = scannedTracks.map { FileItem(url: url.appendingPathComponent($0.relativePath)) }
-        
-        self.fileItems = matches
-        self.folderPlaylistTracks = scannedTracks
-        self.importProgressText = ""
-        logLines.removeAll()
-        appendLog("Scanned folder recursively: \(matches.count) music files.")
-        
-        if fileItems.isEmpty {
-            activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.", isError: true)
-        } else {
-            activeNotification = NotificationMessage(text: lang.t("files_to_process", fileItems.count), isError: false)
+        isProcessing = true
+        activeNotification = NotificationMessage(
+            text: lang.selectedLanguage == "ru" ? "Сканирование папки..." : "Scanning folder...",
+            isError: false
+        )
+        DispatchQueue.global(qos: .utility).async {
+            let scannedTracks = FolderPlaylistImportService.shared.scanFolder(url)
+            let matches = scannedTracks.map { FileItem(url: url.appendingPathComponent($0.relativePath)) }
+            DispatchQueue.main.async {
+                self.fileItems = matches
+                self.folderPlaylistTracks = scannedTracks
+                self.importProgressText = ""
+                self.logLines.removeAll()
+                self.appendLog("Scanned folder recursively: \(matches.count) music files.")
+                self.isProcessing = false
+
+                if matches.isEmpty {
+                    self.activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.", isError: true)
+                } else {
+                    self.activeNotification = NotificationMessage(text: lang.t("files_to_process", matches.count), isError: false)
+                }
+            }
         }
     }
 
@@ -312,19 +399,15 @@ struct FileMediaFixerView: View {
         guard !fileItems.isEmpty else { return }
         pendingSafetyAction = action
         let checkedTags = [
-            fixAlbum ? (lang.selectedLanguage == "ru" ? "Альбом" : "Album") : nil,
             fixTitle ? (lang.selectedLanguage == "ru" ? "Название" : "Title") : nil,
-            fixArtist ? (lang.selectedLanguage == "ru" ? "Исполнитель" : "Artist") : nil,
-            fixGenre ? (lang.selectedLanguage == "ru" ? "Жанр" : "Genre") : nil,
-            fixTrackNumber ? (lang.selectedLanguage == "ru" ? "Номер трека" : "Track Number") : nil,
-            fixLyrics ? (lang.selectedLanguage == "ru" ? "Текст песен" : "Lyrics") : nil
+            fixArtist ? (lang.selectedLanguage == "ru" ? "Исполнитель" : "Artist") : nil
         ].compactMap { $0 }.joined(separator: ", ")
 
         switch action {
         case .fixMetadata:
             safetyPreview = SafetyPreviewRequest(
-                title: lang.selectedLanguage == "ru" ? "Исправить метаданные файлов?" : "Fix local file metadata?",
-                message: lang.selectedLanguage == "ru" ? "Syncrosa обработает выбранную папку и применит только отмеченные теги. Для файлов лучше иметь backup или работать с копией." : "Syncrosa will process the selected folder and apply only checked tags. Keep a backup or work on a copy.",
+                title: lang.selectedLanguage == "ru" ? "Найти данные и переименовать файлы?" : "Look up data and rename files?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa найдёт исполнителя и название, затем переименует файлы. Встроенные аудиотеги не перезаписываются. Работайте с копией или заранее сделайте backup." : "Syncrosa will look up artist and title, then rename files. Embedded audio tags are not rewritten. Work on a copy or make a backup first.",
                 details: [
                     SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Папка" : "Folder", value: folderPath),
                     SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Файлов" : "Files", value: "\(fileItems.count)"),
@@ -344,6 +427,23 @@ struct FileMediaFixerView: View {
                 ],
                 confirmTitle: lang.selectedLanguage == "ru" ? "Очистить имена" : "Clean Names",
                 isDestructive: false
+            )
+        case .applyRenameTemplate:
+            let examples = fileItems.prefix(5).compactMap { item -> String? in
+                guard let newPath = LibraryToolkitService.shared.renamedPath(for: localSnapshot(for: item.url), template: renameTemplate) else { return nil }
+                return "\(item.url.lastPathComponent) -> \(URL(fileURLWithPath: newPath).lastPathComponent)"
+            }.joined(separator: "\n")
+            safetyPreview = SafetyPreviewRequest(
+                title: lang.selectedLanguage == "ru" ? "Применить шаблон переименования?" : "Apply rename template?",
+                message: lang.selectedLanguage == "ru" ? "Syncrosa переименует локальные файлы по шаблону. Перед изменением будет создан undo package в Recovery Center." : "Syncrosa will rename local files from the template. An undo package will be created in Recovery Center before changes.",
+                details: [
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Папка" : "Folder", value: folderPath),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Файлов" : "Files", value: "\(fileItems.count)"),
+                    SafetyPreviewDetail(title: lang.t("rename_format"), value: renameFormatTitle),
+                    SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Пример" : "Example", value: examples.isEmpty ? "-" : examples)
+                ],
+                confirmTitle: lang.selectedLanguage == "ru" ? "Переименовать" : "Rename",
+                isDestructive: true
             )
         case .importFolderPlaylist:
             let selectedName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -381,12 +481,116 @@ struct FileMediaFixerView: View {
             fixFolderMetadata()
         case .cleanFilenames:
             cleanFilenames()
+        case .applyRenameTemplate:
+            applyRenameTemplate()
         case .importFolderPlaylist:
             importPlaylistFromFolder(tracks: folderPlaylistTracks, title: "Import Folder Playlist")
         case .importExternalSelection(let selectedTracks):
             importPlaylistFromFolder(tracks: selectedTracks, title: "Import External AI Playlist")
         case .none:
             break
+        }
+    }
+
+    private func localSnapshot(for url: URL) -> LibraryToolkitTrackSnapshot {
+        let parsed = parseFilename(url.deletingPathExtension().lastPathComponent)
+        return LibraryToolkitTrackSnapshot(
+            persistentID: url.path,
+            title: parsed.title,
+            artist: parsed.artist,
+            album: "",
+            albumArtist: "",
+            genre: "",
+            composer: "",
+            comments: "",
+            path: url.path,
+            kind: url.pathExtension.uppercased(),
+            year: 0,
+            trackNumber: parsed.trackNumber,
+            discNumber: 0,
+            bpm: 0,
+            rating: 0,
+            size: (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0,
+            hasArtwork: false,
+            fileExists: FileManager.default.fileExists(atPath: url.path)
+        )
+    }
+
+    private func parseFilename(_ name: String) -> (artist: String, title: String, trackNumber: Int) {
+        let cleaned = name.replacingOccurrences(of: "_", with: " ")
+        let scanner = Scanner(string: cleaned)
+        var number = 0
+        if scanner.scanInt(&number), number > 0 {
+            let rest = String(cleaned[scanner.currentIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            return splitArtistTitle(rest, trackNumber: number)
+        }
+        return splitArtistTitle(cleaned, trackNumber: 0)
+    }
+
+    private func splitArtistTitle(_ value: String, trackNumber: Int) -> (artist: String, title: String, trackNumber: Int) {
+        for separator in [" - ", " – ", " — "] where value.contains(separator) {
+            let parts = value.components(separatedBy: separator)
+            if parts.count >= 2 {
+                return (
+                    parts[0].trimmingCharacters(in: .whitespacesAndNewlines),
+                    parts.dropFirst().joined(separator: separator).trimmingCharacters(in: .whitespacesAndNewlines),
+                    trackNumber
+                )
+            }
+        }
+        return ("", value.trimmingCharacters(in: .whitespacesAndNewlines), trackNumber)
+    }
+
+    private func applyRenameTemplate() {
+        isProcessing = true
+        logLines.removeAll()
+        appendLog("Applying rename format: \(renameFormatTitle)")
+        let previews = fileItems.compactMap { item -> LibraryToolkitChangePreview? in
+            let snapshot = localSnapshot(for: item.url)
+            guard let newPath = LibraryToolkitService.shared.renamedPath(for: snapshot, template: renameTemplate),
+                  newPath != item.url.path else {
+                return nil
+            }
+            return LibraryToolkitChangePreview(
+                id: UUID(),
+                trackID: item.url.path,
+                trackTitle: item.url.lastPathComponent,
+                field: "filename",
+                oldValue: item.url.path,
+                newValue: newPath,
+                source: "Folder Rename Template",
+                risk: "medium",
+                path: item.url.path
+            )
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let package = try LibraryToolkitService.shared.applyRenamePreviews(previews)
+                DispatchQueue.main.async {
+                    appendLog("Renamed files: \(package.operations.count)")
+                    activeNotification = NotificationMessage(text: "Rename template applied.", isError: false)
+                    OperationHistoryService.shared.record(
+                        tool: "Folder Fixer",
+                        title: "Apply Rename Template",
+                        status: "OK",
+                        message: "Renamed \(package.operations.count) files.",
+                        affectedCount: package.operations.count,
+                        backupPath: folderPath
+                    )
+                    if !folderPath.isEmpty {
+                        scanFolder(URL(fileURLWithPath: folderPath, isDirectory: true))
+                    } else {
+                        isProcessing = false
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    appendLog("ERROR: \(error.localizedDescription)")
+                    activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
+                    isProcessing = false
+                }
+            }
         }
     }
 
@@ -403,7 +607,7 @@ struct FileMediaFixerView: View {
                 try FolderPlaylistImportService.shared.writeManifest(manifest, to: destination)
                 logLines.removeAll()
                 appendLog("Exported AI manifest: \(destination.path)")
-                appendLog("Give this JSON to an AI assistant and ask it to return {\"playlistName\":\"...\",\"trackIDs\":[...]}.")
+                appendLog("Give the saved manifest to an AI assistant and ask it to return a Syncrosa playlist selection file.")
                 activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "JSON для AI сохранён." : "AI JSON manifest saved.", isError: false)
             } catch {
                 activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
@@ -510,12 +714,12 @@ struct FileMediaFixerView: View {
         }
         
         let tagsMap: [String: Bool] = [
-            "album": fixAlbum,
+            "album": downloadCovers,
             "title": fixTitle,
             "artist": fixArtist,
-            "genre": fixGenre,
-            "trackNumber": fixTrackNumber,
-            "lyrics": fixLyrics
+            "genre": false,
+            "trackNumber": false,
+            "lyrics": false
         ]
         let recoveryID = OperationRecoveryService.shared.begin(
             tool: "Folder Fixer",
@@ -525,6 +729,8 @@ struct FileMediaFixerView: View {
             backupPath: folderPath
         )
         DispatchQueue.global().async {
+            var succeeded = 0
+            var failed = 0
             for index in fileItems.indices {
                 DispatchQueue.main.async {
                     fileItems[index].status = .processing
@@ -537,6 +743,11 @@ struct FileMediaFixerView: View {
                     checkedTags: tagsMap,
                     normalizeUnderscores: false
                 )
+                if result.success {
+                    succeeded += 1
+                } else {
+                    failed += 1
+                }
                 
                 DispatchQueue.main.async {
                     fileItems[index].status = result.success ? .done : .error
@@ -547,15 +758,17 @@ struct FileMediaFixerView: View {
             DispatchQueue.main.async {
                 OperationRecoveryService.shared.finish(recoveryID)
                 isProcessing = false
-                let message = lang.t("done")
+                let message = failed == 0
+                    ? (lang.selectedLanguage == "ru" ? "Готово. Переименовано файлов: \(succeeded)." : "Done. Renamed files: \(succeeded).")
+                    : (lang.selectedLanguage == "ru" ? "Завершено. Успешно: \(succeeded), ошибок: \(failed)." : "Finished. Successful: \(succeeded), failed: \(failed).")
                 appendLog(message)
-                activeNotification = NotificationMessage(text: message, isError: false)
+                activeNotification = NotificationMessage(text: message, isError: failed > 0)
                 OperationHistoryService.shared.record(
                     tool: "Folder Fixer",
-                    title: "Fix Folder Metadata",
-                    status: "OK",
+                    title: "Look Up and Rename Files",
+                    status: failed == 0 ? "OK" : "WARN",
                     message: message,
-                    affectedCount: fileItems.count
+                    affectedCount: succeeded
                 )
             }
         }

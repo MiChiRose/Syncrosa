@@ -16,6 +16,7 @@ struct PlaylistGeneratorView: View {
     
     let nameLimit = 30
     let promptLimit = 150
+    let maximumTrackCount = 200
     
     var currentModel: String {
         if selectedProvider == "Gemini" { return geminiModel }
@@ -28,7 +29,7 @@ struct PlaylistGeneratorView: View {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty, !trimmedPrompt.isEmpty, !isGenerating else { return false }
         guard let count = Int(trackCount.trimmingCharacters(in: .whitespacesAndNewlines)) else { return false }
-        return count > 0
+        return (1...maximumTrackCount).contains(count)
     }
     
     var body: some View {
@@ -50,7 +51,7 @@ struct PlaylistGeneratorView: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                         
-                        TextField("Enter name...", text: $playlistName)
+                        TextField(lang.selectedLanguage == "ru" ? "Название плейлиста" : "Playlist name", text: $playlistName)
                             .textFieldStyle(.roundedBorder)
                             .onChange(of: playlistName) { oldValue, newValue in
                                 if newValue.count > nameLimit {
@@ -106,9 +107,18 @@ struct PlaylistGeneratorView: View {
                                 TextField("25", text: $trackCount)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(width: 60)
+                                    .onChange(of: trackCount) { _, newValue in
+                                        let digits = newValue.filter(\.isNumber)
+                                        if digits != newValue {
+                                            trackCount = digits
+                                        } else if let value = Int(digits), value > maximumTrackCount {
+                                            trackCount = "\(maximumTrackCount)"
+                                        }
+                                    }
                                 
                                 Stepper("", onIncrement: {
-                                    if let val = Int(trackCount) { trackCount = "\(val + 1)" }
+                                    let value = Int(trackCount) ?? 0
+                                    trackCount = "\(min(maximumTrackCount, value + 1))"
                                 }, onDecrement: {
                                     if let val = Int(trackCount), val > 1 { trackCount = "\(val - 1)" }
                                 })
@@ -119,7 +129,7 @@ struct PlaylistGeneratorView: View {
                         Spacer()
                         
                         VStack(alignment: .trailing, spacing: 4) {
-                            SyncrosaSectionLabel(text: "ACTIVE CONFIG", systemImage: "cpu")
+                            SyncrosaSectionLabel(text: lang.t("active_config"), systemImage: "cpu")
                             Text("\(selectedProvider)")
                                 .font(.caption)
                                 .fontWeight(.bold)
@@ -145,6 +155,10 @@ struct PlaylistGeneratorView: View {
                 .buttonStyle(SyncrosaPrimaryButtonStyle())
                 .controlSize(.large)
                 .disabled(!canGeneratePlaylist)
+
+                if let disabledReason = generateDisabledReason, !isGenerating {
+                    SyncrosaDisabledReason(text: disabledReason)
+                }
                 
                 Spacer()
         }
@@ -153,44 +167,46 @@ struct PlaylistGeneratorView: View {
             helpSheetView
         }
     }
+
+    private var generateDisabledReason: String? {
+        if playlistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return lang.selectedLanguage == "ru" ? "Введите название плейлиста." : "Enter a playlist name."
+        }
+        if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return lang.selectedLanguage == "ru" ? "Опишите настроение или стиль музыки." : "Describe the mood or music style."
+        }
+        guard let count = Int(trackCount), (1...maximumTrackCount).contains(count) else {
+            return lang.selectedLanguage == "ru" ? "Количество треков должно быть от 1 до \(maximumTrackCount)." : "Track count must be between 1 and \(maximumTrackCount)."
+        }
+        return nil
+    }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: ИИ Плейлист" : "Help: AI Playlist")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "Этот инструмент использует передовые модели ИИ для автоматического создания плейлистов на основе вашего текстового описания (промпта) и содержимого вашей медиатеки.\n\n" +
-                         "Шаги использования:\n" +
-                         "1. Задайте имя создаваемому плейлисту.\n" +
-                         "2. Опишите ваши пожелания к трекам (например, 'спокойная музыка для работы', 'энергичный рок из 90-х').\n" +
-                         "3. Укажите количество треков.\n" +
-                         "4. Нажмите «Сгенерировать плейлист». Система проанализирует вашу библиотеку, отправит запрос выбранной модели ИИ и автоматически добавит подходящие треки в новый плейлист в приложении «Музыка»." :
-                         
-                         "This tool uses advanced AI models to automatically generate playlists based on your text prompt and the content of your Music library.\n\n" +
-                         "How to use:\n" +
-                         "1. Enter a name for the new playlist.\n" +
-                         "2. Describe the mood or style of music you want (e.g., 'calm acoustic music for studying', 'energetic 90s rock').\n" +
-                         "3. Set the target track count.\n" +
-                         "4. Click 'Generate Playlist'. The system will scan your library, consult the selected AI provider, and automatically compile the playlist in your Music app."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("ai_playlist"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Создаёт плейлист из уже существующих треков Music по вашему описанию настроения или жанра."
+                : "Builds a playlist from tracks already in Music using your mood or genre description.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "В настройках выберите AI-провайдера, модель и сохраните действующий API-ключ.",
+                "Введите название плейлиста и опишите желаемую музыку.",
+                "Укажите количество треков от 1 до 200.",
+                "Запустите генерацию и дождитесь завершения сканирования, AI-подбора и создания плейлиста."
+            ] : [
+                "Choose an AI provider and model in Settings, then save a valid API key.",
+                "Enter a playlist name and describe the music you want.",
+                "Choose a track count from 1 to 200.",
+                "Start generation and wait for library scan, AI selection, and playlist creation to finish."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Syncrosa отправляет AI только текстовый список доступных треков, не аудиофайлы.",
+                "Music должен содержать локально доступные треки."
+            ] : [
+                "Syncrosa sends the AI a text list of available tracks, never the audio files.",
+                "Music must contain locally available tracks."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
 
     
@@ -198,6 +214,9 @@ struct PlaylistGeneratorView: View {
         let account = selectedProvider.lowercased()
         let key = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: account) ?? ""
         let model = selectedProvider == "Gemini" ? geminiModel : (selectedProvider == "Groq" ? groqModel : openrouterModel)
+        let requestedName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestedCount = min(max(Int(trackCount) ?? 25, 1), maximumTrackCount)
         
         guard !key.isEmpty else {
             activeNotification = NotificationMessage(text: lang.t("key_missing"), isError: true)
@@ -205,7 +224,7 @@ struct PlaylistGeneratorView: View {
         }
         
         isGenerating = true
-        activeNotification = NotificationMessage(text: "Syncing library...", isError: false)
+        activeNotification = NotificationMessage(text: lang.t("scanning"), isError: false)
         
         DispatchQueue.global().async {
             guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
@@ -232,7 +251,7 @@ struct PlaylistGeneratorView: View {
 
             let tracks = MusicService.shared.getAllTracks { current, total in
                 DispatchQueue.main.async {
-                    activeNotification = NotificationMessage(text: "Syncing: \(current)/\(total)", isError: false)
+                    activeNotification = NotificationMessage(text: "\(lang.t("scanning")) \(current)/\(total)", isError: false)
                 }
             }
             
@@ -257,33 +276,41 @@ struct PlaylistGeneratorView: View {
             let limitedSample = Array(librarySample.shuffled().prefix(500))
             
             DispatchQueue.main.async {
-                activeNotification = NotificationMessage(text: "Asking AI Assistant...", isError: false)
+                activeNotification = NotificationMessage(text: lang.t("asking_ai"), isError: false)
             }
             
             AIService.shared.generatePlaylistSuggestions(
                 provider: selectedProvider,
                 apiKey: key,
                 model: model,
-                prompt: prompt,
-                count: Int(trackCount) ?? 25,
+                prompt: requestedPrompt,
+                count: requestedCount,
                 librarySample: limitedSample
             ) { persistentIDs in
+                guard let ids = persistentIDs, !ids.isEmpty else {
+                    DispatchQueue.main.async {
+                        activeNotification = NotificationMessage(text: lang.t("ai_fail"), isError: true)
+                        isGenerating = false
+                    }
+                    return
+                }
+
                 DispatchQueue.main.async {
-                    if let ids = persistentIDs, !ids.isEmpty {
-                        activeNotification = NotificationMessage(text: "Creating playlist in Music...", isError: false)
-                        let added = MusicService.shared.createPlaylist(name: playlistName, persistentIDs: ids)
+                    activeNotification = NotificationMessage(text: lang.t("creating_playlist"), isError: false)
+                }
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let added = MusicService.shared.createPlaylist(name: requestedName, persistentIDs: ids)
+                    DispatchQueue.main.async {
                         if added > 0 {
-                            activeNotification = NotificationMessage(text: "Success! Added \(added) tracks.", isError: false)
+                            activeNotification = NotificationMessage(text: lang.t("success_added", added), isError: false)
                         } else {
                             activeNotification = NotificationMessage(
                                 text: lang.selectedLanguage == "ru" ? "Плейлист не создан: Music не добавил ни одного трека." : "Playlist was not created: Music added zero tracks.",
                                 isError: true
                             )
                         }
-                    } else {
-                        activeNotification = NotificationMessage(text: "AI failed to find matches.", isError: true)
+                        isGenerating = false
                     }
-                    isGenerating = false
                 }
             }
         }

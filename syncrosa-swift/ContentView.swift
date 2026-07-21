@@ -2,11 +2,14 @@ import SwiftUI
 import AppKit
 
 enum SyncrosaTheme {
-    static let pageBackground = Color(nsColor: .windowBackgroundColor)
-    static let panelBackground = Color(nsColor: .controlBackgroundColor)
+    private static var palette: SyncrosaThemeChoice { SyncrosaAppearanceService.shared.selectedTheme }
+
+    static var pageBackground: Color { palette.pageBackground }
+    static var sidebarBackground: Color { palette.sidebarBackground }
+    static var panelBackground: Color { palette.panelBackground }
     static let textBackground = Color(nsColor: .textBackgroundColor)
-    static let subtleBackground = Color(nsColor: .separatorColor).opacity(0.10)
-    static let panelBorder = Color(nsColor: .separatorColor)
+    static var subtleBackground: Color { palette.accent.opacity(0.08) }
+    static var panelBorder: Color { palette.border }
     static let placeholderIcon = Color(nsColor: .tertiaryLabelColor)
     static let warningForeground = Color(nsColor: .systemRed)
     static let warningBackground = Color(nsColor: .systemRed).opacity(0.12)
@@ -22,9 +25,9 @@ enum MusicLibraryStatus: Equatable {
 
     var shouldBlockLibraryTools: Bool {
         switch self {
-        case .checking, .empty:
+        case .checking, .empty, .unavailable:
             return true
-        case .available, .unavailable:
+        case .available:
             return false
         }
     }
@@ -50,12 +53,13 @@ struct ContentView: View {
     @ObservedObject var lang = LocalizationService.shared
     
     @AppStorage("is_key_validated") private var isKeyValidated: Bool = false
+    @AppStorage("has_seen_setup_wizard") private var hasSeenSetupWizard: Bool = false
     
     @ObservedObject var usbService = USBService.shared
     @State private var selectedTab: Tab? = nil
-    @State private var showHelp: Bool = false
     @State private var musicLibraryStatus: MusicLibraryStatus = .checking
     @State private var isRefreshingLibraryStatus: Bool = false
+    @State private var showInitialSetupWizard: Bool = false
     
     enum Tab: Hashable {
         case overview
@@ -77,7 +81,7 @@ struct ContentView: View {
             List(selection: $selectedTab) {
                 Group {
                     NavigationLink(value: Tab.overview) {
-                        Label("Overview", systemImage: "gauge.with.dots.needle.33percent")
+                        Label(lang.t("overview"), systemImage: "gauge.with.dots.needle.33percent")
                     }
 
                     NavigationLink(value: Tab.playlist) {
@@ -87,7 +91,7 @@ struct ContentView: View {
                     .opacity((isKeyValidated && !musicLibraryStatus.shouldBlockLibraryTools) ? 1.0 : 0.5)
                     
                     NavigationLink(value: Tab.offlinePlaylist) {
-                        Label(lang.selectedLanguage == "ru" ? "Офлайн плейлист" : "Offline Playlist", systemImage: "music.note.house")
+                        Label(lang.t("offline_playlist"), systemImage: "music.note.house")
                     }
                     .disabled(musicLibraryStatus.shouldBlockLibraryTools)
                     .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
@@ -103,21 +107,21 @@ struct ContentView: View {
                     }
 
                     NavigationLink(value: Tab.infoEraser) {
-                        Label("Info Eraser", systemImage: "eraser.line.dashed")
+                        Label(lang.t("info_eraser"), systemImage: "eraser.line.dashed")
                     }
 
                     NavigationLink(value: Tab.recoveryCenter) {
-                        Label(lang.selectedLanguage == "ru" ? "Восстановление" : "Recovery Center", systemImage: "cross.case")
+                        Label(lang.t("recovery_center"), systemImage: "cross.case")
                     }
 
                     NavigationLink(value: Tab.libraryDoctor) {
-                        Label("Library Doctor", systemImage: "stethoscope")
+                        Label(lang.t("library_doctor"), systemImage: "stethoscope")
                     }
                     .disabled(musicLibraryStatus.shouldBlockLibraryTools)
                     .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
                     
                     NavigationLink(value: Tab.duplicateFinder) {
-                        Label(lang.selectedLanguage == "ru" ? "Поиск дубликатов" : "Duplicate Finder", systemImage: "arrow.2.squarepath")
+                        Label(lang.t("duplicate_finder"), systemImage: "arrow.2.squarepath")
                     }
                     .disabled(musicLibraryStatus.shouldBlockLibraryTools)
                     .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
@@ -150,8 +154,10 @@ struct ContentView: View {
                 }
             }
             .listStyle(SidebarListStyle())
+            .scrollContentBackground(.hidden)
+            .background(SyncrosaTheme.sidebarBackground)
             .navigationTitle("Syncrosa")
-            .frame(minWidth: 200)
+            .navigationSplitViewColumnWidth(min: 225, ideal: 255, max: 310)
         } detail: {
             ZStack(alignment: .bottomTrailing) {
                 VStack(spacing: 0) {
@@ -213,19 +219,6 @@ struct ContentView: View {
                     .background(VisualEffectView(material: .contentBackground, blendingMode: .withinWindow))
                 }
                 
-                // Floating Help Button (Only for Settings)
-                if selectedTab == .settings {
-                    Button(action: { showHelp.toggle() }) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.system(size: 18, weight: .semibold))
-                            .symbolRenderingMode(.hierarchical)
-                    }
-                    .buttonStyle(SyncrosaGlassIconButtonStyle(size: 34, tint: SyncrosaTheme.accent))
-                    .padding(20)
-                    .popover(isPresented: $showHelp, arrowEdge: .trailing) {
-                        HelpPopoverView()
-                    }
-                }
             }
             .background(SyncrosaTheme.pageBackground)
         }
@@ -234,11 +227,33 @@ struct ContentView: View {
             if !isKeyValidated {
                 selectedTab = .settings
             }
+            if !hasSeenSetupWizard {
+                showInitialSetupWizard = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshMusicLibraryStatus()
         }
+        .sheet(isPresented: $showInitialSetupWizard) {
+            FirstLaunchSetupWizard(
+                libraryStatus: musicLibraryStatus,
+                checkMusic: refreshMusicLibraryStatus,
+                completion: completeInitialSetup
+            )
+        }
         .frame(minWidth: 800, minHeight: 600)
+    }
+
+    private func completeInitialSetup() {
+        hasSeenSetupWizard = true
+        showInitialSetupWizard = false
+        OperationHistoryService.shared.record(
+            tool: "Overview",
+            title: "First Launch Setup",
+            status: "OK",
+            message: "First launch setup was completed or skipped.",
+            affectedCount: 0
+        )
     }
 
     private func refreshMusicLibraryStatus() {
@@ -258,7 +273,7 @@ struct ContentView: View {
                 musicLibraryStatus = newStatus
                 isRefreshingLibraryStatus = false
 
-                if requiresMusicLibrary(selectedTab) && newStatus == .empty {
+                if requiresMusicLibrary(selectedTab) && newStatus.shouldBlockLibraryTools {
                     selectedTab = nil
                 } else if selectedTab == nil && newStatus.isAvailable && isKeyValidated {
                     selectedTab = .overview
@@ -400,48 +415,10 @@ struct MusicLibraryUnavailableView: View {
         case .empty:
             return lang.selectedLanguage == "ru" ? "Вкладки, которые работают с треками Music, временно заблокированы. Добавьте музыку в Music и нажмите «Проверить ещё раз»." : "Tabs that work with Music tracks are temporarily disabled. Add music to Music, then click Check Again."
         case .unavailable:
-            return lang.selectedLanguage == "ru" ? "Syncrosa не получила ответ от Music. Вкладки не заблокированы: попробуйте открыть нужный инструмент. Если macOS спросит доступ к Music, нажмите «Разрешить»." : "Syncrosa did not get a response from Music. The tabs are not blocked: try opening the tool you need. If macOS asks for Music access, click Allow."
+            return lang.selectedLanguage == "ru" ? "Syncrosa не получила ответ от Music, поэтому зависимые вкладки временно заблокированы. Откройте Music, разрешите доступ в системном запросе и повторите проверку." : "Syncrosa did not get a response from Music, so library-dependent tabs are temporarily disabled. Open Music, allow access if macOS asks, then check again."
         case .available:
             return ""
         }
-    }
-}
-
-struct HelpPopoverView: View {
-    @ObservedObject var lang = LocalizationService.shared
-    @AppStorage("selected_provider") private var selectedProvider: String = "Gemini"
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 15) {
-                Text(lang.t("help_title"))
-                    .font(.headline)
-                
-                Divider()
-                
-                if selectedProvider == "Gemini" {
-                    Text("Gemini (Google):")
-                        .fontWeight(.bold)
-                    Text("1. Go to aistudio.google.com\n2. Click 'Get API key' -> 'Create API key'.")
-                } else if selectedProvider == "Groq" {
-                    Text("Groq:")
-                        .fontWeight(.bold)
-                    Text("1. Go to console.groq.com\n2. Click 'API Keys' -> 'Create API Key'.")
-                } else {
-                    Text("OpenRouter (BEST FOR BYPASSING GEO-BLOCKS):")
-                        .fontWeight(.bold)
-                    Text("1. Go to openrouter.ai\n2. Click 'Keys' -> 'Create Key'.\nOpenRouter provides access to FREE models from Google and Meta, even if they are blocked in your country.")
-                }
-                
-                Divider()
-                
-                Text(lang.t("note_sync"))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-        }
-        .frame(width: 350, height: 250)
     }
 }
 

@@ -200,6 +200,9 @@ struct OfflinePlaylistGeneratorView: View {
                         }
                         .buttonStyle(SyncrosaPrimaryButtonStyle())
                         .disabled(allTracks.isEmpty || isCreatingPlaylist || playlistName.trimmingCharacters(in: .whitespaces).isEmpty)
+                        if playlistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isCreatingPlaylist {
+                            SyncrosaDisabledReason(text: lang.selectedLanguage == "ru" ? "Введите название плейлиста." : "Enter a playlist name.")
+                        }
                     }
                     .syncrosaCard()
                     
@@ -216,7 +219,7 @@ struct OfflinePlaylistGeneratorView: View {
                                     get: { checkedDecades[decade, default: false] },
                                     set: { checkedDecades[decade] = $0 }
                                 )) {
-                                    Text(decade)
+                                    Text(decade == "Modern (2020+)" && lang.selectedLanguage == "ru" ? "Современное (2020+)" : decade)
                                 }
                                 .toggleStyle(SyncrosaCheckboxToggleStyle())
                             }
@@ -231,6 +234,9 @@ struct OfflinePlaylistGeneratorView: View {
                         }
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(allTracks.isEmpty || isGeneratingEpochs || !checkedDecades.values.contains(true))
+                        if !checkedDecades.values.contains(true) && !isGeneratingEpochs {
+                            SyncrosaDisabledReason(text: lang.selectedLanguage == "ru" ? "Выберите хотя бы одно десятилетие." : "Select at least one decade.")
+                        }
                     }
                     .syncrosaCard()
                 }
@@ -248,7 +254,7 @@ struct OfflinePlaylistGeneratorView: View {
             Alert(
                 title: Text(lang.selectedLanguage == "ru" ? "Офлайн генератор" : "Offline Generator"),
                 message: Text(alertMessage),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text(lang.t("close")))
             )
         }
         .alert(isPresented: $showEmptyAlert) {
@@ -269,46 +275,31 @@ struct OfflinePlaylistGeneratorView: View {
     }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: Офлайн генератор" : "Help: Offline Generator")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "Этот инструмент позволяет вам создавать плейлисты локально, без использования внешних облачных ИИ сервисов.\n\n" +
-                         "Возможности фильтрации:\n" +
-                         "• Жанр: Выбор конкретного жанра из тех, которые присутствуют в вашей медиатеке.\n" +
-                         "• Год: Ограничение диапазона лет выпуска композиций.\n" +
-                         "• Обложка: Возможность отбора только тех песен, у которых есть обложка альбома.\n" +
-                         "• Рейтинг: Отбор треков по рейтингу (количеству звезд).\n\n" +
-                         "Генерация по эпохам:\n" +
-                         "Вы можете выбрать желаемые десятилетия, и система автоматически создаст плейлисты (например, 'Syncrosa - 90s') для каждого отмеченного десятилетия, если в медиатеке найдутся подходящие треки." :
-                         
-                         "This tool allows you to create playlists locally, without using external cloud AI services.\n\n" +
-                         "Filtering Options:\n" +
-                         "• Genre: Filter by a specific genre present in your library.\n" +
-                         "• Year Range: Restrict tracks to a range of release years.\n" +
-                         "• Cover Art: Select only tracks that have an embedded cover image.\n" +
-                         "• Rating: Restrict tracks to those meeting or exceeding a star rating.\n\n" +
-                         "Generate by Epochs (Decades):\n" +
-                         "Select multiple decades, and the app will generate individual playlists (e.g., 'Syncrosa - 90s') for each checked epoch that has matching tracks."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("offline_playlist"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Создаёт плейлисты локально по жанру, годам, обложке и рейтингу без AI-сервисов."
+                : "Creates playlists locally by genre, year, artwork, and rating without AI services.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Дождитесь загрузки медиатеки Music.",
+                "Введите название и настройте нужные фильтры.",
+                "Проверьте число подходящих треков и создайте плейлист.",
+                "Для отдельных плейлистов по десятилетиям отметьте эпохи и запустите генерацию."
+            ] : [
+                "Wait for the Music library to load.",
+                "Enter a name and configure the filters you need.",
+                "Review the matching-track count and create the playlist.",
+                "For separate decade playlists, select the eras and run generation."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Если фильтры не дают результатов, Syncrosa спросит, создавать ли плейлист без них.",
+                "Эта вкладка не использует API-ключ и не отправляет данные в сеть."
+            ] : [
+                "If filters match nothing, Syncrosa asks whether to continue without them.",
+                "This tool needs no API key and sends no library data online."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
     
     func loadLibrary() {

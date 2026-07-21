@@ -11,6 +11,8 @@ class FileMetadataService {
     
     func fixFile(url: URL, downloadCover: Bool, checkedTags: [String: Bool], normalizeUnderscores: Bool = false) -> FileMetadataFixResult {
         let semaphore = DispatchSemaphore(value: 0)
+        let completionLock = NSLock()
+        var didTimeOut = false
         var success = false
         var underscoreNormalizationFailed = false
         var workingURL = url
@@ -68,9 +70,16 @@ class FileMetadataService {
         // 3. Search iTunes for better metadata
         MetadataService.shared.fetchMetadata(for: title, artist: artist) { result in
             defer { semaphore.signal() }
+
+            completionLock.lock()
+            let shouldIgnore = didTimeOut
+            completionLock.unlock()
+            guard !shouldIgnore else { return }
             
             guard let result = result else {
-                success = !artist.isEmpty && !title.isEmpty
+                if !artist.isEmpty || !title.isEmpty {
+                    success = self.renameLocalFile(url: &workingURL, artist: artist, title: title)
+                }
                 return
             }
             
@@ -103,20 +112,15 @@ class FileMetadataService {
             
             let sanitizedArtist = self.sanitizeFilename(newArtist)
             let sanitizedTitle = self.sanitizeFilename(newTitle)
-            let newFilename = "\(sanitizedArtist) - \(sanitizedTitle).\(workingURL.pathExtension)"
+            let baseName = self.joinedArtistTitle(artist: sanitizedArtist, title: sanitizedTitle)
+            guard !baseName.isEmpty else { return }
+            let newFilename = "\(baseName).\(workingURL.pathExtension)"
             let desiredUrl = workingURL.deletingLastPathComponent().appendingPathComponent(newFilename)
             let newUrl = self.uniqueDestinationURL(for: desiredUrl, originalURL: workingURL)
             
             do {
                 if workingURL.standardized.path != newUrl.standardized.path {
-                    if workingURL.path.lowercased() == newUrl.path.lowercased() {
-                        // Case-only rename: use a temp name first to avoid deleting the source file on case-insensitive macOS volumes
-                        let tempUrl = workingURL.deletingLastPathComponent().appendingPathComponent("temp_\(UUID().uuidString)_\(workingURL.lastPathComponent)")
-                        try FileManager.default.moveItem(at: workingURL, to: tempUrl)
-                        try FileManager.default.moveItem(at: tempUrl, to: newUrl)
-                    } else {
-                        try FileManager.default.moveItem(at: workingURL, to: newUrl)
-                    }
+                    try self.moveFileSafely(from: workingURL, to: newUrl)
                     workingURL = newUrl
                 }
                 
@@ -132,27 +136,28 @@ class FileMetadataService {
             }
         }
         
-        _ = semaphore.wait(timeout: .now() + 10)
+        if semaphore.wait(timeout: .now() + 25) == .timedOut {
+            completionLock.lock()
+            didTimeOut = true
+            completionLock.unlock()
+            return FileMetadataFixResult(success: false, underscoreNormalizationFailed: underscoreNormalizationFailed)
+        }
         return FileMetadataFixResult(success: success, underscoreNormalizationFailed: underscoreNormalizationFailed)
     }
 
     private func renameLocalFile(url workingURL: inout URL, artist: String, title: String) -> Bool {
-        guard !artist.isEmpty, !title.isEmpty else { return true }
+        guard !artist.isEmpty || !title.isEmpty else { return false }
         let sanitizedArtist = sanitizeFilename(artist)
         let sanitizedTitle = sanitizeFilename(title)
-        let newFilename = "\(sanitizedArtist) - \(sanitizedTitle).\(workingURL.pathExtension)"
+        let baseName = joinedArtistTitle(artist: sanitizedArtist, title: sanitizedTitle)
+        guard !baseName.isEmpty else { return false }
+        let newFilename = "\(baseName).\(workingURL.pathExtension)"
         let desiredUrl = workingURL.deletingLastPathComponent().appendingPathComponent(newFilename)
         let newUrl = uniqueDestinationURL(for: desiredUrl, originalURL: workingURL)
 
         do {
             if workingURL.standardized.path != newUrl.standardized.path {
-                if workingURL.path.lowercased() == newUrl.path.lowercased() {
-                    let tempUrl = workingURL.deletingLastPathComponent().appendingPathComponent("temp_\(UUID().uuidString)_\(workingURL.lastPathComponent)")
-                    try FileManager.default.moveItem(at: workingURL, to: tempUrl)
-                    try FileManager.default.moveItem(at: tempUrl, to: newUrl)
-                } else {
-                    try FileManager.default.moveItem(at: workingURL, to: newUrl)
-                }
+                try moveFileSafely(from: workingURL, to: newUrl)
                 workingURL = newUrl
             }
             return true
@@ -200,7 +205,33 @@ class FileMetadataService {
     
     private func sanitizeFilename(_ name: String) -> String {
         let invalidCharacters = CharacterSet(charactersIn: "/\\?%*|\"<>")
-        return name.components(separatedBy: invalidCharacters).joined(separator: "_")
+        let sanitized = name.components(separatedBy: invalidCharacters).joined(separator: "_")
+        return sanitized.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    }
+
+    private func joinedArtistTitle(artist: String, title: String) -> String {
+        if artist.isEmpty { return title }
+        if title.isEmpty { return artist }
+        return "\(artist) - \(title)"
+    }
+
+    private func moveFileSafely(from source: URL, to destination: URL) throws {
+        guard source.standardized.path != destination.standardized.path else { return }
+        if source.path.lowercased() != destination.path.lowercased() {
+            try FileManager.default.moveItem(at: source, to: destination)
+            return
+        }
+
+        let temporary = source.deletingLastPathComponent()
+            .appendingPathComponent(".syncrosa-rename-\(UUID().uuidString)")
+            .appendingPathExtension(source.pathExtension)
+        try FileManager.default.moveItem(at: source, to: temporary)
+        do {
+            try FileManager.default.moveItem(at: temporary, to: destination)
+        } catch {
+            try? FileManager.default.moveItem(at: temporary, to: source)
+            throw error
+        }
     }
 
     private func uniqueDestinationURL(for desiredURL: URL, originalURL: URL? = nil) -> URL {

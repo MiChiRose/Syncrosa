@@ -9,11 +9,12 @@ class CoversOptimizerService {
     
     var backupFolder: URL {
         (try? SyncrosaStorage.backupDirectory(for: "AlbumCovers")) ??
-        fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("Syncrosa/Backups/AlbumCovers")
+        fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Syncrosa/Backups/AlbumCovers")
     }
 
     private var legacyBackupFolder: URL {
-        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Documents", isDirectory: true)
         return docs.appendingPathComponent("AlbumCovers")
     }
     

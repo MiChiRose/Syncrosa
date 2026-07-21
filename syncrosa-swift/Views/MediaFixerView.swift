@@ -108,8 +108,16 @@ struct MediaFixerView: View {
                         .buttonStyle(SyncrosaSecondaryButtonStyle())
                         .disabled(mergeCandidates.isEmpty || isAnalyzing)
                     }
+
+                    if !fixAlbum && !fixTitle && !fixArtist && !fixGenre && !fixTrackNumber && !fixLyrics {
+                        SyncrosaDisabledReason(text: lang.selectedLanguage == "ru"
+                            ? "Отметьте хотя бы одно поле для обновления метаданных."
+                            : "Select at least one field before updating metadata.")
+                    }
                 }
                 .syncrosaCard()
+
+                MusicLibraryAIExchangeCard()
 
                 FolderPlaylistImporterCard()
                 
@@ -151,7 +159,7 @@ struct MediaFixerView: View {
         }
         .notification(message: $activeNotification)
         .alert(isPresented: $showAlert) {
-            Alert(title: Text(lang.t("media_fixer")), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            Alert(title: Text(lang.t("media_fixer")), message: Text(alertMessage), dismissButton: .default(Text(lang.t("close"))))
         }
         .sheet(isPresented: $showHelp) {
             helpSheetView
@@ -159,40 +167,31 @@ struct MediaFixerView: View {
     }
     
     var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: Очистка медиатеки" : "Help: Library Cleanup")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(lang.selectedLanguage == "ru" ?
-                         "Этот раздел предоставляет инструменты для исправления информации о песнях прямо в приложении «Музыка» (Apple Music).\n\n" +
-                         "Инструкция по использованию:\n" +
-                         "1. Выберите в панели тегов те свойства, которые вы хотите обновить (Альбом, Название, Исполнитель, Жанр, Номер трека, Текст песен).\n" +
-                         "2. Нажмите «Обновить метаданные» для того чтобы для каждого трека в вашей библиотеке автоматически запросить корректную информацию из iTunes Search API и Lyrics API, после чего записать только выбранные теги.\n" +
-                         "3. Для исправления разбитых альбомов нажмите «Анализ медиатеки». Если будут найдены треки одного альбома с разным написанием названия альбома, вы сможете объединить их, нажав «Объединить альбомы»." :
-                         
-                         "This section provides tools to correct song details directly inside your Music app (Apple Music).\n\n" +
-                         "How to use:\n" +
-                         "1. Check the checkboxes for the specific tags you want to update (Album, Title, Artist, Genre, Track Number, Lyrics).\n" +
-                         "2. Click 'Update Metadata' to automatically scan your music library, query the iTunes Search API and Lyrics API for each track, and write only the checked tags back to the Music app.\n" +
-                         "3. To fix split albums, click 'Analyze Library'. If different versions of the same album name are detected, you can merge them by clicking 'Merge Selected'."
-                    )
-                    .font(.body)
-                }
-            }
-            .frame(minWidth: 450, minHeight: 300)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("media_fixer"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Исправляет выбранные поля треков непосредственно в медиатеке Music и объединяет ошибочно разделённые альбомы."
+                : "Repairs selected fields directly in Music and merges albums split by inconsistent naming.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Отметьте только те поля, которые разрешено обновлять.",
+                "Запустите обновление метаданных и дождитесь завершения сканирования и сетевых запросов.",
+                "Для разделённых альбомов сначала выполните анализ медиатеки.",
+                "Просмотрите кандидатов и подтвердите объединение выбранных групп."
+            ] : [
+                "Select only the fields Syncrosa may update.",
+                "Start metadata update and wait for scanning and online lookups to finish.",
+                "For split albums, analyze the library first.",
+                "Review the candidates and confirm the selected album groups."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Операция изменяет данные в Music, поэтому выбирайте поля внимательно.",
+                "В локальном режиме сетевое восстановление метаданных недоступно."
+            ] : [
+                "This operation changes Music data, so review the selected fields carefully.",
+                "Online metadata recovery is unavailable in local-only mode."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
     
     func analyzeLibrary() {
@@ -290,10 +289,12 @@ struct MediaFixerView: View {
         var current = 0
         
         DispatchQueue.global().async {
+            var failedTracks = 0
             for group in mergeCandidates {
                 for pid in group.trackIDs {
-                    let script = "tell application \"Music\" to set album of (some track whose persistent ID is \"\(pid)\") to \"\(group.mainAlbum.replacingOccurrences(of: "\"", with: "\\\""))\""
-                    _ = MusicService.shared.runAppleScript(script)
+                    if !MusicService.shared.updateTrackAlbum(persistentID: pid, album: group.mainAlbum) {
+                        failedTracks += 1
+                    }
                 }
                 current += 1
                 DispatchQueue.main.async {
@@ -304,7 +305,13 @@ struct MediaFixerView: View {
             DispatchQueue.main.async {
                 isAnalyzing = false
                 mergeCandidates = []
-                alertMessage = lang.selectedLanguage == "ru" ? "Все альбомы успешно объединены!" : "All albums successfully merged!"
+                if failedTracks == 0 {
+                    alertMessage = lang.selectedLanguage == "ru" ? "Все альбомы успешно объединены!" : "All albums successfully merged!"
+                } else {
+                    alertMessage = lang.selectedLanguage == "ru"
+                        ? "Объединение завершено, но Music не обновил треков: \(failedTracks)."
+                        : "Merge finished, but Music did not update \(failedTracks) tracks."
+                }
                 showAlert = true
                 activeNotification = nil
             }
@@ -439,6 +446,276 @@ private enum FolderPlaylistImportAction {
     case importExternalSelection([FolderPlaylistTrack])
 }
 
+private struct MusicLibraryAIExchangeCard: View {
+    @ObservedObject private var lang = LocalizationService.shared
+
+    @State private var isProcessing = false
+    @State private var progressText = ""
+    @State private var activeNotification: NotificationMessage? = nil
+    @State private var pendingTrackIDs: [String] = []
+    @State private var playlistName = ""
+    @State private var showNamePrompt = false
+    @State private var safetyPreview: SafetyPreviewRequest? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SyncrosaSectionLabel(
+                text: lang.selectedLanguage == "ru" ? "МЕДИАТЕКА MUSIC И ВНЕШНИЙ AI" : "MUSIC LIBRARY & EXTERNAL AI",
+                systemImage: "point.3.connected.trianglepath.dotted"
+            )
+
+            Text(lang.selectedLanguage == "ru"
+                 ? "Передайте каталог своей музыки выбранному AI-агенту и импортируйте полученный список обратно как плейлист. Аудиофайлы и API-ключ в JSON не попадают."
+                 : "Give your music catalog to an AI assistant, then import its selection as a playlist. Audio files and your API key are never included in the JSON.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    exchangeStep(number: 1, icon: "square.and.arrow.up", text: lang.selectedLanguage == "ru" ? "Экспортируйте каталог" : "Export catalog")
+                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                    exchangeStep(number: 2, icon: "sparkles", text: lang.selectedLanguage == "ru" ? "Выберите треки с AI" : "Choose with AI")
+                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                    exchangeStep(number: 3, icon: "music.note.list", text: lang.selectedLanguage == "ru" ? "Импортируйте плейлист" : "Import playlist")
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    exchangeStep(number: 1, icon: "square.and.arrow.up", text: lang.selectedLanguage == "ru" ? "Экспортируйте каталог" : "Export catalog")
+                    exchangeStep(number: 2, icon: "sparkles", text: lang.selectedLanguage == "ru" ? "Выберите треки с AI" : "Choose with AI")
+                    exchangeStep(number: 3, icon: "music.note.list", text: lang.selectedLanguage == "ru" ? "Импортируйте плейлист" : "Import playlist")
+                }
+            }
+
+            SyncrosaAdaptiveRow(spacing: 12) {
+                Button(action: exportLibrary) {
+                    if isProcessing {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label(lang.selectedLanguage == "ru" ? "Экспорт медиатеки JSON" : "Export Library JSON", systemImage: "doc.badge.arrow.up")
+                    }
+                }
+                .buttonStyle(SyncrosaPrimaryButtonStyle())
+                .disabled(isProcessing)
+
+                Button(action: importAISelection) {
+                    Label(lang.selectedLanguage == "ru" ? "Импорт AI-плейлиста" : "Import AI Playlist", systemImage: "doc.badge.arrow.down")
+                }
+                .buttonStyle(SyncrosaSecondaryButtonStyle())
+                .disabled(isProcessing)
+            }
+
+            if !progressText.isEmpty {
+                Text(progressText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .syncrosaCard()
+        .notification(message: $activeNotification)
+        .alert(lang.selectedLanguage == "ru" ? "Название нового плейлиста" : "Name the new playlist", isPresented: $showNamePrompt) {
+            TextField(lang.selectedLanguage == "ru" ? "Название плейлиста" : "Playlist name", text: $playlistName)
+            Button(lang.t("cancel"), role: .cancel) {
+                pendingTrackIDs = []
+            }
+            Button(lang.selectedLanguage == "ru" ? "Продолжить" : "Continue") {
+                presentImportSafetyPreview()
+            }
+            .disabled(playlistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text(lang.selectedLanguage == "ru"
+                 ? "Syncrosa создаст плейлист из идентификаторов, которые вернул внешний AI."
+                 : "Syncrosa will create a playlist from the identifiers returned by the external AI.")
+        }
+        .sheet(item: $safetyPreview) { request in
+            SafetyPreviewSheet(
+                request: request,
+                cancel: {
+                    safetyPreview = nil
+                    pendingTrackIDs = []
+                },
+                confirm: {
+                    safetyPreview = nil
+                    createImportedPlaylist()
+                }
+            )
+        }
+    }
+
+    private func exchangeStep(number: Int, icon: String, text: String) -> some View {
+        HStack(spacing: 7) {
+            Text("\(number)")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(SyncrosaTheme.accent)
+                .frame(width: 22, height: 22)
+                .background(SyncrosaTheme.accent.opacity(0.12), in: Circle())
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+            Text(text)
+                .font(.caption.weight(.medium))
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func exportLibrary() {
+        isProcessing = true
+        progressText = lang.selectedLanguage == "ru" ? "Читаю медиатеку Music..." : "Reading Music library..."
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let count = MusicService.shared.getLibraryTrackCount(), count > 0 else {
+                DispatchQueue.main.async {
+                    isProcessing = false
+                    progressText = ""
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru" ? "Медиатека Music пуста или недоступна." : "The Music library is empty or unavailable.",
+                        isError: true
+                    )
+                }
+                return
+            }
+
+            let tracks = MusicService.shared.getAllTracks { current, total in
+                DispatchQueue.main.async {
+                    progressText = lang.selectedLanguage == "ru"
+                        ? "Читаю медиатеку: \(current)/\(total)"
+                        : "Reading library: \(current)/\(total)"
+                }
+            }
+            guard !tracks.isEmpty else {
+                DispatchQueue.main.async {
+                    isProcessing = false
+                    progressText = ""
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru" ? "Music не вернул доступные треки." : "Music returned no readable tracks.",
+                        isError: true
+                    )
+                }
+                return
+            }
+
+            let manifest = MusicLibraryExchangeService.shared.makeManifest(from: tracks)
+            DispatchQueue.main.async {
+                chooseManifestDestination(manifest)
+            }
+        }
+    }
+
+    private func chooseManifestDestination(_ manifest: MusicLibraryAIManifest) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "Syncrosa-Music-Library.json"
+        panel.title = lang.selectedLanguage == "ru" ? "Сохранить медиатеку для внешнего AI" : "Save library for external AI"
+
+        guard panel.runModal() == .OK, let destination = panel.url else {
+            isProcessing = false
+            progressText = ""
+            return
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                try MusicLibraryExchangeService.shared.writeManifest(manifest, to: destination)
+                DispatchQueue.main.async {
+                    isProcessing = false
+                    progressText = lang.selectedLanguage == "ru"
+                        ? "Экспортировано треков: \(manifest.tracks.count)"
+                        : "Exported tracks: \(manifest.tracks.count)"
+                    activeNotification = NotificationMessage(
+                        text: lang.selectedLanguage == "ru" ? "JSON медиатеки сохранён." : "Library JSON saved.",
+                        isError: false
+                    )
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    isProcessing = false
+                    progressText = ""
+                    activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
+                }
+            }
+        }
+    }
+
+    private func importAISelection() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.title = lang.selectedLanguage == "ru" ? "Выберите JSON от внешнего AI" : "Choose JSON from external AI"
+
+        guard panel.runModal() == .OK, let source = panel.url else { return }
+        do {
+            let selection = try MusicLibraryExchangeService.shared.readSelection(from: source)
+            let ids = MusicLibraryExchangeService.shared.validatedTrackIDs(from: selection)
+            guard !ids.isEmpty else {
+                activeNotification = NotificationMessage(
+                    text: lang.selectedLanguage == "ru" ? "В JSON нет корректных идентификаторов треков Syncrosa." : "The JSON contains no valid Syncrosa track identifiers.",
+                    isError: true
+                )
+                return
+            }
+            pendingTrackIDs = ids
+            playlistName = selection.playlistName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            showNamePrompt = true
+        } catch {
+            activeNotification = NotificationMessage(
+                text: lang.selectedLanguage == "ru" ? "Не удалось прочитать JSON выбора. Проверьте формат файла." : "Could not read the selection JSON. Check its format.",
+                isError: true
+            )
+        }
+    }
+
+    private func presentImportSafetyPreview() {
+        let cleanName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty, !pendingTrackIDs.isEmpty else { return }
+        safetyPreview = SafetyPreviewRequest(
+            title: lang.selectedLanguage == "ru" ? "Создать AI-плейлист?" : "Create AI playlist?",
+            message: lang.selectedLanguage == "ru"
+                ? "Будут добавлены только треки с корректными идентификаторами. Если плейлист с таким именем уже существует, его содержимое будет заменено."
+                : "Only tracks with valid identifiers will be added. If a playlist with this name already exists, its contents will be replaced.",
+            details: [
+                SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Плейлист" : "Playlist", value: cleanName),
+                SafetyPreviewDetail(title: lang.selectedLanguage == "ru" ? "Выбрано AI" : "Selected by AI", value: "\(pendingTrackIDs.count)")
+            ],
+            confirmTitle: lang.selectedLanguage == "ru" ? "Создать / заменить" : "Create / Replace",
+            isDestructive: true
+        )
+    }
+
+    private func createImportedPlaylist() {
+        let cleanName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ids = pendingTrackIDs
+        guard !cleanName.isEmpty, !ids.isEmpty else { return }
+
+        isProcessing = true
+        progressText = lang.selectedLanguage == "ru" ? "Создаю плейлист в Music..." : "Creating playlist in Music..."
+        DispatchQueue.global(qos: .userInitiated).async {
+            let added = MusicService.shared.createPlaylist(name: cleanName, persistentIDs: ids)
+            DispatchQueue.main.async {
+                isProcessing = false
+                pendingTrackIDs = []
+                let success = added > 0
+                progressText = success
+                    ? (lang.selectedLanguage == "ru" ? "Добавлено треков: \(added)" : "Added tracks: \(added)")
+                    : ""
+                let message = success
+                    ? (lang.selectedLanguage == "ru" ? "Плейлист «\(cleanName)» создан. Добавлено: \(added)." : "Playlist \"\(cleanName)\" created with \(added) tracks.")
+                    : (lang.selectedLanguage == "ru" ? "Music не смог создать плейлист из выбранных треков." : "Music could not create a playlist from the selected tracks.")
+                activeNotification = NotificationMessage(text: message, isError: !success)
+                OperationHistoryService.shared.record(
+                    tool: "Music Library AI Exchange",
+                    title: "Import AI Playlist",
+                    status: success ? "OK" : "FAIL",
+                    message: message,
+                    affectedCount: added
+                )
+            }
+        }
+    }
+}
+
 private struct FolderPlaylistImporterCard: View {
     @ObservedObject private var lang = LocalizationService.shared
 
@@ -510,22 +787,28 @@ private struct FolderPlaylistImporterCard: View {
 
             SyncrosaAdaptiveRow(spacing: 12) {
                 Button(action: exportManifest) {
-                    Label("Export AI JSON", systemImage: "doc.badge.arrow.up")
+                    Label(lang.selectedLanguage == "ru" ? "Экспорт JSON для AI" : "Export JSON for AI", systemImage: "doc.badge.arrow.up")
                 }
                 .buttonStyle(SyncrosaSecondaryButtonStyle())
                 .disabled(tracks.isEmpty || isProcessing)
 
                 Button(action: importSelection) {
-                    Label("Import AI JSON", systemImage: "doc.badge.arrow.down")
+                    Label(lang.selectedLanguage == "ru" ? "Импорт JSON от AI" : "Import JSON from AI", systemImage: "doc.badge.arrow.down")
                 }
                 .buttonStyle(SyncrosaSecondaryButtonStyle())
                 .disabled(tracks.isEmpty || isProcessing)
 
                 Button(action: { presentSafetyPreview(.importFolder) }) {
-                    Label(lang.selectedLanguage == "ru" ? "Create Playlist" : "Create Playlist", systemImage: "music.note.list")
+                    Label(lang.selectedLanguage == "ru" ? "Создать плейлист" : "Create Playlist", systemImage: "music.note.list")
                 }
                 .buttonStyle(SyncrosaPrimaryButtonStyle())
                 .disabled(tracks.isEmpty || isProcessing || playlistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if tracks.isEmpty && !isProcessing {
+                SyncrosaDisabledReason(text: lang.selectedLanguage == "ru"
+                    ? "JSON этого раздела строится по локальной папке. Сначала выберите папку; для всей медиатеки используйте раздел выше."
+                    : "This section builds JSON from a local folder. Select a folder first; use the section above for your whole Music library.")
             }
 
             Text(estimateText)
@@ -574,17 +857,27 @@ private struct FolderPlaylistImporterCard: View {
     }
 
     private func scan(_ url: URL) {
-        tracks = FolderPlaylistImportService.shared.scanFolder(url)
+        isProcessing = true
+        tracks = []
         importProgressText = ""
         logLines.removeAll()
-        appendLog("Scanned folder recursively: \(tracks.count) music files.")
-        appendLog(estimateText)
-        activeNotification = NotificationMessage(
-            text: tracks.isEmpty
-                ? (lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.")
-                : (lang.selectedLanguage == "ru" ? "Файлов найдено: \(tracks.count)" : "Files found: \(tracks.count)"),
-            isError: tracks.isEmpty
-        )
+        importProgressText = lang.selectedLanguage == "ru" ? "Сканирую папку..." : "Scanning folder..."
+        DispatchQueue.global(qos: .utility).async {
+            let matches = FolderPlaylistImportService.shared.scanFolder(url)
+            DispatchQueue.main.async {
+                tracks = matches
+                isProcessing = false
+                importProgressText = ""
+                appendLog("Scanned folder recursively: \(matches.count) music files.")
+                appendLog(estimateText)
+                activeNotification = NotificationMessage(
+                    text: matches.isEmpty
+                        ? (lang.selectedLanguage == "ru" ? "Музыкальные файлы не найдены." : "No music files found.")
+                        : (lang.selectedLanguage == "ru" ? "Файлов найдено: \(matches.count)" : "Files found: \(matches.count)"),
+                    isError: matches.isEmpty
+                )
+            }
+        }
     }
 
     private func exportManifest() {

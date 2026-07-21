@@ -8,35 +8,61 @@ struct LibraryDoctorView: View {
     @State private var progress = 0.0
     @State private var progressMax = 1.0
     @State private var showHelp = false
+    @State private var compareFolder: URL? = nil
+    @State private var activeNotification: NotificationMessage? = nil
 
-    private let toolNames = ["Cover Restore", "Cover Audit", "Library Audit", "iPod Report", "Broken Tracks"]
+    private var toolNames: [String] {
+        if lang.selectedLanguage == "ru" {
+            return ["Восстановление обложек", "Аудит обложек", "Аудит медиатеки", "Отчёт для iPod", "Битые треки", "Оценка тегов", "Аудит связей", "Экспорт отчёта"]
+        }
+        return ["Cover Restore", "Cover Audit", "Library Audit", "iPod Report", "Broken Tracks", "Tag Score", "Link Audit", "Export Report"]
+    }
 
     var body: some View {
         SyncrosaPage {
             SyncrosaPageHeader(
-                title: "Library Doctor",
+                title: lang.t("library_doctor"),
                 systemImage: "stethoscope",
                 subtitle: lang.selectedLanguage == "ru" ? "Быстрая диагностика медиатеки и восстановление обложек." : "Quick diagnostics for library health and cover restore tasks.",
                 helpAction: { showHelp = true }
             )
 
                 VStack(alignment: .leading, spacing: 12) {
-                    SyncrosaGlassSegmentedPicker(
+                    SyncrosaGlassMenu(
                         selection: $selectedTool,
                         options: toolNames.indices.map { SyncrosaMenuOption(title: toolNames[$0], value: $0) },
-                        minSegmentWidth: 112
+                        minWidth: 260
                     )
 
                     Text(descriptionText)
                         .foregroundColor(.secondary)
 
                     if !selectedToolCanRun, let message = disabledReasonText {
-                        Text(message)
-                            .font(.caption)
+                        SyncrosaDisabledReason(text: message)
+                    }
+
+                    if selectedTool == 6, let compareFolder {
+                        Text(compareFolder.path)
+                            .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
                     }
 
                     SyncrosaAdaptiveRow(spacing: 12) {
+                        if selectedTool == 6 {
+                            Button(action: chooseCompareFolder) {
+                                Label(
+                                    compareFolder == nil
+                                        ? (lang.selectedLanguage == "ru" ? "Выбрать папку для сравнения" : "Choose Compare Folder")
+                                        : (lang.selectedLanguage == "ru" ? "Изменить папку" : "Change Compare Folder"),
+                                    systemImage: "folder"
+                                )
+                            }
+                            .buttonStyle(SyncrosaSecondaryButtonStyle())
+                            .disabled(isRunning)
+                        }
+
                         Button(action: runSelectedTool) {
                             if isRunning {
                                 ProgressView().controlSize(.small)
@@ -52,37 +78,42 @@ struct LibraryDoctorView: View {
                 }
                 .syncrosaCard()
 
-            SyncrosaLogConsole(title: "LOG", lines: logs, minHeight: 280)
+            SyncrosaLogConsole(title: lang.t("log").uppercased(), lines: logs, minHeight: 280)
         }
+        .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
             helpSheetView
         }
     }
 
     private var helpSheetView: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(lang.selectedLanguage == "ru" ? "Инструкция: Library Doctor" : "Help: Library Doctor")
-                    .font(.headline)
-                Spacer()
-                Button(lang.selectedLanguage == "ru" ? "Закрыть" : "Close") {
-                    showHelp = false
-                }
-                .buttonStyle(SyncrosaSecondaryButtonStyle())
-            }
-
-            Divider()
-
-            ScrollView {
-                Text(lang.selectedLanguage == "ru"
-                     ? "Library Doctor проверяет состояние медиатеки Music без изменения треков, кроме режима восстановления обложек из уже созданного backup.\n\nCover Restore восстанавливает обложки из backup Covers Optimizer. Cover Audit показывает количество треков с обложками. Library Audit проверяет читаемость медиатеки. iPod Report ищет форматы, длинные имена и крупные файлы, которые могут мешать старым iPod/автомагнитолам. Broken Tracks ищет отсутствующие или нечитаемые файлы."
-                     : "Library Doctor checks Music library health without changing tracks, except for restoring covers from an existing backup.\n\nCover Restore restores artwork from a Covers Optimizer backup. Cover Audit counts tracks with embedded artwork. Library Audit checks whether the library can be read. iPod Report flags formats, long filenames, and large files that may bother older iPods/car stereos. Broken Tracks finds missing or unreadable files.")
-                    .font(.body)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(minWidth: 500, minHeight: 280)
-        }
-        .padding()
+        SyncrosaHelpSheet(
+            title: lang.t("library_doctor"),
+            summary: lang.selectedLanguage == "ru"
+                ? "Проверяет здоровье медиатеки Music и создаёт отчёты; изменения выполняются только в режиме восстановления обложек."
+                : "Audits Music library health and exports reports; only cover restore changes library content.",
+            steps: lang.selectedLanguage == "ru" ? [
+                "Выберите тип проверки в меню.",
+                "Прочитайте описание и, если требуется, выберите папку для сравнения.",
+                "Запустите проверку и дождитесь заполнения журнала.",
+                "Для Export Report выберите формат и место сохранения отчёта."
+            ] : [
+                "Choose an audit type from the menu.",
+                "Read its description and select a comparison folder when required.",
+                "Run the audit and wait for the log to finish.",
+                "For Export Report, choose the report format and save location."
+            ],
+            notes: lang.selectedLanguage == "ru" ? [
+                "Cover Restore требует backup, созданный Covers Optimizer.",
+                "iPod Report оценивает совместимость форматов, размеров и имён файлов со старыми устройствами.",
+                "Link Audit не удаляет и не переносит файлы."
+            ] : [
+                "Cover Restore requires a backup created by Covers Optimizer.",
+                "iPod Report checks formats, sizes, and filenames for older devices.",
+                "Link Audit never deletes or moves files."
+            ],
+            dismiss: { showHelp = false }
+        )
     }
 
     private var descriptionText: String {
@@ -92,6 +123,15 @@ struct LibraryDoctorView: View {
         case 1:
             return lang.selectedLanguage == "ru" ? "Проверить сколько треков имеет встроенные обложки и сколько backup-файлов найдено." : "Check how many tracks have embedded covers and how many cover backups exist."
         default:
+            if selectedTool == 5 {
+                return lang.selectedLanguage == "ru" ? "Оценить заполненность тегов: название, артист, альбом, жанр, год, обложка и путь к файлу." : "Score tag completeness: title, artist, album, genre, year, artwork, and linked file path."
+            }
+            if selectedTool == 6 {
+                return lang.selectedLanguage == "ru" ? "Проверить отсутствующие файлы Music и музыку во внешней папке, не привязанную к медиатеке." : "Find missing Music files and outside-folder files not linked in the library."
+            }
+            if selectedTool == 7 {
+                return lang.selectedLanguage == "ru" ? "Сохранить подробный JSON или CSV отчёт по медиатеке." : "Export a detailed JSON or CSV library audit report."
+            }
             if selectedTool == 3 {
                 return lang.selectedLanguage == "ru" ? "Проверить форматы, размеры и имена файлов для старых iPod/автомагнитол." : "Check formats, sizes, and filenames for older iPods and car stereos."
             }
@@ -123,6 +163,15 @@ struct LibraryDoctorView: View {
         case 1:
             return lang.selectedLanguage == "ru" ? "Проверить обложки" : "Audit Covers"
         default:
+            if selectedTool == 5 {
+                return lang.selectedLanguage == "ru" ? "Оценить теги" : "Score Tags"
+            }
+            if selectedTool == 6 {
+                return lang.selectedLanguage == "ru" ? "Проверить связи" : "Run Link Audit"
+            }
+            if selectedTool == 7 {
+                return lang.selectedLanguage == "ru" ? "Экспорт отчёта" : "Export Report"
+            }
             if selectedTool == 3 {
                 return lang.selectedLanguage == "ru" ? "iPod отчёт" : "Run iPod Report"
             }
@@ -152,6 +201,12 @@ struct LibraryDoctorView: View {
                 runIPodReport(selectedToolIndex: selectedToolIndex)
             case 4:
                 runBrokenTracks(selectedToolIndex: selectedToolIndex)
+            case 5:
+                runTagScore(selectedToolIndex: selectedToolIndex)
+            case 6:
+                runLinkAudit(selectedToolIndex: selectedToolIndex)
+            case 7:
+                runExportReport(selectedToolIndex: selectedToolIndex)
             default:
                 runLibraryAudit(selectedToolIndex: selectedToolIndex)
             }
@@ -290,6 +345,140 @@ struct LibraryDoctorView: View {
         let status = broken.isEmpty ? "OK" : "WARN"
         let message = broken.isEmpty ? "Broken tracks scan complete. No missing files found." : "Broken tracks scan complete. Missing files: \(broken.count)."
         finish(selectedToolIndex: selectedToolIndex, status: status, message: message, affectedCount: broken.count)
+    }
+
+    private func runTagScore(selectedToolIndex: Int) {
+        let tracks = LibraryToolkitService.shared.loadTracks { current, total in
+            DispatchQueue.main.async {
+                progress = Double(current)
+                progressMax = Double(max(1, total))
+            }
+        }
+        let average = tracks.isEmpty ? 0 : tracks.map(\.completenessScore).reduce(0, +) / tracks.count
+        var fieldCounts: [String: Int] = [:]
+        for track in tracks {
+            for field in track.missingFields {
+                fieldCounts[field, default: 0] += 1
+            }
+        }
+        DispatchQueue.main.async {
+            appendLog("tracks scored: \(tracks.count)")
+            appendLog("average completeness: \(average)%")
+            for (field, count) in fieldCounts.sorted(by: { $0.key < $1.key }) {
+                appendLog("missing \(field): \(count)")
+            }
+            let weak = tracks.sorted { $0.completenessScore < $1.completenessScore }.prefix(25)
+            if !weak.isEmpty {
+                appendLog("lowest score sample:")
+                for track in weak {
+                    appendLog("\(track.completenessScore)% - \(track.artist) - \(track.title)")
+                }
+            }
+        }
+        let status = average >= 80 ? "OK" : "WARN"
+        finish(selectedToolIndex: selectedToolIndex, status: status, message: "Tag score complete. Average completeness: \(average)%.", affectedCount: tracks.count)
+    }
+
+    private func runLinkAudit(selectedToolIndex: Int) {
+        let service = LibraryToolkitService.shared
+        let tracks = service.loadTracks { current, total in
+            DispatchQueue.main.async {
+                progress = Double(current)
+                progressMax = Double(max(1, total))
+            }
+        }
+        let missing = tracks.filter { !$0.fileExists }
+        let unlinked = compareFolder.map { service.scanUnlinkedFiles(in: $0, linkedTracks: tracks) } ?? []
+        DispatchQueue.main.async {
+            appendLog("tracks scanned: \(tracks.count)")
+            appendLog("missing Music file links: \(missing.count)")
+            if let compareFolder {
+                appendLog("compare folder: \(compareFolder.path)")
+                appendLog("folder files not linked in Music: \(unlinked.count)")
+            } else {
+                appendLog("no compare folder selected; only Music links were checked")
+            }
+            for track in missing.prefix(40) {
+                appendLog("missing: \(track.artist) - \(track.title)")
+            }
+            for file in unlinked.prefix(40) {
+                appendLog("unlinked: \(file.lastPathComponent)")
+            }
+        }
+        let warningCount = missing.count + unlinked.count
+        finish(selectedToolIndex: selectedToolIndex, status: warningCount == 0 ? "OK" : "WARN", message: "Link audit complete. Warnings: \(warningCount).", affectedCount: warningCount)
+    }
+
+    private func runExportReport(selectedToolIndex: Int) {
+        DispatchQueue.main.async {
+            isRunning = false
+            presentReportSavePanel(selectedToolIndex: selectedToolIndex)
+        }
+    }
+
+    private func chooseCompareFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK {
+            compareFolder = panel.url
+        }
+    }
+
+    private func presentReportSavePanel(selectedToolIndex: Int) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json, .commaSeparatedText]
+        panel.nameFieldStringValue = "Syncrosa-Library-Doctor-Report.json"
+        guard panel.runModal() == .OK, let url = panel.url else {
+            appendLog("[cancel] report export cancelled")
+            return
+        }
+
+        logs.removeAll()
+        progress = 0
+        progressMax = 1
+        isRunning = true
+        appendLog("[start] export report")
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let service = LibraryToolkitService.shared
+            let tracks = service.loadTracks { current, total in
+                DispatchQueue.main.async {
+                    progress = Double(current)
+                    progressMax = Double(max(1, total))
+                }
+            }
+            guard let preset = LibraryToolkitPreset.defaults.first else {
+                DispatchQueue.main.async {
+                    appendLog("[error] no audit preset is available")
+                    isRunning = false
+                }
+                return
+            }
+            let previews = service.makePreviews(tracks: tracks, preset: preset, renameTemplate: preset.renameTemplate)
+            let unlinked = compareFolder.map { service.scanUnlinkedFiles(in: $0, linkedTracks: tracks) } ?? []
+
+            do {
+                if url.pathExtension.lowercased() == "csv" {
+                    try service.writeCSVReport(tracks: tracks, to: url)
+                } else {
+                    let report = service.createReport(tracks: tracks, previews: previews, unlinkedFiles: unlinked, preset: preset)
+                    try service.writeReport(report, to: url)
+                }
+                DispatchQueue.main.async {
+                    appendLog("report saved: \(url.path)")
+                    activeNotification = NotificationMessage(text: "Library report exported.", isError: false)
+                    finish(selectedToolIndex: selectedToolIndex, status: "OK", message: "Library report exported.", affectedCount: tracks.count)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    appendLog("report export failed: \(error.localizedDescription)")
+                    activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
+                    finish(selectedToolIndex: selectedToolIndex, status: "FAIL", message: "Report export failed.", affectedCount: 0)
+                }
+            }
+        }
     }
 
     private func finish(selectedToolIndex: Int, status: String, message: String, affectedCount: Int) {

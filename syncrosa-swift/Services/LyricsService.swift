@@ -4,9 +4,11 @@ class LyricsService {
     static let shared = LyricsService()
     
     func fetchLyrics(artist: String, title: String, completion: @escaping (String?) -> Void) {
+        var pathAllowed = CharacterSet.urlPathAllowed
+        pathAllowed.remove(charactersIn: "/?#")
         guard !artist.isEmpty && !title.isEmpty,
-              let escapedArtist = artist.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let escapedTitle = title.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let escapedArtist = artist.addingPercentEncoding(withAllowedCharacters: pathAllowed),
+              let escapedTitle = title.addingPercentEncoding(withAllowedCharacters: pathAllowed),
               let url = URL(string: "https://api.lyrics.ovh/v1/\(escapedArtist)/\(escapedTitle)") else {
             completion(nil)
             return
@@ -16,7 +18,10 @@ class LyricsService {
         request.timeoutInterval = 5.0
         
         URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data, error == nil else {
+            guard let data,
+                  error == nil,
+                  let response = response as? HTTPURLResponse,
+                  (200...299).contains(response.statusCode) else {
                 completion(nil)
                 return
             }

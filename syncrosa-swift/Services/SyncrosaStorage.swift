@@ -33,6 +33,7 @@ enum SyncrosaStorage {
     }
 
     private static func directory(for searchPath: FileManager.SearchPathDirectory) -> URL {
-        FileManager.default.urls(for: searchPath, in: .userDomainMask).first!
+        FileManager.default.urls(for: searchPath, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
     }
 }
