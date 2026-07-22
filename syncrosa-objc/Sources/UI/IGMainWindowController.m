@@ -6,6 +6,7 @@
 #import "IGCoversOptimizerViewController.h"
 #import "IGDuplicateFinderViewController.h"
 #import "IGOfflinePlaylistViewController.h"
+#import "IGRecoveryCenterViewController.h"
 #import "IGUSBService.h"
 #import "IGiTunesService.h"
 #import "IGAIService.h"
@@ -13,6 +14,70 @@
 #import "IGLocalizationService.h"
 #import "IGLogger.h"
 #import "IGTheme.h"
+#import "IGIconProvider.h"
+#import "IGHelpSheetPresenter.h"
+#import "IGLibraryDoctorSupport.h"
+#import <math.h>
+
+static NSString * const IGSidebarCollapsedDefaultsKey = @"syncrosa_sidebar_collapsed";
+static NSString * const IGSidebarWidthDefaultsKey = @"syncrosa_sidebar_width";
+static NSString * const IGFooterHiddenDefaultsKey = @"syncrosa_footer_hidden";
+NSString * const IGFooterVisibilityDidChangeNotification = @"IGFooterVisibilityDidChangeNotification";
+static const CGFloat IGSidebarDefaultWidth = 180.0;
+static const CGFloat IGSidebarMinimumWidth = 150.0;
+static const CGFloat IGSidebarCollapsedWidth = 0.0;
+static const CGFloat IGContentMinimumWidth = 580.0;
+static const CGFloat IGGlobalFooterHeight = 36.0;
+
+static BOOL IGDeveloperPreviewAllowsNavigationIndex(NSInteger index)
+{
+#ifdef DEBUG
+    NSString *previewIndex = [[[NSProcessInfo processInfo] environment] objectForKey:@"SYNCROSA_DEV_OPEN_TAB_INDEX"];
+    return [previewIndex length] > 0 && [previewIndex integerValue] == index;
+#else
+    (void)index;
+    return NO;
+#endif
+}
+
+BOOL IGNavigationItemRequiresReadableLibrary(IGNavigationItem item)
+{
+    switch (item) {
+        case IGNavigationItemAIPlaylist:
+        case IGNavigationItemMediaFixer:
+        case IGNavigationItemUSBExport:
+        case IGNavigationItemCoversOptimizer:
+        case IGNavigationItemDuplicateFinder:
+        case IGNavigationItemOfflinePlaylist:
+        case IGNavigationItemLibraryDoctor:
+            return YES;
+        case IGNavigationItemOverview:
+        case IGNavigationItemFolderFixer:
+        case IGNavigationItemInfoEraser:
+        case IGNavigationItemRecoveryCenter:
+        case IGNavigationItemSettings:
+        case IGNavigationItemCount:
+            return NO;
+    }
+    return NO;
+}
+
+NSRect IGCenteredLegacyPageFrame(NSSize preferredSize, NSRect availableBounds)
+{
+    CGFloat preferredWidth = preferredSize.width > 0.0 ? preferredSize.width : NSWidth(availableBounds);
+    CGFloat preferredHeight = preferredSize.height > 0.0 ? preferredSize.height : NSHeight(availableBounds);
+    CGFloat width = MIN(preferredWidth, NSWidth(availableBounds));
+    CGFloat height = MIN(preferredHeight, NSHeight(availableBounds));
+    CGFloat x = NSMinX(availableBounds) + floor((NSWidth(availableBounds) - width) / 2.0);
+    CGFloat y = NSMinY(availableBounds) + MAX(0.0, NSHeight(availableBounds) - height);
+    return NSMakeRect(x, y, width, height);
+}
+
+BOOL IGTextIsEmbeddedLegacyFooter(NSString *text)
+{
+    NSString *trimmed = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return [trimmed hasPrefix:@"©"] && [trimmed rangeOfString:@"Syncrosa"].location != NSNotFound;
+}
 
 static void IGSetTextFieldLineBreakMode(NSTextField *textField, NSLineBreakMode mode)
 {
@@ -25,6 +90,10 @@ static void IGSetTextFieldLineBreakMode(NSTextField *textField, NSLineBreakMode 
         [cell setLineBreakMode:mode];
     }
 }
+
+@interface IGMainWindowController (IGFirstLaunchGuide)
+- (void)showFirstLaunchGuideMarkingSeen:(BOOL)markSeen;
+@end
 
 static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont *font, NSColor *color, NSTextAlignment alignment)
 {
@@ -45,82 +114,206 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
 
 @interface IGOverviewViewController : NSViewController
 @property (nonatomic, assign) IGMainWindowController *mainController;
-@property (nonatomic, strong) NSTextField *statusLabel;
+@property (nonatomic, strong) NSTextField *libraryValueLabel;
+@property (nonatomic, strong) NSTextField *backupValueLabel;
+@property (nonatomic, strong) NSTextField *recoveryValueLabel;
+@property (nonatomic, strong) NSButton *localModeCheckbox;
+@property (nonatomic, strong) NSButton *doctorButton;
+@property (nonatomic, strong) NSMutableArray *statusLayouts;
+- (void)refreshOverview;
 @end
 
 @implementation IGOverviewViewController
 
 - (void)loadView {
     self.view = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)] autorelease];
-    CGFloat y = 430;
-
-    NSTextField *title = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)] autorelease];
-    title.stringValue = @"Overview";
-    title.font = [NSFont boldSystemFontOfSize:18];
-    title.editable = NO;
-    title.bordered = NO;
-    title.drawsBackground = NO;
-    title.alignment = NSCenterTextAlignment;
+    self.statusLayouts = [NSMutableArray array];
+    NSTextField *title = IGCreateGuideTextField(@"Overview", NSMakeRect(20, 438, 540, 28),
+                                                [NSFont boldSystemFontOfSize:18], nil, NSCenterTextAlignment);
     [self.view addSubview:title];
 
-    y -= 65;
-    self.statusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 70)] autorelease];
-    self.statusLabel.stringValue = @"Syncrosa keeps iTunes tools disabled when the library is empty, runs long tasks in chunks, and stores restore data in safe backup folders.";
-    self.statusLabel.font = [NSFont systemFontOfSize:13];
-    self.statusLabel.textColor = IGThemeMutedTextColor();
-    self.statusLabel.editable = NO;
-    self.statusLabel.bordered = NO;
-    self.statusLabel.drawsBackground = NO;
-    self.statusLabel.alignment = NSCenterTextAlignment;
-    IGSetTextFieldLineBreakMode(self.statusLabel, NSLineBreakByWordWrapping);
-    [self.view addSubview:self.statusLabel];
+    NSTextField *subtitle = IGCreateGuideTextField(@"Library status, safety modes, and quick actions.", NSMakeRect(30, 414, 520, 20),
+                                                   [NSFont systemFontOfSize:11], IGThemeMutedTextColor(), NSCenterTextAlignment);
+    [self.view addSubview:subtitle];
 
-    y -= 70;
-    NSButton *refresh = [[[NSButton alloc] initWithFrame:NSMakeRect(70, y, 190, 34)] autorelease];
-    refresh.title = @"Refresh iTunes Status";
-    refresh.bezelStyle = NSRoundedBezelStyle;
-    refresh.target = self;
-    refresh.action = @selector(refreshClicked:);
-    [self.view addSubview:refresh];
+    self.libraryValueLabel = [self addStatusBoxWithTitle:@"Library" icon:@"document" frame:NSMakeRect(25, 326, 255, 78)];
+    self.localModeCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(52, 20, 184, 28)] autorelease];
+    self.localModeCheckbox.buttonType = NSSwitchButton;
+    self.localModeCheckbox.title = @"Only Local Mode";
+    self.localModeCheckbox.toolTip = @"Skip online metadata lookups. Useful on slower Macs or without a network connection.";
+    self.localModeCheckbox.target = self;
+    self.localModeCheckbox.action = @selector(localModeChanged:);
+    NSBox *localBox = [[[NSBox alloc] initWithFrame:NSMakeRect(300, 326, 255, 78)] autorelease];
+    localBox.title = @"Network Safety";
+    localBox.boxType = NSBoxPrimary;
+    NSView *localIcon = IGCreateThemedIconView(@"network-off", NSMakeRect(16, 22, 26, 26), IGThemeIconRoleAccent);
+    [localBox addSubview:localIcon];
+    [localBox addSubview:self.localModeCheckbox];
+    [self.view addSubview:localBox];
+    [self.statusLayouts addObject:@{ @"box": localBox, @"icon": localIcon, @"control": self.localModeCheckbox }];
 
-    NSButton *doctor = [[[NSButton alloc] initWithFrame:NSMakeRect(320, y, 190, 34)] autorelease];
-    doctor.title = @"Open Library Doctor";
-    doctor.bezelStyle = NSRoundedBezelStyle;
-    doctor.target = self;
-    doctor.action = @selector(openDoctorClicked:);
-    [self.view addSubview:doctor];
+    self.backupValueLabel = [self addStatusBoxWithTitle:@"Backups" icon:@"folder" frame:NSMakeRect(25, 238, 255, 78)];
+    self.recoveryValueLabel = [self addStatusBoxWithTitle:@"Recovery" icon:@"restore" frame:NSMakeRect(300, 238, 255, 78)];
 
-    y -= 65;
-    NSButton *wizard = [[[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 34)] autorelease];
-    wizard.title = @"Show First Launch Guide";
-    wizard.bezelStyle = NSRoundedBezelStyle;
-    wizard.target = self;
-    wizard.action = @selector(wizardClicked:);
-    [self.view addSubview:wizard];
+    NSBox *quickBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 153, 530, 74)] autorelease];
+    quickBox.title = @"Quick Actions";
+    quickBox.boxType = NSBoxPrimary;
+    [self.view addSubview:quickBox];
+
+    NSButton *refresh = [self actionButton:@"Check iTunes" frame:NSMakeRect(15, 17, 117, 30) action:@selector(refreshClicked:)];
+	    IGConfigureIconButton(refresh, @"refresh", @"Refresh iTunes library status", NO);
+    [quickBox addSubview:refresh];
+    self.doctorButton = [self actionButton:@"Library Doctor" frame:NSMakeRect(142, 17, 117, 30) action:@selector(openDoctorClicked:)];
+    IGConfigureIconButton(self.doctorButton, @"doctor", @"Open Library Doctor", NO);
+    [quickBox addSubview:self.doctorButton];
+    NSButton *recovery = [self actionButton:@"Recovery Center" frame:NSMakeRect(269, 17, 117, 30) action:@selector(openRecoveryClicked:)];
+	    IGConfigureIconButton(recovery, @"restore", @"Open Recovery Center", NO);
+    [quickBox addSubview:recovery];
+    NSButton *wizard = [self actionButton:@"Setup Guide" frame:NSMakeRect(396, 17, 117, 30) action:@selector(wizardClicked:)];
+	    IGConfigureIconButton(wizard, @"info", @"Open the setup guide", NO);
+    [quickBox addSubview:wizard];
+
+    NSBox *safetyBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 30, 530, 112)] autorelease];
+    safetyBox.title = @"Current Safeguards";
+    safetyBox.boxType = NSBoxPrimary;
+    [self.view addSubview:safetyBox];
+    NSArray *safeguards = @[
+        @"Music tools stay disabled when the library is empty or unavailable.",
+        @"Long jobs run in chunks and report progress on older hard drives.",
+        @"Destructive file tools require confirmation and preserve recovery data.",
+        @"Interrupted operations leave a marker in Recovery Center."
+    ];
+    CGFloat safeguardY = 72.0;
+    for (NSString *text in safeguards) {
+        NSTextField *row = IGCreateGuideTextField([@"- " stringByAppendingString:text], NSMakeRect(16, safeguardY, 498, 17),
+                                                  [NSFont systemFontOfSize:10.5], IGThemeMutedTextColor(), NSLeftTextAlignment);
+        [safetyBox addSubview:row];
+        safeguardY -= 19.0;
+    }
+
+    [self refreshOverview];
+}
+
+- (NSTextField *)addStatusBoxWithTitle:(NSString *)title icon:(NSString *)iconName frame:(NSRect)frame {
+    NSBox *box = [[[NSBox alloc] initWithFrame:frame] autorelease];
+    box.title = title;
+    box.boxType = NSBoxPrimary;
+    NSView *icon = IGCreateThemedIconView(iconName, NSMakeRect(16, 22, 26, 26), IGThemeIconRoleAccent);
+    [box addSubview:icon];
+    NSTextField *value = IGCreateGuideTextField(@"-", NSMakeRect(52, 17, NSWidth(frame) - 66, 36),
+                                                [NSFont boldSystemFontOfSize:12], nil, NSLeftTextAlignment);
+    [box addSubview:value];
+    [self.view addSubview:box];
+    [self.statusLayouts addObject:@{ @"box": box, @"icon": icon, @"control": value }];
+    return value;
+}
+
+- (void)layoutOverviewStatusContent {
+    for (NSDictionary *layout in self.statusLayouts) {
+        NSBox *box = [layout objectForKey:@"box"];
+        NSView *icon = [layout objectForKey:@"icon"];
+        NSControl *control = [layout objectForKey:@"control"];
+        CGFloat iconSize = 26.0;
+        CGFloat gap = 10.0;
+        CGFloat maximumControlWidth = MAX(80.0, NSWidth(box.bounds) - iconSize - gap - 28.0);
+        CGFloat controlWidth = 80.0;
+        CGFloat controlHeight = 22.0;
+
+        if ([control isKindOfClass:[NSTextField class]]) {
+            NSTextField *label = (NSTextField *)control;
+            NSDictionary *attributes = @{ NSFontAttributeName: label.font ?: [NSFont systemFontOfSize:12.0] };
+            NSSize textSize = [label.stringValue sizeWithAttributes:attributes];
+            controlWidth = MIN(maximumControlWidth, MAX(54.0, ceil(textSize.width) + 4.0));
+            controlHeight = textSize.width > maximumControlWidth ? 36.0 : 22.0;
+            label.alignment = NSLeftTextAlignment;
+            IGSetTextFieldLineBreakMode(label, NSLineBreakByWordWrapping);
+        } else if ([control isKindOfClass:[NSButton class]]) {
+            NSSize cellSize = [[control cell] cellSize];
+            controlWidth = MIN(maximumControlWidth, MAX(80.0, ceil(cellSize.width)));
+            controlHeight = MAX(22.0, MIN(30.0, ceil(cellSize.height)));
+        }
+
+        CGFloat usableHeight = MAX(iconSize, NSHeight(box.bounds) - 18.0);
+        CGFloat centerY = floor(usableHeight / 2.0);
+        CGFloat groupWidth = iconSize + gap + controlWidth;
+        CGFloat startX = floor((NSWidth(box.bounds) - groupWidth) / 2.0);
+        icon.frame = NSMakeRect(startX, floor(centerY - iconSize / 2.0), iconSize, iconSize);
+        control.frame = NSMakeRect(startX + iconSize + gap,
+                                   floor(centerY - controlHeight / 2.0),
+                                   controlWidth,
+                                   controlHeight);
+    }
+}
+
+- (NSButton *)actionButton:(NSString *)title frame:(NSRect)frame action:(SEL)action {
+    NSButton *button = [[[NSButton alloc] initWithFrame:frame] autorelease];
+    button.title = title;
+    button.bezelStyle = NSTexturedRoundedBezelStyle;
+    button.target = self;
+    button.action = action;
+    IGApplyThemeToButton(button, IGThemeButtonRoleSecondary);
+    return button;
+}
+
+- (void)refreshOverview {
+    self.libraryValueLabel.stringValue = self.mainController ? [self.mainController overviewLibraryStatusText] : @"Not checked";
+    self.doctorButton.enabled = self.mainController ? [self.mainController overviewLibraryToolsAvailable] : NO;
+    self.localModeCheckbox.state = [[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"] ? NSOnState : NSOffState;
+
+    NSArray *directories = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *base = [directories count] > 0 ? [directories objectAtIndex:0] : NSHomeDirectory();
+    NSString *support = [base stringByAppendingPathComponent:@"Syncrosa"];
+    NSString *backups = [support stringByAppendingPathComponent:@"Backups"];
+    self.backupValueLabel.stringValue = [[NSFileManager defaultManager] fileExistsAtPath:backups] ? @"Available in Application Support" : @"No shared backups yet";
+
+    NSString *markerPath = [support stringByAppendingPathComponent:@"active-operation.plist"];
+    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:markerPath];
+    self.recoveryValueLabel.stringValue = [marker count] > 0 ? @"Interrupted operation needs review" : @"Clean - no interrupted operation";
+    [self layoutOverviewStatusContent];
 }
 
 - (void)refreshClicked:(id)sender {
-    self.statusLabel.stringValue = @"Checking iTunes...";
     BOOL started = [self.mainController refreshLibraryStatusWithCompletion:^{
-        self.statusLabel.stringValue = @"iTunes status refreshed. Use the sidebar status for the current track count.";
+        [self refreshOverview];
     }];
     if (!started) {
-        self.statusLabel.stringValue = @"iTunes check cancelled.";
+        [self refreshOverview];
     }
 }
 
 - (void)openDoctorClicked:(id)sender {
-    [self.mainController switchViewToIndex:9];
+    [self.mainController switchViewToIndex:IGNavigationItemLibraryDoctor];
 }
 
 - (void)wizardClicked:(id)sender {
-    [(id)self.mainController showFirstLaunchGuideMarkingSeen:NO];
+    [self.mainController showFirstLaunchGuideMarkingSeen:NO];
+}
+
+- (void)openRecoveryClicked:(id)sender {
+    [self.mainController switchViewToIndex:IGNavigationItemRecoveryCenter];
+}
+
+- (void)localModeChanged:(NSButton *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:(sender.state == NSOnState) forKey:@"only_local_mode"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (void)dealloc {
+#if !__has_feature(objc_arc)
+    [_libraryValueLabel release];
+    [_backupValueLabel release];
+    [_recoveryValueLabel release];
+	    [_localModeCheckbox release];
+	    [_doctorButton release];
+	    [_statusLayouts release];
+	    [super dealloc];
+#endif
 }
 
 @end
 
 @interface IGLibraryDoctorViewController : NSViewController
-@property (nonatomic, strong) NSArray *toolButtons;
+@property (nonatomic, strong) NSPopUpButton *toolPopup;
 @property (nonatomic, strong) NSButton *runButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
@@ -128,6 +321,9 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, assign) BOOL isRunning;
 @property (nonatomic, assign) NSInteger selectedToolIndex;
+@property (nonatomic, strong) NSURL *compareFolderURL;
+@property (nonatomic, strong) NSURL *reportDestinationURL;
+@property (nonatomic, copy) NSString *reportFormat;
 @end
 
 @implementation IGLibraryDoctorViewController
@@ -184,24 +380,15 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     helpButton.action = @selector(helpClicked:);
     [self.view addSubview:helpButton];
 
-    NSArray *tabTitles = @[@"Restore", @"Covers", @"Library", @"iPod", @"Broken"];
-    NSMutableArray *buttons = [NSMutableArray arrayWithCapacity:[tabTitles count]];
+    NSArray *toolTitles = @[@"Cover Restore", @"Cover Audit", @"Library Audit", @"iPod Report",
+                            @"Broken Tracks", @"Tag Score", @"Link Audit", @"Export Report"];
     self.selectedToolIndex = 1;
-    for (NSInteger i = 0; i < (NSInteger)[tabTitles count]; i++) {
-        NSButton *tabButton = [[[NSButton alloc] initWithFrame:NSMakeRect(40 + (i * 100), 382, 96, 28)] autorelease];
-        tabButton.title = [tabTitles objectAtIndex:i];
-        tabButton.font = [NSFont systemFontOfSize:12];
-        tabButton.bezelStyle = NSTexturedRoundedBezelStyle;
-        [tabButton setButtonType:NSPushOnPushOffButton];
-        IGApplyThemeToButton(tabButton, IGThemeButtonRoleTab);
-        tabButton.tag = i;
-        tabButton.target = self;
-        tabButton.action = @selector(doctorToolChanged:);
-        [self.view addSubview:tabButton];
-        [buttons addObject:tabButton];
-    }
-    self.toolButtons = buttons;
-    [self updateDoctorToolButtons];
+    self.toolPopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(140, 382, 300, 28) pullsDown:NO] autorelease];
+    [self.toolPopup addItemsWithTitles:toolTitles];
+    [self.toolPopup selectItemAtIndex:self.selectedToolIndex];
+    self.toolPopup.target = self;
+    self.toolPopup.action = @selector(doctorToolChanged:);
+    [self.view addSubview:self.toolPopup];
 
     self.runButton = [[[NSButton alloc] initWithFrame:NSMakeRect(190, 335, 200, 34)] autorelease];
     self.runButton.title = @"Run Doctor";
@@ -246,25 +433,22 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         @"Count tracks with embedded artwork.",
         @"Check whether the iTunes library is readable.",
         @"Audit formats and filenames for older iPods.",
-        @"Find missing or unreadable local files."
+        @"Find missing or unreadable local files.",
+        @"Score title, artist, album, genre, and year completeness.",
+        @"Compare iTunes file links with a folder without changing either source.",
+        @"Save a read-only JSON or CSV library report."
     ];
 }
 
-- (void)updateDoctorToolButtons {
-    for (NSButton *button in self.toolButtons) {
-        BOOL selected = (button.tag == self.selectedToolIndex);
-        button.state = selected ? NSOnState : NSOffState;
-        button.font = selected ? [NSFont boldSystemFontOfSize:12] : [NSFont systemFontOfSize:12];
-        IGApplyThemeToButton(button, IGThemeButtonRoleTab);
-        [button setNeedsDisplay:YES];
-    }
+- (NSArray *)toolTitles {
+    return @[@"Cover Restore", @"Cover Audit", @"Library Audit", @"iPod Report",
+             @"Broken Tracks", @"Tag Score", @"Link Audit", @"Export Report"];
 }
 
 - (void)doctorToolChanged:(id)sender {
-    if ([sender isKindOfClass:[NSButton class]]) {
-        self.selectedToolIndex = [(NSButton *)sender tag];
+    if ([sender isKindOfClass:[NSPopUpButton class]]) {
+        self.selectedToolIndex = [(NSPopUpButton *)sender indexOfSelectedItem];
     }
-    [self updateDoctorToolButtons];
     NSInteger selected = self.selectedToolIndex;
     NSArray *descriptions = [self toolDescriptions];
     if (selected >= 0 && selected < (NSInteger)descriptions.count) {
@@ -273,43 +457,20 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"Library Doctor Help\n\n"
-                         "Use this page for quick health checks before running library tools.\n\n"
-                         "Restore: points you to the Covers Optimizer restore flow.\n"
-                         "Covers: counts tracks with embedded cover artwork.\n"
-                         "Library: verifies that iTunes can be read.\n"
-                         "iPod: reports formats, long names, missing files, and large files.\n"
-                         "Broken: lists missing or unreadable file references.";
-
-    NSWindow *sheet = [[[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                   styleMask:NSTitledWindowMask
-                                                     backing:NSBackingStoreBuffered
-                                                       defer:YES] autorelease];
-    NSScrollView *scroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)] autorelease];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-
-    NSTextView *textView = [[[NSTextView alloc] initWithFrame:scroll.bounds] autorelease];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-
-    NSButton *closeButton = [[[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)] autorelease];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-
-    IGApplyThemeToWindow(sheet);
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Choose a check", @"Cover Restore opens the artwork recovery flow. Cover Audit counts embedded artwork. Library Audit verifies that iTunes can be read."),
+        IGHelpSectionMake(@"Inspect compatibility", @"iPod Report finds unsupported formats, long names, missing files, and oversized files. Broken Tracks lists missing or unreadable references."),
+        IGHelpSectionMake(@"Measure and export", @"Tag Score measures metadata completeness. Link Audit compares iTunes links with a folder without changing files. Export Report saves basic metadata as JSON or CSV.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Library Doctor"
+                                                        summary:@"Run read-only health checks before changing a large library."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {
@@ -336,16 +497,87 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     });
 }
 
+- (void)finishDoctorOperationTitle:(NSString *)title status:(NSString *)status message:(NSString *)message {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.progressIndicator.indeterminate = NO;
+        self.progressIndicator.maxValue = 1;
+        self.progressIndicator.doubleValue = 1;
+        self.isRunning = NO;
+        self.runButton.enabled = YES;
+        self.toolPopup.enabled = YES;
+        self.statusLabel.stringValue = message ?: @"Library Doctor finished.";
+        [self log:@"Library Doctor finished."];
+        IGLibraryDoctorRecordHistory(title, status, message);
+    });
+}
+
+- (BOOL)prepareLinkAudit {
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.title = @"Choose Folder to Compare";
+    panel.prompt = @"Choose";
+    panel.canChooseFiles = NO;
+    panel.canChooseDirectories = YES;
+    panel.allowsMultipleSelection = NO;
+    if ([panel runModal] != NSFileHandlingPanelOKButton) {
+        return NO;
+    }
+    self.compareFolderURL = [[panel URLs] count] > 0 ? [[panel URLs] objectAtIndex:0] : nil;
+    return self.compareFolderURL != nil;
+}
+
+- (BOOL)prepareReportExport {
+    NSAlert *formatAlert = [[[NSAlert alloc] init] autorelease];
+    formatAlert.messageText = @"Choose Report Format";
+    formatAlert.informativeText = @"JSON preserves structure. CSV opens easily in spreadsheet applications.";
+    [formatAlert addButtonWithTitle:@"JSON"];
+    [formatAlert addButtonWithTitle:@"CSV"];
+    [formatAlert addButtonWithTitle:@"Cancel"];
+    NSInteger response = [formatAlert runModal];
+    if (response == NSAlertThirdButtonReturn) {
+        return NO;
+    }
+    self.reportFormat = response == NSAlertSecondButtonReturn ? @"csv" : @"json";
+
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.title = @"Save Library Doctor Report";
+    panel.nameFieldStringValue = [NSString stringWithFormat:@"Syncrosa-Library-Report.%@", self.reportFormat];
+    panel.allowedFileTypes = @[self.reportFormat];
+    if ([panel runModal] != NSFileHandlingPanelOKButton) {
+        return NO;
+    }
+    self.reportDestinationURL = [panel URL];
+    return self.reportDestinationURL != nil;
+}
+
 - (void)runClicked:(id)sender {
     if (self.isRunning) return;
+
+    NSInteger selected = self.selectedToolIndex;
+    NSArray *titles = [self toolTitles];
+    NSString *selectedTitle = (selected >= 0 && selected < (NSInteger)[titles count]) ? [titles objectAtIndex:selected] : @"Library Audit";
+    if (selected != 0 && ![[IGiTunesService sharedService] iTunesIsRunning]) {
+        self.statusLabel.stringValue = @"iTunes is not running. Syncrosa will not open it automatically.";
+        [self clearLog];
+        [self log:@"Start iTunes yourself, then run this check again."];
+        return;
+    }
+    if (selected == 6 && ![self prepareLinkAudit]) {
+        self.statusLabel.stringValue = @"Link Audit cancelled.";
+        return;
+    }
+    if (selected == 7 && ![self prepareReportExport]) {
+        self.statusLabel.stringValue = @"Report export cancelled.";
+        return;
+    }
+
     self.isRunning = YES;
     self.runButton.enabled = NO;
+    self.toolPopup.enabled = NO;
+    self.progressIndicator.indeterminate = NO;
+    self.progressIndicator.maxValue = 1;
     self.progressIndicator.doubleValue = 0;
     [self clearLog];
 
-    NSInteger selected = self.selectedToolIndex;
-    NSArray *titles = @[@"Cover Restore", @"Cover Audit", @"Library Audit", @"iPod Report", @"Broken Tracks"];
-    NSString *selectedTitle = (selected >= 0 && selected < (NSInteger)titles.count) ? [titles objectAtIndex:selected] : @"Library Audit";
     __block NSString *historyMessage = @"Library Doctor finished.";
     __block NSString *historyStatus = @"OK";
     self.statusLabel.stringValue = [NSString stringWithFormat:@"Running %@...", selectedTitle];
@@ -365,11 +597,19 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
             } else {
                 NSInteger coverCount = 0;
                 NSInteger chunkSize = 150;
+                BOOL stoppedBecauseITunesClosed = NO;
                 dispatch_async(dispatch_get_main_queue(), ^{
                     self.progressIndicator.maxValue = MAX(total, 1);
                     self.progressIndicator.doubleValue = 0;
                 });
                 for (NSInteger start = 1; start <= total; start += chunkSize) {
+                    if (![[IGiTunesService sharedService] iTunesIsRunning]) {
+                        historyStatus = @"WARN";
+                        historyMessage = @"Cover audit stopped because iTunes was closed. Syncrosa did not reopen it.";
+                        [self log:historyMessage];
+                        stoppedBecauseITunesClosed = YES;
+                        break;
+                    }
                     NSInteger end = MIN(start + chunkSize - 1, total);
                     NSString *script = [NSString stringWithFormat:
                         @"set coverCount to 0\n"
@@ -391,10 +631,12 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                         [self log:[NSString stringWithFormat:@"Cover audit chunk %ld-%ld of %ld", (long)start, (long)end, (long)total]];
                     });
                 }
-                historyMessage = [NSString stringWithFormat:@"Cover audit complete. Tracks: %ld. Tracks with covers: %ld.", (long)total, (long)coverCount];
-                [self log:historyMessage];
+                if (!stoppedBecauseITunesClosed) {
+                    historyMessage = [NSString stringWithFormat:@"Cover audit complete. Tracks: %ld. Tracks with covers: %ld.", (long)total, (long)coverCount];
+                    [self log:historyMessage];
+                }
             }
-        } else if (selected == 3 || selected == 4) {
+        } else if (selected == 3 || selected == 4 || selected == 6) {
             dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
             __block NSArray *refs = nil;
             [[IGiTunesService sharedService] fetchLibraryFileTrackReferencesWithCompletion:^(NSArray *tracks) {
@@ -405,7 +647,26 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #if !__has_feature(objc_arc)
             dispatch_release(semaphore);
 #endif
-            if (selected == 3) {
+            if (selected == 6) {
+                [self log:[NSString stringWithFormat:@"Scanning folder: %@", [self.compareFolderURL path] ?: @""]];
+                NSArray *folderFiles = IGLibraryDoctorAudioFilePathsAtURL(self.compareFolderURL);
+                NSDictionary *audit = IGLibraryDoctorLinkAudit(refs ?: @[], folderFiles);
+                NSInteger missing = [[audit objectForKey:@"missingReferenceCount"] integerValue];
+                NSInteger unlinked = [[audit objectForKey:@"unlinkedFileCount"] integerValue];
+                [self log:[NSString stringWithFormat:@"iTunes file references: %@", [audit objectForKey:@"libraryReferenceCount"]]];
+                [self log:[NSString stringWithFormat:@"audio files in folder: %@", [audit objectForKey:@"folderFileCount"]]];
+                [self log:[NSString stringWithFormat:@"missing iTunes links: %ld", (long)missing]];
+                [self log:[NSString stringWithFormat:@"folder files not linked in iTunes: %ld", (long)unlinked]];
+                NSInteger shown = 0;
+                for (NSString *path in [audit objectForKey:@"unlinkedFiles"]) {
+                    if (shown >= 50) break;
+                    [self log:[NSString stringWithFormat:@"unlinked: %@", path]];
+                    shown++;
+                }
+                NSInteger warnings = missing + unlinked;
+                historyStatus = warnings > 0 ? @"WARN" : @"OK";
+                historyMessage = [NSString stringWithFormat:@"Link audit complete. Missing links: %ld. Unlinked folder files: %ld.", (long)missing, (long)unlinked];
+            } else if (selected == 3) {
                 NSArray *supported = @[@"mp3", @"m4a", @"mp4", @"aac", @"wav", @"aiff", @"aif"];
                 NSInteger unsupported = 0;
                 NSInteger missing = 0;
@@ -479,6 +740,58 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #if !__has_feature(objc_arc)
             [refs release];
 #endif
+        } else if (selected == 5 || selected == 7) {
+            dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+            __block NSArray *tracks = nil;
+            [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
+                self.progressIndicator.maxValue = MAX(total, 1);
+                self.progressIndicator.doubleValue = current;
+                self.statusLabel.stringValue = [NSString stringWithFormat:@"Reading tracks: %ld / %ld", (long)current, (long)total];
+            } completion:^(NSArray *fetchedTracks) {
+                tracks = [fetchedTracks copy];
+                dispatch_semaphore_signal(semaphore);
+            }];
+            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+#if !__has_feature(objc_arc)
+            dispatch_release(semaphore);
+#endif
+            if ([tracks count] == 0) {
+                historyStatus = @"WARN";
+                historyMessage = @"iTunes returned no tracks for this check.";
+                [self log:historyMessage];
+            } else if (selected == 5) {
+                NSDictionary *score = IGLibraryDoctorTagScore(tracks);
+                NSInteger percent = [[score objectForKey:@"completenessPercent"] integerValue];
+                [self log:[NSString stringWithFormat:@"tracks scored: %@", [score objectForKey:@"trackCount"]]];
+                [self log:[NSString stringWithFormat:@"metadata completeness: %ld%%", (long)percent]];
+                [self log:[NSString stringWithFormat:@"missing titles: %@", [score objectForKey:@"missingTitle"]]];
+                [self log:[NSString stringWithFormat:@"missing artists: %@", [score objectForKey:@"missingArtist"]]];
+                [self log:[NSString stringWithFormat:@"missing albums: %@", [score objectForKey:@"missingAlbum"]]];
+                [self log:[NSString stringWithFormat:@"missing genres: %@", [score objectForKey:@"missingGenre"]]];
+                [self log:[NSString stringWithFormat:@"missing years: %@", [score objectForKey:@"missingYear"]]];
+                historyStatus = percent >= 80 ? @"OK" : @"WARN";
+                historyMessage = [NSString stringWithFormat:@"Tag score complete. Metadata completeness: %ld%%.", (long)percent];
+            } else {
+                NSError *writeError = nil;
+                BOOL wrote = NO;
+                if ([self.reportFormat isEqualToString:@"csv"]) {
+                    wrote = [IGLibraryDoctorCSVString(tracks) writeToURL:self.reportDestinationURL atomically:YES encoding:NSUTF8StringEncoding error:&writeError];
+                } else {
+                    NSData *data = [NSJSONSerialization dataWithJSONObject:IGLibraryDoctorJSONObject(tracks) options:NSJSONWritingPrettyPrinted error:&writeError];
+                    wrote = data != nil && [data writeToURL:self.reportDestinationURL options:NSDataWritingAtomic error:&writeError];
+                }
+                if (wrote) {
+                    historyMessage = [NSString stringWithFormat:@"Report exported. Tracks: %lu. File: %@", (unsigned long)[tracks count], [self.reportDestinationURL path] ?: @""];
+                    [self log:historyMessage];
+                } else {
+                    historyStatus = @"WARN";
+                    historyMessage = [NSString stringWithFormat:@"Could not save report: %@", [writeError localizedDescription] ?: @"Unknown write error"];
+                    [self log:historyMessage];
+                }
+            }
+#if !__has_feature(objc_arc)
+            [tracks release];
+#endif
         } else {
             NSString *errorMessage = nil;
             NSInteger count = [[IGiTunesService sharedService] readLibraryTrackCountSyncWithErrorMessage:&errorMessage];
@@ -492,15 +805,23 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
             }
         }
 
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self.progressIndicator.doubleValue = 1;
-            self.isRunning = NO;
-            self.runButton.enabled = YES;
-            self.statusLabel.stringValue = historyMessage;
-            [self log:@"Library Doctor finished."];
-            IGLibraryDoctorRecordHistory(selectedTitle, historyStatus, historyMessage);
-        });
+        [self finishDoctorOperationTitle:selectedTitle status:historyStatus message:historyMessage];
     });
+}
+
+- (void)dealloc {
+#if !__has_feature(objc_arc)
+    [_toolPopup release];
+    [_runButton release];
+    [_progressIndicator release];
+    [_statusLabel release];
+    [_logView release];
+    [_helpSheetWindow release];
+    [_compareFolderURL release];
+    [_reportDestinationURL release];
+    [_reportFormat release];
+    [super dealloc];
+#endif
 }
 
 @end
@@ -509,17 +830,40 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 @property (nonatomic, strong) NSSplitView *splitView;
 @property (nonatomic, strong) NSView *sidebarContainer;
 @property (nonatomic, strong) NSView *contentContainer;
+@property (nonatomic, strong) NSView *pageContainer;
+@property (nonatomic, strong) NSView *footerContainer;
+@property (nonatomic, strong) NSTextField *footerLabel;
 @property (nonatomic, strong) NSView *sidebarBackgroundView;
 @property (nonatomic, strong) NSMutableArray *sidebarButtons;
+@property (nonatomic, strong) NSButton *sidebarToggleButton;
 @property (nonatomic, strong) NSTextField *libraryStatusLabel;
 @property (nonatomic, strong) NSButton *libraryRefreshButton;
 @property (nonatomic, strong) NSWindow *firstLaunchSheetWindow;
+@property (nonatomic, assign) NSInteger firstLaunchGuideStep;
+@property (nonatomic, assign) BOOL firstLaunchGuideMarksSeen;
+@property (nonatomic, strong) NSTextField *firstLaunchCategoryLabel;
+@property (nonatomic, strong) NSTextField *firstLaunchStepLabel;
+@property (nonatomic, strong) NSTextField *firstLaunchTitleLabel;
+@property (nonatomic, strong) NSTextField *firstLaunchMessageLabel;
+@property (nonatomic, strong) NSTextField *firstLaunchDetailLabel;
+@property (nonatomic, strong) NSTextField *firstLaunchHighlightOneLabel;
+@property (nonatomic, strong) NSTextField *firstLaunchHighlightTwoLabel;
+@property (nonatomic, strong) NSTextField *firstLaunchProgressLabel;
+@property (nonatomic, strong) NSButton *firstLaunchBackButton;
+@property (nonatomic, strong) NSButton *firstLaunchNextButton;
+@property (nonatomic, strong) NSButton *firstLaunchLocalModeCheckbox;
 @property (nonatomic, strong) NSWindow *libraryBusySheetWindow;
 @property (nonatomic, assign) NSInteger libraryTrackCount;
 @property (nonatomic, assign) BOOL libraryStatusKnown;
 @property (nonatomic, assign) BOOL libraryStatusReadable;
 @property (nonatomic, assign) BOOL refreshingLibraryStatus;
+@property (nonatomic, assign) BOOL sidebarCollapsed;
+@property (nonatomic, assign) CGFloat expandedSidebarWidth;
 @property (nonatomic, assign) NSInteger activeIndex;
+@property (nonatomic, strong) NSViewController *activeViewController;
+@property (nonatomic, strong) NSMutableDictionary *pagePreferredHeights;
+@property (nonatomic, strong) NSMutableDictionary *pagePreferredWidths;
+@property (nonatomic, strong) NSMutableSet *preparedPageViews;
 
 @property (nonatomic, strong) IGGeniusViewController *geniusVC;
 @property (nonatomic, strong) IGFixerViewController *fixerVC;
@@ -532,16 +876,34 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 @property (nonatomic, strong) IGSettingsViewController *settingsVC;
 @property (nonatomic, strong) IGOverviewViewController *overviewVC;
 @property (nonatomic, strong) IGLibraryDoctorViewController *libraryDoctorVC;
+@property (nonatomic, strong) IGRecoveryCenterViewController *recoveryCenterVC;
+
+- (void)layoutApplicationChrome;
+- (void)layoutActivePage;
+- (void)preparePageViewForEmbedding:(NSView *)view;
+- (void)hideEmbeddedFooterLabelsInView:(NSView *)view;
+- (void)updateGlobalFooterText;
 @end
 
 @implementation IGMainWindowController
 
++ (BOOL)globalFooterVisible {
+    return ![[NSUserDefaults standardUserDefaults] boolForKey:IGFooterHiddenDefaultsKey];
+}
+
++ (void)setGlobalFooterVisible:(BOOL)visible {
+    [[NSUserDefaults standardUserDefaults] setBool:!visible forKey:IGFooterHiddenDefaultsKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    [[NSNotificationCenter defaultCenter] postNotificationName:IGFooterVisibilityDidChangeNotification object:nil];
+}
+
 - (instancetype)init {
-    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 800, 500)
+    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 800, 540)
                                                    styleMask:(NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask)
                                                      backing:NSBackingStoreBuffered
                                                        defer:NO];
-    [window setContentView:IGCreateThemedBackgroundView(NSMakeRect(0, 0, 800, 500), IGThemeBackgroundRoleWindow)];
+    [window setContentView:IGCreateThemedBackgroundView(NSMakeRect(0, 0, 800, 540), IGThemeBackgroundRoleWindow)];
+    [window setContentMinSize:NSMakeSize(800, 540)];
     [window center];
     window.title = @"Syncrosa";
     
@@ -554,7 +916,12 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	        _libraryStatusKnown = NO;
 	        _libraryStatusReadable = NO;
 	        _refreshingLibraryStatus = NO;
-	        _activeIndex = -1;
+	        _sidebarCollapsed = NO;
+	        _expandedSidebarWidth = IGSidebarDefaultWidth;
+		        _activeIndex = -1;
+		        _pagePreferredHeights = [[NSMutableDictionary alloc] init];
+		        _pagePreferredWidths = [[NSMutableDictionary alloc] init];
+		        _preparedPageViews = [[NSMutableSet alloc] init];
 	        [self setupUI];
 	    }
     return self;
@@ -566,12 +933,31 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [_splitView release];
 	    [_sidebarContainer release];
 	    [_contentContainer release];
+	    [_pageContainer release];
+	    [_footerContainer release];
+	    [_footerLabel release];
 	    [_sidebarBackgroundView release];
 	    [_sidebarButtons release];
+	    [_sidebarToggleButton release];
 	    [_libraryStatusLabel release];
 	    [_libraryRefreshButton release];
 	    [_firstLaunchSheetWindow release];
+	    [_firstLaunchCategoryLabel release];
+	    [_firstLaunchStepLabel release];
+	    [_firstLaunchTitleLabel release];
+	    [_firstLaunchMessageLabel release];
+	    [_firstLaunchDetailLabel release];
+	    [_firstLaunchHighlightOneLabel release];
+	    [_firstLaunchHighlightTwoLabel release];
+	    [_firstLaunchProgressLabel release];
+	    [_firstLaunchBackButton release];
+	    [_firstLaunchNextButton release];
+	    [_firstLaunchLocalModeCheckbox release];
 	    [_libraryBusySheetWindow release];
+		    [_activeViewController release];
+		    [_pagePreferredHeights release];
+		    [_pagePreferredWidths release];
+		    [_preparedPageViews release];
 	    [_geniusVC release];
 	    [_fixerVC release];
 	    [_fileFixerVC release];
@@ -583,28 +969,27 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [_settingsVC release];
 	    [_overviewVC release];
 	    [_libraryDoctorVC release];
+	    [_recoveryCenterVC release];
 	    [super dealloc];
 	#endif
 	}
 
 - (void)setupUI {
     NSView *rootView = self.window.contentView;
-    
-	    self.splitView = [[NSSplitView alloc] initWithFrame:rootView.bounds];
+
+	    self.splitView = [[[NSSplitView alloc] initWithFrame:NSMakeRect(0.0,
+	                                                                   IGGlobalFooterHeight,
+	                                                                   NSWidth(rootView.bounds),
+	                                                                   NSHeight(rootView.bounds) - IGGlobalFooterHeight)] autorelease];
     self.splitView.vertical = YES;
     self.splitView.dividerStyle = NSSplitViewDividerStyleThin;
-    self.splitView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     self.splitView.delegate = self;
     
-	    self.sidebarContainer = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 180, 500)];
-	    self.contentContainer = [[NSView alloc] initWithFrame:NSMakeRect(180, 0, 620, 500)];
-#if !__has_feature(objc_arc)
-	    [self.splitView release];
-	    [self.sidebarContainer release];
-	    [self.contentContainer release];
-#endif
+	    self.sidebarContainer = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 180, NSHeight(self.splitView.bounds))] autorelease];
+	    self.contentContainer = [[[NSView alloc] initWithFrame:NSMakeRect(180, 0, 620, NSHeight(self.splitView.bounds))] autorelease];
     
     self.sidebarBackgroundView = IGCreateThemedBackgroundView(self.sidebarContainer.bounds, IGThemeBackgroundRoleSidebar);
+	    self.sidebarBackgroundView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 	    [self.sidebarContainer addSubview:self.sidebarBackgroundView];
     
     [self.splitView addSubview:self.sidebarContainer];
@@ -612,10 +997,48 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [self.splitView adjustSubviews];
     
     [rootView addSubview:self.splitView];
-    
+
+    IGInstallThemedContentBackground(self.contentContainer);
+	    self.pageContainer = [[[NSView alloc] initWithFrame:self.contentContainer.bounds] autorelease];
+	    self.pageContainer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+	    [self.contentContainer addSubview:self.pageContainer];
+
+	    NSButton *sidebarToggle = [[NSButton alloc] initWithFrame:NSMakeRect(12, NSHeight(self.contentContainer.bounds) - 38, 30, 28)];
+	    sidebarToggle.bezelStyle = NSTexturedRoundedBezelStyle;
+	    sidebarToggle.target = self;
+	    sidebarToggle.action = @selector(toggleSidebar:);
+	    sidebarToggle.autoresizingMask = NSViewMinYMargin;
+	    sidebarToggle.font = [NSFont boldSystemFontOfSize:14.0];
+	    sidebarToggle.title = @"";
+	    IGConfigureIconButton(sidebarToggle, @"menu", @"Hide Sidebar", YES);
+	    self.sidebarToggleButton = sidebarToggle;
+	    [self.contentContainer addSubview:sidebarToggle positioned:NSWindowAbove relativeTo:nil];
+#if !__has_feature(objc_arc)
+	    [sidebarToggle release];
+#endif
+
+	    self.footerContainer = IGCreateThemedBackgroundView(NSMakeRect(0, 0, NSWidth(rootView.bounds), IGGlobalFooterHeight), IGThemeBackgroundRoleContent);
+	    NSBox *footerSeparator = [[[NSBox alloc] initWithFrame:NSMakeRect(0, IGGlobalFooterHeight - 1.0, NSWidth(rootView.bounds), 1.0)] autorelease];
+	    footerSeparator.boxType = NSBoxSeparator;
+	    footerSeparator.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
+	    [self.footerContainer addSubview:footerSeparator];
+	    self.footerLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(40, 2, NSWidth(rootView.bounds) - 80, 30)] autorelease];
+	    self.footerLabel.font = [NSFont systemFontOfSize:10.0];
+	    self.footerLabel.textColor = IGThemeMutedTextColor();
+	    self.footerLabel.alignment = NSCenterTextAlignment;
+	    self.footerLabel.editable = NO;
+	    self.footerLabel.selectable = NO;
+	    self.footerLabel.bordered = NO;
+	    self.footerLabel.drawsBackground = NO;
+	    self.footerLabel.autoresizingMask = NSViewWidthSizable;
+	    [self.footerContainer addSubview:self.footerLabel];
+	    [rootView addSubview:self.footerContainer];
+	    [self updateGlobalFooterText];
+
     self.sidebarButtons = [NSMutableArray array];
     [self setupSidebar];
     [self updateButtonStates];
+	    [self restoreSidebarState];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(localizationChanged:)
@@ -631,19 +1054,28 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                                              selector:@selector(themeChanged:)
                                                  name:IGThemeDidChangeNotification
                                                object:nil];
+	    [[NSNotificationCenter defaultCenter] addObserver:self
+	                                             selector:@selector(footerVisibilityChanged:)
+	                                                 name:IGFooterVisibilityDidChangeNotification
+	                                               object:nil];
+	    [[NSNotificationCenter defaultCenter] addObserver:self
+	                                             selector:@selector(windowDidResize:)
+	                                                 name:NSWindowDidResizeNotification
+	                                               object:self.window];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(systemAppearanceChanged:)
                                                  name:@"NSApplicationDidChangeEffectiveAppearanceNotification"
                                                object:nil];
+    [self layoutApplicationChrome];
     [self applyTheme];
     
     // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
 	    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"Gemini";
     NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     if (apiKey && apiKey.length > 0) {
-        [self switchViewToIndex:0];
+        [self switchViewToIndex:IGNavigationItemOverview];
     } else {
-        [self switchViewToIndex:10];
+        [self switchViewToIndex:IGNavigationItemSettings];
     }
 
     [self performSelector:@selector(showFirstLaunchSetupIfNeeded) withObject:nil afterDelay:0.45];
@@ -665,8 +1097,11 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [self.window setBackgroundColor:IGThemeContentColor()];
     [self.window.contentView setNeedsDisplay:YES];
     [self.sidebarBackgroundView setNeedsDisplay:YES];
+    [self.footerContainer setNeedsDisplay:YES];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.libraryStatusLabel.textColor = IGThemeMutedTextColor();
     IGApplyThemeToButton(self.libraryRefreshButton, IGThemeButtonRoleSecondary);
+    IGApplyThemeToButton(self.sidebarToggleButton, IGThemeButtonRoleSecondary);
     for (NSButton *button in self.sidebarButtons) {
         IGApplyThemeToButton(button, IGThemeButtonRoleSidebar);
     }
@@ -676,6 +1111,164 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     IGRefreshThemedViews(self.window.contentView);
     [self.contentContainer setNeedsDisplay:YES];
     [self.sidebarContainer setNeedsDisplay:YES];
+}
+
+- (void)updateGlobalFooterText {
+    self.footerLabel.stringValue = [[IGLocalizationService sharedService] t:@"footer"] ?: @"";
+}
+
+- (void)footerVisibilityChanged:(NSNotification *)notification {
+    (void)notification;
+    [self layoutApplicationChrome];
+}
+
+- (void)windowDidResize:(NSNotification *)notification {
+    (void)notification;
+    [self layoutApplicationChrome];
+}
+
+- (void)layoutApplicationChrome {
+    NSView *windowContentView = [self.window contentView];
+    NSRect bounds = [windowContentView bounds];
+    BOOL footerVisible = [[self class] globalFooterVisible];
+    CGFloat footerHeight = footerVisible ? IGGlobalFooterHeight : 0.0;
+
+    self.footerContainer.hidden = !footerVisible;
+    self.footerContainer.frame = NSMakeRect(0.0, 0.0, NSWidth(bounds), IGGlobalFooterHeight);
+    self.splitView.frame = NSMakeRect(0.0,
+                                      footerHeight,
+                                      NSWidth(bounds),
+                                      MAX(0.0, NSHeight(bounds) - footerHeight));
+    self.pageContainer.frame = self.contentContainer.bounds;
+    [self layoutSidebarControls];
+    [self layoutActivePage];
+}
+
+- (void)hideEmbeddedFooterLabelsInView:(NSView *)view {
+    if (!view) {
+        return;
+    }
+    if ([view isKindOfClass:[NSTextField class]]) {
+        NSString *text = [(NSTextField *)view stringValue];
+        NSString *globalFooterText = [[IGLocalizationService sharedService] t:@"footer"] ?: @"";
+        if (([globalFooterText length] > 0 && [text isEqualToString:globalFooterText]) || IGTextIsEmbeddedLegacyFooter(text)) {
+            [view removeFromSuperview];
+            return;
+        }
+    }
+    NSArray *children = [[view subviews] copy];
+    for (NSView *child in children) {
+        [self hideEmbeddedFooterLabelsInView:child];
+    }
+#if !__has_feature(objc_arc)
+    [children release];
+#endif
+}
+
+- (void)preparePageViewForEmbedding:(NSView *)view {
+    if (!view) {
+        return;
+    }
+    NSValue *key = [NSValue valueWithNonretainedObject:view];
+    if (![self.preparedPageViews containsObject:key]) {
+        CGFloat preferredHeight = MAX(480.0, NSHeight(view.frame));
+        CGFloat preferredWidth = MAX(580.0, NSWidth(view.frame));
+        [self.pagePreferredHeights setObject:[NSNumber numberWithDouble:preferredHeight] forKey:key];
+        [self.pagePreferredWidths setObject:[NSNumber numberWithDouble:preferredWidth] forKey:key];
+        [self.preparedPageViews addObject:key];
+    }
+    [self hideEmbeddedFooterLabelsInView:view];
+}
+
+- (void)layoutActivePage {
+    if (!self.activeViewController || !self.pageContainer) {
+        return;
+    }
+    NSView *view = self.activeViewController.view;
+    NSValue *key = [NSValue valueWithNonretainedObject:view];
+    NSNumber *storedHeight = [self.pagePreferredHeights objectForKey:key];
+    NSNumber *storedWidth = [self.pagePreferredWidths objectForKey:key];
+    CGFloat preferredHeight = storedHeight ? [storedHeight doubleValue] : MAX(480.0, NSHeight(view.frame));
+    CGFloat preferredWidth = storedWidth ? [storedWidth doubleValue] : MAX(580.0, NSWidth(view.frame));
+    view.frame = IGCenteredLegacyPageFrame(NSMakeSize(preferredWidth, preferredHeight), self.pageContainer.bounds);
+}
+
+- (void)restoreSidebarState {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    CGFloat savedWidth = [defaults doubleForKey:IGSidebarWidthDefaultsKey];
+    if (savedWidth >= IGSidebarMinimumWidth) {
+        self.expandedSidebarWidth = MIN(savedWidth, 250.0);
+    }
+
+    [self setSidebarCollapsed:[defaults boolForKey:IGSidebarCollapsedDefaultsKey] persist:NO];
+}
+
+- (void)toggleSidebar:(id)sender {
+    (void)sender;
+    [self setSidebarCollapsed:!self.sidebarCollapsed persist:YES];
+}
+
+- (void)setSidebarCollapsed:(BOOL)collapsed persist:(BOOL)persist {
+    if (collapsed) {
+        CGFloat currentWidth = NSWidth(self.sidebarContainer.frame);
+        if (currentWidth >= IGSidebarMinimumWidth) {
+            self.expandedSidebarWidth = MIN(currentWidth, 250.0);
+        }
+        self.sidebarCollapsed = YES;
+        self.sidebarContainer.hidden = YES;
+        [self.splitView adjustSubviews];
+    } else {
+        self.sidebarCollapsed = NO;
+        self.sidebarContainer.hidden = NO;
+        [self.splitView adjustSubviews];
+        CGFloat maximumWidth = MAX(IGSidebarMinimumWidth,
+                                   NSWidth(self.splitView.bounds) - IGContentMinimumWidth - self.splitView.dividerThickness);
+        CGFloat width = MAX(IGSidebarMinimumWidth, MIN(self.expandedSidebarWidth, MIN(250.0, maximumWidth)));
+        [self.splitView setPosition:width ofDividerAtIndex:0];
+    }
+
+    if (persist) {
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        [defaults setBool:self.sidebarCollapsed forKey:IGSidebarCollapsedDefaultsKey];
+        [defaults setDouble:self.expandedSidebarWidth forKey:IGSidebarWidthDefaultsKey];
+        [defaults synchronize];
+    }
+
+    [self layoutSidebarControls];
+    [self layoutActivePage];
+}
+
+- (void)layoutSidebarControls {
+    if (!self.sidebarToggleButton) {
+        return;
+    }
+
+    CGFloat sidebarWidth = NSWidth(self.sidebarContainer.bounds);
+    CGFloat sidebarHeight = NSHeight(self.sidebarContainer.bounds);
+    CGFloat contentHeight = NSHeight(self.contentContainer.bounds);
+    self.sidebarToggleButton.frame = NSMakeRect(12.0, MAX(6.0, contentHeight - 38.0), 30.0, 28.0);
+    self.sidebarToggleButton.toolTip = self.sidebarCollapsed ? @"Show Sidebar" : @"Hide Sidebar";
+    self.sidebarToggleButton.title = @"";
+    NSImage *toggleImage = IGIconImageNamed(@"menu");
+    [toggleImage setSize:NSMakeSize(15.0, 15.0)];
+    self.sidebarToggleButton.image = toggleImage;
+    [[self.sidebarToggleButton cell] setImagePosition:NSImageOnly];
+    [[self.sidebarToggleButton cell] setImageScaling:NSImageScaleProportionallyDown];
+
+    for (NSButton *button in self.sidebarButtons) {
+        button.hidden = NO;
+    }
+    if (!self.sidebarCollapsed && ![self.sidebarContainer isHidden]) {
+        CGFloat buttonY = sidebarHeight - 72.0;
+        CGFloat buttonWidth = MAX(80.0, sidebarWidth - 30.0);
+        for (NSButton *button in self.sidebarButtons) {
+            button.frame = NSMakeRect(15.0, buttonY, buttonWidth, 28.0);
+            buttonY -= 32.0;
+        }
+    }
+
+    self.sidebarBackgroundView.frame = self.sidebarContainer.bounds;
+    [self.contentContainer addSubview:self.sidebarToggleButton positioned:NSWindowAbove relativeTo:nil];
 }
 
 - (void)showFirstLaunchSetupIfNeeded {
@@ -696,12 +1289,15 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         return;
     }
 
-    NSRect sheetRect = NSMakeRect(0, 0, 560, 380);
+    self.firstLaunchGuideStep = 0;
+    self.firstLaunchGuideMarksSeen = markSeen;
+    NSRect sheetRect = NSMakeRect(0, 0, 680, 430);
     NSWindow *sheet = [[NSWindow alloc] initWithContentRect:sheetRect
                                                   styleMask:NSTitledWindowMask
                                                     backing:NSBackingStoreBuffered
                                                       defer:NO];
-    sheet.title = @"Syncrosa First Launch Guide";
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    sheet.title = russian ? @"Первый запуск Syncrosa" : @"Syncrosa First Launch Setup";
     self.firstLaunchSheetWindow = sheet;
 #if !__has_feature(objc_arc)
     [sheet release];
@@ -709,68 +1305,82 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
     NSView *content = [self.firstLaunchSheetWindow contentView];
     IGInstallThemedContentBackground(content);
-    NSImageView *iconView = [[[NSImageView alloc] initWithFrame:NSMakeRect(28, 288, 64, 64)] autorelease];
+
+    NSBox *illustrationBox = [[[NSBox alloc] initWithFrame:NSMakeRect(24, 70, 190, 325)] autorelease];
+    illustrationBox.title = @"Syncrosa";
+    illustrationBox.boxType = NSBoxPrimary;
+    [content addSubview:illustrationBox];
+
+    NSImageView *iconView = [[[NSImageView alloc] initWithFrame:NSMakeRect(55, 205, 80, 80)] autorelease];
     iconView.image = [NSApp applicationIconImage];
     iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
-    [content addSubview:iconView];
+    [illustrationBox addSubview:iconView];
 
-    NSTextField *title = IGCreateGuideTextField(@"Before You Start", NSMakeRect(110, 322, 410, 26),
-                                                [NSFont boldSystemFontOfSize:18],
-                                                [NSColor colorWithCalibratedWhite:0.10 alpha:1.0],
-                                                NSLeftTextAlignment);
-    [content addSubview:title];
+    self.firstLaunchCategoryLabel = IGCreateGuideTextField(@"", NSMakeRect(16, 150, 158, 42),
+                                                           [NSFont boldSystemFontOfSize:15], IGThemeAccentColor(), NSCenterTextAlignment);
+    [illustrationBox addSubview:self.firstLaunchCategoryLabel];
+    NSTextField *caption = IGCreateGuideTextField(russian ? @"Музыка под вашим контролем" : @"Your music, under control",
+                                                  NSMakeRect(18, 74, 154, 55), [NSFont systemFontOfSize:11],
+                                                  IGThemeMutedTextColor(), NSCenterTextAlignment);
+    [illustrationBox addSubview:caption];
 
-    NSTextField *subtitle = IGCreateGuideTextField(@"A quick setup guide for old iTunes libraries and slower Macs.", NSMakeRect(110, 292, 410, 40),
-                                                   [NSFont systemFontOfSize:12],
-                                                   [NSColor colorWithCalibratedWhite:0.35 alpha:1.0],
-                                                   NSLeftTextAlignment);
-    [content addSubview:subtitle];
+    self.firstLaunchStepLabel = IGCreateGuideTextField(@"", NSMakeRect(240, 365, 410, 18),
+                                                       [NSFont boldSystemFontOfSize:11], IGThemeAccentColor(), NSLeftTextAlignment);
+    self.firstLaunchTitleLabel = IGCreateGuideTextField(@"", NSMakeRect(240, 313, 410, 48),
+                                                        [NSFont boldSystemFontOfSize:20], IGThemeTextColor(), NSLeftTextAlignment);
+    self.firstLaunchMessageLabel = IGCreateGuideTextField(@"", NSMakeRect(240, 250, 410, 58),
+                                                          [NSFont systemFontOfSize:13], IGThemeTextColor(), NSLeftTextAlignment);
+    self.firstLaunchDetailLabel = IGCreateGuideTextField(@"", NSMakeRect(240, 190, 410, 56),
+                                                         [NSFont systemFontOfSize:11.5], IGThemeMutedTextColor(), NSLeftTextAlignment);
+    self.firstLaunchHighlightOneLabel = IGCreateGuideTextField(@"", NSMakeRect(252, 137, 398, 44),
+                                                               [NSFont systemFontOfSize:11], IGThemeMutedTextColor(), NSLeftTextAlignment);
+    self.firstLaunchHighlightTwoLabel = IGCreateGuideTextField(@"", NSMakeRect(252, 91, 398, 44),
+                                                               [NSFont systemFontOfSize:11], IGThemeMutedTextColor(), NSLeftTextAlignment);
+    [content addSubview:self.firstLaunchStepLabel];
+    [content addSubview:self.firstLaunchTitleLabel];
+    [content addSubview:self.firstLaunchMessageLabel];
+    [content addSubview:self.firstLaunchDetailLabel];
+    [content addSubview:self.firstLaunchHighlightOneLabel];
+    [content addSubview:self.firstLaunchHighlightTwoLabel];
 
-    NSArray *stepTitles = @[
-        @"1. Allow iTunes automation",
-        @"2. Start from Overview",
-        @"3. Work on copies for destructive tools",
-        @"4. Use Only Local Mode when needed"
-    ];
-    NSArray *stepBodies = @[
-        @"If OS X asks for permission, allow Syncrosa to control iTunes so it can read tracks and playlists.",
-        @"Overview checks whether the iTunes library is readable before library tools are enabled.",
-        @"Info Eraser and direct file fixing can rewrite files. Test them on copies before touching the only copy of a folder.",
-        @"In Settings, Only Local Mode skips online metadata lookups and keeps older HDD Macs calmer."
-    ];
+    self.firstLaunchLocalModeCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(240, 61, 330, 24)] autorelease];
+    self.firstLaunchLocalModeCheckbox.buttonType = NSSwitchButton;
+    self.firstLaunchLocalModeCheckbox.title = russian ? @"Только локальная обработка" : @"Only Local Mode";
+    self.firstLaunchLocalModeCheckbox.target = self;
+    self.firstLaunchLocalModeCheckbox.action = @selector(firstLaunchLocalModeChanged:);
+    [content addSubview:self.firstLaunchLocalModeCheckbox];
 
-    CGFloat y = 250.0;
-    for (NSInteger i = 0; i < [stepTitles count]; i++) {
-        NSTextField *stepTitle = IGCreateGuideTextField([stepTitles objectAtIndex:i], NSMakeRect(42, y, 475, 20),
-                                                        [NSFont boldSystemFontOfSize:12],
-                                                        [NSColor colorWithCalibratedWhite:0.15 alpha:1.0],
-                                                        NSLeftTextAlignment);
-        [content addSubview:stepTitle];
+    NSBox *separator = [[[NSBox alloc] initWithFrame:NSMakeRect(0, 54, 680, 1)] autorelease];
+    separator.boxType = NSBoxSeparator;
+    [content addSubview:separator];
 
-        NSTextField *stepBody = IGCreateGuideTextField([stepBodies objectAtIndex:i], NSMakeRect(58, y - 34, 460, 34),
-                                                       [NSFont systemFontOfSize:11],
-                                                       [NSColor colorWithCalibratedWhite:0.35 alpha:1.0],
-                                                       NSLeftTextAlignment);
-        [content addSubview:stepBody];
-        y -= 54.0;
-    }
+    NSButton *skipButton = [[[NSButton alloc] initWithFrame:NSMakeRect(24, 14, 100, 30)] autorelease];
+    skipButton.title = russian ? @"Пропустить" : @"Skip";
+    skipButton.bezelStyle = NSRoundedBezelStyle;
+    skipButton.target = self;
+    skipButton.action = @selector(closeFirstLaunchGuide:);
+    IGApplyThemeToButton(skipButton, IGThemeButtonRoleSecondary);
+    [content addSubview:skipButton];
 
-    NSButton *okButton = [[[NSButton alloc] initWithFrame:NSMakeRect(425, 16, 105, 32)] autorelease];
-    okButton.title = @"Got It";
-    okButton.bezelStyle = NSRoundedBezelStyle;
-    okButton.target = self;
-    okButton.action = @selector(closeFirstLaunchGuide:);
-    IGApplyThemeToButton(okButton, IGThemeButtonRolePrimary);
-    [content addSubview:okButton];
+    self.firstLaunchProgressLabel = IGCreateGuideTextField(@"", NSMakeRect(270, 20, 90, 18),
+                                                           [NSFont systemFontOfSize:11], IGThemeMutedTextColor(), NSCenterTextAlignment);
+    [content addSubview:self.firstLaunchProgressLabel];
 
-    if (markSeen) {
-        NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-        if (!version || version.length == 0) {
-            version = @"development";
-        }
-        [[NSUserDefaults standardUserDefaults] setObject:version forKey:@"syncrosa_first_launch_guide_seen_version"];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-    }
+    self.firstLaunchBackButton = [[[NSButton alloc] initWithFrame:NSMakeRect(430, 14, 100, 30)] autorelease];
+    self.firstLaunchBackButton.bezelStyle = NSRoundedBezelStyle;
+    self.firstLaunchBackButton.target = self;
+    self.firstLaunchBackButton.action = @selector(firstLaunchBackClicked:);
+    IGApplyThemeToButton(self.firstLaunchBackButton, IGThemeButtonRoleSecondary);
+    [content addSubview:self.firstLaunchBackButton];
+
+    self.firstLaunchNextButton = [[[NSButton alloc] initWithFrame:NSMakeRect(540, 14, 116, 30)] autorelease];
+    self.firstLaunchNextButton.bezelStyle = NSRoundedBezelStyle;
+    self.firstLaunchNextButton.target = self;
+    self.firstLaunchNextButton.action = @selector(firstLaunchNextClicked:);
+    IGApplyThemeToButton(self.firstLaunchNextButton, IGThemeButtonRolePrimary);
+    [content addSubview:self.firstLaunchNextButton];
+
+    [self updateFirstLaunchGuide];
 
     [NSApp beginSheet:self.firstLaunchSheetWindow
        modalForWindow:self.window
@@ -780,14 +1390,105 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     IGApplyThemeToWindow(self.firstLaunchSheetWindow);
 }
 
+- (NSArray *)firstLaunchGuideSteps {
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    if (russian) {
+        return @[
+            @{@"category": @"Коллекция", @"title": @"Всё для вашей музыки", @"message": @"Syncrosa объединяет работу с медиатекой iTunes, локальными файлами, папками и внешними накопителями.", @"detail": @"Этот тур ничего не изменяет. Он покажет, где находится каждая группа инструментов.", @"one": @"- Исправляйте данные и создавайте плейлисты в iTunes.", @"two": @"- Обрабатывайте папки и музыку для старых Apple-устройств."},
+            @{@"category": @"iTunes", @"title": @"Подключите медиатеку", @"message": @"Разрешите автоматизацию iTunes, когда OS X покажет системный запрос, затем проверьте медиатеку.", @"detail": @"Syncrosa читает названия и идентификаторы треков через системную автоматизацию. iTunes не открывается без вашего подтверждения.", @"one": @"- Overview показывает статус и количество треков.", @"two": @"- Музыка не меняется без отдельной команды."},
+            @{@"category": @"Плейлисты", @"title": @"AI или полностью офлайн", @"message": @"AI Playlist создаёт подборки через выбранного провайдера, а Offline Playlist работает по локальным правилам.", @"detail": @"Media Fixer экспортирует каталог JSON для внешнего AI и импортирует его выбор обратно как плейлист.", @"one": @"- Подборки по запросу, жанру или настроению.", @"two": @"- Локальная генерация без отправки медиатеки в сеть."},
+            @{@"category": @"Метаданные", @"title": @"Исправляйте данные треков", @"message": @"iTunes Media Fixer восстанавливает выбранные поля: название, исполнителя, альбом, жанр, номер трека и текст песни.", @"detail": @"Вы сами отмечаете поля, которые разрешено менять, до запуска процесса.", @"one": @"- Добавление текстов, обложек и корректных тегов.", @"two": @"- Поиск разделённых альбомов и пакетная обработка."},
+            @{@"category": @"Файлы", @"title": @"Работайте прямо с папками", @"message": @"Folder Fixer изменяет теги и имена локальных файлов, включая вложенные папки, без обязательного импорта в iTunes.", @"detail": @"Info Eraser отдельно удаляет теги и обложки с подтверждением и backup для восстановления.", @"one": @"- MP3, M4A, FLAC и другие поддерживаемые форматы.", @"two": @"- Сначала тестируйте разрушительные действия на копии."},
+            @{@"category": @"Диагностика", @"title": @"Проверяйте здоровье медиатеки", @"message": @"Library Doctor проверяет обложки, теги, повреждённые ссылки и совместимость, а Duplicate Finder разбирает повторы пакетно.", @"detail": @"Tag Score, Link Audit и отчёты JSON/CSV ничего не меняют и подходят для безопасной диагностики.", @"one": @"- Сначала аудит, затем применение изменений.", @"two": @"- История показывает результат каждой операции."},
+            @{@"category": @"Устройства", @"title": @"Готовьте музыку для старых Apple-устройств", @"message": @"Covers Optimizer уменьшает artwork под iPod и старые устройства, экономя место без изменения аудиодорожки.", @"detail": @"USB Export копирует плейлист в отдельную папку на накопителе и может создать M3U/M3U8.", @"one": @"- Профили обложек под Classic, Nano и старые iPhone.", @"two": @"- Безопасные имена и готовая структура на флешке."},
+            @{@"category": @"Контроль", @"title": @"Безопасность и восстановление", @"message": @"Перед массовыми изменениями создавайте backup. Recovery Center показывает прерванные операции и историю.", @"detail": @"В Settings находятся оформление, язык, AI-провайдер, обновления, HDD Safe Mode и локальный режим.", @"one": @"- Stop завершает текущий безопасный шаг и останавливает задачу.", @"two": @"- Only Local Mode отключает сетевой поиск метаданных."}
+        ];
+    }
+    return @[
+        @{@"category": @"Collection", @"title": @"Everything for your music", @"message": @"Syncrosa brings together your iTunes library, local files, folders, and external drives.", @"detail": @"This tour changes nothing. It shows where every group of tools lives.", @"one": @"- Repair details and create playlists in iTunes.", @"two": @"- Process folders and music for older Apple devices."},
+        @{@"category": @"iTunes", @"title": @"Connect your library", @"message": @"Allow iTunes automation when OS X asks, then verify that Syncrosa can read your library.", @"detail": @"Syncrosa reads names and track identifiers through system automation. It never opens iTunes without your confirmation.", @"one": @"- Overview shows library status and track count.", @"two": @"- Music is never changed without a separate command."},
+        @{@"category": @"Playlists", @"title": @"Use AI or stay fully offline", @"message": @"AI Playlist creates selections through your provider, while Offline Playlist works with local rules.", @"detail": @"Media Fixer exports a catalog JSON for an external AI and imports its selection back as a playlist.", @"one": @"- Build selections by request, genre, or mood.", @"two": @"- Generate locally without sending the library online."},
+        @{@"category": @"Metadata", @"title": @"Repair track information", @"message": @"iTunes Media Fixer restores selected fields: title, artist, album, genre, track number, and lyrics.", @"detail": @"You choose exactly which fields may change before the process starts.", @"one": @"- Add lyrics, artwork, and cleaner metadata.", @"two": @"- Find split albums and process tracks in batches."},
+        @{@"category": @"Files", @"title": @"Work directly with folders", @"message": @"Folder Fixer changes local file tags and names, including nested folders, without requiring an iTunes import.", @"detail": @"Info Eraser separately removes tags and artwork with confirmation and a recovery backup.", @"one": @"- Supports MP3, M4A, FLAC, and other formats.", @"two": @"- Test destructive tools on a copy first."},
+        @{@"category": @"Diagnostics", @"title": @"Inspect library health", @"message": @"Library Doctor checks artwork, tags, broken links, and compatibility. Duplicate Finder handles repeated tracks in batches.", @"detail": @"Tag Score, Link Audit, and JSON/CSV reports are read-only diagnostics.", @"one": @"- Audit first, apply changes second.", @"two": @"- Operation History explains what each task changed."},
+        @{@"category": @"Devices", @"title": @"Prepare music for older Apple devices", @"message": @"Covers Optimizer reduces artwork for iPods and older devices to save space without changing audio.", @"detail": @"USB Export copies a playlist into its own folder and can create M3U/M3U8 files.", @"one": @"- Artwork profiles for Classic, Nano, and older iPhones.", @"two": @"- Safe filenames and a ready USB folder structure."},
+        @{@"category": @"Control", @"title": @"Safety and recovery", @"message": @"Create backups before bulk changes. Recovery Center shows interrupted operations and history.", @"detail": @"Settings contains appearance, language, AI provider, updates, HDD Safe Mode, and local mode.", @"one": @"- Stop finishes the current safe unit before ending a task.", @"two": @"- Only Local Mode disables online metadata lookup."}
+    ];
+}
+
+- (void)updateFirstLaunchGuide {
+    NSArray *steps = [self firstLaunchGuideSteps];
+    if ([steps count] == 0) return;
+    self.firstLaunchGuideStep = MAX(0, MIN(self.firstLaunchGuideStep, (NSInteger)[steps count] - 1));
+    NSDictionary *step = [steps objectAtIndex:(NSUInteger)self.firstLaunchGuideStep];
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    self.firstLaunchCategoryLabel.stringValue = [step objectForKey:@"category"] ?: @"Syncrosa";
+    self.firstLaunchStepLabel.stringValue = [NSString stringWithFormat:russian ? @"ШАГ %ld" : @"STEP %ld", (long)(self.firstLaunchGuideStep + 1)];
+    self.firstLaunchTitleLabel.stringValue = [step objectForKey:@"title"] ?: @"";
+    self.firstLaunchMessageLabel.stringValue = [step objectForKey:@"message"] ?: @"";
+    self.firstLaunchDetailLabel.stringValue = [step objectForKey:@"detail"] ?: @"";
+    self.firstLaunchHighlightOneLabel.stringValue = [step objectForKey:@"one"] ?: @"";
+    self.firstLaunchHighlightTwoLabel.stringValue = [step objectForKey:@"two"] ?: @"";
+    self.firstLaunchProgressLabel.stringValue = [NSString stringWithFormat:@"%ld / %lu", (long)(self.firstLaunchGuideStep + 1), (unsigned long)[steps count]];
+    self.firstLaunchBackButton.title = russian ? @"Назад" : @"Back";
+    self.firstLaunchBackButton.enabled = self.firstLaunchGuideStep > 0;
+    self.firstLaunchNextButton.title = self.firstLaunchGuideStep == (NSInteger)[steps count] - 1
+        ? (russian ? @"Начать" : @"Start")
+        : (russian ? @"Далее" : @"Continue");
+    self.firstLaunchLocalModeCheckbox.hidden = self.firstLaunchGuideStep != (NSInteger)[steps count] - 1;
+    self.firstLaunchLocalModeCheckbox.state = [[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"] ? NSOnState : NSOffState;
+}
+
+- (void)firstLaunchBackClicked:(id)sender {
+    (void)sender;
+    if (self.firstLaunchGuideStep > 0) {
+        self.firstLaunchGuideStep--;
+        [self updateFirstLaunchGuide];
+    }
+}
+
+- (void)firstLaunchNextClicked:(id)sender {
+    (void)sender;
+    NSArray *steps = [self firstLaunchGuideSteps];
+    if (self.firstLaunchGuideStep >= (NSInteger)[steps count] - 1) {
+        [self closeFirstLaunchGuide:nil];
+        return;
+    }
+    self.firstLaunchGuideStep++;
+    [self updateFirstLaunchGuide];
+}
+
+- (void)firstLaunchLocalModeChanged:(NSButton *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:(sender.state == NSOnState) forKey:@"only_local_mode"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 - (void)closeFirstLaunchGuide:(id)sender {
     if (!self.firstLaunchSheetWindow) {
         return;
     }
 
+    if (self.firstLaunchGuideMarksSeen) {
+        NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+        if (!version || version.length == 0) version = @"development";
+        [[NSUserDefaults standardUserDefaults] setObject:version forKey:@"syncrosa_first_launch_guide_seen_version"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+    }
+
     [NSApp endSheet:self.firstLaunchSheetWindow];
     [self.firstLaunchSheetWindow orderOut:nil];
     self.firstLaunchSheetWindow = nil;
+    self.firstLaunchCategoryLabel = nil;
+    self.firstLaunchStepLabel = nil;
+    self.firstLaunchTitleLabel = nil;
+    self.firstLaunchMessageLabel = nil;
+    self.firstLaunchDetailLabel = nil;
+    self.firstLaunchHighlightOneLabel = nil;
+    self.firstLaunchHighlightTwoLabel = nil;
+    self.firstLaunchProgressLabel = nil;
+    self.firstLaunchBackButton = nil;
+    self.firstLaunchNextButton = nil;
+    self.firstLaunchLocalModeCheckbox = nil;
 }
 
 - (void)drivesUpdatedNotification:(NSNotification *)notification {
@@ -795,7 +1496,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 }
 
 - (BOOL)indexRequiresReadableLibrary:(NSInteger)index {
-    return (index == 1 || index == 2 || index == 4 || index == 5 || index == 6 || index == 7 || index == 9);
+    return IGNavigationItemRequiresReadableLibrary((IGNavigationItem)index);
 }
 
 - (BOOL)libraryIsConfirmedEmpty {
@@ -832,13 +1533,13 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
 - (NSString *)libraryActionNameForIndex:(NSInteger)index {
     switch (index) {
-        case 1: return @"AI Playlist";
-        case 2: return @"iTunes Media Fixer";
-        case 4: return @"USB Export";
-        case 5: return @"Covers Optimizer";
-        case 6: return @"Duplicate Finder";
-        case 7: return @"Offline Playlist";
-        case 9: return @"Library Doctor";
+        case IGNavigationItemAIPlaylist: return @"AI Playlist";
+        case IGNavigationItemMediaFixer: return @"iTunes Media Fixer";
+        case IGNavigationItemUSBExport: return @"USB Export";
+        case IGNavigationItemCoversOptimizer: return @"Covers Optimizer";
+        case IGNavigationItemDuplicateFinder: return @"Duplicate Finder";
+        case IGNavigationItemOfflinePlaylist: return @"Offline Playlist";
+        case IGNavigationItemLibraryDoctor: return @"Library Doctor";
         default: return @"this tool";
     }
 }
@@ -970,7 +1671,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         [self updateButtonStates];
 
         if ([self libraryBlocksTools] && [self indexRequiresReadableLibrary:self.activeIndex]) {
-            [self switchViewToIndex:0];
+            [self switchViewToIndex:IGNavigationItemOverview];
         }
 
         if (completionCopy) {
@@ -987,6 +1688,26 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     return [self refreshLibraryStatusForAction:@"refreshing iTunes status" completion:completionBlock];
 }
 
+- (NSString *)overviewLibraryStatusText {
+    if (self.refreshingLibraryStatus) {
+        return @"Checking iTunes...";
+    }
+    if (!self.libraryStatusKnown) {
+        return @"Not checked";
+    }
+    if (!self.libraryStatusReadable) {
+        return @"Unavailable";
+    }
+    if (self.libraryTrackCount == 0) {
+        return @"Empty library";
+    }
+    return [NSString stringWithFormat:@"%ld tracks", (long)self.libraryTrackCount];
+}
+
+- (BOOL)overviewLibraryToolsAvailable {
+    return self.libraryStatusKnown && self.libraryStatusReadable && self.libraryTrackCount > 0 && [[IGiTunesService sharedService] iTunesIsRunning];
+}
+
 - (void)refreshLibraryButtonClicked:(id)sender {
     [self refreshLibraryStatusWithCompletion:nil];
 }
@@ -1000,9 +1721,9 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
         NSButton *btn = self.sidebarButtons[i];
         BOOL disabledByLibraryState = ([self libraryBlocksTools] && [self indexRequiresReadableLibrary:i]);
-        if (i == 1) { // Only Genius Playlist requires an API key
+        if (i == IGNavigationItemAIPlaylist) { // Only Genius Playlist requires an API key
             btn.enabled = hasKey && !disabledByLibraryState && !self.refreshingLibraryStatus;
-        } else if (i == 4) { // USB Export button
+        } else if (i == IGNavigationItemUSBExport) { // USB Export button
             btn.enabled = !isUSBSearching && !disabledByLibraryState && !self.refreshingLibraryStatus;
         } else if ([self indexRequiresReadableLibrary:i]) {
             btn.enabled = !disabledByLibraryState && !self.refreshingLibraryStatus;
@@ -1016,6 +1737,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
 - (void)setupSidebar {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
+    NSString *recoveryTitle = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Центр восстановления" : @"Recovery Center";
     NSArray *titles = @[
         @"Overview",
         [lang t:@"ai_playlist"],
@@ -1027,8 +1749,23 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         [lang t:@"offline_playlist"],
         @"Info Eraser",
         @"Library Doctor",
+        recoveryTitle,
         [lang t:@"settings"]
     ];
+	    NSArray *icons = @[
+	        @"compass",
+	        @"star",
+	        @"refresh",
+	        @"folder",
+	        @"usb",
+	        @"artwork",
+	        @"search",
+	        @"network-off",
+	        @"trash",
+	        @"doctor",
+	        @"restore",
+	        @"settings"
+	    ];
     
     // Clean old buttons
     for (NSButton *btn in self.sidebarButtons) {
@@ -1045,6 +1782,11 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         btn.action = @selector(sidebarClicked:);
         btn.tag = i;
         btn.autoresizingMask = NSViewWidthSizable;
+	        btn.font = [NSFont systemFontOfSize:11.0];
+	        NSString *iconName = [icons objectAtIndex:i];
+	        if ([iconName length] > 0) {
+	            IGConfigureIconButton(btn, iconName, [NSString stringWithFormat:@"Open %@", [titles objectAtIndex:i]], NO);
+	        }
         IGApplyThemeToButton(btn, IGThemeButtonRoleSidebar);
 	        [self.sidebarContainer addSubview:btn];
 	        [self.sidebarButtons addObject:btn];
@@ -1054,46 +1796,17 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	        y -= 32;
 	    }
 
-    if (!self.libraryStatusLabel) {
-        NSTextField *statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(15, 68, 150, 34)];
-        statusLabel.editable = NO;
-        statusLabel.selectable = NO;
-        statusLabel.bordered = NO;
-        statusLabel.drawsBackground = NO;
-        statusLabel.font = [NSFont systemFontOfSize:10.0];
-        statusLabel.textColor = IGThemeMutedTextColor();
-        statusLabel.alignment = NSCenterTextAlignment;
-        IGSetTextFieldLineBreakMode(statusLabel, NSLineBreakByWordWrapping);
-        statusLabel.stringValue = @"iTunes status not checked.";
-        statusLabel.autoresizingMask = NSViewWidthSizable;
-        self.libraryStatusLabel = statusLabel;
-        [self.sidebarContainer addSubview:statusLabel];
-#if !__has_feature(objc_arc)
-        [statusLabel release];
-#endif
-    } else {
-        self.libraryStatusLabel.frame = NSMakeRect(15, 68, 150, 34);
-    }
+    [self.libraryStatusLabel removeFromSuperview];
+    self.libraryStatusLabel = nil;
+    [self.libraryRefreshButton removeFromSuperview];
+    self.libraryRefreshButton = nil;
 
-    if (!self.libraryRefreshButton) {
-        NSButton *refreshButton = [[NSButton alloc] initWithFrame:NSMakeRect(15, 34, 150, 28)];
-        refreshButton.title = @"Refresh iTunes";
-        refreshButton.bezelStyle = NSTexturedSquareBezelStyle;
-        refreshButton.target = self;
-        refreshButton.action = @selector(refreshLibraryButtonClicked:);
-        refreshButton.autoresizingMask = NSViewWidthSizable;
-        IGApplyThemeToButton(refreshButton, IGThemeButtonRoleSecondary);
-        self.libraryRefreshButton = refreshButton;
-        [self.sidebarContainer addSubview:refreshButton];
-#if !__has_feature(objc_arc)
-        [refreshButton release];
-#endif
-    } else {
-        self.libraryRefreshButton.frame = NSMakeRect(15, 34, 150, 28);
-    }
+    [self layoutSidebarControls];
 }
 
 - (void)localizationChanged:(NSNotification *)notification {
+    (void)notification;
+    [self updateGlobalFooterText];
     NSInteger activeIndex = -1;
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {
         NSButton *btn = self.sidebarButtons[i];
@@ -1123,7 +1836,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     BOOL hasKey = (apiKey && apiKey.length > 0);
     
-    if (index == 1 && !hasKey) {
+    if (index == IGNavigationItemAIPlaylist && !hasKey && !IGDeveloperPreviewAllowsNavigationIndex(index)) {
         NSAlert *alert = [[NSAlert alloc] init];
         [alert setMessageText:@"Access Restricted"];
         [alert setInformativeText:@"Please enter and validate your API Key in Settings to unlock AI features."];
@@ -1139,10 +1852,10 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
             BOOL started = [self refreshLibraryStatusForAction:[self libraryActionNameForIndex:index] completion:^{
                 if ([self libraryIsConfirmedEmpty]) {
                     [self showEmptyLibraryAlert];
-                    [self switchViewToIndex:0];
+                    [self switchViewToIndex:IGNavigationItemOverview];
                 } else if ([self libraryIsUnreadable]) {
                     [self showUnreadableLibraryAlert];
-                    [self switchViewToIndex:0];
+                    [self switchViewToIndex:IGNavigationItemOverview];
                 } else {
                     [self switchViewToIndex:index];
                 }
@@ -1188,8 +1901,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         }
     }
 
-	    // Clear content
-	    NSArray *contentSubviews = [self.contentContainer.subviews copy];
+	    // Clear only the active page. App chrome stays mounted above it.
+	    NSArray *contentSubviews = [self.pageContainer.subviews copy];
 	    for (NSView *v in contentSubviews) {
 	        [v removeFromSuperview];
 	    }
@@ -1199,7 +1912,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     
     NSViewController *targetVC = nil;
     switch (index) {
-	        case 0:
+	        case IGNavigationItemOverview:
 	            if (!self.overviewVC) {
 	                IGOverviewViewController *vc = [[IGOverviewViewController alloc] init];
 	                vc.mainController = self;
@@ -1208,9 +1921,10 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	                [vc release];
 #endif
 	            }
+	            [self.overviewVC refreshOverview];
 	            targetVC = self.overviewVC;
 	            break;
-	        case 1:
+	        case IGNavigationItemAIPlaylist:
 	            if (!self.geniusVC) {
 	                IGGeniusViewController *vc = [[IGGeniusViewController alloc] init];
 	                self.geniusVC = vc;
@@ -1220,7 +1934,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.geniusVC;
 	            break;
-	        case 2:
+	        case IGNavigationItemMediaFixer:
 	            if (!self.fixerVC) {
 	                IGFixerViewController *vc = [[IGFixerViewController alloc] init];
 	                self.fixerVC = vc;
@@ -1230,7 +1944,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.fixerVC;
 	            break;
-	        case 3:
+	        case IGNavigationItemFolderFixer:
 	            if (!self.fileFixerVC) {
 	                IGFileFixerViewController *vc = [[IGFileFixerViewController alloc] init];
 	                self.fileFixerVC = vc;
@@ -1240,7 +1954,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.fileFixerVC;
 	            break;
-	        case 4:
+	        case IGNavigationItemUSBExport:
 	            if (!self.usbExportVC) {
 	                IGUSBExportViewController *vc = [[IGUSBExportViewController alloc] init];
 	                self.usbExportVC = vc;
@@ -1250,7 +1964,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.usbExportVC;
 	            break;
-	        case 5:
+	        case IGNavigationItemCoversOptimizer:
 	            if (!self.coversOptimizerVC) {
 	                IGCoversOptimizerViewController *vc = [[IGCoversOptimizerViewController alloc] init];
 	                self.coversOptimizerVC = vc;
@@ -1260,7 +1974,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.coversOptimizerVC;
 	            break;
-	        case 6:
+	        case IGNavigationItemDuplicateFinder:
 	            if (!self.duplicateFinderVC) {
 	                IGDuplicateFinderViewController *vc = [[IGDuplicateFinderViewController alloc] init];
 	                self.duplicateFinderVC = vc;
@@ -1270,7 +1984,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.duplicateFinderVC;
 	            break;
-	        case 7:
+	        case IGNavigationItemOfflinePlaylist:
 	            if (!self.offlinePlaylistVC) {
 	                IGOfflinePlaylistViewController *vc = [[IGOfflinePlaylistViewController alloc] init];
 	                self.offlinePlaylistVC = vc;
@@ -1280,7 +1994,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.offlinePlaylistVC;
 	            break;
-	        case 8:
+	        case IGNavigationItemInfoEraser:
 	            if (!self.infoEraserVC) {
 	                IGInfoEraserViewController *vc = [[IGInfoEraserViewController alloc] init];
 	                self.infoEraserVC = vc;
@@ -1290,7 +2004,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.infoEraserVC;
 	            break;
-	        case 9:
+	        case IGNavigationItemLibraryDoctor:
 	            if (!self.libraryDoctorVC) {
 	                IGLibraryDoctorViewController *vc = [[IGLibraryDoctorViewController alloc] init];
 	                self.libraryDoctorVC = vc;
@@ -1300,7 +2014,18 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            }
 	            targetVC = self.libraryDoctorVC;
 	            break;
-	        case 10:
+	        case IGNavigationItemRecoveryCenter:
+	            if (!self.recoveryCenterVC) {
+	                IGRecoveryCenterViewController *vc = [[IGRecoveryCenterViewController alloc] init];
+	                self.recoveryCenterVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            [self.recoveryCenterVC reloadRecoveryData];
+	            targetVC = self.recoveryCenterVC;
+	            break;
+	        case IGNavigationItemSettings:
 	            if (!self.settingsVC) {
 	                IGSettingsViewController *vc = [[IGSettingsViewController alloc] init];
 	                self.settingsVC = vc;
@@ -1314,11 +2039,13 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     
 	    if (targetVC) {
 	        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view showing %@ for index=%ld", NSStringFromClass([targetVC class]), (long)index]];
-	        targetVC.view.frame = self.contentContainer.bounds;
-	        targetVC.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+	        [self preparePageViewForEmbedding:targetVC.view];
+	        self.activeViewController = targetVC;
+	        [self layoutActivePage];
 	        IGInstallThemedContentBackground(targetVC.view);
 	        IGApplyThemeToViewHierarchy(targetVC.view);
-	        [self.contentContainer addSubview:targetVC.view];
+	        [self.pageContainer addSubview:targetVC.view];
+	        [self.contentContainer addSubview:self.sidebarToggleButton positioned:NSWindowAbove relativeTo:nil];
 	    }
     } @catch (NSException *exception) {
         [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view exception index=%ld: %@ - %@", (long)index, exception.name, exception.reason]];
@@ -1330,8 +2057,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #if !__has_feature(objc_arc)
         [alert release];
 #endif
-        if (index != 0) {
-            [self switchViewToIndex:0];
+        if (index != IGNavigationItemOverview) {
+            [self switchViewToIndex:IGNavigationItemOverview];
         }
     }
 }
@@ -1341,11 +2068,42 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 }
 
 #pragma mark - SplitView Delegate
+- (BOOL)splitView:(NSSplitView *)splitView canCollapseSubview:(NSView *)subview {
+    (void)splitView;
+    return subview == self.sidebarContainer;
+}
+
+- (void)splitViewDidResizeSubviews:(NSNotification *)notification {
+    (void)notification;
+    self.pageContainer.frame = self.contentContainer.bounds;
+    if ([self.sidebarContainer isHidden]) {
+        self.sidebarCollapsed = YES;
+        [self layoutSidebarControls];
+        [self layoutActivePage];
+        return;
+    }
+    CGFloat sidebarWidth = NSWidth(self.sidebarContainer.frame);
+    self.sidebarCollapsed = NO;
+    if (!self.sidebarCollapsed && sidebarWidth >= IGSidebarMinimumWidth) {
+        self.expandedSidebarWidth = MIN(sidebarWidth, 250.0);
+        [[NSUserDefaults standardUserDefaults] setDouble:self.expandedSidebarWidth forKey:IGSidebarWidthDefaultsKey];
+    }
+    [self layoutSidebarControls];
+    [self layoutActivePage];
+}
+
 - (CGFloat)splitView:(NSSplitView *)splitView constrainMaxCoordinate:(CGFloat)proposedMax ofSubviewAt:(NSInteger)dividerIndex {
-    return 250;
+    (void)proposedMax;
+    (void)dividerIndex;
+    if (self.sidebarCollapsed) return IGSidebarCollapsedWidth;
+    return MAX(IGSidebarMinimumWidth,
+               MIN(250.0, NSWidth(splitView.bounds) - IGContentMinimumWidth - splitView.dividerThickness));
 }
 - (CGFloat)splitView:(NSSplitView *)splitView constrainMinCoordinate:(CGFloat)proposedMin ofSubviewAt:(NSInteger)dividerIndex {
-    return 150;
+    (void)splitView;
+    (void)proposedMin;
+    (void)dividerIndex;
+    return self.sidebarCollapsed ? IGSidebarCollapsedWidth : IGSidebarMinimumWidth;
 }
 
 @end

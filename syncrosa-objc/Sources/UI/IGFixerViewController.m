@@ -7,6 +7,7 @@
 #import "IGTrack.h"
 #import "IGPlaylistJSONSupport.h"
 #import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 
 static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -289,42 +290,20 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"iTunes Media Fixer Help\n\n"
-                          "This utility scans your iTunes/Music library for split albums and missing metadata (Album, Title, Artist, Genre, Track Number, and Lyrics).\n\n"
-                          "1. Select All / Individual Tags: Use the checkboxes to choose which metadata tags should be corrected. Only the checked tags will be updated via AppleScript.\n"
-                          "2. Library JSON: Export a clean list of your iTunes tracks, give it to an external AI helper, then import a returned JSON selection to create a playlist.\n"
-                          "3. Safe Operation: Every single track operation is wrapped in a safe error handling block, ensuring that if any track write fails (due to write permissions, locked files, etc.), the app will skip it and continue without crashing.";
-    
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-    
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-    
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-    
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-
-    IGApplyThemeToWindow(sheet);
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Choose what may change", @"Select only the metadata fields you want Syncrosa to repair: album, title, artist, genre, track number, lyrics, or artwork."),
+        IGHelpSectionMake(@"Use an external AI", @"Export Library JSON to share a clean catalog. Import a returned JSON selection, review it, name the playlist, and let Syncrosa create it in iTunes."),
+        IGHelpSectionMake(@"Safe processing", @"Tracks are handled one at a time. A locked or unreadable item is skipped and reported without stopping the rest of the job.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"iTunes Media Fixer"
+                                                        summary:@"Repair selected metadata fields and exchange playlist selections through JSON."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {

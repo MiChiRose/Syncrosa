@@ -3,6 +3,7 @@
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
 #import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 
 static NSString *IGDuplicateAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -136,43 +137,20 @@ static NSString *IGDuplicateAppleScriptListLiteral(NSArray *values) {
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"Duplicate Finder Help\n\n"
-                          "This tool scans your iTunes/Music library for duplicate tracks with matching artists and titles.\n\n"
-                          "1. Show Duplicates: Press to search your library. Duplicate pairs will be listed side-by-side.\n"
-                          "2. Original vs. Copy: The app compares the duplicates and automatically labels the one with higher metadata completeness and larger file size as the 'Original'. The other is marked as the 'Copy'.\n"
-                          "3. Select Ignore or Delete for any pairs you want to process.\n"
-                          "4. Apply Selected: Saves ignored pairs and deletes selected copy tracks in one batch, then refreshes the scan once.";
-    
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-    
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-    
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-    
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-
-    IGApplyThemeToWindow(sheet);
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Scan", @"Show Duplicates compares normalized artist and title values and lists likely duplicate pairs."),
+        IGHelpSectionMake(@"Review", @"The item with more complete metadata and a larger file is suggested as the original. Always review the pair before choosing an action."),
+        IGHelpSectionMake(@"Apply once", @"Choose Ignore or Delete for the pairs you want to process, then use Apply Selected. Syncrosa performs the batch and refreshes the results once at the end.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Duplicate Finder"
+                                                        summary:@"Review repeated tracks in a batch before removing any copy."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {

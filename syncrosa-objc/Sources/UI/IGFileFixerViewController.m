@@ -4,6 +4,7 @@
 #import "IGiTunesService.h"
 #import "IGLyricsService.h"
 #import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 #import <objc/message.h>
 #import <math.h>
 
@@ -245,7 +246,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     instrLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:instrLabel];
 
-    y -= 35;
+    y -= 31;
     self.folderPathField = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 360, 24)];
     self.folderPathField.editable = NO;
     [[self.folderPathField cell] setPlaceholderString:[lang t:@"no_folder"]];
@@ -259,7 +260,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     [self.view addSubview:self.selectFolderButton];
 
     // Grid of Checkboxes
-    y -= 22;
+    y -= 26;
     self.selectAllCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 150, 20)];
     [self.selectAllCheckbox setButtonType:NSSwitchButton];
     self.selectAllCheckbox.title = [lang t:@"select_all"];
@@ -369,7 +370,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.importSelectionButton.action = @selector(importSelectionClicked:);
     [self.view addSubview:self.importSelectionButton];
 
-    self.fixButton = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 180, 40)];
+    self.fixButton = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 180, 34)];
     self.fixButton.title = [lang t:@"fix_all"];
     self.fixButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.fixButton.enabled = NO;
@@ -406,7 +407,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     [self.view addSubview:self.statusLabel];
 
     // Footer
-    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 10, 540, 35)];
+    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 1, 540, 28)];
     footer.stringValue = [lang t:@"footer"];
     footer.font = [NSFont systemFontOfSize:10];
     footer.textColor = IGThemeMutedTextColor();
@@ -464,45 +465,20 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"Folder Media Fixer Help\n\n"
-                          "This utility scans a local directory for music files and performs the following actions:\n\n"
-                          "1. Standard Rename: Renames music files on your disk to the standard format 'Artist - Title' using metadata parsed from filenames or the iTunes API.\n"
-                          "2. iTunes Tag Sync: If the file is part of your iTunes/Music library, it runs an AppleScript to sync only the checked tags (Album, Title, Artist, Genre, Track Number, and Lyrics).\n"
-                          "3. Folder Playlist Import: Enter a playlist name and use Create Playlist to import supported local files into iTunes and create a playlist.\n"
-                          "4. External AI JSON: Export AI JSON, ask an external AI/friend to select tracks, then import the returned JSON back into Syncrosa.\n"
-                          "5. Cover Art: Downloads the album cover as a separate JPEG file in the same directory if 'Download Album Covers' is checked.\n\n"
-                          "Every individual track write operation is wrapped in a safe block. If a write fails or the track is not present in iTunes/Music, it will skip without interrupting the overall process.";
-
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-
-    IGApplyThemeToWindow(sheet);
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Work on a folder", @"Choose a local folder. Syncrosa scans supported audio files, including nested folders, and changes only the options you select."),
+        IGHelpSectionMake(@"Repair names and tags", @"Clean Filenames produces readable Artist - Title names. Fix All repairs checked tags and can save album artwork beside the files. A failed item is skipped without stopping the batch."),
+        IGHelpSectionMake(@"Create or exchange playlists", @"Enter a name to import the folder into an iTunes playlist. Export AI JSON creates a portable catalog; Import AI JSON accepts a returned selection for playlist creation.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Folder Fixer"
+                                                        summary:@"Repair local music files without requiring them to be in iTunes first."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {

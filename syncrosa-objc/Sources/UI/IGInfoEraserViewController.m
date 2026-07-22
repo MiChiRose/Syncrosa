@@ -1,5 +1,6 @@
 #import "IGInfoEraserViewController.h"
 #import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 #import "IGNotificationView.h"
 #include <stdint.h>
 
@@ -142,6 +143,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
 @property (nonatomic, strong) NSURL *selectedFolderURL;
 @property (nonatomic, strong) NSArray *foundFiles;
 @property (nonatomic, assign) BOOL isProcessing;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
 @end
 
 @implementation IGInfoEraserViewController
@@ -256,11 +258,27 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
 }
 
 - (void)helpClicked:(id)sender {
-    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-    [alert setMessageText:@"Info Eraser Help"];
-    [alert setInformativeText:@"Info Eraser works only with the selected local folder and its subfolders. It does not edit iTunes directly.\n\nBackup Original Info creates SyncrosaInfoEraserBackup with manifest.json and sidecar tag files.\n\nErase Info removes MP3 ID3 tags and M4A/MP4/AAC/ALAC metadata atoms without transcoding audio.\n\nRestore Info can restore metadata only from a backup created before erasing."];
-    [alert addButtonWithTitle:@"OK"];
-    [alert runModal];
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Folder only", @"Info Eraser processes the selected local folder and its subfolders. It never edits iTunes directly."),
+        IGHelpSectionMake(@"Back up first", @"Backup Original Info creates a SyncrosaInfoEraserBackup folder with a manifest and sidecar tag data. Keep that folder beside the music until you are certain the result is correct."),
+        IGHelpSectionMake(@"Permanent removal", @"Erase Info removes MP3 ID3 tags and M4A, MP4, AAC, or ALAC metadata without transcoding the audio. Restore Info works only when a compatible backup was created before erasing.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Info Eraser"
+                                                        summary:@"Permanently remove embedded song information and artwork from copied local files."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    (void)sender;
+    if (!self.helpSheetWindow) return;
+    [IGHelpSheetPresenter dismissSheet:self.helpSheetWindow fromWindow:self.view.window];
+    self.helpSheetWindow = nil;
 }
 
 - (void)log:(NSString *)text {

@@ -3,6 +3,7 @@
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
 #import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 
 static NSString *IGOfflineAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -392,44 +393,20 @@ static NSString *IGOfflineAppleScriptListLiteral(NSArray *values) {
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"Offline Playlist Generator Help\n\n"
-                          "This utility allows you to create smart playlists based on epochs (decades) directly in your iTunes/Music library.\n\n"
-                          "1. Genre & Year Range: Select a specific genre or a release year range. 'To Year' is constrained to be greater than or equal to 'From Year'.\n"
-                          "2. Cover Art & Rating: Optionally filter to include only tracks that contain cover art or are rated (>= 3 stars / 60%).\n"
-                          "3. Decades: Check which decades you want to generate playlists for. The tool will loop through all selected decades, create a playlist named 'Epoch - {Decade}', and populate it with matching tracks.\n"
-                          "4. Skip Empty: If a decade contains zero matching tracks, it will log a console warning and skip creating the playlist entirely.\n"
-                          "5. Warning Modal: If the filters yield zero matches across your library, a warning dialog will prompt you to ignore filters and run by decade anyway, or cancel.";
-
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 280)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 200)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-
-    IGApplyThemeToWindow(sheet);
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Set filters", @"Choose an optional genre and year range. You can also require cover artwork or a rating of at least three stars."),
+        IGHelpSectionMake(@"Choose decades", @"Select one or more decades. Syncrosa creates clearly named playlists such as Epoch - 80s and fills each one with matching tracks."),
+        IGHelpSectionMake(@"Review empty results", @"Empty decades are skipped. If all filters produce no matches, Syncrosa asks whether to retry using decades only or cancel without creating anything.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Offline Playlist Generator"
+                                                        summary:@"Create decade-based playlists locally without an AI provider."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {

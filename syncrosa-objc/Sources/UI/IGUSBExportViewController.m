@@ -4,6 +4,8 @@
 #import "IGNotificationView.h"
 #import "IGLocalizationService.h"
 #import "IGTheme.h"
+#import "IGIconProvider.h"
+#import "IGHelpSheetPresenter.h"
 
 typedef NS_ENUM(NSInteger, IGExportMode) {
     IGExportModeAll = 0,
@@ -108,21 +110,24 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     // Drive Picker
     self.driveLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 350, 150, 20)];
     self.driveLabel.font = [NSFont systemFontOfSize:13];
+    self.driveLabel.alignment = NSRightTextAlignment;
     self.driveLabel.editable = NO;
     self.driveLabel.bordered = NO;
     self.driveLabel.drawsBackground = NO;
     [self.view addSubview:self.driveLabel];
 
-    self.drivePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 348, 300, 26) pullsDown:NO];
+    self.drivePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 348, 292, 26) pullsDown:NO];
     self.drivePopup.target = self;
     self.drivePopup.action = @selector(driveSelected:);
     [self.view addSubview:self.drivePopup];
 
-    self.refreshBtn = [[NSButton alloc] initWithFrame:NSMakeRect(505, 346, 35, 28)];
-    self.refreshBtn.bezelStyle = NSRecessedBezelStyle;
-    self.refreshBtn.title = @"↻";
+    self.refreshBtn = [[NSButton alloc] initWithFrame:NSMakeRect(504, 346, 36, 28)];
+    self.refreshBtn.bezelStyle = NSRoundedBezelStyle;
+    self.refreshBtn.title = @"";
     self.refreshBtn.target = self;
     self.refreshBtn.action = @selector(refreshClicked:);
+    IGConfigureIconButton(self.refreshBtn, @"refresh", @"Refresh connected drives", YES);
+    IGApplyThemeToButton(self.refreshBtn, IGThemeButtonRoleSecondary);
     [self.view addSubview:self.refreshBtn];
 
     self.driveInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 322, 340, 18)];
@@ -136,6 +141,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     // Playlist Picker
     self.playlistLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 280, 150, 20)];
     self.playlistLabel.font = [NSFont systemFontOfSize:13];
+    self.playlistLabel.alignment = NSRightTextAlignment;
     self.playlistLabel.editable = NO;
     self.playlistLabel.bordered = NO;
     self.playlistLabel.drawsBackground = NO;
@@ -157,6 +163,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     // Mode Picker
     self.modeLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 210, 150, 20)];
     self.modeLabel.font = [NSFont systemFontOfSize:13];
+    self.modeLabel.alignment = NSRightTextAlignment;
     self.modeLabel.editable = NO;
     self.modeLabel.bordered = NO;
     self.modeLabel.drawsBackground = NO;
@@ -186,7 +193,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.ipodSafeButton];
 
     // Export Button
-    self.exportButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, 138, 200, 40)];
+    self.exportButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, 128, 200, 40)];
     self.exportButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.exportButton.target = self;
     self.exportButton.action = @selector(exportClicked:);
@@ -194,14 +201,14 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.exportButton];
 
     // Progress bar
-    self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, 106, 500, 20)];
+    self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, 98, 500, 20)];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
     self.progressIndicator.indeterminate = NO;
     self.progressIndicator.hidden = YES;
     [self.view addSubview:self.progressIndicator];
 
     // Status text
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 76, 500, 20)];
+    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 70, 500, 20)];
     self.statusLabel.font = [NSFont systemFontOfSize:12];
     self.statusLabel.alignment = NSCenterTextAlignment;
     self.statusLabel.editable = NO;
@@ -362,6 +369,9 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     self.m3uButton.enabled = optionsEnabled;
     self.m3u8Button.enabled = optionsEnabled;
     self.ipodSafeButton.enabled = optionsEnabled;
+    IGApplyThemeToButton(self.m3uButton, IGThemeButtonRoleSecondary);
+    IGApplyThemeToButton(self.m3u8Button, IGThemeButtonRoleSecondary);
+    IGApplyThemeToButton(self.ipodSafeButton, IGThemeButtonRoleSecondary);
 }
 
 - (void)updateLocalization {
@@ -840,44 +850,20 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"USB Export Help\n\n"
-                          "This utility copies tracks from your iTunes/Music playlists to a connected USB flash drive (useful for car systems or offline devices):\n\n"
-                          "1. Select USB Drive: Choose the destination USB drive from the connected volumes list.\n"
-                          "2. Select Playlist: Select the playlist containing the music you want to export.\n"
-                          "3. Export Mode: Choose how files should be organized on the target drive (e.g. flat list, folders grouped by Artist/Album, etc).\n"
-                          "4. Space Constraint: If the target drive is full, Syncrosa will notify you and offer options to copy what fits or cancel.\n"
-                          "5. File Skip: DRM-protected tracks (e.g. Apple Music downloads) and files not downloaded to the disk will be automatically skipped during export.";
-
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-
-    IGApplyThemeToWindow(sheet);
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Choose the destination", @"Select a connected drive and an iTunes playlist. Syncrosa creates a folder named after that playlist and copies tracks inside it."),
+        IGHelpSectionMake(@"Choose a space policy", @"Copy All requires enough free space. Fit Available Space copies complete files until the safe capacity limit is reached. Optional M3U or M3U8 files preserve playback order."),
+        IGHelpSectionMake(@"Older-device compatibility", @"iPod-safe names shorten and clean filenames for older iPods, car stereos, and FAT or exFAT drives. DRM-protected or unavailable local files are skipped and reported.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"USB Export"
+                                                        summary:@"Copy a playlist into its own organized folder on a removable drive."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {

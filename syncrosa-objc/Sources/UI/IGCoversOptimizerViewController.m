@@ -3,6 +3,7 @@
 #import "IGiTunesService.h"
 #import "IGLogger.h"
 #import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 
 static NSString *IGCoverAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -82,11 +83,13 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
 @property (nonatomic, strong) NSButton *backupButton;
 @property (nonatomic, strong) NSButton *optimizeButton;
 @property (nonatomic, strong) NSButton *restoreButton;
+@property (nonatomic, strong) NSButton *stopButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextView *logView;
 
 @property (nonatomic, assign) BOOL isProcessing;
+@property (nonatomic, assign) BOOL stopRequested;
 @property (nonatomic, assign) NSInteger lastResolvedLibraryTrackCount;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, strong) NSString *activeOperationID;
@@ -147,25 +150,33 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
     [self.view addSubview:self.devicePopup];
 
     y -= 45;
-    CGFloat btnW = 160;
-    self.backupButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, btnW, 32)];
+    CGFloat btnW = 132;
+    self.backupButton = [[NSButton alloc] initWithFrame:NSMakeRect(30, y, btnW, 32)];
     self.backupButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.backupButton.target = self;
     self.backupButton.action = @selector(backupClicked:);
     [self.view addSubview:self.backupButton];
 
-    self.optimizeButton = [[NSButton alloc] initWithFrame:NSMakeRect(210, y, btnW, 32)];
+    self.optimizeButton = [[NSButton alloc] initWithFrame:NSMakeRect(170, y, btnW, 32)];
     self.optimizeButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.optimizeButton.target = self;
     self.optimizeButton.action = @selector(optimizeClicked:);
     [self.view addSubview:self.optimizeButton];
 
-    self.restoreButton = [[NSButton alloc] initWithFrame:NSMakeRect(380, y, btnW, 32)];
+    self.restoreButton = [[NSButton alloc] initWithFrame:NSMakeRect(310, y, btnW, 32)];
     self.restoreButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.restoreButton.target = self;
     self.restoreButton.action = @selector(restoreClicked:);
     self.restoreButton.enabled = [self hasCoverBackup];
     [self.view addSubview:self.restoreButton];
+
+    self.stopButton = [[NSButton alloc] initWithFrame:NSMakeRect(450, y, 100, 32)];
+    self.stopButton.bezelStyle = NSTexturedRoundedBezelStyle;
+    self.stopButton.target = self;
+    self.stopButton.action = @selector(stopClicked:);
+    self.stopButton.enabled = NO;
+    IGApplyThemeToButton(self.stopButton, IGThemeButtonRoleDanger);
+    [self.view addSubview:self.stopButton];
 
     y -= 40;
     self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, y, 500, 20)];
@@ -210,6 +221,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
     self.backupButton.title = [lang t:@"btn_backup_covers"];
     self.optimizeButton.title = [lang t:@"btn_optimize_covers"];
     self.restoreButton.title = [lang t:@"btn_restore_covers"];
+    self.stopButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Стоп" : @"Stop";
 }
 
 - (void)log:(NSString *)message {
@@ -466,6 +478,15 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
     NSString *appName = [self appName];
 
     for (NSInteger start = 1; start <= total; start += chunkSize) {
+        if (self.stopRequested) {
+            [self log:@"Cover scan stopped after the current chunk."];
+            break;
+        }
+        if (![[IGiTunesService sharedService] iTunesIsRunning]) {
+            self.stopRequested = YES;
+            [self log:@"iTunes was closed. Syncrosa stopped and did not reopen it."];
+            break;
+        }
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         NSInteger end = MIN(start + chunkSize - 1, total);
         NSString *script = [NSString stringWithFormat:
@@ -656,6 +677,10 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
     NSInteger total = tracks.count;
 
     for (NSInteger start = 0; start < total; start += chunkSize) {
+        if (self.stopRequested || ![[IGiTunesService sharedService] iTunesIsRunning]) {
+            self.stopRequested = YES;
+            break;
+        }
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         NSInteger length = MIN(chunkSize, total - start);
         NSArray *chunk = [tracks subarrayWithRange:NSMakeRange(start, length)];
@@ -1007,6 +1032,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         return;
     }
     IGLocalizationService *lang = [IGLocalizationService sharedService];
+    self.stopRequested = NO;
     self.isProcessing = YES;
     self.progressIndicator.indeterminate = YES;
     [self.progressIndicator setDoubleValue:0];
@@ -1024,6 +1050,16 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
             self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
         }];
+        if (self.stopRequested) {
+            [self log:@"Cover backup stopped safely. Completed backup files were kept."];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                IGCoversFinishActiveOperation(self.activeOperationID);
+                self.activeOperationID = nil;
+                self.isProcessing = NO;
+                self.statusLabel.stringValue = @"Stopped safely.";
+            });
+            return;
+        }
         if (tracks.count == 0) {
             NSString *message = [self emptyCoverScanMessage];
             [self log:message];
@@ -1060,15 +1096,19 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
             });
         }];
 
-        if (successCount == 0) {
+        if (self.stopRequested) {
+            [self log:@"Cover backup stopped after the current batch. Completed backup files were kept."];
+        } else if (successCount == 0) {
             [self log:@"No cover files were written. iTunes may expose cached artwork visually without embeddable artwork data in the track files."];
         }
-        [self log:[lang t:@"log_backup_finished" args:@[@(successCount)]]];
+        if (!self.stopRequested) {
+            [self log:[lang t:@"log_backup_finished" args:@[@(successCount)]]];
+        }
         dispatch_async(dispatch_get_main_queue(), ^{
             IGCoversFinishActiveOperation(self.activeOperationID);
             self.activeOperationID = nil;
             self.isProcessing = NO;
-            self.statusLabel.stringValue = @"";
+            self.statusLabel.stringValue = self.stopRequested ? @"Stopped safely." : @"";
         });
     });
 }
@@ -1089,6 +1129,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         return;
     }
 
+    self.stopRequested = NO;
     self.isProcessing = YES;
     self.progressIndicator.indeterminate = YES;
     [self.progressIndicator setDoubleValue:0];
@@ -1111,6 +1152,16 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
             self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
         }];
+        if (self.stopRequested) {
+            [self log:@"Cover optimization stopped safely before changing more artwork."];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                IGCoversFinishActiveOperation(self.activeOperationID);
+                self.activeOperationID = nil;
+                self.isProcessing = NO;
+                self.statusLabel.stringValue = @"Stopped safely.";
+            });
+            return;
+        }
         if (tracks.count == 0) {
             NSString *message = [self emptyCoverScanMessage];
             [self log:message];
@@ -1143,6 +1194,10 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         NSInteger successCount = 0;
         NSDictionary *manifest = [self loadManifest];
         for (NSInteger i = 0; i < tracks.count; i++) {
+            if (self.stopRequested || ![[IGiTunesService sharedService] iTunesIsRunning]) {
+                self.stopRequested = YES;
+                break;
+            }
             NSDictionary *t = tracks[i];
             NSString *status = [NSString stringWithFormat:@"%@ - %@", t[@"artist"], t[@"title"]];
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -1159,12 +1214,16 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
             IGCoversHDDSafePause();
         }
 
-        [self log:[lang t:@"log_optimize_finished" args:@[@(successCount)]]];
+        if (self.stopRequested) {
+            [self log:@"Cover optimization stopped after the current track. Original backups were kept."];
+        } else {
+            [self log:[lang t:@"log_optimize_finished" args:@[@(successCount)]]];
+        }
         dispatch_async(dispatch_get_main_queue(), ^{
             IGCoversFinishActiveOperation(self.activeOperationID);
             self.activeOperationID = nil;
             self.isProcessing = NO;
-            self.statusLabel.stringValue = @"";
+            self.statusLabel.stringValue = self.stopRequested ? @"Stopped safely." : @"";
         });
     });
 }
@@ -1175,6 +1234,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         return;
     }
     IGLocalizationService *lang = [IGLocalizationService sharedService];
+    self.stopRequested = NO;
     self.isProcessing = YES;
     self.progressIndicator.indeterminate = YES;
     [self.progressIndicator setDoubleValue:0];
@@ -1191,6 +1251,16 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         NSArray *tracks = [self getTracksWithCoversWithProgress:^(NSInteger current, NSInteger total) {
             self.statusLabel.stringValue = [NSString stringWithFormat:@"Scanning tracks %ld of %ld...", (long)current, (long)total];
         }];
+        if (self.stopRequested) {
+            [self log:@"Cover restore stopped safely."];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                IGCoversFinishActiveOperation(self.activeOperationID);
+                self.activeOperationID = nil;
+                self.isProcessing = NO;
+                self.statusLabel.stringValue = @"Stopped safely.";
+            });
+            return;
+        }
         if (tracks.count == 0) {
             NSString *message = [self emptyCoverScanMessage];
             [self log:message];
@@ -1214,6 +1284,10 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         NSInteger successCount = 0;
         NSDictionary *manifest = [self loadManifest];
         for (NSInteger i = 0; i < tracks.count; i++) {
+            if (self.stopRequested || ![[IGiTunesService sharedService] iTunesIsRunning]) {
+                self.stopRequested = YES;
+                break;
+            }
             NSDictionary *t = tracks[i];
             NSString *status = [NSString stringWithFormat:@"%@ - %@", t[@"artist"], t[@"title"]];
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -1228,12 +1302,16 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
             IGCoversHDDSafePause();
         }
 
-        [self log:[lang t:@"log_restore_finished" args:@[@(successCount)]]];
+        if (self.stopRequested) {
+            [self log:@"Cover restore stopped after the current track."];
+        } else {
+            [self log:[lang t:@"log_restore_finished" args:@[@(successCount)]]];
+        }
         dispatch_async(dispatch_get_main_queue(), ^{
             IGCoversFinishActiveOperation(self.activeOperationID);
             self.activeOperationID = nil;
             self.isProcessing = NO;
-            self.statusLabel.stringValue = @"";
+            self.statusLabel.stringValue = self.stopRequested ? @"Stopped safely." : @"";
         });
     });
 }
@@ -1245,6 +1323,7 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
         [self.backupButton setEnabled:!isProcessing];
         [self.optimizeButton setEnabled:!isProcessing];
         [self.restoreButton setEnabled:(!isProcessing && [self hasCoverBackup])];
+        [self.stopButton setEnabled:isProcessing && !self.stopRequested];
         if (isProcessing) {
             [self.progressIndicator startAnimation:nil];
         } else {
@@ -1253,44 +1332,32 @@ static void IGCoversFinishActiveOperation(NSString *identifier) {
     });
 }
 
-- (void)helpClicked:(id)sender {
-    NSString *helpText = @"Covers Optimizer Help\n\n"
-                          "This utility optimizes album artwork sizes in your iTunes/Music library to save storage space (crucial for older iPods/devices):\n\n"
-                          "1. Target Device: Choose the target iPod or device (e.g. iPod Classic, Nano) to use tailored size rules.\n"
-                          "2. Backup: Extracts and saves a copy of all current artwork to your Documents folder before optimization.\n"
-                          "3. Optimize: Resizes large high-resolution artwork to optimal dimensions (e.g., 600x600 or smaller) and updates them in your iTunes library.\n"
-                          "4. Restore: Restores the original high-resolution artwork from the backup folder.";
-
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-
-    IGApplyThemeToWindow(sheet);
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
+- (void)stopClicked:(id)sender {
+    (void)sender;
+    if (!self.isProcessing || self.stopRequested) {
+        return;
     }
+    self.stopRequested = YES;
+    self.stopButton.enabled = NO;
+    self.statusLabel.stringValue = @"Stopping after the current batch or track...";
+    [self log:@"Stop requested. Syncrosa will finish the current safe unit of work, then stop."];
+}
+
+- (void)helpClicked:(id)sender {
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Choose a device", @"Select a target profile such as iPod Classic or Nano. The profile controls the artwork dimensions and compression used for older hardware."),
+        IGHelpSectionMake(@"Back up originals", @"Backup Original Covers saves the existing artwork before optimization. Keep the backup until you have checked the result on the target device."),
+        IGHelpSectionMake(@"Optimize or restore", @"Optimize reduces oversized artwork without changing audio. Stop finishes the current safe step before ending. Restore uses a Syncrosa backup to put original artwork back.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Covers Optimizer"
+                                                        summary:@"Reduce artwork storage for older Apple devices while preserving a recovery path."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {

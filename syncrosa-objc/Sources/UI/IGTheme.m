@@ -462,6 +462,10 @@ NSColor *IGThemeDangerColor(void) {
     [base set];
     NSRectFill(bounds);
 
+    if (self.themeRole == IGThemeBackgroundRoleContent) {
+        return;
+    }
+
     NSGradient *topGlow = [[[NSGradient alloc] initWithStartingColor:IGColorWithAlpha([NSColor whiteColor], IGThemeUsesDarkAppearance() ? 0.07 : 0.34)
                                                          endingColor:IGColorWithAlpha(base, 0.0)] autorelease];
     [topGlow drawInRect:NSMakeRect(NSMinX(bounds), NSMaxY(bounds) - 130.0, NSWidth(bounds), 130.0) angle:-90.0];
@@ -475,6 +479,30 @@ NSColor *IGThemeDangerColor(void) {
 
 @end
 
+static NSImage *IGTintedButtonImage(NSImage *source, NSColor *color, BOOL enabled) {
+    if (!source) {
+        return nil;
+    }
+
+    NSSize sourceSize = [source size];
+    if (sourceSize.width <= 0.0 || sourceSize.height <= 0.0) {
+        return source;
+    }
+
+    NSImage *result = [[[NSImage alloc] initWithSize:sourceSize] autorelease];
+    [result lockFocus];
+    [source drawInRect:NSMakeRect(0.0, 0.0, sourceSize.width, sourceSize.height)
+              fromRect:NSZeroRect
+             operation:NSCompositeSourceOver
+              fraction:enabled ? 1.0 : 0.55
+        respectFlipped:NO
+                 hints:nil];
+    [color set];
+    NSRectFillUsingOperation(NSMakeRect(0.0, 0.0, sourceSize.width, sourceSize.height), NSCompositeSourceAtop);
+    [result unlockFocus];
+    return result;
+}
+
 @implementation IGThemedButtonCell
 @synthesize themeRole = _themeRole;
 
@@ -482,6 +510,39 @@ NSColor *IGThemeDangerColor(void) {
     IGThemedButtonCell *copy = [super copyWithZone:zone];
     copy.themeRole = self.themeRole;
     return copy;
+}
+
+- (NSColor *)contentColor {
+    if (![self isEnabled]) {
+        if (self.themeRole == IGThemeButtonRoleDanger) {
+            return IGColorWithAlpha(IGThemeDangerColor(), 0.58);
+        }
+        return IGColorWithAlpha(IGThemeMutedTextColor(), 0.45);
+    }
+    BOOL selected = ([self state] == NSOnState);
+    if (self.themeRole == IGThemeButtonRolePrimary ||
+        self.themeRole == IGThemeButtonRoleDanger ||
+        (self.themeRole == IGThemeButtonRoleSidebar && selected)) {
+        return [NSColor whiteColor];
+    }
+    if (self.themeRole == IGThemeButtonRoleTab && selected) {
+        return IGThemeUsesDarkAppearance() ? [NSColor whiteColor] : IGColorBlend(IGThemeAccentColor(), [NSColor blackColor], 0.28);
+    }
+    return IGThemeTextColor();
+}
+
+- (NSRect)drawTitle:(NSAttributedString *)title withFrame:(NSRect)frame inView:(NSView *)controlView {
+    NSMutableAttributedString *themedTitle = [[[NSMutableAttributedString alloc] initWithAttributedString:title ?: [[[NSAttributedString alloc] initWithString:@""] autorelease]] autorelease];
+    NSRange fullRange = NSMakeRange(0, [themedTitle length]);
+    if (fullRange.length > 0) {
+        NSMutableParagraphStyle *style = [[[NSMutableParagraphStyle alloc] init] autorelease];
+        style.alignment = NSCenterTextAlignment;
+        style.lineBreakMode = NSLineBreakByTruncatingTail;
+        [themedTitle addAttribute:NSForegroundColorAttributeName value:[self contentColor] range:fullRange];
+        [themedTitle addAttribute:NSFontAttributeName value:([self font] ?: [NSFont systemFontOfSize:12.0]) range:fullRange];
+        [themedTitle addAttribute:NSParagraphStyleAttributeName value:style range:fullRange];
+    }
+    return [super drawTitle:themedTitle withFrame:frame inView:controlView];
 }
 
 - (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {
@@ -498,9 +559,9 @@ NSColor *IGThemeDangerColor(void) {
     NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:rect xRadius:radius yRadius:radius];
 
     NSColor *accent = danger ? IGThemeDangerColor() : IGThemeAccentColor();
-    NSColor *fillTop = IGThemeControlColor();
-    NSColor *fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeDividerColor(), 0.16);
-    NSColor *border = IGThemeControlBorderColor();
+    NSColor *fillTop = IGColorBlend(IGThemeControlColor(), [NSColor whiteColor], IGThemeUsesDarkAppearance() ? 0.06 : 0.34);
+    NSColor *fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeDividerColor(), IGThemeUsesDarkAppearance() ? 0.12 : 0.08);
+    NSColor *border = IGColorBlend(IGThemeControlBorderColor(), IGThemeAccentColor(), 0.12);
     NSColor *text = IGThemeTextColor();
 
     if (sidebar && selected) {
@@ -533,10 +594,17 @@ NSColor *IGThemeDangerColor(void) {
     }
 
     if (!enabled) {
-        fillTop = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.56);
-        fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.68);
-        border = IGColorWithAlpha(IGThemeControlBorderColor(), 0.45);
-        text = IGColorWithAlpha(IGThemeMutedTextColor(), 0.58);
+        if (danger) {
+            fillTop = IGColorBlend(IGThemeControlColor(), IGThemeDangerColor(), 0.08);
+            fillBottom = IGColorBlend(IGThemeContentColor(), IGThemeDangerColor(), 0.05);
+            border = IGColorWithAlpha(IGThemeDangerColor(), 0.30);
+            text = IGColorWithAlpha(IGThemeDangerColor(), 0.58);
+        } else {
+            fillTop = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.70);
+            fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.78);
+            border = IGColorWithAlpha(IGThemeControlBorderColor(), 0.32);
+            text = IGColorWithAlpha(IGThemeMutedTextColor(), 0.45);
+        }
     }
 
     NSGradient *gradient = [[[NSGradient alloc] initWithStartingColor:fillTop endingColor:fillBottom] autorelease];
@@ -550,21 +618,21 @@ NSColor *IGThemeDangerColor(void) {
         [highlightPath stroke];
     }
 
-    NSMutableParagraphStyle *style = [[[NSMutableParagraphStyle alloc] init] autorelease];
-    [style setAlignment:NSCenterTextAlignment];
-    [style setLineBreakMode:NSLineBreakByTruncatingTail];
-
-    NSFont *font = [self font] ?: [NSFont systemFontOfSize:12.0];
-    NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
-                           font, NSFontAttributeName,
-                           text, NSForegroundColorAttributeName,
-                           style, NSParagraphStyleAttributeName,
-                           nil];
-    NSString *title = [self title] ?: @"";
-    NSSize size = [title sizeWithAttributes:attrs];
-    CGFloat textY = NSMinY(rect) + floor((NSHeight(rect) - size.height) / 2.0) + 1.0;
-    NSRect textRect = NSMakeRect(NSMinX(rect) + 8.0, textY, NSWidth(rect) - 16.0, size.height + 2.0);
-    [title drawInRect:textRect withAttributes:attrs];
+    NSImage *originalImage = [[self image] retain];
+    NSImage *originalAlternateImage = [[self alternateImage] retain];
+    if (originalImage) {
+        [self setImage:IGTintedButtonImage(originalImage, text, enabled)];
+    }
+    if (originalAlternateImage) {
+        [self setAlternateImage:IGTintedButtonImage(originalAlternateImage, text, enabled)];
+    }
+    [self drawInteriorWithFrame:NSInsetRect(rect, 5.0, 1.0) inView:controlView];
+    [self setImage:originalImage];
+    [self setAlternateImage:originalAlternateImage];
+#if !__has_feature(objc_arc)
+    [originalImage release];
+    [originalAlternateImage release];
+#endif
 }
 
 @end
@@ -587,11 +655,29 @@ static BOOL IGButtonIsChoiceControl(NSButton *button) {
     return ![button isBordered];
 }
 
+static void IGApplyThemeToChoiceControl(NSButton *button) {
+    NSString *title = [button title] ?: @"";
+    NSFont *font = [[button cell] font] ?: [NSFont systemFontOfSize:12.0];
+    NSColor *textColor = [button isEnabled] ? IGThemeTextColor() : IGThemeMutedTextColor();
+    NSDictionary *attributes = [NSDictionary dictionaryWithObjectsAndKeys:
+                                font, NSFontAttributeName,
+                                textColor, NSForegroundColorAttributeName,
+                                nil];
+    NSAttributedString *attributedTitle = [[[NSAttributedString alloc] initWithString:title
+                                                                            attributes:attributes] autorelease];
+    [button setAttributedTitle:attributedTitle];
+    [button setNeedsDisplay:YES];
+}
+
 void IGApplyThemeToButton(NSButton *button, IGThemeButtonRole role) {
     if (![button isKindOfClass:[NSButton class]] || [button isKindOfClass:[NSPopUpButton class]]) {
         return;
     }
-    if (button.bezelStyle == NSHelpButtonBezelStyle || IGButtonIsChoiceControl(button)) {
+    if (button.bezelStyle == NSHelpButtonBezelStyle) {
+        return;
+    }
+    if (IGButtonIsChoiceControl(button)) {
+        IGApplyThemeToChoiceControl(button);
         return;
     }
 
@@ -642,6 +728,8 @@ void IGApplyThemeToButton(NSButton *button, IGThemeButtonRole role) {
 #endif
     }
     cell.themeRole = role;
+    [cell setHighlightsBy:NSNoCellMask];
+    [cell setShowsStateBy:NSNoCellMask];
     [cell setTitle:[button title] ?: @""];
     [button setNeedsDisplay:YES];
 }
