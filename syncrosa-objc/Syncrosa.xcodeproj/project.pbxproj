@@ -13,6 +13,30 @@
 		55E17EDC96C34EE2B003EC06 /* IGSettingsViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 0EA22F9DFA6C4F7AADE200A3 /* IGSettingsViewController.m */; };
 		A34601000000000000000001 /* IGUpdateSupport.m in Build */ = {isa = PBXBuildFile; fileRef = A34601000000000000000004 /* IGUpdateSupport.m */; };
 		A34601000000000000000002 /* IGTheme.m in Build */ = {isa = PBXBuildFile; fileRef = A34601000000000000000006 /* IGTheme.m */; };
+		C34602000000000000000001 /* IGRecoveryCenterViewController.m in Build */ = {isa = PBXBuildFile; fileRef = C34602000000000000000003 /* IGRecoveryCenterViewController.m */; };
+		D34602000000000000000001 /* IGLibraryDoctorSupport.m in Build */ = {isa = PBXBuildFile; fileRef = D34602000000000000000003 /* IGLibraryDoctorSupport.m */; };
+		E34603000000000000000001 /* IGIconProvider.m in Build */ = {isa = PBXBuildFile; fileRef = E34603000000000000000004 /* IGIconProvider.m */; };
+		E34603000000000000000002 /* IGHelpSheetPresenter.m in Build */ = {isa = PBXBuildFile; fileRef = E34603000000000000000006 /* IGHelpSheetPresenter.m */; };
+		E34604000000000000000001 /* refresh.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000001 /* refresh.png */; };
+		E34604000000000000000002 /* next.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000002 /* next.png */; };
+		E34604000000000000000003 /* info.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000003 /* info.png */; };
+		E34604000000000000000004 /* folder.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000004 /* folder.png */; };
+		E34604000000000000000005 /* device.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000005 /* device.png */; };
+		E34604000000000000000006 /* history.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000006 /* history.png */; };
+		E34604000000000000000007 /* restore.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000007 /* restore.png */; };
+		E34604000000000000000008 /* artwork.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000008 /* artwork.png */; };
+		E34604000000000000000009 /* document.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000009 /* document.png */; };
+		E3460400000000000000000A /* network-off.png in Resources */ = {isa = PBXBuildFile; fileRef = E3460500000000000000000A /* network-off.png */; };
+		E3460400000000000000000B /* drawer.png in Resources */ = {isa = PBXBuildFile; fileRef = E3460500000000000000000B /* drawer.png */; };
+		E3460400000000000000000C /* compass.png in Resources */ = {isa = PBXBuildFile; fileRef = E3460500000000000000000C /* compass.png */; };
+		E3460400000000000000000D /* star.png in Resources */ = {isa = PBXBuildFile; fileRef = E3460500000000000000000D /* star.png */; };
+		E3460400000000000000000E /* search.png in Resources */ = {isa = PBXBuildFile; fileRef = E3460500000000000000000E /* search.png */; };
+		E3460400000000000000000F /* archive.png in Resources */ = {isa = PBXBuildFile; fileRef = E3460500000000000000000F /* archive.png */; };
+		E34604000000000000000010 /* trash.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000010 /* trash.png */; };
+		E34604000000000000000011 /* settings.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000011 /* settings.png */; };
+		E34604000000000000000012 /* doctor.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000012 /* doctor.png */; };
+		E34604000000000000000013 /* menu.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000013 /* menu.png */; };
+		E34604000000000000000014 /* usb.png in Resources */ = {isa = PBXBuildFile; fileRef = E34605000000000000000014 /* usb.png */; };
 		B34601000000000000000001 /* IGPlaylistJSONSupport.m in Build */ = {isa = PBXBuildFile; fileRef = B34601000000000000000003 /* IGPlaylistJSONSupport.m */; };
 		71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */; };
 		602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */; };
@@ -64,6 +88,34 @@
 		A34601000000000000000004 /* IGUpdateSupport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUpdateSupport.m"; sourceTree = "<group>"; };
 		A34601000000000000000005 /* IGTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGTheme.h"; sourceTree = "<group>"; };
 		A34601000000000000000006 /* IGTheme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGTheme.m"; sourceTree = "<group>"; };
+		C34602000000000000000002 /* IGRecoveryCenterViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGRecoveryCenterViewController.h"; sourceTree = "<group>"; };
+		C34602000000000000000003 /* IGRecoveryCenterViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGRecoveryCenterViewController.m"; sourceTree = "<group>"; };
+		D34602000000000000000002 /* IGLibraryDoctorSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLibraryDoctorSupport.h"; sourceTree = "<group>"; };
+		D34602000000000000000003 /* IGLibraryDoctorSupport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGLibraryDoctorSupport.m"; sourceTree = "<group>"; };
+		E34603000000000000000003 /* IGIconProvider.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGIconProvider.h"; sourceTree = "<group>"; };
+		E34603000000000000000004 /* IGIconProvider.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGIconProvider.m"; sourceTree = "<group>"; };
+		E34603000000000000000005 /* IGHelpSheetPresenter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGHelpSheetPresenter.h"; sourceTree = "<group>"; };
+		E34603000000000000000006 /* IGHelpSheetPresenter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGHelpSheetPresenter.m"; sourceTree = "<group>"; };
+		E34605000000000000000001 /* refresh.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "refresh.png"; sourceTree = "<group>"; };
+		E34605000000000000000002 /* next.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "next.png"; sourceTree = "<group>"; };
+		E34605000000000000000003 /* info.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "info.png"; sourceTree = "<group>"; };
+		E34605000000000000000004 /* folder.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "folder.png"; sourceTree = "<group>"; };
+		E34605000000000000000005 /* device.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "device.png"; sourceTree = "<group>"; };
+		E34605000000000000000006 /* history.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "history.png"; sourceTree = "<group>"; };
+		E34605000000000000000007 /* restore.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "restore.png"; sourceTree = "<group>"; };
+		E34605000000000000000008 /* artwork.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "artwork.png"; sourceTree = "<group>"; };
+		E34605000000000000000009 /* document.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "document.png"; sourceTree = "<group>"; };
+		E3460500000000000000000A /* network-off.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-off.png"; sourceTree = "<group>"; };
+		E3460500000000000000000B /* drawer.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "drawer.png"; sourceTree = "<group>"; };
+		E3460500000000000000000C /* compass.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "compass.png"; sourceTree = "<group>"; };
+		E3460500000000000000000D /* star.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "star.png"; sourceTree = "<group>"; };
+		E3460500000000000000000E /* search.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "search.png"; sourceTree = "<group>"; };
+		E3460500000000000000000F /* archive.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "archive.png"; sourceTree = "<group>"; };
+		E34605000000000000000010 /* trash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "trash.png"; sourceTree = "<group>"; };
+		E34605000000000000000011 /* settings.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "settings.png"; sourceTree = "<group>"; };
+		E34605000000000000000012 /* doctor.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "doctor.png"; sourceTree = "<group>"; };
+		E34605000000000000000013 /* menu.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "menu.png"; sourceTree = "<group>"; };
+		E34605000000000000000014 /* usb.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "usb.png"; sourceTree = "<group>"; };
 		9B6D3098017744EEB46C1F27 /* IGDuplicateFinderViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGDuplicateFinderViewController.h"; sourceTree = "<group>"; };
 		7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGOfflinePlaylistViewController.m"; sourceTree = "<group>"; };
 		F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
@@ -174,6 +226,7 @@
 		0C20C79A8F1444FB9AA49AB4 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				E34606000000000000000001 /* Icons */,
 				F9BE1B335F9B4CA0B4F3408C /* cacert.pem */,
 				D1C705DD729447BBA7A057AF /* en.lproj */,
 				821086B7067040519FD4591D /* ru.lproj */,
@@ -181,9 +234,38 @@
 			path = "Resources";
 			sourceTree = "<group>";
 		};
+		E34606000000000000000001 /* Icons */ = {
+			isa = PBXGroup;
+			children = (
+				E34605000000000000000001 /* refresh.png */,
+				E34605000000000000000002 /* next.png */,
+				E34605000000000000000003 /* info.png */,
+				E34605000000000000000004 /* folder.png */,
+				E34605000000000000000005 /* device.png */,
+				E34605000000000000000006 /* history.png */,
+				E34605000000000000000007 /* restore.png */,
+				E34605000000000000000008 /* artwork.png */,
+				E34605000000000000000009 /* document.png */,
+				E3460500000000000000000A /* network-off.png */,
+				E3460500000000000000000B /* drawer.png */,
+				E3460500000000000000000C /* compass.png */,
+				E3460500000000000000000D /* star.png */,
+				E3460500000000000000000E /* search.png */,
+				E3460500000000000000000F /* archive.png */,
+				E34605000000000000000010 /* trash.png */,
+				E34605000000000000000011 /* settings.png */,
+				E34605000000000000000012 /* doctor.png */,
+				E34605000000000000000013 /* menu.png */,
+				E34605000000000000000014 /* usb.png */,
+			);
+			path = "Icons";
+			sourceTree = "<group>";
+		};
 		70732B3A3B634F1BBB4EF0F3 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				D34602000000000000000002 /* IGLibraryDoctorSupport.h */,
+				D34602000000000000000003 /* IGLibraryDoctorSupport.m */,
 				95C57A1CEE874279B28A58C2 /* IGMediaFixerManager.h */,
 				DC57BB0BF6694C00959D1C5B /* IGLyricsService.h */,
 				CCF7C277C90E4D88B08E0050 /* IGLogger.m */,
@@ -218,6 +300,10 @@
 		A1A344FE48F240EA8D0F5FA3 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				E34603000000000000000003 /* IGIconProvider.h */,
+				E34603000000000000000004 /* IGIconProvider.m */,
+				E34603000000000000000005 /* IGHelpSheetPresenter.h */,
+				E34603000000000000000006 /* IGHelpSheetPresenter.m */,
 				8B41285364BE4E2A8AD8C9E6 /* IGMainWindowController.h */,
 				D75B17AE88F841A79B4ACA43 /* IGNotificationView.h */,
 				0EA22F9DFA6C4F7AADE200A3 /* IGSettingsViewController.m */,
@@ -225,6 +311,8 @@
 				A34601000000000000000004 /* IGUpdateSupport.m */,
 				A34601000000000000000005 /* IGTheme.h */,
 				A34601000000000000000006 /* IGTheme.m */,
+				C34602000000000000000002 /* IGRecoveryCenterViewController.h */,
+				C34602000000000000000003 /* IGRecoveryCenterViewController.m */,
 				9B6D3098017744EEB46C1F27 /* IGDuplicateFinderViewController.h */,
 				7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */,
 				F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */,
@@ -374,6 +462,26 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E34604000000000000000001 /* refresh.png in Resources */,
+				E34604000000000000000002 /* next.png in Resources */,
+				E34604000000000000000003 /* info.png in Resources */,
+				E34604000000000000000004 /* folder.png in Resources */,
+				E34604000000000000000005 /* device.png in Resources */,
+				E34604000000000000000006 /* history.png in Resources */,
+				E34604000000000000000007 /* restore.png in Resources */,
+				E34604000000000000000008 /* artwork.png in Resources */,
+				E34604000000000000000009 /* document.png in Resources */,
+				E3460400000000000000000A /* network-off.png in Resources */,
+				E3460400000000000000000B /* drawer.png in Resources */,
+				E3460400000000000000000C /* compass.png in Resources */,
+				E3460400000000000000000D /* star.png in Resources */,
+				E3460400000000000000000E /* search.png in Resources */,
+				E3460400000000000000000F /* archive.png in Resources */,
+				E34604000000000000000010 /* trash.png in Resources */,
+				E34604000000000000000011 /* settings.png in Resources */,
+				E34604000000000000000012 /* doctor.png in Resources */,
+				E34604000000000000000013 /* menu.png in Resources */,
+				E34604000000000000000014 /* usb.png in Resources */,
 				2B37C8AAFCC14A859447B584 /* AppIcon.icns in Resources */,
 				3A616E1579A6444BB71262DA /* cacert.pem in Resources */,
 				C6C8CDA133DD47AF99BBEAB7 /* Localizable.strings in Resources */,
@@ -396,11 +504,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E34603000000000000000001 /* IGIconProvider.m in Sources */,
+				E34603000000000000000002 /* IGHelpSheetPresenter.m in Sources */,
 				EB17A9FF5DE74A2A8145574B /* main.m in Sources */,
 				45F976B84D6F4AAB82A9012F /* AppDelegate.m in Sources */,
 				55E17EDC96C34EE2B003EC06 /* IGSettingsViewController.m in Sources */,
 				A34601000000000000000001 /* IGUpdateSupport.m in Sources */,
 				A34601000000000000000002 /* IGTheme.m in Sources */,
+				C34602000000000000000001 /* IGRecoveryCenterViewController.m in Sources */,
+				D34602000000000000000001 /* IGLibraryDoctorSupport.m in Sources */,
 				71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Sources */,
 				602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Sources */,
 				72FECC5191E0484D8D030A5E /* IGFileFixerViewController.m in Sources */,

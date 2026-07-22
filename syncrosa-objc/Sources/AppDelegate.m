@@ -48,7 +48,7 @@ static void IGAppStartupLog(NSString *message) {
 	        IGAppStartupLog(@"main window shown");
 #ifdef DEBUG
 	        NSString *devTab = [[[NSProcessInfo processInfo] environment] objectForKey:@"SYNCROSA_DEV_OPEN_TAB_INDEX"];
-	        if ([IGLogger desktopDiagnosticsEnabled] && [devTab length] > 0) {
+	        if ([devTab length] > 0) {
 	            NSInteger tabIndex = [devTab integerValue];
 	            IGMainWindowController *controller = self.mainWindowController;
 	            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{

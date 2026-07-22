@@ -6,6 +6,8 @@
 #import "IGLogger.h"
 #import "IGTrack.h"
 #import "IGPlaylistJSONSupport.h"
+#import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 
 static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     if (![value isKindOfClass:[NSString class]]) {
@@ -158,8 +160,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     
     self.logView = [[NSTextView alloc] initWithFrame:scrollView.bounds];
     self.logView.editable = NO;
-    self.logView.backgroundColor = [NSColor blackColor];
-    self.logView.textColor = [NSColor greenColor];
+    self.logView.backgroundColor = IGThemePanelInsetColor();
+    self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     
     scrollView.documentView = self.logView;
@@ -188,7 +190,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     // Footer
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 15, 540, 30)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
@@ -233,7 +235,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer UI: %@", text ?: @""]];
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text];
-        NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}];
+        NSAttributedString *attrLine = [[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: IGThemeAccentColor()}];
         NSTextStorage *storage = self.logView.textStorage;
         [storage appendAttributedString:attrLine];
         if (storage.length > 30000) {
@@ -288,41 +290,20 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"iTunes Media Fixer Help\n\n"
-                          "This utility scans your iTunes/Music library for split albums and missing metadata (Album, Title, Artist, Genre, Track Number, and Lyrics).\n\n"
-                          "1. Select All / Individual Tags: Use the checkboxes to choose which metadata tags should be corrected. Only the checked tags will be updated via AppleScript.\n"
-                          "2. Library JSON: Export a clean list of your iTunes tracks, give it to an external AI helper, then import a returned JSON selection to create a playlist.\n"
-                          "3. Safe Operation: Every single track operation is wrapped in a safe error handling block, ensuring that if any track write fails (due to write permissions, locked files, etc.), the app will skip it and continue without crashing.";
-    
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-    
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-    
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-    
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-    
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Choose what may change", @"Select only the metadata fields you want Syncrosa to repair: album, title, artist, genre, track number, lyrics, or artwork."),
+        IGHelpSectionMake(@"Use an external AI", @"Export Library JSON to share a clean catalog. Import a returned JSON selection, review it, name the playlist, and let Syncrosa create it in iTunes."),
+        IGHelpSectionMake(@"Safe processing", @"Tracks are handled one at a time. A locked or unreadable item is skipped and reported without stopping the rest of the job.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"iTunes Media Fixer"
+                                                        summary:@"Repair selected metadata fields and exchange playlist selections through JSON."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {
@@ -371,6 +352,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     [[label cell] setWraps:YES];
     [sheet.contentView addSubview:label];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     [NSApp beginSheet:self.helpSheetWindow
        modalForWindow:self.view.window

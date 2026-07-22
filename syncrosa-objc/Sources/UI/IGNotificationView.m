@@ -1,11 +1,13 @@
 #import "IGNotificationView.h"
 #import "IGLogger.h"
+#import "IGTheme.h"
 #import <QuartzCore/QuartzCore.h>
 
 @interface IGNotificationView ()
 @property (nonatomic, strong) NSTextField *label;
 @property (nonatomic, strong) NSButton *closeButton;
 @property (nonatomic, assign) BOOL isError;
+- (void)applyTheme;
 @end
 
 @implementation IGNotificationView
@@ -22,13 +24,7 @@
     IGNotificationView *hud = [[IGNotificationView alloc] initWithFrame:frame];
     hud.isError = isError;
     hud.label.stringValue = message;
-    
-    // Setup text color and background color
-    if (isError) {
-        hud.label.textColor = [NSColor whiteColor];
-    } else {
-        hud.label.textColor = [NSColor whiteColor];
-    }
+    [hud applyTheme];
     
     // Add to parent view with zero alpha for fade in
     hud.alphaValue = 0.0;
@@ -81,9 +77,6 @@
         self.wantsLayer = YES;
         self.layer.cornerRadius = 8.0;
         
-        // Semi-transparent black background
-        self.layer.backgroundColor = [[NSColor colorWithCalibratedWhite:0.1 alpha:0.9] CGColor];
-        
         // Text Label
         _label = [[NSTextField alloc] initWithFrame:NSMakeRect(10, 8, frame.size.width - 45, 20)];
         _label.editable = NO;
@@ -100,7 +93,7 @@
         _closeButton.font = [NSFont systemFontOfSize:11];
         if ([_closeButton respondsToSelector:@selector(setAttributedTitle:)]) {
             NSDictionary *attrs = @{
-                NSForegroundColorAttributeName: [NSColor grayColor],
+                NSForegroundColorAttributeName: [NSColor whiteColor],
                 NSFontAttributeName: [NSFont systemFontOfSize:11]
             };
             NSAttributedString *title = [[NSAttributedString alloc] initWithString:_closeButton.title attributes:attrs];
@@ -114,6 +107,21 @@
         [self addSubview:_closeButton];
     }
     return self;
+}
+
+- (void)applyTheme {
+    NSColor *background = self.isError ? IGThemeDangerColor() : IGThemeAccentColor();
+    self.layer.backgroundColor = [[background colorWithAlphaComponent:0.94] CGColor];
+    self.label.textColor = [NSColor whiteColor];
+    NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
+                           [NSColor whiteColor], NSForegroundColorAttributeName,
+                           [NSFont systemFontOfSize:11], NSFontAttributeName,
+                           nil];
+    NSAttributedString *title = [[NSAttributedString alloc] initWithString:self.closeButton.title ?: @"" attributes:attrs];
+    [self.closeButton setAttributedTitle:title];
+#if !__has_feature(objc_arc)
+    [title release];
+#endif
 }
 
 - (void)dealloc {

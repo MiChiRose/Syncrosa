@@ -1,4 +1,6 @@
 #import "IGInfoEraserViewController.h"
+#import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 #import "IGNotificationView.h"
 #include <stdint.h>
 
@@ -141,6 +143,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
 @property (nonatomic, strong) NSURL *selectedFolderURL;
 @property (nonatomic, strong) NSArray *foundFiles;
 @property (nonatomic, assign) BOOL isProcessing;
+@property (nonatomic, strong) NSWindow *helpSheetWindow;
 @end
 
 @implementation IGInfoEraserViewController
@@ -180,7 +183,7 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
     NSTextField *warning = [[[NSTextField alloc] initWithFrame:NSMakeRect(50, y + 8, 480, 42)] autorelease];
     warning.stringValue = @"WARNING: this tab permanently removes embedded song information and artwork from local files. Use only on a copied folder or after creating a backup.";
     warning.font = [NSFont boldSystemFontOfSize:11];
-    warning.textColor = [NSColor colorWithCalibratedRed:0.55 green:0.0 blue:0.06 alpha:1.0];
+    warning.textColor = IGThemeDangerColor();
     warning.editable = NO;
     warning.bordered = NO;
     warning.drawsBackground = NO;
@@ -238,8 +241,8 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
     scrollView.borderType = NSBezelBorder;
     self.logView = [[[NSTextView alloc] initWithFrame:scrollView.bounds] autorelease];
     self.logView.editable = NO;
-    self.logView.backgroundColor = [NSColor blackColor];
-    self.logView.textColor = [NSColor greenColor];
+    self.logView.backgroundColor = IGThemePanelInsetColor();
+    self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     scrollView.documentView = self.logView;
     [self.view addSubview:scrollView];
@@ -255,17 +258,33 @@ static void IGInfoEraserRecordHistory(NSString *title, NSString *status, NSStrin
 }
 
 - (void)helpClicked:(id)sender {
-    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-    [alert setMessageText:@"Info Eraser Help"];
-    [alert setInformativeText:@"Info Eraser works only with the selected local folder and its subfolders. It does not edit iTunes directly.\n\nBackup Original Info creates SyncrosaInfoEraserBackup with manifest.json and sidecar tag files.\n\nErase Info removes MP3 ID3 tags and M4A/MP4/AAC/ALAC metadata atoms without transcoding audio.\n\nRestore Info can restore metadata only from a backup created before erasing."];
-    [alert addButtonWithTitle:@"OK"];
-    [alert runModal];
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Folder only", @"Info Eraser processes the selected local folder and its subfolders. It never edits iTunes directly."),
+        IGHelpSectionMake(@"Back up first", @"Backup Original Info creates a SyncrosaInfoEraserBackup folder with a manifest and sidecar tag data. Keep that folder beside the music until you are certain the result is correct."),
+        IGHelpSectionMake(@"Permanent removal", @"Erase Info removes MP3 ID3 tags and M4A, MP4, AAC, or ALAC metadata without transcoding the audio. Restore Info works only when a compatible backup was created before erasing.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Info Eraser"
+                                                        summary:@"Permanently remove embedded song information and artwork from copied local files."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
+}
+
+- (void)closeHelpSheet:(id)sender {
+    (void)sender;
+    if (!self.helpSheetWindow) return;
+    [IGHelpSheetPresenter dismissSheet:self.helpSheetWindow fromWindow:self.view.window];
+    self.helpSheetWindow = nil;
 }
 
 - (void)log:(NSString *)text {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *line = [NSString stringWithFormat:@"> %@\n", text ?: @""];
-        NSAttributedString *attrLine = [[[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: [NSColor greenColor]}] autorelease];
+        NSAttributedString *attrLine = [[[NSAttributedString alloc] initWithString:line attributes:@{NSForegroundColorAttributeName: IGThemeAccentColor()}] autorelease];
         [self.logView.textStorage appendAttributedString:attrLine];
         if (self.logView.textStorage.length > 30000) {
             [self.logView.textStorage deleteCharactersInRange:NSMakeRange(0, self.logView.textStorage.length - 30000)];

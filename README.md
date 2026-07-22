@@ -74,22 +74,22 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.6.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds Cloudflare-backed update checks and JSON library export/import for external AI playlist planning. |
+| `Syncrosa_Cocoa_v3.4.7.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds appearance modes, six color themes, a fully collapsible sidebar, and a broader native Cocoa UI refresh. |
 | `Syncrosa_Python_v3.4.6.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as a 3.4.6 package with the same Syncrosa update service. |
 | `Syncrosa_SwiftUI_v3.4.6.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build; rebuilt as a 3.4.6 package and aligned with the same update manifest flow. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.4.6
+### Latest Release: 3.4.7
 
-Syncrosa 3.4.6 focuses on making the update and external playlist workflow more useful across all app tracks, with the strongest functional changes landing in the legacy Cocoa build:
+Syncrosa 3.4.7 is a focused update for the Objective-C/Cocoa track used on vintage Intel Macs. The Python and SwiftUI packages remain available as version 3.4.6:
 
-- **Cloudflare Update Manifest:** Cocoa, Python, and SwiftUI update checks now use a Syncrosa update service that points each app track to the correct release archive.
-- **Legacy JSON Library Flow:** The Objective-C app can export a clean JSON snapshot of the iTunes library and import a returned JSON playlist selection to create a playlist in iTunes.
-- **Cocoa Settings Cleanup:** The API key save action now sits directly beside the key field, with clearer update/release-note behavior.
-- **Safer Legacy UX:** Long iTunes reads keep visible progress so old Macs do not look frozen during background library work.
-- **Aligned Packages:** Objective-C, Python, and SwiftUI builds are republished as 3.4.6 packages so all download assets stay in sync.
-- **Docs:** README download instructions now point at the current 3.4.6 packages.
+- **Appearance Modes:** Choose System, Light, or Dark. Mavericks uses a safe light fallback for System mode, while newer macOS versions can follow the system appearance.
+- **Six Cocoa Themes:** Classic Graphite, Aqua Blue, Sage Graphite, Soft Plum, Ruby Graphite, and Ocean Mist now style the full application consistently.
+- **Cleaner Navigation:** The sidebar can collapse completely, leaving the current tool centered in the available workspace.
+- **Unified Legacy UI:** Buttons, fields, tables, progress indicators, help sheets, Recovery Center, Operation History, Overview, and AI Playlist share clearer spacing and active/disabled states.
+- **Mavericks-Safe AI Transport:** The release bundle includes a verified x86_64 curl runtime for modern TLS without disabling certificate validation.
+- **Old-Mac Release Discipline:** The Cocoa archive is built and tested with Xcode 6.2 on OS X 10.9; no new SwiftUI or Python package is included in this release.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.

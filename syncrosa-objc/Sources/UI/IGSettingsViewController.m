@@ -8,6 +8,7 @@
 #import "IGLogger.h"
 #import "IGUpdateSupport.h"
 #import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
 
 static NSString *IGSettingsCanonicalProvider(NSString *provider) {
     if ([provider caseInsensitiveCompare:@"Groq"] == NSOrderedSame) {
@@ -56,6 +57,8 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @property (nonatomic, strong) NSPopUpButton *langPopup;
 @property (nonatomic, strong) NSTextField *themeLabel;
 @property (nonatomic, strong) NSPopUpButton *themePopup;
+@property (nonatomic, strong) NSTextField *appearanceLabel;
+@property (nonatomic, strong) NSPopUpButton *appearancePopup;
 @property (nonatomic, strong) NSTextField *providerLabel;
 @property (nonatomic, strong) NSComboBox *providerCombo;
 @property (nonatomic, strong) NSTextField *modelLabel;
@@ -66,6 +69,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @property (nonatomic, strong) NSButton *enableLoggingCheckbox;
 @property (nonatomic, strong) NSButton *onlyLocalCheckbox;
 @property (nonatomic, strong) NSButton *hddSafeCheckbox;
+@property (nonatomic, strong) NSButton *showFooterCheckbox;
 @property (nonatomic, strong) NSButton *historyButton;
 @property (nonatomic, strong) NSButton *recoveryButton;
 @property (nonatomic, strong) NSButton *syncLibButton;
@@ -88,7 +92,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @implementation IGSettingsViewController
 
 - (void)loadView {
-    self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 500)];
+    self.view = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 500)] autorelease];
     [self setupUI];
     [self loadSettings];
     
@@ -105,6 +109,40 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 #if !__has_feature(objc_arc)
+    [_titleLabel release];
+    [_langLabel release];
+    [_langPopup release];
+    [_themeLabel release];
+    [_themePopup release];
+    [_appearanceLabel release];
+    [_appearancePopup release];
+    [_providerLabel release];
+    [_providerCombo release];
+    [_modelLabel release];
+    [_modelCombo release];
+    [_syncModelsBtn release];
+    [_apiKeyLabel release];
+    [_apiKeyField release];
+    [_enableLoggingCheckbox release];
+    [_onlyLocalCheckbox release];
+    [_hddSafeCheckbox release];
+    [_showFooterCheckbox release];
+    [_historyButton release];
+    [_recoveryButton release];
+    [_syncLibButton release];
+    [_syncLibStatusLabel release];
+    [_updateCheckButton release];
+    [_updateOpenButton release];
+    [_releaseNotesButton release];
+    [_updateStatusLabel release];
+    [_latestUpdateURL release];
+    [_latestReleaseTitle release];
+    [_latestReleaseNotes release];
+    [_saveButton release];
+    [_statusLabel release];
+    [_footerLabel release];
+    [_helpBtn release];
+    [_helpSheetWindow release];
     [super dealloc];
 #endif
 }
@@ -119,36 +157,37 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.latestReleaseNotes = IGUpdateBundledReleaseNotes();
     
     // Title
-    self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 480, 30)];
+    self.titleLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)] autorelease];
     self.titleLabel.font = [NSFont boldSystemFontOfSize:18];
     self.titleLabel.editable = NO;
     self.titleLabel.bordered = NO;
     self.titleLabel.drawsBackground = NO;
+    self.titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.titleLabel];
     
     y -= rowGap;
     // Language Section
-    self.langLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)];
+    self.langLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)] autorelease];
     self.langLabel.font = [NSFont systemFontOfSize:13];
     self.langLabel.editable = NO;
     self.langLabel.bordered = NO;
     self.langLabel.drawsBackground = NO;
     [self.view addSubview:self.langLabel];
     
-    self.langPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26) pullsDown:NO];
+    self.langPopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26) pullsDown:NO] autorelease];
     [self.langPopup addItemsWithTitles:@[@"English", @"Русский", @"Беларуская", @"한국어", @"日本語", @"中文", @"Deutsch", @"Polski", @"Eesti", @"Español"]];
     self.langPopup.target = self;
     self.langPopup.action = @selector(languagePopupChanged:);
     [self.view addSubview:self.langPopup];
 
-    self.themeLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(370, y, 60, 20)];
+    self.themeLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(370, y, 60, 20)] autorelease];
     self.themeLabel.font = [NSFont systemFontOfSize:13];
     self.themeLabel.editable = NO;
     self.themeLabel.bordered = NO;
     self.themeLabel.drawsBackground = NO;
     [self.view addSubview:self.themeLabel];
 
-    self.themePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 26) pullsDown:NO];
+    self.themePopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 26) pullsDown:NO] autorelease];
     NSArray *themeIDs = IGThemeIdentifiers();
     for (NSString *identifier in themeIDs) {
         [self.themePopup addItemWithTitle:IGThemeDisplayNameForIdentifier(identifier)];
@@ -156,17 +195,35 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.themePopup.target = self;
     self.themePopup.action = @selector(themePopupChanged:);
     [self.view addSubview:self.themePopup];
+
+    y -= 32.0;
+    self.appearanceLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 140, 20)] autorelease];
+    self.appearanceLabel.font = [NSFont systemFontOfSize:13];
+    self.appearanceLabel.editable = NO;
+    self.appearanceLabel.bordered = NO;
+    self.appearanceLabel.drawsBackground = NO;
+    [self.view addSubview:self.appearanceLabel];
+
+    self.appearancePopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26) pullsDown:NO] autorelease];
+    NSArray *appearanceIDs = IGAppearanceModeIdentifiers();
+    for (NSString *identifier in appearanceIDs) {
+        [self.appearancePopup addItemWithTitle:IGAppearanceModeDisplayNameForIdentifier(identifier)];
+    }
+    self.appearancePopup.target = self;
+    self.appearancePopup.action = @selector(appearancePopupChanged:);
+    self.appearancePopup.toolTip = @"System follows macOS appearance where supported. On OS X 10.9 it safely uses light Classic Graphite.";
+    [self.view addSubview:self.appearancePopup];
     
-    y -= rowGap;
+    y -= rowGap - 10.0;
     // AI Provider Section
-    self.providerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)];
+    self.providerLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)] autorelease];
     self.providerLabel.font = [NSFont systemFontOfSize:13];
     self.providerLabel.editable = NO;
     self.providerLabel.bordered = NO;
     self.providerLabel.drawsBackground = NO;
     [self.view addSubview:self.providerLabel];
     
-    self.providerCombo = [[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26)];
+    self.providerCombo = [[[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26)] autorelease];
     [self.providerCombo addItemsWithObjectValues:@[@"Gemini", @"OpenRouter", @"Groq"]];
     self.providerCombo.editable = NO;
     self.providerCombo.delegate = self;
@@ -174,17 +231,17 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     
     y -= rowGap;
     // Model Section
-    self.modelLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)];
+    self.modelLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)] autorelease];
     self.modelLabel.font = [NSFont systemFontOfSize:13];
     self.modelLabel.editable = NO;
     self.modelLabel.bordered = NO;
     self.modelLabel.drawsBackground = NO;
     [self.view addSubview:self.modelLabel];
     
-    self.modelCombo = [[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 270, 26)];
+    self.modelCombo = [[[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 270, 26)] autorelease];
     [self.view addSubview:self.modelCombo];
     
-    self.syncModelsBtn = [[NSButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 30)];
+    self.syncModelsBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 30)] autorelease];
     self.syncModelsBtn.bezelStyle = NSRoundedBezelStyle;
     self.syncModelsBtn.target = self;
     self.syncModelsBtn.action = @selector(syncClicked:);
@@ -192,24 +249,24 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     
     y -= rowGap;
     // API Key Section
-    self.apiKeyLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)];
+    self.apiKeyLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)] autorelease];
     self.apiKeyLabel.font = [NSFont systemFontOfSize:13];
     self.apiKeyLabel.editable = NO;
     self.apiKeyLabel.bordered = NO;
     self.apiKeyLabel.drawsBackground = NO;
     [self.view addSubview:self.apiKeyLabel];
     
-    self.apiKeyField = [[NSSecureTextField alloc] initWithFrame:NSMakeRect(150, y-2, 410, 24)];
+    self.apiKeyField = [[[NSSecureTextField alloc] initWithFrame:NSMakeRect(150, y-2, 410, 24)] autorelease];
     [self.view addSubview:self.apiKeyField];
 
     y -= 34;
-    self.saveButton = [[NSButton alloc] initWithFrame:NSMakeRect(150, y, 200, buttonHeight)];
+    self.saveButton = [[[NSButton alloc] initWithFrame:NSMakeRect(150, y, 200, buttonHeight)] autorelease];
     self.saveButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.saveButton.target = self;
     self.saveButton.action = @selector(saveClicked:);
     [self.view addSubview:self.saveButton];
 
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(360, y + 3, 200, 20)];
+    self.statusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(360, y + 3, 200, 20)] autorelease];
     self.statusLabel.stringValue = @"";
     self.statusLabel.font = [NSFont systemFontOfSize:11];
     self.statusLabel.editable = NO;
@@ -220,19 +277,19 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     
     y -= compactRowGap;
     // Logging Checkbox
-    self.enableLoggingCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
+    self.enableLoggingCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 540, 20)] autorelease];
     self.enableLoggingCheckbox.buttonType = NSSwitchButton;
     self.enableLoggingCheckbox.hidden = ![IGLogger desktopDiagnosticsEnabled];
     self.enableLoggingCheckbox.enabled = [IGLogger desktopDiagnosticsEnabled];
     [self.view addSubview:self.enableLoggingCheckbox];
 
     y -= compactRowGap;
-    self.onlyLocalCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)];
+    self.onlyLocalCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)] autorelease];
     self.onlyLocalCheckbox.buttonType = NSSwitchButton;
     self.onlyLocalCheckbox.title = @"Only Local Mode";
     [self.view addSubview:self.onlyLocalCheckbox];
 
-    self.historyButton = [[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)];
+    self.historyButton = [[[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)] autorelease];
     self.historyButton.bezelStyle = NSRoundedBezelStyle;
     self.historyButton.title = @"Operation History";
     self.historyButton.target = self;
@@ -240,29 +297,36 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [self.view addSubview:self.historyButton];
 
     y -= compactRowGap;
-    self.hddSafeCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)];
+    self.hddSafeCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)] autorelease];
     self.hddSafeCheckbox.buttonType = NSSwitchButton;
     self.hddSafeCheckbox.title = @"HDD Safe Mode";
     [self.view addSubview:self.hddSafeCheckbox];
 
-    self.recoveryButton = [[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)];
+    self.recoveryButton = [[[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)] autorelease];
     self.recoveryButton.bezelStyle = NSRoundedBezelStyle;
     self.recoveryButton.title = @"Recovery Center";
     self.recoveryButton.target = self;
     self.recoveryButton.action = @selector(recoveryClicked:);
     [self.view addSubview:self.recoveryButton];
-    
+
+    y -= compactRowGap;
+    self.showFooterCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)] autorelease];
+    self.showFooterCheckbox.buttonType = NSSwitchButton;
+    self.showFooterCheckbox.target = self;
+    self.showFooterCheckbox.action = @selector(showFooterChanged:);
+    [self.view addSubview:self.showFooterCheckbox];
+
     y -= compactRowGap + 4.0;
     // Library Sync Section
-    self.syncLibButton = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 200, buttonHeight)];
+    self.syncLibButton = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 200, buttonHeight)] autorelease];
     self.syncLibButton.bezelStyle = NSRoundedBezelStyle;
     self.syncLibButton.target = self;
     self.syncLibButton.action = @selector(syncLibClicked:);
     [self.view addSubview:self.syncLibButton];
     
-    self.syncLibStatusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(230, y + 3, 330, 20)];
+    self.syncLibStatusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(230, y + 3, 330, 20)] autorelease];
     self.syncLibStatusLabel.font = [NSFont systemFontOfSize:11];
-    self.syncLibStatusLabel.textColor = [NSColor grayColor];
+    self.syncLibStatusLabel.textColor = IGThemeMutedTextColor();
     self.syncLibStatusLabel.editable = NO;
     self.syncLibStatusLabel.bordered = NO;
     self.syncLibStatusLabel.drawsBackground = NO;
@@ -270,29 +334,29 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 
     y -= rowGap;
     // Updates Section
-    self.updateCheckButton = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 145, buttonHeight)];
+    self.updateCheckButton = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 160, buttonHeight)] autorelease];
     self.updateCheckButton.bezelStyle = NSRoundedBezelStyle;
     self.updateCheckButton.target = self;
     self.updateCheckButton.action = @selector(checkUpdatesClicked:);
     [self.view addSubview:self.updateCheckButton];
 
-    self.updateOpenButton = [[NSButton alloc] initWithFrame:NSMakeRect(175, y, 120, buttonHeight)];
+    self.updateOpenButton = [[[NSButton alloc] initWithFrame:NSMakeRect(190, y, 120, buttonHeight)] autorelease];
     self.updateOpenButton.bezelStyle = NSRoundedBezelStyle;
     self.updateOpenButton.target = self;
     self.updateOpenButton.action = @selector(openUpdateClicked:);
     self.updateOpenButton.enabled = NO;
     [self.view addSubview:self.updateOpenButton];
 
-    self.releaseNotesButton = [[NSButton alloc] initWithFrame:NSMakeRect(305, y, 125, buttonHeight)];
+    self.releaseNotesButton = [[[NSButton alloc] initWithFrame:NSMakeRect(320, y, 140, buttonHeight)] autorelease];
     self.releaseNotesButton.bezelStyle = NSRoundedBezelStyle;
     self.releaseNotesButton.target = self;
     self.releaseNotesButton.action = @selector(releaseNotesClicked:);
     self.releaseNotesButton.enabled = YES;
     [self.view addSubview:self.releaseNotesButton];
 
-    self.updateStatusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y - 24, 540, 20)];
+    self.updateStatusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y - 24, 540, 20)] autorelease];
     self.updateStatusLabel.font = [NSFont systemFontOfSize:11];
-    self.updateStatusLabel.textColor = [NSColor grayColor];
+    self.updateStatusLabel.textColor = IGThemeMutedTextColor();
     self.updateStatusLabel.editable = NO;
     self.updateStatusLabel.bordered = NO;
     self.updateStatusLabel.drawsBackground = NO;
@@ -300,7 +364,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [self.view addSubview:self.updateStatusLabel];
     
     // Help Button
-    self.helpBtn = [[NSButton alloc] initWithFrame:NSMakeRect(520, 467, 25, 25)];
+    self.helpBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(520, 467, 25, 25)] autorelease];
     self.helpBtn.bezelStyle = NSHelpButtonBezelStyle;
     self.helpBtn.title = @"";
     self.helpBtn.target = self;
@@ -308,9 +372,9 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [self.view addSubview:self.helpBtn];
     
     // Footer
-    self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 4, 500, 30)];
+    self.footerLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, 4, 500, 30)] autorelease];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
+    self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
@@ -318,6 +382,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [self.view addSubview:self.footerLabel];
     
     [self updateLocalization];
+
 }
 
 - (void)updateLocalization {
@@ -326,6 +391,13 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.titleLabel.stringValue = [lang t:@"settings"];
     self.langLabel.stringValue = [NSString stringWithFormat:@"%@:", [lang t:@"lang_section"]];
     self.themeLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Тема:" : @"Theme:";
+    self.appearanceLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Режим оформления:" : @"Appearance mode:";
+    NSArray *appearanceTitles = [lang.selectedLanguage isEqualToString:@"ru"] ?
+        @[@"Как в системе", @"Светлая", @"Тёмная"] :
+        @[@"System", @"Light", @"Dark"];
+    for (NSInteger i = 0; i < (NSInteger)[appearanceTitles count] && i < [self.appearancePopup numberOfItems]; i++) {
+        [[self.appearancePopup itemAtIndex:i] setTitle:[appearanceTitles objectAtIndex:i]];
+    }
     self.providerLabel.stringValue = [lang t:@"select_provider"];
     self.modelLabel.stringValue = [lang t:@"select_model"];
     self.syncModelsBtn.title = [lang t:@"sync_models"];
@@ -339,6 +411,8 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
         @"Prompt to save text logs for errors and successful generation";
     self.onlyLocalCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Only Local Mode (без сетевых метаданных)" : @"Only Local Mode (skip online metadata)";
     self.hddSafeCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"HDD Safe Mode (мягче для диска)" : @"HDD Safe Mode (gentler disk work)";
+    self.showFooterCheckbox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Показывать нижнюю подсказку" : @"Show footer note";
+    self.showFooterCheckbox.toolTip = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Показывает постоянную нижнюю строку Syncrosa на всех вкладках." : @"Keep the Syncrosa footer note visible on every tab.";
     self.historyButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"История операций" : @"Operation History";
     self.recoveryButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Recovery Center" : @"Recovery Center";
     self.updateCheckButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Проверить обновления" : @"Check Updates";
@@ -372,7 +446,24 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     NSArray *themeIDs = IGThemeIdentifiers();
     NSInteger index = [self.themePopup indexOfSelectedItem];
     if (index >= 0 && index < (NSInteger)[themeIDs count]) {
+        /*
+         System appearance on Mavericks deliberately falls back to the light
+         Classic palette.  Keep the palette chooser useful by moving to an
+         explicit Light appearance as soon as the user chooses a palette.
+         */
+        if ([IGActiveAppearanceModeIdentifier() isEqualToString:@"system"] &&
+            !IGSystemAppearanceDetectionAvailable()) {
+            IGSetActiveAppearanceModeIdentifier(@"light");
+        }
         IGSetActiveThemeIdentifier([themeIDs objectAtIndex:index]);
+    }
+}
+
+- (void)appearancePopupChanged:(id)sender {
+    NSArray *modeIDs = IGAppearanceModeIdentifiers();
+    NSInteger index = [self.appearancePopup indexOfSelectedItem];
+    if (index >= 0 && index < (NSInteger)[modeIDs count]) {
+        IGSetActiveAppearanceModeIdentifier([modeIDs objectAtIndex:index]);
     }
 }
 
@@ -387,9 +478,21 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     if (themeIndex != NSNotFound && themeIndex < [self.themePopup numberOfItems]) {
         [self.themePopup selectItemAtIndex:themeIndex];
     }
+    NSArray *modeIDs = IGAppearanceModeIdentifiers();
+    NSInteger appearanceIndex = [modeIDs indexOfObject:IGActiveAppearanceModeIdentifier()];
+    if (appearanceIndex != NSNotFound && appearanceIndex < [self.appearancePopup numberOfItems]) {
+        [self.appearancePopup selectItemAtIndex:appearanceIndex];
+    }
+    BOOL usesMavericksSystemFallback = [IGActiveAppearanceModeIdentifier() isEqualToString:@"system"] && !IGSystemAppearanceDetectionAvailable();
+    self.themePopup.enabled = YES;
+    self.themePopup.toolTip = usesMavericksSystemFallback ? @"System uses light Classic Graphite on this version of OS X. Choosing another palette switches Appearance to Light." : @"Choose the color palette used throughout Syncrosa.";
+    if (usesMavericksSystemFallback) {
+        [self.themePopup selectItemAtIndex:0];
+    }
     self.titleLabel.textColor = IGThemeTextColor();
     self.langLabel.textColor = IGThemeTextColor();
     self.themeLabel.textColor = IGThemeTextColor();
+    self.appearanceLabel.textColor = IGThemeTextColor();
     self.providerLabel.textColor = IGThemeTextColor();
     self.modelLabel.textColor = IGThemeTextColor();
     self.apiKeyLabel.textColor = IGThemeTextColor();
@@ -399,6 +502,14 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.footerLabel.textColor = IGThemeMutedTextColor();
     IGInstallThemedContentBackground(self.view);
     IGApplyThemeToViewHierarchy(self.view);
+    IGApplyThemeToButton(self.saveButton, IGThemeButtonRolePrimary);
+    IGApplyThemeToButton(self.syncModelsBtn, IGThemeButtonRoleSecondary);
+    IGApplyThemeToButton(self.historyButton, IGThemeButtonRoleSecondary);
+    IGApplyThemeToButton(self.recoveryButton, IGThemeButtonRoleSecondary);
+    IGApplyThemeToButton(self.syncLibButton, IGThemeButtonRoleSecondary);
+    IGApplyThemeToButton(self.updateCheckButton, IGThemeButtonRolePrimary);
+    IGApplyThemeToButton(self.updateOpenButton, IGThemeButtonRolePrimary);
+    IGApplyThemeToButton(self.releaseNotesButton, IGThemeButtonRoleSecondary);
 }
 
 - (void)languagePopupChanged:(id)sender {
@@ -410,55 +521,20 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"API Key Setup Guide\n\n"
-                          "To use Syncrosa, you need an API key from one of our supported AI providers:\n\n"
-                          "1. OpenRouter (Recommended)\n"
-                          "- Where: openrouter.ai/keys\n"
-                          "- Format: 'sk-or-v1-...' (starts with sk-or)\n"
-                          "- Why: Gives access to many free models (like google/gemini-2.0-flash-exp:free) even in geo-blocked regions.\n\n"
-                          "2. Google Gemini\n"
-                          "- Where: aistudio.google.com/app/apikey\n"
-                          "- Format: 'AIzaSy...'\n"
-                          "- Why: Direct access to Google's fast models.\n\n"
-                          "3. Groq\n"
-                          "- Where: console.groq.com/keys\n"
-                          "- Format: 'gsk_...'\n"
-                          "- Why: Extremely fast generation.\n\n"
-                          "Common Errors:\n"
-                          "- 'Invalid Key': Make sure there are no spaces at the start or end.\n"
-                          "- 'Model Not Found': Click 'Sync Models' to get the latest available list.\n\n"
-                          "How to Check:\n"
-                          "Enter the key above and click 'VALIDATE & SAVE'. The app will test it immediately.";
-    
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 280)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-    
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 200)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-    
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-    
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-    
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"AI is optional", @"An API key is needed only for AI Playlist features. Library repair, folder tools, USB Export, diagnostics, and offline playlists work without one."),
+        IGHelpSectionMake(@"Choose a provider", @"OpenRouter keys usually start with sk-or, Gemini keys with AIza, and Groq keys with gsk_. Create the key on the provider's official website."),
+        IGHelpSectionMake(@"Validate safely", @"Paste the key without leading or trailing spaces, then choose Validate & Save. Syncrosa tests it and stores it in the macOS Keychain. Use Sync Models if a saved model is no longer available.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Settings and API Key"
+                                                        summary:@"Configure appearance, updates, performance safeguards, and optional AI access."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {
@@ -481,26 +557,54 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 
 - (void)historyClicked:(id)sender {
     NSString *path = [self operationHistoryPath];
-    NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
-    if (text.length == 0) {
-        text = [NSString stringWithFormat:@"No history file found yet.\n\nExpected path:\n%@", path];
+    NSData *data = [NSData dataWithContentsOfFile:path];
+    id json = [data length] > 0 ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    NSMutableString *formatted = [NSMutableString string];
+    if ([json isKindOfClass:[NSArray class]]) {
+        NSDateFormatter *dateFormatter = [[[NSDateFormatter alloc] init] autorelease];
+        dateFormatter.dateStyle = NSDateFormatterMediumStyle;
+        dateFormatter.timeStyle = NSDateFormatterShortStyle;
+        for (NSDictionary *entry in (NSArray *)json) {
+            if (![entry isKindOfClass:[NSDictionary class]]) continue;
+            id createdAt = [entry objectForKey:@"createdAt"];
+            NSString *dateText = @"Unknown date";
+            if ([createdAt isKindOfClass:[NSNumber class]]) {
+                dateText = [dateFormatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:[createdAt doubleValue]]] ?: dateText;
+            } else if ([createdAt isKindOfClass:[NSString class]] && [createdAt length] > 0) {
+                dateText = createdAt;
+            }
+            NSString *tool = [entry objectForKey:@"tool"] ?: @"Syncrosa";
+            NSString *status = [entry objectForKey:@"status"] ?: @"";
+            NSString *title = [entry objectForKey:@"title"] ?: @"Operation";
+            NSString *message = [entry objectForKey:@"message"] ?: @"";
+            NSNumber *affected = [entry objectForKey:@"affectedCount"];
+            [formatted appendFormat:@"%@  |  %@  |  %@\n%@\n", dateText, tool, status, title];
+            if ([message length] > 0) {
+                [formatted appendFormat:@"%@\n", message];
+            }
+            if ([affected respondsToSelector:@selector(integerValue)] && [affected integerValue] > 0) {
+                [formatted appendFormat:@"Affected items: %@\n", affected];
+            }
+            [formatted appendString:@"\n----------------------------------------\n\n"];
+        }
     }
+    NSString *text = [formatted length] > 0 ? formatted : [NSString stringWithFormat:@"No operation history yet.\n\nHistory will appear after Syncrosa finishes supported tasks.\n\nStorage path:\n%@", path];
 
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 520, 360)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 480, 280)];
+    NSWindow *sheet = [[[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 520, 360)
+                                                   styleMask:NSTitledWindowMask
+                                                     backing:NSBackingStoreBuffered
+                                                       defer:YES] autorelease];
+    NSScrollView *scroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 480, 280)] autorelease];
     scroll.hasVerticalScroller = YES;
     scroll.borderType = NSBezelBorder;
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    NSTextView *textView = [[[NSTextView alloc] initWithFrame:scroll.bounds] autorelease];
     textView.editable = NO;
     textView.string = text;
     textView.font = [NSFont fontWithName:@"Monaco" size:10] ?: [NSFont systemFontOfSize:10];
     scroll.documentView = textView;
     [sheet.contentView addSubview:scroll];
 
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(210, 15, 100, 30)];
+    NSButton *closeButton = [[[NSButton alloc] initWithFrame:NSMakeRect(210, 15, 100, 30)] autorelease];
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     closeButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Закрыть" : @"Close";
     closeButton.bezelStyle = NSRoundedBezelStyle;
@@ -508,6 +612,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -557,11 +662,11 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 }
 
 - (void)showTextSheetWithTitle:(NSString *)title text:(NSString *)text monospace:(BOOL)monospace {
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 540, 380)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-    NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(24, 338, 492, 24)];
+    NSWindow *sheet = [[[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 540, 380)
+                                                   styleMask:NSTitledWindowMask
+                                                     backing:NSBackingStoreBuffered
+                                                       defer:YES] autorelease];
+    NSTextField *titleLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(24, 338, 492, 24)] autorelease];
     titleLabel.stringValue = title ?: @"";
     titleLabel.font = [NSFont boldSystemFontOfSize:15];
     titleLabel.editable = NO;
@@ -569,17 +674,17 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     titleLabel.drawsBackground = NO;
     [sheet.contentView addSubview:titleLabel];
 
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(24, 62, 492, 258)];
+    NSScrollView *scroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect(24, 62, 492, 258)] autorelease];
     scroll.hasVerticalScroller = YES;
     scroll.borderType = NSBezelBorder;
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
+    NSTextView *textView = [[[NSTextView alloc] initWithFrame:scroll.bounds] autorelease];
     textView.editable = NO;
     textView.string = text ?: @"";
     textView.font = monospace ? ([NSFont fontWithName:@"Monaco" size:10] ?: [NSFont systemFontOfSize:10]) : [NSFont systemFontOfSize:12];
     scroll.documentView = textView;
     [sheet.contentView addSubview:scroll];
 
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(220, 16, 100, 30)];
+    NSButton *closeButton = [[[NSButton alloc] initWithFrame:NSMakeRect(220, 16, 100, 30)] autorelease];
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     closeButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Закрыть" : @"Close";
     closeButton.bezelStyle = NSRoundedBezelStyle;
@@ -587,6 +692,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     closeButton.action = @selector(closeHelpSheet:);
     [sheet.contentView addSubview:closeButton];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
         [self.view.window beginSheet:sheet completionHandler:nil];
@@ -664,11 +770,16 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.enableLoggingCheckbox.state = ([IGLogger desktopDiagnosticsEnabled] && [defaults boolForKey:@"enable_logging"]) ? NSOnState : NSOffState;
     self.onlyLocalCheckbox.state = [defaults boolForKey:@"only_local_mode"] ? NSOnState : NSOffState;
     self.hddSafeCheckbox.state = [defaults boolForKey:@"hdd_safe_mode"] ? NSOnState : NSOffState;
+    self.showFooterCheckbox.state = [IGMainWindowController globalFooterVisible] ? NSOnState : NSOffState;
     
     // Sync AIService state
     [IGAIService sharedService].provider = provider;
     [IGAIService sharedService].model = self.modelCombo.stringValue;
     [IGAIService sharedService].apiKey = self.apiKeyField.stringValue;
+}
+
+- (void)showFooterChanged:(NSButton *)sender {
+    [IGMainWindowController setGlobalFooterVisible:(sender.state == NSOnState)];
 }
 
 - (void)migrateLegacyUserDefaultsAPIKey {
@@ -690,7 +801,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"checking"];
     [IGAIService sharedService].apiKey = self.apiKeyField.stringValue;
     
-    [[IGAIService sharedService] fetchOpenRouterModelsWithCompletion:^(NSArray *models) {
+    [[IGAIService sharedService] fetchOpenRouterModelsWithDetailedCompletion:^(NSArray *models, NSError *error) {
         if (models.count > 0) {
             [self.modelCombo removeAllItems];
             [self.modelCombo addItemsWithObjectValues:models];
@@ -701,15 +812,16 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
             
             self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"sync_success"];
             
-            NSAlert *alert = [[NSAlert alloc] init];
+            NSAlert *alert = [[[NSAlert alloc] init] autorelease];
             [alert setMessageText:@"Success"];
             [alert setInformativeText:[NSString stringWithFormat:@"Synced %ld models from OpenRouter.", (long)models.count]];
             [alert runModal];
         } else {
-            self.statusLabel.stringValue = @"Sync failed. Check connection.";
-            NSAlert *alert = [[NSAlert alloc] init];
+            NSString *message = IGAIUserFacingNetworkErrorMessage(error);
+            self.statusLabel.stringValue = message;
+            NSAlert *alert = [[[NSAlert alloc] init] autorelease];
             [alert setMessageText:@"Network Error"];
-            [alert setInformativeText:@"Failed to connect to AI server. On macOS 10.9-10.13, ensure your system clock is correct and root certificates are updated."];
+            [alert setInformativeText:message];
             [alert runModal];
         }
     }];
@@ -742,6 +854,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [[label cell] setWraps:YES];
     [sheet.contentView addSubview:label];
 
+    IGApplyThemeToWindow(sheet);
     self.helpSheetWindow = sheet;
     [NSApp beginSheet:self.helpSheetWindow
        modalForWindow:self.view.window
@@ -754,15 +867,12 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 
 - (void)syncLibClicked:(id)sender {
     if (![[IGiTunesService sharedService] iTunesIsRunning]) {
-        NSAlert *alert = [[NSAlert alloc] init];
+        NSAlert *alert = [[[NSAlert alloc] init] autorelease];
         [alert setMessageText:@"Open iTunes?"];
         [alert setInformativeText:@"Syncrosa needs iTunes to refresh the local library cache. It will not open iTunes unless you allow it."];
         [alert addButtonWithTitle:@"Open iTunes"];
         [alert addButtonWithTitle:@"Cancel"];
         NSInteger result = [alert runModal];
-#if !__has_feature(objc_arc)
-        [alert release];
-#endif
         if (result != NSAlertFirstButtonReturn) {
             self.syncLibStatusLabel.stringValue = @"Library sync cancelled.";
             return;
@@ -943,13 +1053,13 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
                 [(IGMainWindowController *)controller updateButtonStates];
             }
             
-            NSAlert *alert = [[NSAlert alloc] init];
+            NSAlert *alert = [[[NSAlert alloc] init] autorelease];
             [alert setMessageText:@"Settings Saved"];
             [alert setInformativeText:@"AI Provider configuration has been validated and saved securely in the Keychain."];
             [alert runModal];
         } else {
             self.statusLabel.stringValue = [NSString stringWithFormat:@"Validation failed: %@", errorMsg];
-            NSAlert *alert = [[NSAlert alloc] init];
+            NSAlert *alert = [[[NSAlert alloc] init] autorelease];
             [alert setMessageText:@"Validation Error"];
             [alert setInformativeText:errorMsg];
             [alert runModal];

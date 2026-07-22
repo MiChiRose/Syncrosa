@@ -2,6 +2,7 @@
 #import <math.h>
 
 NSString * const IGThemeDefaultsKey = @"SyncrosaLegacyThemeIdentifier";
+NSString * const IGAppearanceModeDefaultsKey = @"SyncrosaLegacyAppearanceMode";
 NSString * const IGThemeDidChangeNotification = @"IGThemeDidChangeNotification";
 
 static NSString * const IGThemeIdentifierClassic = @"classic-graphite";
@@ -10,6 +11,10 @@ static NSString * const IGThemeIdentifierSage = @"sage-graphite";
 static NSString * const IGThemeIdentifierPlum = @"soft-plum";
 static NSString * const IGThemeIdentifierRuby = @"ruby-graphite";
 static NSString * const IGThemeIdentifierOcean = @"ocean-mist";
+
+static NSString * const IGAppearanceModeIdentifierSystem = @"system";
+static NSString * const IGAppearanceModeIdentifierLight = @"light";
+static NSString * const IGAppearanceModeIdentifierDark = @"dark";
 
 typedef struct {
     CGFloat red;
@@ -33,6 +38,71 @@ typedef struct {
 } IGThemePalette;
 
 static IGThemePalette IGThemePaletteForIdentifier(NSString *identifier);
+static IGThemePalette IGDarkThemePaletteForIdentifier(NSString *identifier);
+static IGRGBColor IGRGBMake(NSUInteger hex);
+
+static BOOL IGAppearanceModeIdentifierIsValid(NSString *identifier) {
+    return [identifier isEqualToString:IGAppearanceModeIdentifierSystem] ||
+           [identifier isEqualToString:IGAppearanceModeIdentifierLight] ||
+           [identifier isEqualToString:IGAppearanceModeIdentifierDark];
+}
+
+NSString *IGAppearanceModeDisplayNameForIdentifier(NSString *identifier) {
+    if ([identifier isEqualToString:IGAppearanceModeIdentifierLight]) return @"Light";
+    if ([identifier isEqualToString:IGAppearanceModeIdentifierDark]) return @"Dark";
+    return @"System";
+}
+
+NSString *IGActiveAppearanceModeIdentifier(void) {
+    NSString *identifier = [[NSUserDefaults standardUserDefaults] stringForKey:IGAppearanceModeDefaultsKey];
+    return IGAppearanceModeIdentifierIsValid(identifier) ? identifier : IGAppearanceModeIdentifierSystem;
+}
+
+void IGSetActiveAppearanceModeIdentifier(NSString *identifier) {
+    if (!IGAppearanceModeIdentifierIsValid(identifier)) {
+        identifier = IGAppearanceModeIdentifierSystem;
+    }
+    [[NSUserDefaults standardUserDefaults] setObject:identifier forKey:IGAppearanceModeDefaultsKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    [[NSNotificationCenter defaultCenter] postNotificationName:IGThemeDidChangeNotification object:nil];
+}
+
+NSArray *IGAppearanceModeIdentifiers(void) {
+    return [NSArray arrayWithObjects:
+            IGAppearanceModeIdentifierSystem,
+            IGAppearanceModeIdentifierLight,
+            IGAppearanceModeIdentifierDark,
+            nil];
+}
+
+BOOL IGSystemAppearanceDetectionAvailable(void) {
+    SEL effectiveAppearanceSelector = NSSelectorFromString(@"effectiveAppearance");
+    return NSApp && [NSApp respondsToSelector:effectiveAppearanceSelector];
+}
+
+static BOOL IGSystemInterfaceIsDarkMode(void) {
+    if (!IGSystemAppearanceDetectionAvailable()) {
+        return NO;
+    }
+
+    NSString *appearanceName = nil;
+    SEL effectiveAppearanceSelector = NSSelectorFromString(@"effectiveAppearance");
+    SEL bestMatchSelector = NSSelectorFromString(@"bestMatchFromAppearances:");
+    id appearance = [NSApp performSelector:effectiveAppearanceSelector];
+    if (appearance && [appearance respondsToSelector:bestMatchSelector]) {
+        NSArray *candidates = [NSArray arrayWithObjects:@"NSAppearanceNameDarkAqua", @"NSAppearanceNameAqua", nil];
+        id match = [appearance performSelector:bestMatchSelector withObject:candidates];
+        if ([match isKindOfClass:[NSString class]]) {
+            appearanceName = (NSString *)match;
+        }
+    }
+
+    return [appearanceName isEqualToString:@"NSAppearanceNameDarkAqua"];
+}
+
+static BOOL IGSystemAppearanceNeedsClassicFallback(void) {
+    return !IGSystemAppearanceDetectionAvailable();
+}
 
 @interface IGThemedBackgroundView : NSView
 @property (nonatomic, assign) IGThemeBackgroundRole themeRole;
@@ -170,11 +240,39 @@ static BOOL IGColorIsThemeTextColor(NSColor *color) {
     NSArray *identifiers = IGThemeIdentifiers();
     for (NSString *identifier in identifiers) {
         IGThemePalette palette = IGThemePaletteForIdentifier(identifier);
+        IGThemePalette darkPalette = IGDarkThemePaletteForIdentifier(identifier);
         if (IGColorIsCloseToRGB(color, palette.text) || IGColorIsCloseToRGB(color, palette.mutedText)) {
+            return YES;
+        }
+        if (IGColorIsCloseToRGB(color, darkPalette.text) || IGColorIsCloseToRGB(color, darkPalette.mutedText)) {
             return YES;
         }
     }
     return NO;
+}
+
+static BOOL IGColorIsThemeDangerColor(NSColor *color) {
+    if (!color) {
+        return NO;
+    }
+    for (NSString *identifier in IGThemeIdentifiers()) {
+        IGThemePalette palette = IGThemePaletteForIdentifier(identifier);
+        IGThemePalette darkPalette = IGDarkThemePaletteForIdentifier(identifier);
+        if (IGColorIsCloseToRGB(color, palette.danger) || IGColorIsCloseToRGB(color, darkPalette.danger)) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static BOOL IGColorLooksDangerous(NSColor *color) {
+    CGFloat red = 0.0;
+    CGFloat green = 0.0;
+    CGFloat blue = 0.0;
+    if (!IGGetRGBComponents(color, &red, &green, &blue)) {
+        return NO;
+    }
+    return red > 0.45 && red > green + 0.20 && red > blue + 0.12;
 }
 
 NSArray *IGThemeIdentifiers(void) {
@@ -234,8 +332,59 @@ static IGThemePalette IGThemePaletteForIdentifier(NSString *identifier) {
     return IGThemePaletteMake(0xededed, 0xdbdedf, 0xf8f8f8, 0xffffff, 0xeeeeee, 0xf6f6f6, 0xbebebe, 0xc8c8c8, 0x222222, 0x666666, 0x5e768b, 0xaa4949);
 }
 
+static BOOL IGThemeShouldUseSystemFallbackAsClassic(void) {
+    return [IGActiveAppearanceModeIdentifier() isEqualToString:IGAppearanceModeIdentifierSystem] &&
+           IGSystemAppearanceNeedsClassicFallback();
+}
+
+static IGThemePalette IGDarkThemePaletteForIdentifier(NSString *identifier) {
+    if ([identifier isEqualToString:IGThemeIdentifierAqua]) {
+        return IGThemePaletteMake(0x101c24, 0x142630, 0x111f28, 0x192a34, 0x13232c, 0x243640, 0x3d5968, 0x304b59, 0xf1f7fa, 0x9eb8c7, 0x55b8f0, 0xec7890);
+    }
+    if ([identifier isEqualToString:IGThemeIdentifierSage]) {
+        return IGThemePaletteMake(0x131d16, 0x18271c, 0x152018, 0x1d2a20, 0x17231a, 0x28362b, 0x455c4a, 0x364c3c, 0xf2f7f3, 0xa4b9a9, 0x72c58a, 0xec7890);
+    }
+    if ([identifier isEqualToString:IGThemeIdentifierPlum]) {
+        return IGThemePaletteMake(0x1d151f, 0x291b2c, 0x201722, 0x2b202e, 0x241a27, 0x372a3a, 0x5f4865, 0x4c3851, 0xf8f1fa, 0xc0a8c6, 0xc58dda, 0xec7890);
+    }
+    if ([identifier isEqualToString:IGThemeIdentifierRuby]) {
+        return IGThemePaletteMake(0x211517, 0x2d1a1f, 0x24171a, 0x302126, 0x281b1f, 0x3c2a2f, 0x67464f, 0x533740, 0xfaf2f4, 0xc7a8af, 0xec7890, 0xff7a7a);
+    }
+    if ([identifier isEqualToString:IGThemeIdentifierOcean]) {
+        return IGThemePaletteMake(0x111e1d, 0x172927, 0x132220, 0x1c2d2b, 0x162624, 0x263936, 0x405f5b, 0x324d49, 0xf0f8f7, 0x9ebcb9, 0x5ac4bd, 0xec7890);
+    }
+    return IGThemePaletteMake(0x171a1d, 0x1d2226, 0x191d20, 0x22272b, 0x1b2024, 0x2a3035, 0x46515b, 0x39434c, 0xf0f2f4, 0xaebcc8, 0x84a7c7, 0xec7890);
+}
+
 static IGThemePalette IGActiveThemePalette(void) {
-    return IGThemePaletteForIdentifier(IGActiveThemeIdentifier());
+    NSString *activeTheme = IGActiveThemeIdentifier();
+    NSString *appearanceMode = IGActiveAppearanceModeIdentifier();
+
+    if (IGThemeShouldUseSystemFallbackAsClassic()) {
+        activeTheme = IGThemeIdentifierClassic;
+        appearanceMode = IGAppearanceModeIdentifierLight;
+    }
+
+    if ([appearanceMode isEqualToString:IGAppearanceModeIdentifierDark]) {
+        return IGDarkThemePaletteForIdentifier(activeTheme);
+    }
+
+    if ([appearanceMode isEqualToString:IGAppearanceModeIdentifierLight]) {
+        return IGThemePaletteForIdentifier(activeTheme);
+    }
+
+    return IGSystemInterfaceIsDarkMode() ? IGDarkThemePaletteForIdentifier(activeTheme) : IGThemePaletteForIdentifier(activeTheme);
+}
+
+static BOOL IGThemeUsesDarkAppearance(void) {
+    NSString *mode = IGActiveAppearanceModeIdentifier();
+    if ([mode isEqualToString:IGAppearanceModeIdentifierDark]) {
+        return YES;
+    }
+    if ([mode isEqualToString:IGAppearanceModeIdentifierLight] || IGThemeShouldUseSystemFallbackAsClassic()) {
+        return NO;
+    }
+    return IGSystemInterfaceIsDarkMode();
 }
 
 NSColor *IGThemeWindowColor(void) {
@@ -298,10 +447,11 @@ NSColor *IGThemeDangerColor(void) {
     NSRect bounds = [self bounds];
 
     if (self.themeRole == IGThemeBackgroundRoleSidebar) {
-        NSGradient *gradient = [[[NSGradient alloc] initWithStartingColor:IGColorBlend(IGThemeSidebarColor(), [NSColor whiteColor], 0.20)
+        CGFloat lightBlend = IGThemeUsesDarkAppearance() ? 0.05 : 0.20;
+        NSGradient *gradient = [[[NSGradient alloc] initWithStartingColor:IGColorBlend(IGThemeSidebarColor(), [NSColor whiteColor], lightBlend)
                                                                endingColor:IGColorBlend(IGThemeSidebarColor(), IGThemeWindowColor(), 0.35)] autorelease];
         [gradient drawInRect:bounds angle:-90.0];
-        [[IGColorWithAlpha([NSColor whiteColor], 0.42) colorUsingColorSpaceName:NSCalibratedRGBColorSpace] set];
+        [[IGColorWithAlpha([NSColor whiteColor], IGThemeUsesDarkAppearance() ? 0.10 : 0.42) colorUsingColorSpaceName:NSCalibratedRGBColorSpace] set];
         NSRectFill(NSMakeRect(NSMinX(bounds), NSMaxY(bounds) - 1.0, NSWidth(bounds), 1.0));
         [IGThemeDividerColor() set];
         NSRectFill(NSMakeRect(NSMaxX(bounds) - 1.0, NSMinY(bounds), 1.0, NSHeight(bounds)));
@@ -312,7 +462,11 @@ NSColor *IGThemeDangerColor(void) {
     [base set];
     NSRectFill(bounds);
 
-    NSGradient *topGlow = [[[NSGradient alloc] initWithStartingColor:IGColorWithAlpha([NSColor whiteColor], 0.34)
+    if (self.themeRole == IGThemeBackgroundRoleContent) {
+        return;
+    }
+
+    NSGradient *topGlow = [[[NSGradient alloc] initWithStartingColor:IGColorWithAlpha([NSColor whiteColor], IGThemeUsesDarkAppearance() ? 0.07 : 0.34)
                                                          endingColor:IGColorWithAlpha(base, 0.0)] autorelease];
     [topGlow drawInRect:NSMakeRect(NSMinX(bounds), NSMaxY(bounds) - 130.0, NSWidth(bounds), 130.0) angle:-90.0];
 
@@ -325,6 +479,30 @@ NSColor *IGThemeDangerColor(void) {
 
 @end
 
+static NSImage *IGTintedButtonImage(NSImage *source, NSColor *color, BOOL enabled) {
+    if (!source) {
+        return nil;
+    }
+
+    NSSize sourceSize = [source size];
+    if (sourceSize.width <= 0.0 || sourceSize.height <= 0.0) {
+        return source;
+    }
+
+    NSImage *result = [[[NSImage alloc] initWithSize:sourceSize] autorelease];
+    [result lockFocus];
+    [source drawInRect:NSMakeRect(0.0, 0.0, sourceSize.width, sourceSize.height)
+              fromRect:NSZeroRect
+             operation:NSCompositeSourceOver
+              fraction:enabled ? 1.0 : 0.55
+        respectFlipped:NO
+                 hints:nil];
+    [color set];
+    NSRectFillUsingOperation(NSMakeRect(0.0, 0.0, sourceSize.width, sourceSize.height), NSCompositeSourceAtop);
+    [result unlockFocus];
+    return result;
+}
+
 @implementation IGThemedButtonCell
 @synthesize themeRole = _themeRole;
 
@@ -332,6 +510,39 @@ NSColor *IGThemeDangerColor(void) {
     IGThemedButtonCell *copy = [super copyWithZone:zone];
     copy.themeRole = self.themeRole;
     return copy;
+}
+
+- (NSColor *)contentColor {
+    if (![self isEnabled]) {
+        if (self.themeRole == IGThemeButtonRoleDanger) {
+            return IGColorWithAlpha(IGThemeDangerColor(), 0.58);
+        }
+        return IGColorWithAlpha(IGThemeMutedTextColor(), 0.45);
+    }
+    BOOL selected = ([self state] == NSOnState);
+    if (self.themeRole == IGThemeButtonRolePrimary ||
+        self.themeRole == IGThemeButtonRoleDanger ||
+        (self.themeRole == IGThemeButtonRoleSidebar && selected)) {
+        return [NSColor whiteColor];
+    }
+    if (self.themeRole == IGThemeButtonRoleTab && selected) {
+        return IGThemeUsesDarkAppearance() ? [NSColor whiteColor] : IGColorBlend(IGThemeAccentColor(), [NSColor blackColor], 0.28);
+    }
+    return IGThemeTextColor();
+}
+
+- (NSRect)drawTitle:(NSAttributedString *)title withFrame:(NSRect)frame inView:(NSView *)controlView {
+    NSMutableAttributedString *themedTitle = [[[NSMutableAttributedString alloc] initWithAttributedString:title ?: [[[NSAttributedString alloc] initWithString:@""] autorelease]] autorelease];
+    NSRange fullRange = NSMakeRange(0, [themedTitle length]);
+    if (fullRange.length > 0) {
+        NSMutableParagraphStyle *style = [[[NSMutableParagraphStyle alloc] init] autorelease];
+        style.alignment = NSCenterTextAlignment;
+        style.lineBreakMode = NSLineBreakByTruncatingTail;
+        [themedTitle addAttribute:NSForegroundColorAttributeName value:[self contentColor] range:fullRange];
+        [themedTitle addAttribute:NSFontAttributeName value:([self font] ?: [NSFont systemFontOfSize:12.0]) range:fullRange];
+        [themedTitle addAttribute:NSParagraphStyleAttributeName value:style range:fullRange];
+    }
+    return [super drawTitle:themedTitle withFrame:frame inView:controlView];
 }
 
 - (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {
@@ -348,9 +559,9 @@ NSColor *IGThemeDangerColor(void) {
     NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:rect xRadius:radius yRadius:radius];
 
     NSColor *accent = danger ? IGThemeDangerColor() : IGThemeAccentColor();
-    NSColor *fillTop = IGThemeControlColor();
-    NSColor *fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeDividerColor(), 0.16);
-    NSColor *border = IGThemeControlBorderColor();
+    NSColor *fillTop = IGColorBlend(IGThemeControlColor(), [NSColor whiteColor], IGThemeUsesDarkAppearance() ? 0.06 : 0.34);
+    NSColor *fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeDividerColor(), IGThemeUsesDarkAppearance() ? 0.12 : 0.08);
+    NSColor *border = IGColorBlend(IGThemeControlBorderColor(), IGThemeAccentColor(), 0.12);
     NSColor *text = IGThemeTextColor();
 
     if (sidebar && selected) {
@@ -364,10 +575,11 @@ NSColor *IGThemeDangerColor(void) {
         border = IGColorBlend(accent, [NSColor blackColor], 0.18);
         text = [NSColor whiteColor];
     } else if (tab && selected) {
-        fillTop = IGColorBlend(accent, [NSColor whiteColor], 0.76);
-        fillBottom = IGColorBlend(accent, [NSColor whiteColor], 0.64);
+        CGFloat selectedBlend = IGThemeUsesDarkAppearance() ? 0.14 : 0.76;
+        fillTop = IGColorBlend(accent, [NSColor whiteColor], selectedBlend);
+        fillBottom = IGColorBlend(accent, IGThemeControlColor(), IGThemeUsesDarkAppearance() ? 0.28 : 0.12);
         border = IGColorBlend(accent, IGThemeControlBorderColor(), 0.26);
-        text = IGColorBlend(accent, [NSColor blackColor], 0.28);
+        text = IGThemeUsesDarkAppearance() ? [NSColor whiteColor] : IGColorBlend(accent, [NSColor blackColor], 0.28);
     } else if (sidebar) {
         fillTop = IGColorWithAlpha(IGThemePanelColor(), 0.76);
         fillBottom = IGColorWithAlpha(IGThemeControlColor(), 0.58);
@@ -382,10 +594,17 @@ NSColor *IGThemeDangerColor(void) {
     }
 
     if (!enabled) {
-        fillTop = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.56);
-        fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.68);
-        border = IGColorWithAlpha(IGThemeControlBorderColor(), 0.45);
-        text = IGColorWithAlpha(IGThemeMutedTextColor(), 0.58);
+        if (danger) {
+            fillTop = IGColorBlend(IGThemeControlColor(), IGThemeDangerColor(), 0.08);
+            fillBottom = IGColorBlend(IGThemeContentColor(), IGThemeDangerColor(), 0.05);
+            border = IGColorWithAlpha(IGThemeDangerColor(), 0.30);
+            text = IGColorWithAlpha(IGThemeDangerColor(), 0.58);
+        } else {
+            fillTop = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.70);
+            fillBottom = IGColorBlend(IGThemeControlColor(), IGThemeContentColor(), 0.78);
+            border = IGColorWithAlpha(IGThemeControlBorderColor(), 0.32);
+            text = IGColorWithAlpha(IGThemeMutedTextColor(), 0.45);
+        }
     }
 
     NSGradient *gradient = [[[NSGradient alloc] initWithStartingColor:fillTop endingColor:fillBottom] autorelease];
@@ -399,21 +618,21 @@ NSColor *IGThemeDangerColor(void) {
         [highlightPath stroke];
     }
 
-    NSMutableParagraphStyle *style = [[[NSMutableParagraphStyle alloc] init] autorelease];
-    [style setAlignment:NSCenterTextAlignment];
-    [style setLineBreakMode:NSLineBreakByTruncatingTail];
-
-    NSFont *font = [self font] ?: [NSFont systemFontOfSize:12.0];
-    NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
-                           font, NSFontAttributeName,
-                           text, NSForegroundColorAttributeName,
-                           style, NSParagraphStyleAttributeName,
-                           nil];
-    NSString *title = [self title] ?: @"";
-    NSSize size = [title sizeWithAttributes:attrs];
-    CGFloat textY = NSMinY(rect) + floor((NSHeight(rect) - size.height) / 2.0) + 1.0;
-    NSRect textRect = NSMakeRect(NSMinX(rect) + 8.0, textY, NSWidth(rect) - 16.0, size.height + 2.0);
-    [title drawInRect:textRect withAttributes:attrs];
+    NSImage *originalImage = [[self image] retain];
+    NSImage *originalAlternateImage = [[self alternateImage] retain];
+    if (originalImage) {
+        [self setImage:IGTintedButtonImage(originalImage, text, enabled)];
+    }
+    if (originalAlternateImage) {
+        [self setAlternateImage:IGTintedButtonImage(originalAlternateImage, text, enabled)];
+    }
+    [self drawInteriorWithFrame:NSInsetRect(rect, 5.0, 1.0) inView:controlView];
+    [self setImage:originalImage];
+    [self setAlternateImage:originalAlternateImage];
+#if !__has_feature(objc_arc)
+    [originalImage release];
+    [originalAlternateImage release];
+#endif
 }
 
 @end
@@ -436,11 +655,29 @@ static BOOL IGButtonIsChoiceControl(NSButton *button) {
     return ![button isBordered];
 }
 
+static void IGApplyThemeToChoiceControl(NSButton *button) {
+    NSString *title = [button title] ?: @"";
+    NSFont *font = [[button cell] font] ?: [NSFont systemFontOfSize:12.0];
+    NSColor *textColor = [button isEnabled] ? IGThemeTextColor() : IGThemeMutedTextColor();
+    NSDictionary *attributes = [NSDictionary dictionaryWithObjectsAndKeys:
+                                font, NSFontAttributeName,
+                                textColor, NSForegroundColorAttributeName,
+                                nil];
+    NSAttributedString *attributedTitle = [[[NSAttributedString alloc] initWithString:title
+                                                                            attributes:attributes] autorelease];
+    [button setAttributedTitle:attributedTitle];
+    [button setNeedsDisplay:YES];
+}
+
 void IGApplyThemeToButton(NSButton *button, IGThemeButtonRole role) {
     if (![button isKindOfClass:[NSButton class]] || [button isKindOfClass:[NSPopUpButton class]]) {
         return;
     }
-    if (button.bezelStyle == NSHelpButtonBezelStyle || IGButtonIsChoiceControl(button)) {
+    if (button.bezelStyle == NSHelpButtonBezelStyle) {
+        return;
+    }
+    if (IGButtonIsChoiceControl(button)) {
+        IGApplyThemeToChoiceControl(button);
         return;
     }
 
@@ -491,6 +728,8 @@ void IGApplyThemeToButton(NSButton *button, IGThemeButtonRole role) {
 #endif
     }
     cell.themeRole = role;
+    [cell setHighlightsBy:NSNoCellMask];
+    [cell setShowsStateBy:NSNoCellMask];
     [cell setTitle:[button title] ?: @""];
     [button setNeedsDisplay:YES];
 }
@@ -562,18 +801,53 @@ void IGApplyThemeToViewHierarchy(NSView *view) {
         }
     } else if ([view isKindOfClass:[NSTextField class]]) {
         NSTextField *field = (NSTextField *)view;
-        if (![field isEditable] && ![field isBordered]) {
+        if ([field isEditable] || [field isBordered]) {
+            field.textColor = IGThemeTextColor();
+            field.backgroundColor = IGThemeControlColor();
+            field.drawsBackground = YES;
+        } else {
             CGFloat size = [[field font] pointSize];
             NSColor *existingColor = [field textColor];
-            if (IGColorIsNeutral(existingColor) || IGColorIsThemeTextColor(existingColor)) {
+            if (IGColorIsThemeDangerColor(existingColor)) {
+                field.textColor = IGThemeDangerColor();
+                field.drawsBackground = NO;
+            } else if (IGColorIsNeutral(existingColor) || IGColorIsThemeTextColor(existingColor)) {
                 field.textColor = size <= 11.0 ? IGThemeMutedTextColor() : IGThemeTextColor();
                 field.drawsBackground = NO;
             }
         }
+    } else if ([view isKindOfClass:[NSTextView class]]) {
+        NSTextView *textView = (NSTextView *)view;
+        BOOL consoleStyle = [[textView font] isFixedPitch];
+        textView.backgroundColor = IGThemePanelInsetColor();
+        textView.textColor = consoleStyle ? IGThemeAccentColor() : IGThemeTextColor();
+        textView.insertionPointColor = IGThemeAccentColor();
+        if (consoleStyle && [[textView textStorage] length] > 0) {
+            [[textView textStorage] addAttribute:NSForegroundColorAttributeName
+                                           value:IGThemeAccentColor()
+                                           range:NSMakeRange(0, [[textView textStorage] length])];
+        }
+        [textView setNeedsDisplay:YES];
+    } else if ([view isKindOfClass:[NSTableView class]]) {
+        NSTableView *tableView = (NSTableView *)view;
+        tableView.backgroundColor = IGThemePanelInsetColor();
+        tableView.gridColor = IGThemeDividerColor();
+        [tableView setNeedsDisplay:YES];
+    } else if ([view isKindOfClass:[NSScrollView class]]) {
+        NSScrollView *scrollView = (NSScrollView *)view;
+        scrollView.drawsBackground = YES;
+        scrollView.backgroundColor = IGThemePanelInsetColor();
+        [[scrollView contentView] setBackgroundColor:IGThemePanelInsetColor()];
+        [scrollView setNeedsDisplay:YES];
+    } else if ([view isKindOfClass:[NSProgressIndicator class]]) {
+        [(NSProgressIndicator *)view setControlTint:(IGThemeUsesDarkAppearance() ? NSGraphiteControlTint : NSBlueControlTint)];
+        [view setNeedsDisplay:YES];
     } else if ([view isKindOfClass:[NSBox class]]) {
         NSBox *box = (NSBox *)view;
         if ([box boxType] == NSBoxCustom) {
-            box.fillColor = IGThemePanelColor();
+            BOOL warningStyle = IGColorIsThemeDangerColor([box borderColor]) || IGColorLooksDangerous([box borderColor]);
+            box.fillColor = warningStyle ? IGColorBlend(IGThemePanelColor(), IGThemeDangerColor(), 0.12) : IGThemePanelColor();
+            box.borderColor = warningStyle ? IGThemeDangerColor() : IGThemeControlBorderColor();
         }
     }
 
@@ -598,4 +872,14 @@ void IGRefreshThemedViews(NSView *view) {
 #if !__has_feature(objc_arc)
     [children release];
 #endif
+}
+
+void IGApplyThemeToWindow(NSWindow *window) {
+    if (!window) {
+        return;
+    }
+    [window setBackgroundColor:IGThemeContentColor()];
+    IGInstallThemedContentBackground([window contentView]);
+    IGApplyThemeToViewHierarchy([window contentView]);
+    IGRefreshThemedViews([window contentView]);
 }
