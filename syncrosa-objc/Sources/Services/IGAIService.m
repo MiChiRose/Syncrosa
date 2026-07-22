@@ -31,6 +31,34 @@ static BOOL IGAIWritePrivateData(NSData *data, NSString *path) {
     return YES;
 }
 
+NSString *IGAICurlExecutablePath(void) {
+    NSString *bundled = [[NSBundle mainBundle] pathForResource:@"curl" ofType:nil inDirectory:@"LegacyCurl"];
+    NSArray *candidates = @[
+        bundled ?: @"",
+        @"/opt/local/bin/curl",
+        @"/usr/local/bin/curl",
+        @"/opt/homebrew/bin/curl",
+        @"/usr/bin/curl"
+    ];
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    for (NSString *path in candidates) {
+        if (path.length > 0 && [fileManager isExecutableFileAtPath:path]) {
+            return path;
+        }
+    }
+    return @"/usr/bin/curl";
+}
+
+NSString *IGAIUserFacingNetworkErrorMessage(NSError *error) {
+    if ([[error domain] isEqualToString:@"IGCurlError"] && [error code] == 35) {
+        return @"Secure connection failed. This Mac could not negotiate modern TLS with the AI provider.";
+    }
+    if ([[error domain] isEqualToString:NSURLErrorDomain]) {
+        return @"Could not connect to the AI provider. Check the network connection and try again.";
+    }
+    return @"Could not connect to the AI provider. Try again in a moment.";
+}
+
 @implementation IGAIService
 
 + (instancetype)sharedService {
@@ -53,7 +81,16 @@ static BOOL IGAIWritePrivateData(NSData *data, NSString *path) {
               completion:(void(^)(NSData *data, NSError *error))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSTask *task = [[[NSTask alloc] init] autorelease];
-        [task setLaunchPath:@"/usr/bin/curl"];
+        NSString *curlPath = IGAICurlExecutablePath();
+        [task setLaunchPath:curlPath];
+        NSString *bundledLibPath = [[[curlPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"lib"] stringByStandardizingPath];
+        BOOL bundledRuntime = [curlPath rangeOfString:@"/Contents/Resources/LegacyCurl/"].location != NSNotFound;
+        if (bundledRuntime && [[NSFileManager defaultManager] fileExistsAtPath:bundledLibPath]) {
+            NSMutableDictionary *environment = [NSMutableDictionary dictionaryWithDictionary:[[NSProcessInfo processInfo] environment]];
+            [environment setObject:bundledLibPath forKey:@"DYLD_LIBRARY_PATH"];
+            [task setEnvironment:environment];
+        }
+        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"AI request transport: %@", curlPath]];
 
         NSString *requestMethod = method.length > 0 ? method : @"GET";
         NSMutableString *curlConfig = [NSMutableString string];
@@ -166,6 +203,13 @@ static BOOL IGAIWritePrivateData(NSData *data, NSString *path) {
 }
 
 - (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock {
+    [self fetchOpenRouterModelsWithDetailedCompletion:^(NSArray *models, NSError *error) {
+        (void)error;
+        completionBlock(models);
+    }];
+}
+
+- (void)fetchOpenRouterModelsWithDetailedCompletion:(void(^)(NSArray *models, NSError *error))completionBlock {
     NSURL *url = [NSURL URLWithString:@"https://openrouter.ai/api/v1/models"];
     NSDictionary *headers = @{
         @"HTTP-Referer": @"https://github.com/MiChiRose/Syncrosa",
@@ -185,12 +229,12 @@ static BOOL IGAIWritePrivateData(NSData *data, NSString *path) {
             }
             [freeModels sortUsingSelector:@selector(compare:)];
             dispatch_async(dispatch_get_main_queue(), ^{
-                completionBlock(freeModels);
+                completionBlock(freeModels, nil);
             });
         } else {
             [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Sync failed: %@", error.localizedDescription]];
             dispatch_async(dispatch_get_main_queue(), ^{
-                completionBlock(nil);
+                completionBlock(nil, error);
             });
         }
     }];
@@ -244,7 +288,7 @@ static BOOL IGAIWritePrivateData(NSData *data, NSString *path) {
     [self makeRequestToURL:url method:@"POST" headers:headers body:body completion:^(NSData *data, NSError *error) {
         if (error || !data) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                completionBlock(NO, error ? error.localizedDescription : @"Unknown network error");
+                completionBlock(NO, error ? IGAIUserFacingNetworkErrorMessage(error) : @"Unknown network error");
             });
             return;
         }

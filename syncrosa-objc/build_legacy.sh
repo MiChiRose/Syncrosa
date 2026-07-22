@@ -75,6 +75,10 @@ COMMON_SETTINGS=(
     "DSTROOT=$BUILD_ROOT/Install"
 )
 
+if [ -z "${SYNCROSA_SCHEME:-}" ] && [ -f "$PROJECT/xcshareddata/xcschemes/Syncrosa.xcscheme" ]; then
+    SYNCROSA_SCHEME="Syncrosa"
+fi
+
 echo "🎯 Targeting OS X $DEPLOYMENT_TARGET ($ARCH)."
 echo "🧰 Using $("$XCODEBUILD" -version | tr '\n' ' ') with SDK $SDK_NAME."
 echo "⚙️ Legacy mode disables ARC runtime autolinking to avoid modern Xcode libarclite crashes."
@@ -115,6 +119,83 @@ if [ ! -d "$APP_PATH" ]; then
 fi
 
 ditto "$APP_PATH" "$APP_NAME"
+
+bundle_legacy_curl_runtime() {
+    local curl_source="${SYNCROSA_LEGACY_CURL_PATH:-}"
+    if [ -z "$curl_source" ]; then
+        for candidate in /opt/local/bin/curl /usr/local/bin/curl; do
+            if [ -x "$candidate" ] && "$candidate" --version 2>/dev/null | grep -q "OpenSSL"; then
+                curl_source="$candidate"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$curl_source" ] || [ ! -x "$curl_source" ]; then
+        echo "⚠️ Modern legacy curl was not found; AI requests will use the system transport fallback."
+        return 0
+    fi
+
+    if ! file "$curl_source" | grep -q "x86_64"; then
+        echo "❌ Legacy curl is not x86_64: $curl_source"
+        return 1
+    fi
+
+    local runtime_dir="$APP_NAME/Contents/Resources/LegacyCurl"
+    local library_dir="$runtime_dir/lib"
+    mkdir -p "$library_dir"
+    cp -L "$curl_source" "$runtime_dir/curl"
+    chmod 755 "$runtime_dir/curl"
+
+    collect_legacy_curl_dependency() {
+        local dependency="$1"
+        case "$dependency" in
+            /opt/local/*|/usr/local/*)
+                local destination="$library_dir/$(basename "$dependency")"
+                if [ -f "$destination" ]; then
+                    return 0
+                fi
+                cp -L "$dependency" "$destination"
+                while IFS= read -r nested_dependency; do
+                    collect_legacy_curl_dependency "$nested_dependency"
+                done < <(otool -L "$dependency" | awk 'NR > 1 && ($1 ~ /^\/opt\/local\// || $1 ~ /^\/usr\/local\//) { print $1 }')
+                ;;
+        esac
+    }
+
+    while IFS= read -r dependency; do
+        collect_legacy_curl_dependency "$dependency"
+    done < <(otool -L "$curl_source" | awk 'NR > 1 && ($1 ~ /^\/opt\/local\// || $1 ~ /^\/usr\/local\//) { print $1 }')
+
+    local runtime_file
+    for runtime_file in "$runtime_dir/curl" "$library_dir"/*.dylib; do
+        if ! file "$runtime_file" | grep -q "x86_64"; then
+            echo "❌ Bundled curl dependency is not x86_64: $runtime_file"
+            return 1
+        fi
+        local minimum_os
+        minimum_os=$(otool -l "$runtime_file" | awk '/LC_VERSION_MIN_MACOSX/{found=1} found && /version /{print $2; exit}')
+        if [ -n "$minimum_os" ] && [ "$minimum_os" != "$DEPLOYMENT_TARGET" ]; then
+            echo "❌ Bundled curl dependency targets OS X $minimum_os instead of $DEPLOYMENT_TARGET: $runtime_file"
+            return 1
+        fi
+    done
+
+    if [ -f /opt/local/share/doc/curl/COPYING ]; then
+        cp /opt/local/share/doc/curl/COPYING "$runtime_dir/CURL-LICENSE.txt"
+    fi
+
+    if ! DYLD_LIBRARY_PATH="$library_dir" "$runtime_dir/curl" --version >/dev/null 2>&1; then
+        echo "❌ Bundled legacy curl could not start from the application bundle."
+        return 1
+    fi
+
+    local dependency_count
+    dependency_count=$(find "$library_dir" -type f -name '*.dylib' | wc -l | tr -d ' ')
+    echo "✅ Bundled modern curl transport with $dependency_count Mavericks-compatible libraries."
+}
+
+bundle_legacy_curl_runtime
 
 INFO_PLIST="$APP_NAME/Contents/Info.plist"
 BINARY_PATH="$APP_NAME/Contents/MacOS/$EXECUTABLE_NAME"
@@ -159,7 +240,7 @@ xattr -cr "$APP_NAME" 2>/dev/null || true
 codesign --force --deep --sign - "$APP_NAME"
 codesign --verify --deep "$APP_NAME"
 
-echo "🧪 Compiling tests..."
+echo "🧪 Running tests..."
 if [ -n "${SYNCROSA_SCHEME:-}" ]; then
     "$XCODEBUILD" \
         -project "$PROJECT" \
@@ -171,7 +252,7 @@ if [ -n "${SYNCROSA_SCHEME:-}" ]; then
         "${COMMON_SETTINGS[@]}" \
         "SYMROOT=$BUILD_ROOT/tests" \
         "OBJROOT=$BUILD_ROOT/tests/Intermediates" \
-        build-for-testing 2>&1 | tee test.log
+        test 2>&1 | tee test.log
 else
     "$XCODEBUILD" \
         -project "$PROJECT" \
@@ -185,7 +266,7 @@ else
         build 2>&1 | tee test.log
 fi
 
-echo "✅ Tests compiled."
+echo "✅ Tests passed."
 
 echo "📦 Creating distribution ZIP..."
 mkdir -p "$DIST_DIR"

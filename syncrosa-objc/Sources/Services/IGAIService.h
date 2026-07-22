@@ -1,5 +1,8 @@
 #import <Foundation/Foundation.h>
 
+FOUNDATION_EXPORT NSString *IGAICurlExecutablePath(void);
+FOUNDATION_EXPORT NSString *IGAIUserFacingNetworkErrorMessage(NSError *error);
+
 @interface IGAIService : NSObject
 
 + (instancetype)sharedService;
@@ -9,6 +12,7 @@
 @property (nonatomic, copy) NSString *model;
 
 - (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock;
+- (void)fetchOpenRouterModelsWithDetailedCompletion:(void(^)(NSArray *models, NSError *error))completionBlock;
 
 - (void)makeRequestToURL:(NSURL *)url
                   method:(NSString *)method

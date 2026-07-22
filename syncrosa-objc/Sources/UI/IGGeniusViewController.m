@@ -3,6 +3,9 @@
 #import "IGAIService.h"
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
+#import "IGTheme.h"
+#import "IGHelpSheetPresenter.h"
+#import "IGIconProvider.h"
 
 @interface IGGeniusViewController () <NSTextFieldDelegate>
 
@@ -21,15 +24,28 @@
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
-@property (nonatomic, strong) NSTextField *footerLabel;
 @property (nonatomic, assign) BOOL isGenerating;
 
 @end
 
+static NSBox *IGGeniusRoundedPanel(NSRect frame)
+{
+    NSBox *panel = [[[NSBox alloc] initWithFrame:frame] autorelease];
+    panel.boxType = NSBoxCustom;
+    panel.titlePosition = NSNoTitle;
+    panel.borderType = NSLineBorder;
+    panel.borderWidth = 1.0;
+    panel.cornerRadius = 8.0;
+    panel.fillColor = IGThemePanelColor();
+    panel.borderColor = IGThemeControlBorderColor();
+    panel.transparent = NO;
+    return panel;
+}
+
 @implementation IGGeniusViewController
 
 - (void)loadView {
-    self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)];
+    self.view = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)] autorelease];
     [self setupUI];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -47,142 +63,149 @@
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 #if !__has_feature(objc_arc)
+    [_titleLabel release];
+    [_configLabel release];
+    [_nameLabel release];
+    [_nameCounterLabel release];
+    [_playlistNameField release];
+    [_promptLabel release];
+    [_promptCounterLabel release];
+    [_promptField release];
+    [_countLabel release];
+    [_countField release];
+    [_stepper release];
+    [_generateButton release];
+    [_helpSheetWindow release];
+    [_progressIndicator release];
+    [_statusLabel release];
     [super dealloc];
 #endif
 }
 
 - (void)setupUI {
-    CGFloat y = 430;
-    
-    // Title
-    self.titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)];
+    self.titleLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, 432, 540, 30)] autorelease];
     self.titleLabel.font = [NSFont boldSystemFontOfSize:18];
     self.titleLabel.editable = NO;
     self.titleLabel.bordered = NO;
     self.titleLabel.drawsBackground = NO;
     self.titleLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.titleLabel];
-    
-    NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
+
+    NSButton *helpButton = [[[NSButton alloc] initWithFrame:NSMakeRect(520, 434, 25, 25)] autorelease];
     helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
     [self.view addSubview:helpButton];
-    
-    y -= 25;
-    // Active configuration label
-    self.configLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 16)];
+
+    NSBox *configPanel = IGGeniusRoundedPanel(NSMakeRect(70, 388, 440, 36));
+    [configPanel addSubview:IGCreateThemedIconView(@"star", NSMakeRect(14, 9, 18, 18), IGThemeIconRoleAccent)];
+    [self.view addSubview:configPanel];
+
+    self.configLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(42, 8, 382, 19)] autorelease];
     self.configLabel.font = [NSFont systemFontOfSize:11];
-    self.configLabel.textColor = [NSColor grayColor];
+    self.configLabel.textColor = IGThemeMutedTextColor();
     self.configLabel.editable = NO;
     self.configLabel.bordered = NO;
     self.configLabel.drawsBackground = NO;
     self.configLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:self.configLabel];
-    
-    y -= 45;
-    // Playlist Name
-    self.nameLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 350, 20)];
+    [[self.configLabel cell] setLineBreakMode:NSLineBreakByTruncatingMiddle];
+    [configPanel addSubview:self.configLabel];
+
+    NSBox *detailsPanel = IGGeniusRoundedPanel(NSMakeRect(35, 270, 510, 104));
+    [self.view addSubview:detailsPanel];
+
+    self.nameLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 66, 250, 20)] autorelease];
     self.nameLabel.font = [NSFont systemFontOfSize:13];
     self.nameLabel.editable = NO;
     self.nameLabel.bordered = NO;
     self.nameLabel.drawsBackground = NO;
-    [self.view addSubview:self.nameLabel];
-    
-    self.nameCounterLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(400, y, 160, 20)];
+    [detailsPanel addSubview:self.nameLabel];
+
+    self.nameCounterLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(276, 66, 62, 20)] autorelease];
     self.nameCounterLabel.font = [NSFont systemFontOfSize:11];
-    self.nameCounterLabel.textColor = [NSColor grayColor];
+    self.nameCounterLabel.textColor = IGThemeMutedTextColor();
     self.nameCounterLabel.alignment = NSRightTextAlignment;
     self.nameCounterLabel.editable = NO;
     self.nameCounterLabel.bordered = NO;
     self.nameCounterLabel.drawsBackground = NO;
-    [self.view addSubview:self.nameCounterLabel];
-    
-    y -= 25;
-    self.playlistNameField = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 24)];
-    self.playlistNameField.stringValue = @"My AI Playlist";
-    self.playlistNameField.delegate = self;
-    [self.view addSubview:self.playlistNameField];
-    
-    y -= 40;
-    // Prompt
-    self.promptLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 350, 20)];
-    self.promptLabel.font = [NSFont systemFontOfSize:13];
-    self.promptLabel.editable = NO;
-    self.promptLabel.bordered = NO;
-    self.promptLabel.drawsBackground = NO;
-    [self.view addSubview:self.promptLabel];
-    
-    self.promptCounterLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(400, y, 160, 20)];
-    self.promptCounterLabel.font = [NSFont systemFontOfSize:11];
-    self.promptCounterLabel.textColor = [NSColor grayColor];
-    self.promptCounterLabel.alignment = NSRightTextAlignment;
-    self.promptCounterLabel.editable = NO;
-    self.promptCounterLabel.bordered = NO;
-    self.promptCounterLabel.drawsBackground = NO;
-    [self.view addSubview:self.promptCounterLabel];
-    
-    y -= 25;
-    self.promptField = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 24)];
-    self.promptField.delegate = self;
-    [self.view addSubview:self.promptField];
-    
-    y -= 40;
-    // Count
-    self.countLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
+    [detailsPanel addSubview:self.nameCounterLabel];
+
+    self.countLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(358, 66, 128, 20)] autorelease];
     self.countLabel.font = [NSFont systemFontOfSize:13];
     self.countLabel.editable = NO;
     self.countLabel.bordered = NO;
     self.countLabel.drawsBackground = NO;
-    [self.view addSubview:self.countLabel];
-    
-    y -= 25;
-    self.countField = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 80, 24)];
+    [detailsPanel addSubview:self.countLabel];
+
+    self.playlistNameField = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 24, 316, 30)] autorelease];
+    self.playlistNameField.bezelStyle = NSTextFieldRoundedBezel;
+    self.playlistNameField.stringValue = @"My AI Playlist";
+    self.playlistNameField.delegate = self;
+    [detailsPanel addSubview:self.playlistNameField];
+
+    self.countField = [[[NSTextField alloc] initWithFrame:NSMakeRect(358, 24, 88, 30)] autorelease];
+    self.countField.bezelStyle = NSTextFieldRoundedBezel;
     self.countField.stringValue = @"20";
     self.countField.delegate = self;
-    [self.view addSubview:self.countField];
-    
-    self.stepper = [[NSStepper alloc] initWithFrame:NSMakeRect(105, y-2, 19, 28)];
+    [detailsPanel addSubview:self.countField];
+
+    self.stepper = [[[NSStepper alloc] initWithFrame:NSMakeRect(454, 24, 19, 30)] autorelease];
     self.stepper.minValue = 1;
     self.stepper.maxValue = 100;
     self.stepper.integerValue = 20;
     self.stepper.target = self;
     self.stepper.action = @selector(stepperChanged:);
-    [self.view addSubview:self.stepper];
-    
-    y -= 60;
-    self.generateButton = [[NSButton alloc] initWithFrame:NSMakeRect(190, y, 200, 40)];
+    [detailsPanel addSubview:self.stepper];
+
+    NSBox *promptPanel = IGGeniusRoundedPanel(NSMakeRect(35, 157, 510, 99));
+    [self.view addSubview:promptPanel];
+
+    self.promptLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 61, 390, 20)] autorelease];
+    self.promptLabel.font = [NSFont systemFontOfSize:13];
+    self.promptLabel.editable = NO;
+    self.promptLabel.bordered = NO;
+    self.promptLabel.drawsBackground = NO;
+    [promptPanel addSubview:self.promptLabel];
+
+    self.promptCounterLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(414, 61, 72, 20)] autorelease];
+    self.promptCounterLabel.font = [NSFont systemFontOfSize:11];
+    self.promptCounterLabel.textColor = IGThemeMutedTextColor();
+    self.promptCounterLabel.alignment = NSRightTextAlignment;
+    self.promptCounterLabel.editable = NO;
+    self.promptCounterLabel.bordered = NO;
+    self.promptCounterLabel.drawsBackground = NO;
+    [promptPanel addSubview:self.promptCounterLabel];
+
+    self.promptField = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 19, 464, 30)] autorelease];
+    self.promptField.bezelStyle = NSTextFieldRoundedBezel;
+    self.promptField.delegate = self;
+    [promptPanel addSubview:self.promptField];
+
+    NSBox *actionPanel = IGGeniusRoundedPanel(NSMakeRect(35, 35, 510, 108));
+    [self.view addSubview:actionPanel];
+
+    self.generateButton = [[[NSButton alloc] initWithFrame:NSMakeRect(125, 59, 260, 38)] autorelease];
     self.generateButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.generateButton.target = self;
     self.generateButton.action = @selector(generateClicked:);
-    [self.view addSubview:self.generateButton];
-    
-    y -= 50;
-    self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
+    IGConfigureIconButton(self.generateButton, @"star", @"Generate an AI playlist from the current iTunes library", NO);
+    [actionPanel addSubview:self.generateButton];
+
+    self.progressIndicator = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(25, 34, 460, 15)] autorelease];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
     self.progressIndicator.indeterminate = NO;
     self.progressIndicator.hidden = YES;
-    [self.view addSubview:self.progressIndicator];
-    
-    y -= 30;
-    self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 20)];
+    [actionPanel addSubview:self.progressIndicator];
+
+    self.statusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(25, 11, 460, 18)] autorelease];
     self.statusLabel.editable = NO;
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
     self.statusLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:self.statusLabel];
-    
-    // Footer
-    self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
-    self.footerLabel.font = [NSFont systemFontOfSize:10];
-    self.footerLabel.textColor = [NSColor grayColor];
-    self.footerLabel.alignment = NSCenterTextAlignment;
-    self.footerLabel.editable = NO;
-    self.footerLabel.bordered = NO;
-    self.footerLabel.drawsBackground = NO;
-    [self.view addSubview:self.footerLabel];
-    
+    self.statusLabel.textColor = IGThemeMutedTextColor();
+    [actionPanel addSubview:self.statusLabel];
+
     [self updateLocalization];
     [self updateCharacterCounters];
     [self updateGenerateButtonState];
@@ -196,7 +219,8 @@
     self.promptLabel.stringValue = [lang t:@"pl_mood"];
     self.countLabel.stringValue = [lang t:@"track_count"];
     self.generateButton.title = [lang t:@"generate_playlist"];
-    self.footerLabel.stringValue = [lang t:@"footer"];
+    IGConfigureIconButton(self.generateButton, @"star", @"Generate an AI playlist from the current iTunes library", NO);
+    IGApplyThemeToButton(self.generateButton, IGThemeButtonRolePrimary);
     
     if (self.statusLabel.stringValue.length == 0 || 
         [self.statusLabel.stringValue isEqualToString:@"Ready"] || 
@@ -266,6 +290,7 @@
 
 - (void)updateGenerateButtonState {
     self.generateButton.enabled = [self canGeneratePlaylist];
+    IGApplyThemeToButton(self.generateButton, IGThemeButtonRolePrimary);
 }
 
 - (void)finishGeneration {
@@ -373,42 +398,20 @@
 }
 
 - (void)helpClicked:(id)sender {
-    NSString *helpText = @"AI Playlist Generator Help\n\n"
-                          "This utility lets you generate customized smart playlists using Artificial Intelligence (based on Google Gemini or other providers configured in Settings):\n\n"
-                          "1. Playlist Name: Set a name for the new playlist that will be created in iTunes/Music.\n"
-                          "2. Prompt / Mood: Describe the mood, style, or genres you want (e.g., 'chill electronic music for coding' or 'energetic 80s rock').\n"
-                          "3. Track Count: Select how many tracks you want in the playlist.\n"
-                          "4. Generation: Syncrosa will analyze your library cache, request matching recommendations from the AI API, and automatically create and populate the playlist in iTunes/Music.";
-    
-    NSWindow *sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 420, 260)
-                                                  styleMask:NSTitledWindowMask
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:YES];
-    
-    NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20, 60, 380, 180)];
-    scroll.hasVerticalScroller = YES;
-    scroll.borderType = NSBezelBorder;
-    
-    NSTextView *textView = [[NSTextView alloc] initWithFrame:scroll.bounds];
-    textView.editable = NO;
-    textView.string = helpText;
-    textView.font = [NSFont systemFontOfSize:12];
-    scroll.documentView = textView;
-    [sheet.contentView addSubview:scroll];
-    
-    NSButton *closeButton = [[NSButton alloc] initWithFrame:NSMakeRect(160, 15, 100, 30)];
-    closeButton.title = @"OK";
-    closeButton.bezelStyle = NSRoundedBezelStyle;
-    closeButton.target = self;
-    closeButton.action = @selector(closeHelpSheet:);
-    [sheet.contentView addSubview:closeButton];
-    
-    self.helpSheetWindow = sheet;
-    if ([self.view.window respondsToSelector:@selector(beginSheet:completionHandler:)]) {
-        [self.view.window beginSheet:sheet completionHandler:nil];
-    } else {
-        [NSApp beginSheet:sheet modalForWindow:self.view.window modalDelegate:nil didEndSelector:NULL contextInfo:NULL];
-    }
+    (void)sender;
+    if (self.helpSheetWindow) return;
+    NSArray *sections = @[
+        IGHelpSectionMake(@"Prepare", @"Save a valid AI provider key in Settings, make sure iTunes is running, and choose a name for the new playlist."),
+        IGHelpSectionMake(@"Describe the selection", @"Write a clear mood, activity, style, or genre request and choose the desired track count. Syncrosa sends library metadata, not audio files."),
+        IGHelpSectionMake(@"Review the result", @"The provider returns matching tracks from your library. Syncrosa creates and fills the playlist only after a usable selection is received.")
+    ];
+    self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"AI Playlist Generator"
+                                                        summary:@"Build a playlist from your own iTunes library using the provider configured in Settings."
+                                                       sections:sections
+                                                     closeTitle:@"Close"
+                                                         target:self
+                                                         action:@selector(closeHelpSheet:)];
+    [IGHelpSheetPresenter presentSheet:self.helpSheetWindow forWindow:self.view.window];
 }
 
 - (void)closeHelpSheet:(id)sender {
