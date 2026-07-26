@@ -10,6 +10,9 @@
 		2B37C8AAFCC14A859447B584 /* AppIcon.icns in Build */ = {isa = PBXBuildFile; fileRef = AD5AC2D01D7F4A9288580D6C /* AppIcon.icns */; };
 		EB17A9FF5DE74A2A8145574B /* main.m in Build */ = {isa = PBXBuildFile; fileRef = EDE5A007CE47410C985AFE3F /* main.m */; };
 		45F976B84D6F4AAB82A9012F /* AppDelegate.m in Build */ = {isa = PBXBuildFile; fileRef = AFC37F0A11EB4D2C9F7CF50F /* AppDelegate.m */; };
+		F10000000000000000000001 /* IGIPodCompatibilityService.m in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* IGIPodCompatibilityService.m */; };
+		F10000000000000000000002 /* IGIPodConverterViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* IGIPodConverterViewController.m */; };
+		F10000000000000000000003 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* AudioToolbox.framework */; };
 		55E17EDC96C34EE2B003EC06 /* IGSettingsViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 0EA22F9DFA6C4F7AADE200A3 /* IGSettingsViewController.m */; };
 		A34601000000000000000001 /* IGUpdateSupport.m in Build */ = {isa = PBXBuildFile; fileRef = A34601000000000000000004 /* IGUpdateSupport.m */; };
 		A34601000000000000000002 /* IGTheme.m in Build */ = {isa = PBXBuildFile; fileRef = A34601000000000000000006 /* IGTheme.m */; };
@@ -159,6 +162,11 @@
 		74988E5C7C364D7AA8302DEB /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
 		1797CE731B744A29BCCCFDDF /* IGKeychainHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGKeychainHelper.m"; sourceTree = "<group>"; };
 		0B11E06C09474BA782581110 /* IGUSBService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBService.h"; sourceTree = "<group>"; };
+		F10000000000000000000010 /* IGIPodCompatibilityService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGIPodCompatibilityService.h"; sourceTree = "<group>"; };
+		F10000000000000000000011 /* IGIPodCompatibilityService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGIPodCompatibilityService.m"; sourceTree = "<group>"; };
+		F10000000000000000000012 /* IGIPodConverterViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGIPodConverterViewController.h"; sourceTree = "<group>"; };
+		F10000000000000000000013 /* IGIPodConverterViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGIPodConverterViewController.m"; sourceTree = "<group>"; };
+		F10000000000000000000014 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		82ED0CB27F3C48F6A4113858 /* SyncrosaTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "SyncrosaTests.m"; sourceTree = "<group>"; };
 		6FC946587A2C4A71BB213DC8 /* IGBusinessLogicTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGBusinessLogicTests.m"; sourceTree = "<group>"; };
 		F484DEA683B142DFA5253185 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
@@ -171,6 +179,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F10000000000000000000003 /* AudioToolbox.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -284,6 +293,8 @@
 				74988E5C7C364D7AA8302DEB /* IGLogger.h */,
 				1797CE731B744A29BCCCFDDF /* IGKeychainHelper.m */,
 				0B11E06C09474BA782581110 /* IGUSBService.h */,
+				F10000000000000000000010 /* IGIPodCompatibilityService.h */,
+				F10000000000000000000011 /* IGIPodCompatibilityService.m */,
 			);
 			path = "Services";
 			sourceTree = "<group>";
@@ -332,6 +343,8 @@
 				E4BAFEFCB6B4420B857060EE /* IGCoversOptimizerViewController.m */,
 				3ADEA23E2DA14FEFB58F38CF /* IGUSBExportViewController.h */,
 				EAD24D55D2BA422C89A18EFE /* IGFileFixerViewController.h */,
+				F10000000000000000000012 /* IGIPodConverterViewController.h */,
+				F10000000000000000000013 /* IGIPodConverterViewController.m */,
 			);
 			path = "UI";
 			sourceTree = "<group>";
@@ -533,6 +546,8 @@
 				26C43F4A34364DBBA8D76048 /* IGiTunesService.m in Sources */,
 				B34601000000000000000001 /* IGPlaylistJSONSupport.m in Sources */,
 				9F60C8D49F284C8ABB40C455 /* IGKeychainHelper.m in Sources */,
+				F10000000000000000000001 /* IGIPodCompatibilityService.m in Sources */,
+				F10000000000000000000002 /* IGIPodConverterViewController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

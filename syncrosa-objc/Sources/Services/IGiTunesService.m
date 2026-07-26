@@ -132,6 +132,125 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
     return running;
 }
 
+- (NSString *)persistentIDForFilePath:(NSString *)filePath
+                         errorMessage:(NSString **)errorMessage {
+    if (errorMessage) {
+        *errorMessage = nil;
+    }
+    if (![self iTunesIsRunning]) {
+        if (errorMessage) {
+            *errorMessage = @"iTunes is not running.";
+        }
+        return nil;
+    }
+
+    NSString *script = [NSString stringWithFormat:
+        @"set sourcePath to %@\n"
+        "set sourceAlias to POSIX file sourcePath as alias\n"
+        "tell application \"iTunes\"\n"
+        "    try\n"
+        "        set t to some file track of library playlist 1 whose location is sourceAlias\n"
+        "        return \"OK\" & tab & (persistent ID of t as text)\n"
+        "    on error\n"
+        "        repeat with t in every file track of library playlist 1\n"
+        "            try\n"
+        "                if (POSIX path of (location of t as alias)) is sourcePath then\n"
+        "                    return \"OK\" & tab & (persistent ID of t as text)\n"
+        "                end if\n"
+        "            end try\n"
+        "        end repeat\n"
+        "    end try\n"
+        "    return \"ERROR\" & tab & \"The selected file is not referenced by an iTunes track.\"\n"
+        "end tell", IGAppleScriptLiteral(filePath)];
+
+    NSString *result = [self runAppleScriptNamed:@"ipodConverter.findTrack" source:script];
+    NSArray *parts = [result componentsSeparatedByString:@"\t"];
+    if ([parts count] >= 2 && [[parts objectAtIndex:0] isEqualToString:@"OK"]) {
+        return [parts objectAtIndex:1];
+    }
+    if (errorMessage) {
+        *errorMessage = [parts count] >= 2 ? [parts objectAtIndex:1] : @"Could not find the selected track in iTunes.";
+    }
+    return nil;
+}
+
+- (BOOL)reapplyMetadataForPersistentID:(NSString *)persistentID
+                          errorMessage:(NSString **)errorMessage {
+    if (errorMessage) {
+        *errorMessage = nil;
+    }
+    if ([persistentID length] == 0) {
+        if (errorMessage) {
+            *errorMessage = @"The iTunes track identifier is missing.";
+        }
+        return NO;
+    }
+
+    NSString *script = [NSString stringWithFormat:
+        @"tell application \"iTunes\"\n"
+        "    try\n"
+        "        set t to some file track of library playlist 1 whose persistent ID is %@\n"
+        "        set savedName to name of t\n"
+        "        set savedArtist to artist of t\n"
+        "        set savedAlbum to album of t\n"
+        "        set savedAlbumArtist to album artist of t\n"
+        "        set savedComposer to composer of t\n"
+        "        set savedGenre to genre of t\n"
+        "        set savedYear to year of t\n"
+        "        set savedTrackNumber to track number of t\n"
+        "        set savedTrackCount to track count of t\n"
+        "        set savedDiscNumber to disc number of t\n"
+        "        set savedDiscCount to disc count of t\n"
+        "        set savedComment to comment of t\n"
+        "        set savedGrouping to grouping of t\n"
+        "        set savedArtwork to missing value\n"
+        "        try\n"
+        "            if (count of artworks of t) > 0 then set savedArtwork to data of artwork 1 of t\n"
+        "        end try\n"
+        "        try\n"
+        "            refresh t\n"
+        "        end try\n"
+        "        try\n"
+        "            set name of t to savedName\n"
+        "            set artist of t to savedArtist\n"
+        "            set album of t to savedAlbum\n"
+        "            set album artist of t to savedAlbumArtist\n"
+        "            set composer of t to savedComposer\n"
+        "            set genre of t to savedGenre\n"
+        "            set year of t to savedYear\n"
+        "            set track number of t to savedTrackNumber\n"
+        "            set track count of t to savedTrackCount\n"
+        "            set disc number of t to savedDiscNumber\n"
+        "            set disc count of t to savedDiscCount\n"
+        "            set comment of t to savedComment\n"
+        "            set grouping of t to savedGrouping\n"
+        "        end try\n"
+        "        if savedArtwork is not missing value then\n"
+        "            try\n"
+        "                if (count of artworks of t) is 0 then\n"
+        "                    set data of artwork 1 of t to savedArtwork\n"
+        "                else\n"
+        "                    set data of artwork 1 of t to savedArtwork\n"
+        "                end if\n"
+        "            end try\n"
+        "        end if\n"
+        "        return \"OK\"\n"
+        "    on error errMsg number errNum\n"
+        "        return \"ERROR\" & tab & (errNum as text) & \" \" & errMsg\n"
+        "    end try\n"
+        "end tell", IGAppleScriptLiteral(persistentID)];
+
+    NSString *result = [self runAppleScriptNamed:@"ipodConverter.reapplyMetadata" source:script];
+    if ([result isEqualToString:@"OK"]) {
+        return YES;
+    }
+    if (errorMessage) {
+        NSArray *parts = [result componentsSeparatedByString:@"\t"];
+        *errorMessage = [parts count] >= 2 ? [parts objectAtIndex:1] : @"iTunes could not reapply the track metadata.";
+    }
+    return NO;
+}
+
 - (BOOL)ensureApplicationReady:(NSString *)appName forOperation:(NSString *)operation timeout:(NSTimeInterval)timeout {
     if (appName.length == 0) return YES;
 
