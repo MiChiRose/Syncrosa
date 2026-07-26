@@ -16,6 +16,7 @@ The goal of this project is to replace the Python-based legacy version with a pu
 - **Advanced Media Fixer:** High-speed metadata restoration and library organization.
 - **Resilient Networking:** Bundled CA certificates and clear manual-update fallback for older OS X systems.
 - **Lightweight Footprint:** Optimized for older hardware (Core 2 Duo / Early Core i series).
+- **iPod Converter:** CoreAudio-based iPod compatibility repair that preserves ALAC losslessly and converts other formats to clean M4A/AAC.
 
 ### 🛠 Tech Stack
 - **Language:** Objective-C

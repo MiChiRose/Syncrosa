@@ -105,11 +105,11 @@ struct LibraryDoctorView: View {
             ],
             notes: lang.selectedLanguage == "ru" ? [
                 "Cover Restore требует backup, созданный Covers Optimizer.",
-                "iPod Report оценивает совместимость форматов, размеров и имён файлов со старыми устройствами.",
+                "iPod Report глубоко проверяет кодек, параметры потока и декодирование файла до конца. Проверка большой медиатеки может занять время.",
                 "Link Audit не удаляет и не переносит файлы."
             ] : [
                 "Cover Restore requires a backup created by Covers Optimizer.",
-                "iPod Report checks formats, sizes, and filenames for older devices.",
+                "iPod Report deeply checks codecs, stream parameters, and decoding through the end of each file. Large libraries can take time.",
                 "Link Audit never deletes or moves files."
             ],
             dismiss: { showHelp = false }
@@ -133,7 +133,7 @@ struct LibraryDoctorView: View {
                 return lang.selectedLanguage == "ru" ? "Сохранить подробный JSON или CSV отчёт по медиатеке." : "Export a detailed JSON or CSV library audit report."
             }
             if selectedTool == 3 {
-                return lang.selectedLanguage == "ru" ? "Проверить форматы, размеры и имена файлов для старых iPod/автомагнитол." : "Check formats, sizes, and filenames for older iPods and car stereos."
+                return lang.selectedLanguage == "ru" ? "Глубоко проверить кодек, параметры и декодирование файлов для iPod classic 5G. Большая медиатека проверяется долго." : "Deeply check codecs, stream parameters, and full-file decoding for iPod classic 5G. Large libraries take time."
             }
             if selectedTool == 4 {
                 return lang.selectedLanguage == "ru" ? "Найти треки Music, у которых файл на диске отсутствует или путь не читается." : "Find Music tracks whose disk file is missing or unreadable."
@@ -280,13 +280,22 @@ struct LibraryDoctorView: View {
         var missing = 0
         var longNames = 0
         var hugeFiles = 0
+        var deepCompatibilityWarnings = 0
         var totalBytes: Int64 = 0
         let fileManager = FileManager.default
 
-        for track in references {
+        DispatchQueue.main.async {
+            progress = 0
+            progressMax = Double(max(1, references.count))
+            appendLog("deep audio compatibility scan started")
+        }
+
+        for (index, track) in references.enumerated() {
             totalBytes += track.size
-            let ext = URL(fileURLWithPath: track.path).pathExtension.lowercased()
-            if track.path.isEmpty || !fileManager.fileExists(atPath: track.path) || !fileManager.isReadableFile(atPath: track.path) {
+            let fileURL = URL(fileURLWithPath: track.path)
+            let ext = fileURL.pathExtension.lowercased()
+            let isReadable = !track.path.isEmpty && fileManager.fileExists(atPath: track.path) && fileManager.isReadableFile(atPath: track.path)
+            if !isReadable {
                 missing += 1
             }
             if !ext.isEmpty && !supported.contains(ext) {
@@ -299,6 +308,19 @@ struct LibraryDoctorView: View {
             if track.size > 100 * 1024 * 1024 {
                 hugeFiles += 1
             }
+            if isReadable && supported.contains(ext) {
+                let inspection = IPodCompatibilityService.inspect(fileURL)
+                if !inspection.isCompatible {
+                    deepCompatibilityWarnings += 1
+                    let detail = inspection.issues.joined(separator: "; ")
+                    DispatchQueue.main.async {
+                        appendLog("audio warning: \(track.artist) - \(track.name) — \(detail)")
+                    }
+                }
+            }
+            DispatchQueue.main.async {
+                progress = Double(index + 1)
+            }
         }
 
         let size = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
@@ -309,10 +331,12 @@ struct LibraryDoctorView: View {
             appendLog("missing/unreadable files: \(missing)")
             appendLog("long filenames (>80 chars): \(longNames)")
             appendLog("large files (>100 MB): \(hugeFiles)")
+            appendLog("deep codec/decoder warnings: \(deepCompatibilityWarnings)")
         }
-        let status = (unsupported + missing + longNames + hugeFiles) > 0 ? "WARN" : "OK"
-        let message = "iPod report complete. Scanned: \(references.count). Warnings: \(unsupported + missing + longNames + hugeFiles)."
-        finish(selectedToolIndex: selectedToolIndex, status: status, message: message, affectedCount: unsupported + missing + longNames + hugeFiles)
+        let warnings = unsupported + missing + longNames + hugeFiles + deepCompatibilityWarnings
+        let status = warnings > 0 ? "WARN" : "OK"
+        let message = "iPod report complete. Scanned: \(references.count). Warnings: \(warnings)."
+        finish(selectedToolIndex: selectedToolIndex, status: status, message: message, affectedCount: warnings)
     }
 
     private func runBrokenTracks(selectedToolIndex: Int) {

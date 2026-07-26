@@ -37,6 +37,7 @@ A completely rewritten, native **SwiftUI** application designed exclusively for 
 - **Advanced Security:** Uses macOS Keychain to securely store your API keys and employs Hardened Runtime for process safety.
 - **Multi-Provider AI:** Supports generating playlists via Gemini, Groq, and OpenRouter (bypassing geo-blocks).
 - **USB Export:** Transfer playlists directly to USB drives with format compatibility check and size optimization (.fitAvailable).
+- **iPod Converter:** Rebuild ALAC losslessly and create clean M4A/AAC copies from other formats for older iPods without modifying originals.
 - **10+ Languages:** Fully localized out of the box.
 
 ### 2. [syncrosa-objc](./syncrosa-objc) (Native Legacy Cocoa)
@@ -48,6 +49,7 @@ A native, high-performance rewrite of the legacy track, built from the ground up
 - **Resilient Network Layer:** Spawns curl subprocesses when system openssl is too old to establish TLS 1.2+ handshakes.
 - **Mavericks-Safe Cocoa UI:** AppKit controls are kept compatible with OS X 10.9 and Xcode 6.2-era behavior.
 - **USB Export Tab:** Native Cocoa control panel for copying files to USB drives.
+- **iPod Converter:** Mavericks-safe CoreAudio repair for long or otherwise incompatible tracks, preserving ALAC without quality loss.
 
 ### 3. [syncrosa-python](./syncrosa-python) (Legacy Python Track)
 The original stable version designed for vintage Macs running OS X 10.9 Mavericks through 10.13 High Sierra using system Python 2.7.x interpreter.

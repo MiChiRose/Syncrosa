@@ -41,6 +41,8 @@
 		D3E1A2B3C4D5E6F700001013 /* SafetyPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001113 /* SafetyPreviewView.swift */; };
 		D3E1A2B3C4D5E6F700001014 /* OperationRecoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */; };
 		D3E1A2B3C4D5E6F700001015 /* FolderPlaylistImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001115 /* FolderPlaylistImportService.swift */; };
+		D3E1A2B3C4D5E6F700001016 /* IPodConverterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001116 /* IPodConverterView.swift */; };
+		D3E1A2B3C4D5E6F700001017 /* IPodCompatibilityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001117 /* IPodCompatibilityService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -80,6 +82,8 @@
 		D3E1A2B3C4D5E6F700001113 /* SafetyPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyPreviewView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationRecoveryService.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700001115 /* FolderPlaylistImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderPlaylistImportService.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001116 /* IPodConverterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPodConverterView.swift; sourceTree = "<group>"; };
+		D3E1A2B3C4D5E6F700001117 /* IPodCompatibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPodCompatibilityService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +117,7 @@
 					D3E1A2B3C4D5E6F700001111 /* SyncrosaDesignSystem.swift */,
 					D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */,
 					D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */,
+					D3E1A2B3C4D5E6F700001116 /* IPodConverterView.swift */,
 					D3E1A2B3C4D5E6F700001101 /* InfoEraserView.swift */,
 					D3E1A2B3C4D5E6F700001102 /* OverviewView.swift */,
 					D3E1A2B3C4D5E6F700001112 /* RecoveryCenterView.swift */,
@@ -141,6 +146,7 @@
 					D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */,
 					D3E1A2B3C4D5E6F700001114 /* OperationRecoveryService.swift */,
 					D3E1A2B3C4D5E6F700001115 /* FolderPlaylistImportService.swift */,
+					D3E1A2B3C4D5E6F700001117 /* IPodCompatibilityService.swift */,
 					D3E1A2B3C4D5E6F70000010B /* LocalizationService.swift */,
 					D3E1A2B3C4D5E6F70000010C /* KeychainHelper.swift */,
 					D3E1A2B3C4D5E6F70000110D /* USBService.swift */,
@@ -233,6 +239,7 @@
 				D3E1A2B3C4D5E6F700001011 /* SyncrosaDesignSystem.swift in Sources */,
 				D3E1A2B3C4D5E6F700000004 /* MediaFixerView.swift in Sources */,
 				D3E1A2B3C4D5E6F700000005 /* FileMediaFixerView.swift in Sources */,
+				D3E1A2B3C4D5E6F700001016 /* IPodConverterView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001001 /* InfoEraserView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001002 /* OverviewView.swift in Sources */,
 				D3E1A2B3C4D5E6F700001012 /* RecoveryCenterView.swift in Sources */,
@@ -254,6 +261,7 @@
 				D3E1A2B3C4D5E6F70000100C /* OperationHistoryService.swift in Sources */,
 				D3E1A2B3C4D5E6F700001014 /* OperationRecoveryService.swift in Sources */,
 				D3E1A2B3C4D5E6F700001015 /* FolderPlaylistImportService.swift in Sources */,
+				D3E1A2B3C4D5E6F700001017 /* IPodCompatibilityService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000B /* LocalizationService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000C /* KeychainHelper.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100D /* USBService.swift in Sources */,

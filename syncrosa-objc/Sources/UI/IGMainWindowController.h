@@ -7,6 +7,7 @@ typedef NS_ENUM(NSInteger, IGNavigationItem) {
     IGNavigationItemAIPlaylist,
     IGNavigationItemMediaFixer,
     IGNavigationItemFolderFixer,
+    IGNavigationItemIPodConverter,
     IGNavigationItemUSBExport,
     IGNavigationItemCoversOptimizer,
     IGNavigationItemDuplicateFinder,

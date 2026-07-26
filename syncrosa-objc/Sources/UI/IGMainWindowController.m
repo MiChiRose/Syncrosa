@@ -1,6 +1,8 @@
 #import "IGMainWindowController.h"
 #import "IGSettingsViewController.h"
 #import "IGFileFixerViewController.h"
+#import "IGIPodConverterViewController.h"
+#import "IGIPodCompatibilityService.h"
 #import "IGInfoEraserViewController.h"
 #import "IGUSBExportViewController.h"
 #import "IGCoversOptimizerViewController.h"
@@ -53,6 +55,7 @@ BOOL IGNavigationItemRequiresReadableLibrary(IGNavigationItem item)
             return YES;
         case IGNavigationItemOverview:
         case IGNavigationItemFolderFixer:
+        case IGNavigationItemIPodConverter:
         case IGNavigationItemInfoEraser:
         case IGNavigationItemRecoveryCenter:
         case IGNavigationItemSettings:
@@ -432,7 +435,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         @"Restore cover backups from Covers Optimizer.",
         @"Count tracks with embedded artwork.",
         @"Check whether the iTunes library is readable.",
-        @"Audit formats and filenames for older iPods.",
+        @"Deep-check iPod 5G codec limits and decode every readable audio file through the end.",
         @"Find missing or unreadable local files.",
         @"Score title, artist, album, genre, and year completeness.",
         @"Compare iTunes file links with a folder without changing either source.",
@@ -461,7 +464,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     if (self.helpSheetWindow) return;
     NSArray *sections = @[
         IGHelpSectionMake(@"Choose a check", @"Cover Restore opens the artwork recovery flow. Cover Audit counts embedded artwork. Library Audit verifies that iTunes can be read."),
-        IGHelpSectionMake(@"Inspect compatibility", @"iPod Report finds unsupported formats, long names, missing files, and oversized files. Broken Tracks lists missing or unreadable references."),
+        IGHelpSectionMake(@"Inspect compatibility", @"iPod Report checks iPod 5G codec limits and decodes every readable audio file through the end. Large libraries can take time. Broken Tracks lists missing or unreadable references."),
         IGHelpSectionMake(@"Measure and export", @"Tag Score measures metadata completeness. Link Audit compares iTunes links with a folder without changing files. Export Report saves basic metadata as JSON or CSV.")
     ];
     self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"Library Doctor"
@@ -672,14 +675,23 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                 NSInteger missing = 0;
                 NSInteger longNames = 0;
                 NSInteger hugeFiles = 0;
+                NSInteger deepCompatibilityWarnings = 0;
                 unsigned long long totalBytes = 0;
                 NSFileManager *fm = [NSFileManager defaultManager];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    self.progressIndicator.minValue = 0.0;
+                    self.progressIndicator.maxValue = MAX((double)[refs count], 1.0);
+                    self.progressIndicator.doubleValue = 0.0;
+                });
+                [self log:@"deep audio compatibility scan started"];
+                NSInteger trackIndex = 0;
                 for (NSDictionary *track in refs) {
                     NSString *path = [track objectForKey:@"path"] ?: @"";
                     NSString *ext = [[path pathExtension] lowercaseString];
                     unsigned long long size = [[track objectForKey:@"size"] unsignedLongLongValue];
                     totalBytes += size;
-                    if (path.length == 0 || ![fm fileExistsAtPath:path] || ![fm isReadableFileAtPath:path]) {
+                    BOOL readable = path.length > 0 && [fm fileExistsAtPath:path] && [fm isReadableFileAtPath:path];
+                    if (!readable) {
                         missing++;
                     }
                     if (ext.length > 0 && ![supported containsObject:ext]) {
@@ -695,6 +707,22 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                     if (size > 100ULL * 1024ULL * 1024ULL) {
                         hugeFiles++;
                     }
+                    if (readable && [supported containsObject:ext]) {
+                        NSArray *issues = [IGIPodCompatibilityService compatibilityIssuesForFileURL:[NSURL fileURLWithPath:path]
+                                                                                           deepScan:YES];
+                        if ([issues count] > 0) {
+                            deepCompatibilityWarnings++;
+                            [self log:[NSString stringWithFormat:@"audio warning: %@ - %@ — %@",
+                                       [track objectForKey:@"artist"] ?: @"",
+                                       [track objectForKey:@"name"] ?: @"",
+                                       [issues componentsJoinedByString:@"; "]]];
+                        }
+                    }
+                    trackIndex++;
+                    NSInteger completed = trackIndex;
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        self.progressIndicator.doubleValue = completed;
+                    });
                 }
                 NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:(long long)totalBytes countStyle:NSByteCountFormatterCountStyleFile];
                 [self log:[NSString stringWithFormat:@"file tracks scanned: %ld", (long)refs.count]];
@@ -703,7 +731,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
                 [self log:[NSString stringWithFormat:@"missing/unreadable files: %ld", (long)missing]];
                 [self log:[NSString stringWithFormat:@"long filenames (>80 chars): %ld", (long)longNames]];
                 [self log:[NSString stringWithFormat:@"large files (>100 MB): %ld", (long)hugeFiles]];
-                NSInteger warnings = unsupported + missing + longNames + hugeFiles;
+                [self log:[NSString stringWithFormat:@"deep codec/decoder warnings: %ld", (long)deepCompatibilityWarnings]];
+                NSInteger warnings = unsupported + missing + longNames + hugeFiles + deepCompatibilityWarnings;
                 historyStatus = warnings > 0 ? @"WARN" : @"OK";
                 historyMessage = [NSString stringWithFormat:@"iPod report complete. Scanned: %ld. Warnings: %ld.", (long)refs.count, (long)warnings];
             } else {
@@ -868,6 +897,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 @property (nonatomic, strong) IGGeniusViewController *geniusVC;
 @property (nonatomic, strong) IGFixerViewController *fixerVC;
 @property (nonatomic, strong) IGFileFixerViewController *fileFixerVC;
+@property (nonatomic, strong) IGIPodConverterViewController *ipodConverterVC;
 @property (nonatomic, strong) IGInfoEraserViewController *infoEraserVC;
 @property (nonatomic, strong) IGUSBExportViewController *usbExportVC;
 @property (nonatomic, strong) IGCoversOptimizerViewController *coversOptimizerVC;
@@ -954,6 +984,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [_firstLaunchNextButton release];
 	    [_firstLaunchLocalModeCheckbox release];
 	    [_libraryBusySheetWindow release];
+	    [_ipodConverterVC release];
 		    [_activeViewController release];
 		    [_pagePreferredHeights release];
 		    [_pagePreferredWidths release];
@@ -1743,6 +1774,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         [lang t:@"ai_playlist"],
         [lang t:@"media_fixer"],
         [lang t:@"folder_fix"],
+        [lang.selectedLanguage isEqualToString:@"ru"] ? @"Конвертер для iPod" : @"iPod Converter",
         [lang t:@"usb_export"],
         [lang t:@"covers_optimizer"],
         [lang t:@"duplicate_finder"],
@@ -1757,6 +1789,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	        @"star",
 	        @"refresh",
 	        @"folder",
+	        @"device",
 	        @"usb",
 	        @"artwork",
 	        @"search",
@@ -1953,6 +1986,16 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #endif
 	            }
 	            targetVC = self.fileFixerVC;
+	            break;
+	        case IGNavigationItemIPodConverter:
+	            if (!self.ipodConverterVC) {
+	                IGIPodConverterViewController *vc = [[IGIPodConverterViewController alloc] init];
+	                self.ipodConverterVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.ipodConverterVC;
 	            break;
 	        case IGNavigationItemUSBExport:
 	            if (!self.usbExportVC) {
