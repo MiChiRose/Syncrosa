@@ -86,8 +86,8 @@ Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archive
 
 Syncrosa 3.4.8 updates both native application tracks and aligns the maintenance Python package under the same version:
 
-- **Deep iPod Classic Analysis:** Library Doctor can now inspect audio files for container, codec, sample-rate, bit-depth, channel, and stream-layout risks instead of judging compatibility from the file extension alone.
-- **Preserve Compatible ALAC:** ALAC/M4A files reported as compatible are left out of the repair queue and remain untouched.
+- **Deep iPod Classic Analysis:** Library Doctor checks the decoded audio stream, codec, sample rate, channel count, compressed bitrate, and whether the complete file can be decoded.
+- **Preserve Compatible ALAC:** Library Doctor reports compatible ALAC/M4A files without modifying them.
 - **Lossless ALAC Repair:** Problematic ALAC can be rebuilt in a clean M4A container while preserving supported sample rates up to 48 kHz, channel count, and bit depth instead of reducing quality with AAC.
 - **Two Repair Modes:** Save a repaired copy, or replace the original file used by iTunes/Music while preserving library metadata and artwork.
 - **Safer AAC Fallback:** Files that cannot remain lossless are converted to a conservative iPod-compatible AAC profile with clear reporting.

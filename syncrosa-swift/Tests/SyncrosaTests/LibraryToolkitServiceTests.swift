@@ -36,6 +36,52 @@ final class LibraryToolkitServiceTests: XCTestCase {
         XCTAssertNotEqual(first, source)
     }
 
+    func testIPodReplacementCreatesUniqueBackupNames() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("syncrosa-ipod-backup-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let source = directory.appendingPathComponent("Long Mix.m4a")
+        try Data("original".utf8).write(to: source)
+        let first = IPodCompatibilityService.backupURL(for: source)
+        try Data("backup".utf8).write(to: first)
+        let second = IPodCompatibilityService.backupURL(for: source)
+
+        XCTAssertEqual(first.lastPathComponent, "Long Mix (Syncrosa Backup).m4a")
+        XCTAssertEqual(second.lastPathComponent, "Long Mix (Syncrosa Backup 2).m4a")
+        XCTAssertNotEqual(first, source)
+    }
+
+    func testIPodReplacementRejectsNonM4ABeforeMusicLookup() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("syncrosa-ipod-replace-guard-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let source = directory.appendingPathComponent("source.mp3")
+        try Data("not audio".utf8).write(to: source)
+        let completion = expectation(description: "M4A replacement guard")
+        var receivedResult: IPodConversionResult?
+        IPodCompatibilityService.shared.convert(
+            files: [source],
+            to: directory,
+            mode: .replaceMusicTrack,
+            progress: { _, _, _ in },
+            completion: {
+                receivedResult = $0
+                completion.fulfill()
+            }
+        )
+        wait(for: [completion], timeout: 5)
+
+        let result = try XCTUnwrap(receivedResult)
+        XCTAssertTrue(result.convertedFiles.isEmpty)
+        XCTAssertEqual(result.failures.count, 1)
+        XCTAssertTrue(result.failures[0].message.contains("M4A"))
+        XCTAssertEqual(try String(contentsOf: source), "not audio")
+    }
+
     func testIPodConverterProducesPlayableM4AWithSystemAudioEngine() throws {
         let source = URL(fileURLWithPath: "/System/Library/Sounds/Glass.aiff")
         guard FileManager.default.fileExists(atPath: source.path) else {

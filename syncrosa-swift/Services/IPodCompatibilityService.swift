@@ -13,6 +13,11 @@ struct IPodCompatibilityInspection {
     var isCompatible: Bool { issues.isEmpty }
 }
 
+enum IPodConversionMode: Hashable {
+    case createCopy
+    case replaceMusicTrack
+}
+
 final class IPodCompatibilityService {
     static let shared = IPodCompatibilityService()
 
@@ -157,6 +162,19 @@ final class IPodCompatibilityService {
         return candidate
     }
 
+    static func backupURL(for source: URL, fileManager: FileManager = .default) -> URL {
+        let directory = source.deletingLastPathComponent()
+        let base = sanitizedFilenameComponent(source.deletingPathExtension().lastPathComponent)
+        let fileExtension = source.pathExtension.isEmpty ? "m4a" : source.pathExtension
+        var candidate = directory.appendingPathComponent("\(base) (Syncrosa Backup).\(fileExtension)")
+        var suffix = 2
+        while fileManager.fileExists(atPath: candidate.path) {
+            candidate = directory.appendingPathComponent("\(base) (Syncrosa Backup \(suffix)).\(fileExtension)")
+            suffix += 1
+        }
+        return candidate
+    }
+
     static func sanitizedFilenameComponent(_ value: String) -> String {
         let forbidden = CharacterSet(charactersIn: "/:\\?%*|\"<>")
         let parts = value.components(separatedBy: forbidden)
@@ -169,6 +187,7 @@ final class IPodCompatibilityService {
     func convert(
         files: [URL],
         to outputDirectory: URL,
+        mode: IPodConversionMode = .createCopy,
         progress: @escaping (_ completed: Int, _ total: Int, _ filename: String) -> Void,
         completion: @escaping (IPodConversionResult) -> Void
     ) {
@@ -177,7 +196,9 @@ final class IPodCompatibilityService {
         stateLock.unlock()
 
         workQueue.async {
-            let directoryAccess = outputDirectory.startAccessingSecurityScopedResource()
+            let directoryAccess = mode == .createCopy
+                ? outputDirectory.startAccessingSecurityScopedResource()
+                : false
             defer {
                 if directoryAccess {
                     outputDirectory.stopAccessingSecurityScopedResource()
@@ -202,23 +223,39 @@ final class IPodCompatibilityService {
                     failures.append((source, "Unsupported audio format."))
                     continue
                 }
+                if mode == .replaceMusicTrack && source.pathExtension.lowercased() != "m4a" {
+                    failures.append((source, "Music replacement supports M4A files only."))
+                    continue
+                }
 
                 let sourceAccess = source.startAccessingSecurityScopedResource()
-                let destination = Self.destinationURL(for: source, in: outputDirectory)
+                let destination = mode == .createCopy
+                    ? Self.destinationURL(for: source, in: outputDirectory)
+                    : FileManager.default.temporaryDirectory
+                        .appendingPathComponent("Syncrosa-\(UUID().uuidString).m4a")
                 let conversionError = self.encodeCompatibleAudio(source: source, destination: destination)
+                let finalError: String?
+                let resultURL: URL
+                if conversionError == nil && mode == .replaceMusicTrack {
+                    finalError = self.replaceMusicTrack(source: source, convertedFile: destination)
+                    resultURL = source
+                } else {
+                    finalError = conversionError
+                    resultURL = destination
+                }
 
                 if sourceAccess {
                     source.stopAccessingSecurityScopedResource()
                 }
 
-                if conversionError == nil {
-                    converted.append(destination)
+                if finalError == nil {
+                    converted.append(resultURL)
                 } else if self.isCancellationRequested {
                     try? FileManager.default.removeItem(at: destination)
                     cancelled = true
                 } else {
                     try? FileManager.default.removeItem(at: destination)
-                    failures.append((source, conversionError ?? "Audio conversion failed."))
+                    failures.append((source, finalError ?? "Audio conversion failed."))
                 }
 
                 DispatchQueue.main.async {
@@ -251,6 +288,43 @@ final class IPodCompatibilityService {
         stateLock.lock()
         defer { stateLock.unlock() }
         return cancellationRequested
+    }
+
+    private func replaceMusicTrack(source: URL, convertedFile: URL) -> String? {
+        guard let persistentID = MusicService.shared.persistentIDForFilePath(source.path) else {
+            return "The selected file is not referenced by a Music library track."
+        }
+
+        let fileManager = FileManager.default
+        let backup = Self.backupURL(for: source, fileManager: fileManager)
+        do {
+            try fileManager.copyItem(at: source, to: backup)
+            try fileManager.removeItem(at: source)
+            do {
+                try fileManager.moveItem(at: convertedFile, to: source)
+            } catch {
+                try? fileManager.copyItem(at: backup, to: source)
+                return "Could not install the repaired file. The original was restored: \(error.localizedDescription)"
+            }
+        } catch {
+            if !fileManager.fileExists(atPath: source.path),
+               fileManager.fileExists(atPath: backup.path) {
+                try? fileManager.copyItem(at: backup, to: source)
+            }
+            return "Could not create the original-file backup: \(error.localizedDescription)"
+        }
+
+        if let metadataError = MusicService.shared.reapplyMetadataAndArtwork(persistentID: persistentID) {
+            do {
+                try fileManager.removeItem(at: source)
+                try fileManager.copyItem(at: backup, to: source)
+                _ = MusicService.shared.reapplyMetadataAndArtwork(persistentID: persistentID)
+                return "\(metadataError) The original file was restored."
+            } catch {
+                return "\(metadataError) Automatic rollback also failed: \(error.localizedDescription)"
+            }
+        }
+        return nil
     }
 
     private func encodeCompatibleAudio(source: URL, destination: URL) -> String? {
