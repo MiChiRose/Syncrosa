@@ -67,6 +67,7 @@ struct ContentView: View {
         case offlinePlaylist
         case fixer
         case folderFix
+        case ipodConverter
         case infoEraser
         case recoveryCenter
         case libraryDoctor
@@ -104,6 +105,10 @@ struct ContentView: View {
                     
                     NavigationLink(value: Tab.folderFix) {
                         Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
+                    }
+
+                    NavigationLink(value: Tab.ipodConverter) {
+                        Label(lang.selectedLanguage == "ru" ? "Конвертер для iPod" : "iPod Converter", systemImage: "ipod")
                     }
 
                     NavigationLink(value: Tab.infoEraser) {
@@ -171,6 +176,7 @@ struct ContentView: View {
                             case .offlinePlaylist: OfflinePlaylistGeneratorView()
                             case .fixer: MediaFixerView()
                             case .folderFix: FileMediaFixerView()
+                            case .ipodConverter: IPodConverterView()
                             case .infoEraser: InfoEraserView()
                             case .recoveryCenter: RecoveryCenterView()
                             case .libraryDoctor: LibraryDoctorView()
@@ -294,7 +300,7 @@ struct ContentView: View {
         switch tab {
         case .playlist, .offlinePlaylist, .fixer, .libraryDoctor, .duplicateFinder, .usbExport, .coversOptimizer:
             return true
-        case .overview, .folderFix, .infoEraser, .recoveryCenter, .settings, .none:
+        case .overview, .folderFix, .ipodConverter, .infoEraser, .recoveryCenter, .settings, .none:
             return false
         }
     }

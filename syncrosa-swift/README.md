@@ -7,6 +7,7 @@ A modern version of iGeniusAI, built from scratch with SwiftUI for the latest Ma
 - Media Fixer: (In Progress) Clean up your modern library, fix metadata, and normalize split albums.
 - Modern UI: A fast, fluid interface designed specifically for the macOS Sonoma aesthetic.
 - Secure Storage: Uses the macOS Keychain to keep your AI API keys encrypted and safe.
+- iPod Converter: Rebuilds ALAC losslessly and creates clean M4A/AAC copies from other formats while preserving originals.
 
 ### Quick Start:
 - Download the latest version from [Releases](../../releases).

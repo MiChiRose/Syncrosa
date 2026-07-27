@@ -10,6 +10,7 @@
 #import "IGRecoveryCenterViewController.h"
 #import "IGIconProvider.h"
 #import "IGAIService.h"
+#import "IGIPodCompatibilityService.h"
 
 @interface IGBusinessLogicTests : XCTestCase @end
 
@@ -149,15 +150,32 @@
 }
 
 - (void)testLegacyNavigationLibraryRequirements {
-    XCTAssertEqual(IGNavigationItemCount, (NSInteger)12);
+    XCTAssertEqual(IGNavigationItemCount, (NSInteger)13);
     XCTAssertTrue(IGNavigationItemRequiresReadableLibrary(IGNavigationItemAIPlaylist));
     XCTAssertTrue(IGNavigationItemRequiresReadableLibrary(IGNavigationItemLibraryDoctor));
     XCTAssertTrue(IGNavigationItemRequiresReadableLibrary(IGNavigationItemUSBExport));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemOverview));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemFolderFixer));
+    XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemIPodConverter));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemInfoEraser));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemRecoveryCenter));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemSettings));
+}
+
+- (void)testIPodConverterBuildsSafeNonDestructiveDestinationNames {
+    NSURL *directory = [NSURL fileURLWithPath:NSTemporaryDirectory() isDirectory:YES];
+    NSURL *source = [NSURL fileURLWithPath:@"/tmp/Long: Mix?.mp3"];
+    NSURL *destination = [IGIPodCompatibilityService destinationURLForSourceURL:source
+                                                                   directoryURL:directory
+                                                                    fileManager:[NSFileManager defaultManager]];
+    XCTAssertTrue([[destination lastPathComponent] hasSuffix:@"(iPod).m4a"] ||
+                  [[destination lastPathComponent] rangeOfString:@"(iPod "].location != NSNotFound);
+    XCTAssertNotEqualObjects(destination, source);
+    XCTAssertTrue([IGIPodCompatibilityService isSupportedFileURL:source]);
+    XCTAssertFalse([IGIPodCompatibilityService isSupportedFileURL:[NSURL fileURLWithPath:@"/tmp/notes.txt"]]);
+    NSArray *issues = [IGIPodCompatibilityService compatibilityIssuesForFileURL:[NSURL fileURLWithPath:@"/tmp/notes.txt"]
+                                                                        deepScan:YES];
+    XCTAssertTrue([issues count] > 0);
 }
 
 - (void)testGlobalFooterVisibilityPersistence {

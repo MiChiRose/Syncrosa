@@ -16,6 +16,19 @@
 - (BOOL)launchITunesForUserActionWithOperation:(NSString *)operation;
 
 /**
+ * Resolves an iTunes file track without changing the library.
+ */
+- (NSString *)persistentIDForFilePath:(NSString *)filePath
+                         errorMessage:(NSString **)errorMessage;
+
+/**
+ * Reapplies the current iTunes metadata and artwork after a file was replaced
+ * at the same path, prompting iTunes to write them to the new media file.
+ */
+- (BOOL)reapplyMetadataForPersistentID:(NSString *)persistentID
+                          errorMessage:(NSString **)errorMessage;
+
+/**
  * Checks whether the iTunes library is readable and how many tracks it has.
  * trackCount is -1 when the library cannot be read.
  */
