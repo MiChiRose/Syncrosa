@@ -299,19 +299,18 @@ final class IPodCompatibilityService {
 
     static func overwriteFileContents(at destination: URL, with source: URL) throws {
         let reader = try FileHandle(forReadingFrom: source)
-        defer { reader.closeFile() }
+        defer { try? reader.close() }
         let writer = try FileHandle(forWritingTo: destination)
-        defer { writer.closeFile() }
+        defer { try? writer.close() }
 
-        writer.truncateFile(atOffset: 0)
+        try writer.truncate(atOffset: 0)
         while true {
-            let chunk = reader.readData(ofLength: 1_048_576)
-            if chunk.isEmpty {
+            guard let chunk = try reader.read(upToCount: 1_048_576), !chunk.isEmpty else {
                 break
             }
-            writer.write(chunk)
+            try writer.write(contentsOf: chunk)
         }
-        writer.synchronizeFile()
+        try writer.synchronize()
     }
 
     private func replaceMusicTrack(
@@ -328,12 +327,16 @@ final class IPodCompatibilityService {
         defer { try? fileManager.removeItem(at: convertedFile) }
         do {
             try fileManager.copyItem(at: source, to: backup)
+        } catch {
+            try? fileManager.removeItem(at: backup)
+            return "Could not create a complete backup. The original file was not changed: \(error.localizedDescription)"
+        }
+
+        do {
             try Self.overwriteFileContents(at: source, with: convertedFile)
         } catch {
             do {
-                if fileManager.fileExists(atPath: backup.path) {
-                    try Self.overwriteFileContents(at: source, with: backup)
-                }
+                try Self.overwriteFileContents(at: source, with: backup)
             } catch let rollbackError {
                 return "Could not install the repaired file, and rollback failed: \(rollbackError.localizedDescription)"
             }
