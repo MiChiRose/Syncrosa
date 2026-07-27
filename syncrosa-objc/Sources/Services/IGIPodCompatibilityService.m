@@ -32,7 +32,7 @@ static NSString *IGAudioError(NSString *prefix, OSStatus status)
     return [NSString stringWithFormat:@"%@ (%@).", prefix, detail];
 }
 
-static NSString *IGAudioFormatCode(AudioFormatID formatID)
+static NSString *IGAudioFormatCode(UInt32 formatID)
 {
     UInt32 value = (UInt32)formatID;
     char code[5] = {
@@ -103,7 +103,7 @@ static NSString *IGEncodeCompatibleFile(NSURL *sourceURL,
         ? sourceFormat.mChannelsPerFrame
         : MAX(1, MIN(sourceFormat.mChannelsPerFrame, 2));
     Float64 outputSampleRate = preservesALAC ? sourceFormat.mSampleRate : 44100.0;
-    AudioFormatFlags losslessFlag = kAppleLosslessFormatFlag_16BitSourceData;
+    UInt32 losslessFlag = kAppleLosslessFormatFlag_16BitSourceData;
     UInt32 bitsPerChannel = 16;
     UInt32 bytesPerSample = 2;
     if (preservesALAC) {
