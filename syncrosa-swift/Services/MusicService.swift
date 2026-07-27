@@ -26,6 +26,24 @@ struct MusicBatchImportResult {
     let errors: [String]
 }
 
+struct MusicTrackReplacementSnapshot {
+    let persistentID: String
+    let name: String
+    let artist: String
+    let album: String
+    let albumArtist: String
+    let composer: String
+    let genre: String
+    let year: Int
+    let trackNumber: Int
+    let trackCount: Int
+    let discNumber: Int
+    let discCount: Int
+    let comment: String
+    let grouping: String
+    let artworkData: Data?
+}
+
 struct MusicLibraryToolkitRawTrack: Identifiable, Codable, Equatable {
     var id: String { persistentID.isEmpty ? path : persistentID }
     let persistentID: String
@@ -88,6 +106,21 @@ class MusicService {
                 } else {
                     result = output.stringValue
                 }
+            }
+        }
+        return result
+    }
+
+    private func runAppleScriptDescriptor(_ scriptSource: String) -> NSAppleEventDescriptor? {
+        var result: NSAppleEventDescriptor?
+        scriptQueue.sync {
+            var error: NSDictionary?
+            guard let script = NSAppleScript(source: scriptSource) else { return }
+            let output = script.executeAndReturnError(&error)
+            if let error {
+                print("AppleScript Error: \(error)")
+            } else {
+                result = output
             }
         }
         return result
@@ -585,78 +618,121 @@ class MusicService {
         return true
     }
 
-    func persistentIDForFilePath(_ filePath: String) -> String? {
+    func captureReplacementSnapshot(filePath: String) -> MusicTrackReplacementSnapshot? {
         let escapedPath = escapeAppleScriptString(filePath)
         let script = """
         set sourcePath to "\(escapedPath)"
         set sourceAlias to POSIX file sourcePath as alias
         tell application "Music"
+            set matchedTrack to missing value
             try
-                set t to some file track of library playlist 1 whose location is sourceAlias
-                return "OK" & tab & (persistent ID of t as text)
+                set matchedTrack to some file track of library playlist 1 whose location is sourceAlias
             on error
-                repeat with t in every file track of library playlist 1
+                repeat with candidateTrack in every file track of library playlist 1
                     try
-                        if (POSIX path of (location of t as alias)) is sourcePath then
-                            return "OK" & tab & (persistent ID of t as text)
+                        if (POSIX path of (location of candidateTrack as alias)) is sourcePath then
+                            set matchedTrack to contents of candidateTrack
+                            exit repeat
                         end if
                     end try
                 end repeat
             end try
-            return "ERROR" & tab & "The selected file is not referenced by a Music track."
+            if matchedTrack is missing value then error "The selected file is not referenced by a Music track."
+            set t to matchedTrack
+            set savedArtwork to missing value
+            try
+                if (count of artworks of t) > 0 then set savedArtwork to data of artwork 1 of t
+            end try
+            return {(persistent ID of t as text), (name of t as text), (artist of t as text), (album of t as text), (album artist of t as text), (composer of t as text), (genre of t as text), (year of t as text), (track number of t as text), (track count of t as text), (disc number of t as text), (disc count of t as text), (comment of t as text), (grouping of t as text), savedArtwork}
         end tell
         """
-        guard let result = runAppleScript(script) else { return nil }
-        let parts = result.components(separatedBy: fieldSeparator)
-        guard parts.count >= 2, parts[0] == "OK" else { return nil }
-        return parts[1]
+        guard let descriptor = runAppleScriptDescriptor(script),
+              descriptor.numberOfItems >= 15 else {
+            return nil
+        }
+        func string(at index: Int) -> String {
+            descriptor.atIndex(index)?.stringValue ?? ""
+        }
+        return MusicTrackReplacementSnapshot(
+            persistentID: string(at: 1),
+            name: string(at: 2),
+            artist: string(at: 3),
+            album: string(at: 4),
+            albumArtist: string(at: 5),
+            composer: string(at: 6),
+            genre: string(at: 7),
+            year: Int(string(at: 8)) ?? 0,
+            trackNumber: Int(string(at: 9)) ?? 0,
+            trackCount: Int(string(at: 10)) ?? 0,
+            discNumber: Int(string(at: 11)) ?? 0,
+            discCount: Int(string(at: 12)) ?? 0,
+            comment: string(at: 13),
+            grouping: string(at: 14),
+            artworkData: descriptor.atIndex(15)?.data
+        )
     }
 
-    func reapplyMetadataAndArtwork(persistentID: String) -> String? {
-        let escapedID = escapeAppleScriptString(persistentID)
+    func restoreReplacementSnapshot(_ snapshot: MusicTrackReplacementSnapshot) -> String? {
+        let escapedID = escapeAppleScriptString(snapshot.persistentID)
+        let artworkURL: URL?
+        if let artworkData = snapshot.artworkData, !artworkData.isEmpty {
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("Syncrosa-artwork-\(UUID().uuidString)")
+            do {
+                try artworkData.write(to: url, options: .atomic)
+                try FileManager.default.setAttributes(
+                    [.posixPermissions: NSNumber(value: Int16(0o600))],
+                    ofItemAtPath: url.path
+                )
+                artworkURL = url
+            } catch {
+                return "Could not prepare the saved artwork: \(error.localizedDescription)"
+            }
+        } else {
+            artworkURL = nil
+        }
+        defer {
+            if let artworkURL {
+                try? FileManager.default.removeItem(at: artworkURL)
+            }
+        }
+        let artworkPreamble: String
+        let artworkScript: String
+        if let artworkURL {
+            artworkPreamble = """
+            set syncrosaSavedArtwork to read (POSIX file "\(escapeAppleScriptString(artworkURL.path))") as data
+            """
+            artworkScript = """
+                if (count of artworks of t) is 0 then
+                    make new artwork at t with properties {data:syncrosaSavedArtwork}
+                else
+                    set data of artwork 1 of t to syncrosaSavedArtwork
+                end if
+            """
+        } else {
+            artworkPreamble = ""
+            artworkScript = ""
+        }
         let script = """
+        \(artworkPreamble)
         tell application "Music"
             try
                 set t to some file track of library playlist 1 whose persistent ID is "\(escapedID)"
-                set savedName to name of t
-                set savedArtist to artist of t
-                set savedAlbum to album of t
-                set savedAlbumArtist to album artist of t
-                set savedComposer to composer of t
-                set savedGenre to genre of t
-                set savedYear to year of t
-                set savedTrackNumber to track number of t
-                set savedTrackCount to track count of t
-                set savedDiscNumber to disc number of t
-                set savedDiscCount to disc count of t
-                set savedComment to comment of t
-                set savedGrouping to grouping of t
-                set savedArtwork to missing value
-                try
-                    if (count of artworks of t) > 0 then set savedArtwork to data of artwork 1 of t
-                end try
-
                 refresh t
-                set name of t to savedName
-                set artist of t to savedArtist
-                set album of t to savedAlbum
-                set album artist of t to savedAlbumArtist
-                set composer of t to savedComposer
-                set genre of t to savedGenre
-                set year of t to savedYear
-                set track number of t to savedTrackNumber
-                set track count of t to savedTrackCount
-                set disc number of t to savedDiscNumber
-                set disc count of t to savedDiscCount
-                set comment of t to savedComment
-                set grouping of t to savedGrouping
-                if savedArtwork is not missing value then
-                    if (count of artworks of t) is 0 then
-                        make new artwork at t with properties {data:savedArtwork}
-                    else
-                        set data of artwork 1 of t to savedArtwork
-                    end if
-                end if
+                set name of t to "\(escapeAppleScriptString(snapshot.name))"
+                set artist of t to "\(escapeAppleScriptString(snapshot.artist))"
+                set album of t to "\(escapeAppleScriptString(snapshot.album))"
+                set album artist of t to "\(escapeAppleScriptString(snapshot.albumArtist))"
+                set composer of t to "\(escapeAppleScriptString(snapshot.composer))"
+                set genre of t to "\(escapeAppleScriptString(snapshot.genre))"
+                set year of t to \(snapshot.year)
+                set track number of t to \(snapshot.trackNumber)
+                set track count of t to \(snapshot.trackCount)
+                set disc number of t to \(snapshot.discNumber)
+                set disc count of t to \(snapshot.discCount)
+                set comment of t to "\(escapeAppleScriptString(snapshot.comment))"
+                set grouping of t to "\(escapeAppleScriptString(snapshot.grouping))"
+        \(artworkScript)
                 return "OK"
             on error errMsg number errNum
                 return "ERROR" & tab & (errNum as text) & " " & errMsg

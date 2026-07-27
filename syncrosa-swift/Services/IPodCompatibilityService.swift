@@ -162,8 +162,11 @@ final class IPodCompatibilityService {
         return candidate
     }
 
-    static func backupURL(for source: URL, fileManager: FileManager = .default) -> URL {
-        let directory = source.deletingLastPathComponent()
+    static func backupURL(
+        for source: URL,
+        in directory: URL,
+        fileManager: FileManager = .default
+    ) -> URL {
         let base = sanitizedFilenameComponent(source.deletingPathExtension().lastPathComponent)
         let fileExtension = source.pathExtension.isEmpty ? "m4a" : source.pathExtension
         var candidate = directory.appendingPathComponent("\(base) (Syncrosa Backup).\(fileExtension)")
@@ -196,9 +199,7 @@ final class IPodCompatibilityService {
         stateLock.unlock()
 
         workQueue.async {
-            let directoryAccess = mode == .createCopy
-                ? outputDirectory.startAccessingSecurityScopedResource()
-                : false
+            let directoryAccess = outputDirectory.startAccessingSecurityScopedResource()
             defer {
                 if directoryAccess {
                     outputDirectory.stopAccessingSecurityScopedResource()
@@ -237,7 +238,13 @@ final class IPodCompatibilityService {
                 let finalError: String?
                 let resultURL: URL
                 if conversionError == nil && mode == .replaceMusicTrack {
-                    finalError = self.replaceMusicTrack(source: source, convertedFile: destination)
+                    finalError = self.isCancellationRequested
+                        ? "Conversion cancelled."
+                        : self.replaceMusicTrack(
+                            source: source,
+                            convertedFile: destination,
+                            backupDirectory: outputDirectory
+                        )
                     resultURL = source
                 } else {
                     finalError = conversionError
@@ -290,39 +297,59 @@ final class IPodCompatibilityService {
         return cancellationRequested
     }
 
-    private func replaceMusicTrack(source: URL, convertedFile: URL) -> String? {
-        guard let persistentID = MusicService.shared.persistentIDForFilePath(source.path) else {
+    static func overwriteFileContents(at destination: URL, with source: URL) throws {
+        let reader = try FileHandle(forReadingFrom: source)
+        defer { reader.closeFile() }
+        let writer = try FileHandle(forWritingTo: destination)
+        defer { writer.closeFile() }
+
+        writer.truncateFile(atOffset: 0)
+        while true {
+            let chunk = reader.readData(ofLength: 1_048_576)
+            if chunk.isEmpty {
+                break
+            }
+            writer.write(chunk)
+        }
+        writer.synchronizeFile()
+    }
+
+    private func replaceMusicTrack(
+        source: URL,
+        convertedFile: URL,
+        backupDirectory: URL
+    ) -> String? {
+        guard let snapshot = MusicService.shared.captureReplacementSnapshot(filePath: source.path) else {
             return "The selected file is not referenced by a Music library track."
         }
 
         let fileManager = FileManager.default
-        let backup = Self.backupURL(for: source, fileManager: fileManager)
+        let backup = Self.backupURL(for: source, in: backupDirectory, fileManager: fileManager)
+        defer { try? fileManager.removeItem(at: convertedFile) }
         do {
             try fileManager.copyItem(at: source, to: backup)
-            try fileManager.removeItem(at: source)
-            do {
-                try fileManager.moveItem(at: convertedFile, to: source)
-            } catch {
-                try? fileManager.copyItem(at: backup, to: source)
-                return "Could not install the repaired file. The original was restored: \(error.localizedDescription)"
-            }
+            try Self.overwriteFileContents(at: source, with: convertedFile)
         } catch {
-            if !fileManager.fileExists(atPath: source.path),
-               fileManager.fileExists(atPath: backup.path) {
-                try? fileManager.copyItem(at: backup, to: source)
+            do {
+                if fileManager.fileExists(atPath: backup.path) {
+                    try Self.overwriteFileContents(at: source, with: backup)
+                }
+            } catch let rollbackError {
+                return "Could not install the repaired file, and rollback failed: \(rollbackError.localizedDescription)"
             }
-            return "Could not create the original-file backup: \(error.localizedDescription)"
+            return "Could not install the repaired file. The original bytes were restored: \(error.localizedDescription)"
         }
 
-        if let metadataError = MusicService.shared.reapplyMetadataAndArtwork(persistentID: persistentID) {
+        if let metadataError = MusicService.shared.restoreReplacementSnapshot(snapshot) {
             do {
-                try fileManager.removeItem(at: source)
-                try fileManager.copyItem(at: backup, to: source)
-                _ = MusicService.shared.reapplyMetadataAndArtwork(persistentID: persistentID)
-                return "\(metadataError) The original file was restored."
-            } catch {
-                return "\(metadataError) Automatic rollback also failed: \(error.localizedDescription)"
+                try Self.overwriteFileContents(at: source, with: backup)
+            } catch let rollbackError {
+                return "\(metadataError) Restoring the original audio bytes also failed: \(rollbackError.localizedDescription)"
             }
+            if let rollbackMetadataError = MusicService.shared.restoreReplacementSnapshot(snapshot) {
+                return "\(metadataError) Original audio bytes were restored, but metadata rollback failed: \(rollbackMetadataError)"
+            }
+            return "\(metadataError) The original audio and saved metadata were restored."
         }
         return nil
     }

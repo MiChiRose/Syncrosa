@@ -73,10 +73,15 @@ struct IPodConverterView: View {
                     .disabled(isConverting)
 
                     Button(action: selectOutputDirectory) {
-                        Label(isRussian ? "Выбрать папку" : "Choose Output Folder", systemImage: "folder")
+                        Label(
+                            replacesMusicTrack
+                                ? (isRussian ? "Папка резервных копий" : "Choose Backup Folder")
+                                : (isRussian ? "Выбрать папку" : "Choose Output Folder"),
+                            systemImage: "folder"
+                        )
                     }
                     .buttonStyle(SyncrosaSecondaryButtonStyle())
-                    .disabled(isConverting || replacesMusicTrack)
+                    .disabled(isConverting)
                 }
 
                 Text(files.isEmpty
@@ -86,9 +91,9 @@ struct IPodConverterView: View {
                     .foregroundStyle(.secondary)
 
                 Text(replacesMusicTrack
-                     ? (isRussian
-                        ? "Оригинал будет сохранён рядом как Syncrosa Backup."
-                        : "The original will be saved beside the track as Syncrosa Backup.")
+                     ? (outputDirectory?.path ?? (isRussian
+                        ? "Папка резервных копий не выбрана."
+                        : "No backup folder selected."))
                      : (outputDirectory?.path ?? (isRussian ? "Папка назначения не выбрана." : "No output folder selected.")))
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
@@ -137,7 +142,8 @@ struct IPodConverterView: View {
                 .buttonStyle(SyncrosaPrimaryButtonStyle())
                 .disabled(!isConverting && (
                     files.isEmpty ||
-                    (replacesMusicTrack ? !allFilesAreM4A : outputDirectory == nil)
+                    outputDirectory == nil ||
+                    (replacesMusicTrack && !allFilesAreM4A)
                 ))
 
                 if !resultText.isEmpty {
@@ -179,7 +185,7 @@ struct IPodConverterView: View {
     }
 
     private func startConversion() {
-        guard !files.isEmpty else { return }
+        guard !files.isEmpty, let destinationDirectory = outputDirectory else { return }
         if replacesMusicTrack {
             guard allFilesAreM4A else {
                 let alert = NSAlert()
@@ -217,18 +223,13 @@ struct IPodConverterView: View {
                 ? "Заменить выбранные треки?"
                 : "Replace the selected tracks?"
             confirmation.informativeText = isRussian
-                ? "Каждый исходный M4A будет сохранён рядом как «Syncrosa Backup». Путь в Music останется прежним; метаданные и обложка будут применены к новому файлу."
-                : "Each original M4A will be saved beside it as “Syncrosa Backup”. Its Music path stays the same, and metadata and artwork are reapplied to the new file."
+                ? "Каждый исходный M4A будет сохранён в выбранной папке резервных копий. Путь в Music останется прежним; метаданные и обложка будут применены к новому файлу."
+                : "Each original M4A will be saved in the selected backup folder. Its Music path stays the same, and metadata and artwork are reapplied to the new file."
             confirmation.addButton(withTitle: isRussian ? "Заменить с резервной копией" : "Replace with Backup")
             confirmation.addButton(withTitle: isRussian ? "Отмена" : "Cancel")
             guard confirmation.runModal() == .alertFirstButtonReturn else { return }
         }
 
-        guard let destinationDirectory = replacesMusicTrack
-            ? files.first?.deletingLastPathComponent()
-            : outputDirectory else {
-            return
-        }
         isConverting = true
         completedCount = 0
         currentFilename = ""

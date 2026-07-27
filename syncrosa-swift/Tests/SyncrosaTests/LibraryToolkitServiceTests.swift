@@ -44,13 +44,44 @@ final class LibraryToolkitServiceTests: XCTestCase {
 
         let source = directory.appendingPathComponent("Long Mix.m4a")
         try Data("original".utf8).write(to: source)
-        let first = IPodCompatibilityService.backupURL(for: source)
+        let first = IPodCompatibilityService.backupURL(for: source, in: directory)
         try Data("backup".utf8).write(to: first)
-        let second = IPodCompatibilityService.backupURL(for: source)
+        let second = IPodCompatibilityService.backupURL(for: source, in: directory)
 
         XCTAssertEqual(first.lastPathComponent, "Long Mix (Syncrosa Backup).m4a")
         XCTAssertEqual(second.lastPathComponent, "Long Mix (Syncrosa Backup 2).m4a")
         XCTAssertNotEqual(first, source)
+    }
+
+    func testIPodReplacementOverwritesInPlaceAndCanRestoreBackup() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("syncrosa-ipod-in-place-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let source = directory.appendingPathComponent("track.m4a")
+        let repaired = directory.appendingPathComponent("repaired.m4a")
+        let backup = directory.appendingPathComponent("backup.m4a")
+        try Data("original bytes".utf8).write(to: source)
+        try FileManager.default.copyItem(at: source, to: backup)
+        try Data("repaired bytes".utf8).write(to: repaired)
+        let inodeBefore = try XCTUnwrap(
+            FileManager.default.attributesOfItem(atPath: source.path)[.systemFileNumber] as? NSNumber
+        )
+
+        try IPodCompatibilityService.overwriteFileContents(at: source, with: repaired)
+        let inodeAfterRepair = try XCTUnwrap(
+            FileManager.default.attributesOfItem(atPath: source.path)[.systemFileNumber] as? NSNumber
+        )
+        XCTAssertEqual(inodeAfterRepair, inodeBefore)
+        XCTAssertEqual(try String(contentsOf: source), "repaired bytes")
+
+        try IPodCompatibilityService.overwriteFileContents(at: source, with: backup)
+        let inodeAfterRollback = try XCTUnwrap(
+            FileManager.default.attributesOfItem(atPath: source.path)[.systemFileNumber] as? NSNumber
+        )
+        XCTAssertEqual(inodeAfterRollback, inodeBefore)
+        XCTAssertEqual(try String(contentsOf: source), "original bytes")
     }
 
     func testIPodReplacementRejectsNonM4ABeforeMusicLookup() throws {
