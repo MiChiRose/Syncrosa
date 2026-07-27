@@ -76,24 +76,22 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.7.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds appearance modes, six color themes, a fully collapsible sidebar, and a broader native Cocoa UI refresh. |
-| `Syncrosa_Python_v3.4.6.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as a 3.4.6 package with the same Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.4.7.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with expanded library workflows, configurable appearance, richer recovery tools, and a redesigned first-launch experience. |
+| `Syncrosa_Cocoa_v3.4.8.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Recommended legacy build for Mavericks-era machines; adds deep iPod Classic compatibility analysis and lossless ALAC repair/replacement. |
+| `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
+| `Syncrosa_SwiftUI_v3.4.8.zip` | Modern Apple Silicon Macs | macOS 14 | Modern Music.app build with deep iPod Classic compatibility analysis, lossless ALAC repair, and Music library replacement. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.4.7
+### Latest Release: 3.4.8
 
-Syncrosa 3.4.7 updates both primary application tracks: Objective-C/Cocoa for vintage Intel Macs and SwiftUI for modern Apple Silicon Macs. The maintenance Python package remains available as version 3.4.6:
+Syncrosa 3.4.8 updates both native application tracks and aligns the maintenance Python package under the same version:
 
-- **Appearance Modes:** Choose System, Light, or Dark. Mavericks uses a safe light fallback for System mode, while newer macOS versions can follow the system appearance.
-- **Six Cocoa Themes:** Classic Graphite, Aqua Blue, Sage Graphite, Soft Plum, Ruby Graphite, and Ocean Mist now style the full application consistently.
-- **Cleaner Navigation:** The sidebar can collapse completely, leaving the current tool centered in the available workspace.
-- **Unified Legacy UI:** Buttons, fields, tables, progress indicators, help sheets, Recovery Center, Operation History, Overview, and AI Playlist share clearer spacing and active/disabled states.
-- **Mavericks-Safe AI Transport:** The release bundle includes a verified x86_64 curl runtime for modern TLS without disabling certificate validation.
-- **Expanded SwiftUI Toolkit:** Modern library auditing, metadata workflows, JSON exchange, rename templates, recovery controls, and Music.app integrations are organized into clearer task-focused views.
-- **Modern Appearance Controls:** The SwiftUI app can follow the system appearance or use Light/Dark modes with the same six Syncrosa color themes.
-- **Two Native Builds:** Cocoa is built and tested with Xcode 6.2 on OS X 10.9; SwiftUI is built and tested as an arm64 package for macOS 14+. No new Python package is included in this release.
+- **Deep iPod Classic Analysis:** Library Doctor can now inspect audio files for container, codec, sample-rate, bit-depth, channel, and stream-layout risks instead of judging compatibility from the file extension alone.
+- **Preserve Compatible ALAC:** ALAC/M4A files that already match the iPod Classic profile remain byte-for-byte untouched.
+- **Lossless ALAC Repair:** Incompatible ALAC can be rebuilt as compatible 16-bit/44.1 kHz ALAC, avoiding an unnecessary AAC quality loss.
+- **Two Repair Modes:** Save a repaired copy, or replace the original file used by iTunes/Music while preserving library metadata and artwork.
+- **Safer AAC Fallback:** Files that cannot remain lossless are converted to a conservative iPod-compatible AAC profile with clear reporting.
+- **Three Aligned Packages:** Cocoa for OS X 10.9+, Python for legacy systems, and SwiftUI for macOS 14+ are all published as version 3.4.8.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
