@@ -11,6 +11,8 @@
 #import "IGIconProvider.h"
 #import "IGAIService.h"
 #import "IGIPodCompatibilityService.h"
+#import "IGOperationActivity.h"
+#import "IGVideoFileMetadataService.h"
 
 @interface IGBusinessLogicTests : XCTestCase @end
 
@@ -56,8 +58,9 @@
                                                       name:@"Children"
                                                     artist:@"Robert Miles"
                                                      album:@"Dreamland"
-                                                     genre:@"Trance"
+                                                      genre:@"Trance"
                                                       year:1996];
+    track.fileSizeBytes = 123456789ULL;
     NSDictionary *json = IGPlaylistJSONObjectForTrack(track);
     XCTAssertEqualObjects([json objectForKey:@"persistentID"], @"ABCDEF12");
     XCTAssertEqualObjects([json objectForKey:@"id"], @"ABCDEF12");
@@ -66,6 +69,22 @@
     XCTAssertEqualObjects([json objectForKey:@"album"], @"Dreamland");
     XCTAssertEqualObjects([json objectForKey:@"genre"], @"Trance");
     XCTAssertEqualObjects([json objectForKey:@"year"], @1996);
+    XCTAssertEqualObjects([json objectForKey:@"fileSizeBytes"], @123456789ULL);
+    XCTAssertTrue([[json objectForKey:@"fileSize"] length] > 0);
+}
+
+- (void)testOperationActivityPreventsOverlappingJobs {
+    IGOperationActivity *activity = [IGOperationActivity sharedActivity];
+    [activity finishOperationWithIdentifier:activity.activeIdentifier];
+
+    XCTAssertTrue([activity beginOperationWithIdentifier:IGOperationActivityUSBExportIdentifier]);
+    XCTAssertTrue([activity isOperationActiveWithIdentifier:IGOperationActivityUSBExportIdentifier]);
+    XCTAssertFalse([activity beginOperationWithIdentifier:IGOperationActivityAIPlaylistIdentifier]);
+
+    [activity finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
+    XCTAssertTrue([activity beginOperationWithIdentifier:IGOperationActivityAIPlaylistIdentifier]);
+    [activity finishOperationWithIdentifier:IGOperationActivityAIPlaylistIdentifier];
+    XCTAssertNil(activity.activeIdentifier);
 }
 
 - (void)testUpdateVersionComparison {
@@ -150,10 +169,11 @@
 }
 
 - (void)testLegacyNavigationLibraryRequirements {
-    XCTAssertEqual(IGNavigationItemCount, (NSInteger)13);
+    XCTAssertEqual(IGNavigationItemCount, (NSInteger)14);
     XCTAssertTrue(IGNavigationItemRequiresReadableLibrary(IGNavigationItemAIPlaylist));
     XCTAssertTrue(IGNavigationItemRequiresReadableLibrary(IGNavigationItemLibraryDoctor));
     XCTAssertTrue(IGNavigationItemRequiresReadableLibrary(IGNavigationItemUSBExport));
+    XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemVideoMetadata));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemOverview));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemFolderFixer));
     XCTAssertFalse(IGNavigationItemRequiresReadableLibrary(IGNavigationItemIPodConverter));
@@ -297,6 +317,44 @@
     XCTAssertEqualObjects([report objectForKey:@"missingReferenceCount"], @1);
     XCTAssertEqualObjects([report objectForKey:@"unlinkedFileCount"], @1);
     XCTAssertEqualObjects([references objectAtIndex:0], missing);
+}
+
+- (void)testVideoFilenameHintsRecognizeMoviesAndEpisodes {
+    NSDictionary *movie = [IGVideoFileMetadataService filenameHintsForURL:[NSURL fileURLWithPath:@"/tmp/Star_Wars_Episode_III.m4v"]];
+    XCTAssertEqualObjects([movie objectForKey:@"videoKind"], @"Movie");
+    XCTAssertEqualObjects([movie objectForKey:@"name"], @"Star Wars Episode III");
+
+    NSDictionary *episode = [IGVideoFileMetadataService filenameHintsForURL:[NSURL fileURLWithPath:@"/tmp/The.Show.S02E07.Chapter_Name.mp4"]];
+    XCTAssertEqualObjects([episode objectForKey:@"videoKind"], @"TV Show");
+    XCTAssertEqualObjects([episode objectForKey:@"show"], @"The Show");
+    XCTAssertEqualObjects([episode objectForKey:@"name"], @"Chapter Name");
+    XCTAssertEqualObjects([episode objectForKey:@"seasonNumber"], @2);
+    XCTAssertEqualObjects([episode objectForKey:@"episodeNumber"], @7);
+}
+
+- (void)testVideoMetadataCommentPreservesTelevisionNumbers {
+    NSDictionary *numbers = [IGVideoFileMetadataService televisionHintsForMetadataComment:@"User note stays here\nSyncrosa TV S02E107"];
+    XCTAssertEqualObjects([numbers objectForKey:@"seasonNumber"], @2);
+    XCTAssertEqualObjects([numbers objectForKey:@"episodeNumber"], @107);
+    XCTAssertNil([IGVideoFileMetadataService televisionHintsForMetadataComment:@"ordinary comment"]);
+}
+
+- (void)testVideoFolderScanIsRecursiveAndLimitedToSafeContainers {
+    NSString *rootPath = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSProcessInfo processInfo] globallyUniqueString]];
+    NSString *nestedPath = [rootPath stringByAppendingPathComponent:@"Season 1"];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    XCTAssertTrue([manager createDirectoryAtPath:nestedPath withIntermediateDirectories:YES attributes:nil error:nil]);
+    [manager createFileAtPath:[rootPath stringByAppendingPathComponent:@"Movie.M4V"] contents:[NSData data] attributes:nil];
+    [manager createFileAtPath:[nestedPath stringByAppendingPathComponent:@"Episode.mp4"] contents:[NSData data] attributes:nil];
+    [manager createFileAtPath:[rootPath stringByAppendingPathComponent:@"Unsupported.mkv"] contents:[NSData data] attributes:nil];
+    [manager createFileAtPath:[rootPath stringByAppendingPathComponent:@".hidden.mp4"] contents:[NSData data] attributes:nil];
+    [manager createFileAtPath:[rootPath stringByAppendingPathComponent:@"Movie.syncrosa-backup.m4v"] contents:[NSData data] attributes:nil];
+
+    NSArray *videos = [IGVideoFileMetadataService videoFileURLsInDirectory:[NSURL fileURLWithPath:rootPath]];
+    XCTAssertEqual([videos count], (NSUInteger)2);
+    XCTAssertTrue([[[videos objectAtIndex:0] path] hasSuffix:@"Movie.M4V"]);
+    XCTAssertTrue([[[videos objectAtIndex:1] path] hasSuffix:@"Episode.mp4"]);
+    XCTAssertTrue([manager removeItemAtPath:rootPath error:nil]);
 }
 
 @end

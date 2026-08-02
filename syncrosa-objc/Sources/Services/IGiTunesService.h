@@ -74,6 +74,15 @@
  */
 - (void)fetchLibraryFileTrackReferencesWithCompletion:(void(^)(NSArray *tracks))completionBlock;
 
+/** Fetches movie and TV-show tracks with editable iTunes metadata. */
+- (void)fetchVideoTracksWithCompletion:(void(^)(NSArray *tracks, NSString *errorMessage))completionBlock;
+
+/** Updates one movie or TV-show track and optionally replaces/adds its artwork. */
+- (void)updateVideoTrackWithPersistentID:(NSString *)persistentID
+                                metadata:(NSDictionary *)metadata
+                              artworkURL:(NSURL *)artworkURL
+                              completion:(void(^)(BOOL success, NSString *errorMessage))completionBlock;
+
 /**
  * Executes an AppleScript command on the main thread and returns the string result.
  */

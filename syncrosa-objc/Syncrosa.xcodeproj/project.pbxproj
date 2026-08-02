@@ -64,6 +64,10 @@
 		926668244C544F2F8A5D0E77 /* IGMediaFixerManager.m in Build */ = {isa = PBXBuildFile; fileRef = 74DEE8B60F624245A89DC53E /* IGMediaFixerManager.m */; };
 		26C43F4A34364DBBA8D76048 /* IGiTunesService.m in Build */ = {isa = PBXBuildFile; fileRef = 25322633809E4586877D1F54 /* IGiTunesService.m */; };
 		9F60C8D49F284C8ABB40C455 /* IGKeychainHelper.m in Build */ = {isa = PBXBuildFile; fileRef = 1797CE731B744A29BCCCFDDF /* IGKeychainHelper.m */; };
+		A80100000000000000000001 /* IGOperationActivity.m in Build */ = {isa = PBXBuildFile; fileRef = A80100000000000000000004 /* IGOperationActivity.m */; };
+		A80100000000000000000002 /* IGVideoMetadataViewController.m in Build */ = {isa = PBXBuildFile; fileRef = A80100000000000000000006 /* IGVideoMetadataViewController.m */; };
+		A80200000000000000000001 /* IGVideoFileMetadataService.m in Build */ = {isa = PBXBuildFile; fileRef = A80200000000000000000004 /* IGVideoFileMetadataService.m */; };
+		A80200000000000000000002 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A80200000000000000000005 /* AVFoundation.framework */; };
 		5D7037A06A23448EB85741D7 /* SyncrosaTests.m in Build */ = {isa = PBXBuildFile; fileRef = 82ED0CB27F3C48F6A4113858 /* SyncrosaTests.m */; };
 		88306CA2A8764D4CBE9EF3C7 /* IGBusinessLogicTests.m in Build */ = {isa = PBXBuildFile; fileRef = 6FC946587A2C4A71BB213DC8 /* IGBusinessLogicTests.m */; };
 /* End PBXBuildFile section */
@@ -161,6 +165,13 @@
 		3123DACEAF52423BA9E8296E /* IGLocalizationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLocalizationService.h"; sourceTree = "<group>"; };
 		74988E5C7C364D7AA8302DEB /* IGLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGLogger.h"; sourceTree = "<group>"; };
 		1797CE731B744A29BCCCFDDF /* IGKeychainHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGKeychainHelper.m"; sourceTree = "<group>"; };
+		A80100000000000000000003 /* IGOperationActivity.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGOperationActivity.h"; sourceTree = "<group>"; };
+		A80100000000000000000004 /* IGOperationActivity.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGOperationActivity.m"; sourceTree = "<group>"; };
+		A80100000000000000000005 /* IGVideoMetadataViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGVideoMetadataViewController.h"; sourceTree = "<group>"; };
+		A80100000000000000000006 /* IGVideoMetadataViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGVideoMetadataViewController.m"; sourceTree = "<group>"; };
+		A80200000000000000000003 /* IGVideoFileMetadataService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGVideoFileMetadataService.h"; sourceTree = "<group>"; };
+		A80200000000000000000004 /* IGVideoFileMetadataService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGVideoFileMetadataService.m"; sourceTree = "<group>"; };
+		A80200000000000000000005 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		0B11E06C09474BA782581110 /* IGUSBService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBService.h"; sourceTree = "<group>"; };
 		F10000000000000000000010 /* IGIPodCompatibilityService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGIPodCompatibilityService.h"; sourceTree = "<group>"; };
 		F10000000000000000000011 /* IGIPodCompatibilityService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGIPodCompatibilityService.m"; sourceTree = "<group>"; };
@@ -180,6 +191,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F10000000000000000000003 /* AudioToolbox.framework in Frameworks */,
+				A80200000000000000000002 /* AVFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -295,6 +307,10 @@
 				0B11E06C09474BA782581110 /* IGUSBService.h */,
 				F10000000000000000000010 /* IGIPodCompatibilityService.h */,
 				F10000000000000000000011 /* IGIPodCompatibilityService.m */,
+				A80100000000000000000003 /* IGOperationActivity.h */,
+				A80100000000000000000004 /* IGOperationActivity.m */,
+				A80200000000000000000003 /* IGVideoFileMetadataService.h */,
+				A80200000000000000000004 /* IGVideoFileMetadataService.m */,
 			);
 			path = "Services";
 			sourceTree = "<group>";
@@ -345,6 +361,8 @@
 				EAD24D55D2BA422C89A18EFE /* IGFileFixerViewController.h */,
 				F10000000000000000000012 /* IGIPodConverterViewController.h */,
 				F10000000000000000000013 /* IGIPodConverterViewController.m */,
+				A80100000000000000000005 /* IGVideoMetadataViewController.h */,
+				A80100000000000000000006 /* IGVideoMetadataViewController.m */,
 			);
 			path = "UI";
 			sourceTree = "<group>";
@@ -548,6 +566,9 @@
 				9F60C8D49F284C8ABB40C455 /* IGKeychainHelper.m in Sources */,
 				F10000000000000000000001 /* IGIPodCompatibilityService.m in Sources */,
 				F10000000000000000000002 /* IGIPodConverterViewController.m in Sources */,
+				A80100000000000000000001 /* IGOperationActivity.m in Sources */,
+				A80100000000000000000002 /* IGVideoMetadataViewController.m in Sources */,
+				A80200000000000000000001 /* IGVideoFileMetadataService.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

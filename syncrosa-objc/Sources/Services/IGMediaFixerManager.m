@@ -2,6 +2,7 @@
 #import "IGiTunesService.h"
 #import "IGLyricsService.h"
 #import "IGLogger.h"
+#import "IGAIService.h"
 
 static NSString *IGMediaJSONString(id value) {
     return [value isKindOfClass:[NSString class]] ? value : @"";
@@ -9,6 +10,20 @@ static NSString *IGMediaJSONString(id value) {
 
 static NSNumber *IGMediaJSONNumber(id value) {
     return [value respondsToSelector:@selector(integerValue)] ? value : @(0);
+}
+
+static NSInteger IGMediaYearFromReleaseDate(id value) {
+    NSString *releaseDate = IGMediaJSONString(value);
+    return [releaseDate length] >= 4 ? [[releaseDate substringToIndex:4] integerValue] : 0;
+}
+
+static NSInteger IGMediaSeasonNumberFromName(NSString *name) {
+    if (![name isKindOfClass:[NSString class]]) return 0;
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"season\\s+([0-9]+)"
+                                                                            options:NSRegularExpressionCaseInsensitive
+                                                                              error:nil];
+    NSTextCheckingResult *match = [regex firstMatchInString:name options:0 range:NSMakeRange(0, [name length])];
+    return match && [match numberOfRanges] > 1 ? [[name substringWithRange:[match rangeAtIndex:1]] integerValue] : 0;
 }
 
 static NSString *IGMediaAppleScriptLiteral(id value) {
@@ -42,7 +57,7 @@ static NSString *IGMediaTempPath(NSString *extension) {
     return [NSTemporaryDirectory() stringByAppendingPathComponent:[baseName stringByAppendingPathExtension:extension]];
 }
 
-static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
+static NSData *IGMediaRunCurlWithLimit(NSArray *args, int *statusOut, unsigned long long maximumBytes) {
     NSString *stdoutPath = IGMediaTempPath(@"stdout");
     NSString *stderrPath = IGMediaTempPath(@"stderr");
     NSDictionary *attrs = @{NSFilePosixPermissions: [NSNumber numberWithUnsignedLong:0600]};
@@ -53,19 +68,37 @@ static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
     NSFileHandle *stderrHandle = [NSFileHandle fileHandleForWritingAtPath:stderrPath];
     int status = -1;
     NSData *data = nil;
+    BOOL exceededLimit = NO;
 
     @try {
         NSTask *task = [[[NSTask alloc] init] autorelease];
-        [task setLaunchPath:@"/usr/bin/curl"];
+        NSString *curlPath = IGAICurlExecutablePath();
+        [task setLaunchPath:curlPath];
+        NSString *bundledLibPath = [[[curlPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"lib"] stringByStandardizingPath];
+        BOOL bundledRuntime = [curlPath rangeOfString:@"/Contents/Resources/LegacyCurl/"].location != NSNotFound;
+        if (bundledRuntime && [[NSFileManager defaultManager] fileExistsAtPath:bundledLibPath]) {
+            NSMutableDictionary *environment = [NSMutableDictionary dictionaryWithDictionary:[[NSProcessInfo processInfo] environment]];
+            [environment setObject:bundledLibPath forKey:@"DYLD_LIBRARY_PATH"];
+            [task setEnvironment:environment];
+        }
         [task setArguments:args];
         [task setStandardOutput:stdoutHandle];
         [task setStandardError:stderrHandle];
         [task launch];
+        while ([task isRunning] && maximumBytes > 0) {
+            NSDictionary *outputAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:stdoutPath error:nil];
+            if ([[outputAttributes objectForKey:NSFileSize] unsignedLongLongValue] > maximumBytes) {
+                exceededLimit = YES;
+                [task terminate];
+                break;
+            }
+            [NSThread sleepForTimeInterval:0.05];
+        }
         [task waitUntilExit];
-        status = [task terminationStatus];
+        status = exceededLimit ? -2 : [task terminationStatus];
         [stdoutHandle closeFile];
         [stderrHandle closeFile];
-        data = [NSData dataWithContentsOfFile:stdoutPath];
+        if (!exceededLimit) data = [NSData dataWithContentsOfFile:stdoutPath];
         if (status != 0) {
             NSData *stderrData = [NSData dataWithContentsOfFile:stderrPath];
             NSString *stderrText = @"";
@@ -90,6 +123,198 @@ static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
     [[NSFileManager defaultManager] removeItemAtPath:stderrPath error:nil];
     if (statusOut) *statusOut = status;
     return data;
+}
+
+static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
+    return IGMediaRunCurlWithLimit(args, statusOut, 0);
+}
+
+static NSString *IGMediaEncodeURLComponent(NSString *value) {
+    NSMutableCharacterSet *allowed = [[[NSCharacterSet alphanumericCharacterSet] mutableCopy] autorelease];
+    [allowed addCharactersInString:@"-._~"];
+    return [value stringByAddingPercentEncodingWithAllowedCharacters:allowed];
+}
+
+static NSArray *IGMediaIMDbVideoMatches(NSData *data, BOOL television) {
+    id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![jsonObject isKindOfClass:[NSDictionary class]]) return [NSArray array];
+    id itemsObject = [(NSDictionary *)jsonObject objectForKey:@"d"];
+    if (![itemsObject isKindOfClass:[NSArray class]]) return [NSArray array];
+    NSArray *items = itemsObject;
+    NSMutableArray *matches = [NSMutableArray array];
+    for (NSDictionary *item in items) {
+        if (![item isKindOfClass:[NSDictionary class]]) continue;
+        NSString *identifier = IGMediaJSONString([item objectForKey:@"id"]);
+        NSString *name = IGMediaJSONString([item objectForKey:@"l"]);
+        NSString *queryType = [IGMediaJSONString([item objectForKey:@"q"]) lowercaseString];
+        NSString *queryID = [IGMediaJSONString([item objectForKey:@"qid"]) lowercaseString];
+        BOOL isTelevision = [queryType rangeOfString:@"tv"].location != NSNotFound ||
+                            [queryID rangeOfString:@"tv"].location != NSNotFound;
+        BOOL isMovie = [queryType isEqualToString:@"feature"] || [queryID isEqualToString:@"movie"] ||
+                       [queryType isEqualToString:@"tv movie"] || [queryType isEqualToString:@"tvmovie"];
+        if (![identifier hasPrefix:@"tt"] || [name length] == 0) continue;
+        if (television ? !isTelevision : !isMovie) continue;
+
+        NSInteger year = [[item objectForKey:@"y"] integerValue];
+        NSString *cast = IGMediaJSONString([item objectForKey:@"s"]);
+        NSDictionary *image = [[item objectForKey:@"i"] isKindOfClass:[NSDictionary class]] ? [item objectForKey:@"i"] : nil;
+        NSString *artworkURL = IGMediaJSONString([image objectForKey:@"imageUrl"]);
+        NSNumber *artworkWidth = [image objectForKey:@"width"] ?: @0;
+        NSNumber *artworkHeight = [image objectForKey:@"height"] ?: @0;
+        NSString *display = [NSString stringWithFormat:@"%@%@%@",
+                             name,
+                             year > 0 ? [NSString stringWithFormat:@" (%ld)", (long)year] : @"",
+                             cast.length > 0 ? [NSString stringWithFormat:@" — %@", cast] : @""];
+        NSString *description = cast.length > 0 ? [NSString stringWithFormat:@"Cast: %@", cast] : @"";
+        [matches addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+                            name, @"name",
+                            television ? @"TV Show" : @"Movie", @"videoKind",
+                            television ? name : @"", @"show",
+                            @0, @"seasonNumber",
+                            @0, @"episodeNumber",
+                            @"", @"genre",
+                            @"", @"originalGenre",
+                            @"", @"localizedGenre",
+                            [NSNumber numberWithInteger:year], @"year",
+                            description, @"description",
+                            description, @"originalDescription",
+                            @"", @"localizedDescription",
+                            @"", @"director",
+                            @"", @"originalDirector",
+                            @"", @"localizedDirector",
+                            artworkURL, @"artworkURL",
+                            artworkWidth, @"artworkWidth",
+                            artworkHeight, @"artworkHeight",
+                            display, @"displayTitle",
+                            identifier, @"catalogID",
+                            name, @"originalName",
+                            @"", @"localizedName",
+                            @"IMDb", @"catalogSource",
+                            nil]];
+    }
+    return matches;
+}
+
+static NSArray *IGMediaMatchesByAddingRussianWikidataLabels(NSArray *matches, NSData *data) {
+    id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![jsonObject isKindOfClass:[NSDictionary class]]) return matches;
+    id resultsObject = [(NSDictionary *)jsonObject objectForKey:@"results"];
+    if (![resultsObject isKindOfClass:[NSDictionary class]]) return matches;
+    id bindingsObject = [(NSDictionary *)resultsObject objectForKey:@"bindings"];
+    if (![bindingsObject isKindOfClass:[NSArray class]]) return matches;
+    NSArray *bindings = bindingsObject;
+    NSMutableDictionary *localizedByID = [NSMutableDictionary dictionary];
+    for (NSDictionary *binding in bindings) {
+        if (![binding isKindOfClass:[NSDictionary class]]) continue;
+        NSDictionary *imdb = [[binding objectForKey:@"imdb"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"imdb"] : nil;
+        NSDictionary *ruLabel = [[binding objectForKey:@"ruLabel"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"ruLabel"] : nil;
+        NSDictionary *ruDescription = [[binding objectForKey:@"ruDescription"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"ruDescription"] : nil;
+        NSDictionary *enDescription = [[binding objectForKey:@"enDescription"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"enDescription"] : nil;
+        NSDictionary *genresRu = [[binding objectForKey:@"genresRu"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"genresRu"] : nil;
+        NSDictionary *genresEn = [[binding objectForKey:@"genresEn"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"genresEn"] : nil;
+        NSDictionary *directorsRu = [[binding objectForKey:@"directorsRu"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"directorsRu"] : nil;
+        NSDictionary *directorsEn = [[binding objectForKey:@"directorsEn"] isKindOfClass:[NSDictionary class]] ? [binding objectForKey:@"directorsEn"] : nil;
+        NSString *identifier = IGMediaJSONString([imdb objectForKey:@"value"]);
+        NSString *label = IGMediaJSONString([ruLabel objectForKey:@"value"]);
+        NSString *description = IGMediaJSONString([ruDescription objectForKey:@"value"]);
+        NSString *englishDescription = IGMediaJSONString([enDescription objectForKey:@"value"]);
+        NSString *russianGenres = IGMediaJSONString([genresRu objectForKey:@"value"]);
+        NSString *englishGenres = IGMediaJSONString([genresEn objectForKey:@"value"]);
+        NSString *russianDirectors = IGMediaJSONString([directorsRu objectForKey:@"value"]);
+        NSString *englishDirectors = IGMediaJSONString([directorsEn objectForKey:@"value"]);
+        if ([identifier length] > 0 && [label length] > 0) {
+            [localizedByID setObject:@{ @"label": label,
+                                        @"description": description,
+                                        @"englishDescription": englishDescription,
+                                        @"russianGenres": russianGenres,
+                                        @"englishGenres": englishGenres,
+                                        @"russianDirectors": russianDirectors,
+                                        @"englishDirectors": englishDirectors } forKey:identifier];
+        }
+    }
+    if ([localizedByID count] == 0) return matches;
+
+    NSMutableArray *localizedMatches = [NSMutableArray arrayWithCapacity:[matches count]];
+    for (NSDictionary *match in matches) {
+        NSString *identifier = [match objectForKey:@"catalogID"];
+        NSDictionary *localized = [localizedByID objectForKey:identifier];
+        if (!localized) {
+            [localizedMatches addObject:match];
+            continue;
+        }
+        NSString *englishName = IGMediaJSONString([match objectForKey:@"name"]);
+        NSString *russianName = IGMediaJSONString([localized objectForKey:@"label"]);
+        NSInteger year = [[match objectForKey:@"year"] integerValue];
+        NSMutableDictionary *updated = [[match mutableCopy] autorelease];
+        [updated setObject:russianName forKey:@"name"];
+        [updated setObject:russianName forKey:@"localizedName"];
+        NSString *russianDescription = IGMediaJSONString([localized objectForKey:@"description"]);
+        NSString *englishDescription = IGMediaJSONString([localized objectForKey:@"englishDescription"]);
+        NSString *russianGenre = IGMediaJSONString([localized objectForKey:@"russianGenres"]);
+        NSString *englishGenre = IGMediaJSONString([localized objectForKey:@"englishGenres"]);
+        NSString *russianDirector = IGMediaJSONString([localized objectForKey:@"russianDirectors"]);
+        NSString *englishDirector = IGMediaJSONString([localized objectForKey:@"englishDirectors"]);
+        if ([russianDescription length] > 0) {
+            [updated setObject:russianDescription forKey:@"description"];
+            [updated setObject:russianDescription forKey:@"localizedDescription"];
+        }
+        if ([englishDescription length] > 0) [updated setObject:englishDescription forKey:@"originalDescription"];
+        if ([russianGenre length] > 0) {
+            [updated setObject:russianGenre forKey:@"genre"];
+            [updated setObject:russianGenre forKey:@"localizedGenre"];
+        }
+        if ([englishGenre length] > 0) [updated setObject:englishGenre forKey:@"originalGenre"];
+        if ([russianDirector length] > 0) {
+            [updated setObject:russianDirector forKey:@"director"];
+            [updated setObject:russianDirector forKey:@"localizedDirector"];
+        }
+        if ([englishDirector length] > 0) [updated setObject:englishDirector forKey:@"originalDirector"];
+        NSString *display = [NSString stringWithFormat:@"%@%@%@",
+                             russianName,
+                             year > 0 ? [NSString stringWithFormat:@" (%ld)", (long)year] : @"",
+                             ![russianName isEqualToString:englishName] ? [NSString stringWithFormat:@" — %@", englishName] : @""];
+        [updated setObject:display forKey:@"displayTitle"];
+        [updated setObject:englishName forKey:@"originalName"];
+        [localizedMatches addObject:updated];
+    }
+    return localizedMatches;
+}
+
+static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
+    id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![jsonObject isKindOfClass:[NSDictionary class]]) return [NSArray array];
+    id resultsObject = [(NSDictionary *)jsonObject objectForKey:@"results"];
+    if (![resultsObject isKindOfClass:[NSArray class]]) return [NSArray array];
+    NSArray *results = resultsObject;
+    NSMutableArray *matches = [NSMutableArray array];
+    for (NSDictionary *item in results) {
+        if (![item isKindOfClass:[NSDictionary class]]) continue;
+        NSString *trackName = IGMediaJSONString([item objectForKey:@"trackName"]);
+        NSString *collectionName = IGMediaJSONString([item objectForKey:@"collectionName"]);
+        NSString *artistName = IGMediaJSONString([item objectForKey:@"artistName"]);
+        NSString *showName = television ? (artistName.length > 0 ? artistName : collectionName) : @"";
+        NSString *name = television ? (collectionName.length > 0 ? collectionName : trackName) : trackName;
+        if ([name length] == 0) continue;
+        NSString *description = IGMediaJSONString([item objectForKey:@"longDescription"]);
+        if ([description length] == 0) description = IGMediaJSONString([item objectForKey:@"shortDescription"]);
+        NSInteger year = IGMediaYearFromReleaseDate([item objectForKey:@"releaseDate"]);
+        NSString *genre = IGMediaJSONString([item objectForKey:@"primaryGenreName"]);
+        NSString *artworkURL = IGMediaJSONString([item objectForKey:@"artworkUrl100"]);
+        if ([artworkURL length] > 0) artworkURL = [artworkURL stringByReplacingOccurrencesOfString:@"100x100" withString:@"600x600"];
+        NSString *display = [NSString stringWithFormat:@"%@%@%@", name,
+                             year > 0 ? [NSString stringWithFormat:@" (%ld)", (long)year] : @"",
+                             genre.length > 0 ? [NSString stringWithFormat:@" — %@", genre] : @""];
+        [matches addObject:@{ @"name": name, @"videoKind": television ? @"TV Show" : @"Movie",
+                              @"show": showName, @"seasonNumber": @(television ? IGMediaSeasonNumberFromName(collectionName) : 0),
+                              @"episodeNumber": @0, @"genre": genre, @"originalGenre": genre, @"localizedGenre": @"",
+                              @"year": @(year), @"description": description,
+                              @"originalDescription": description, @"localizedDescription": @"",
+                              @"director": @"", @"originalDirector": @"", @"localizedDirector": @"",
+                              @"artworkURL": artworkURL, @"artworkWidth": @0, @"artworkHeight": @0,
+                              @"displayTitle": display, @"originalName": name, @"localizedName": @"",
+                              @"catalogSource": @"Apple" }];
+    }
+    return matches;
 }
 
 @implementation IGMediaFixerManager
@@ -144,10 +369,16 @@ static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
             int status = -1;
             NSData *data = IGMediaRunCurl(args, &status);
             if (status == 0 && data.length > 0) {
-                NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-                NSArray *results = json[@"results"];
+                id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                NSDictionary *json = [jsonObject isKindOfClass:[NSDictionary class]] ? jsonObject : nil;
+                id resultsObject = [json objectForKey:@"results"];
+                NSArray *results = [resultsObject isKindOfClass:[NSArray class]] ? resultsObject : nil;
                 if (results.count > 0) {
-                    NSDictionary *res = results[0];
+                    NSDictionary *res = [[results objectAtIndex:0] isKindOfClass:[NSDictionary class]] ? [results objectAtIndex:0] : nil;
+                    if (!res) {
+                        completionBlock(nil);
+                        return;
+                    }
                     NSString *releaseDate = IGMediaJSONString(res[@"releaseDate"]);
                     NSString *year = releaseDate.length >= 4 ? [releaseDate substringToIndex:4] : @"";
                     completionBlock(@{
@@ -165,6 +396,132 @@ static NSData *IGMediaRunCurl(NSArray *args, int *statusOut) {
             NSLog(@"Curl Apple metadata fetch failed: %@", exception.reason);
         }
         completionBlock(nil);
+    });
+}
+
+- (void)searchVideoMetadataForTitle:(NSString *)title
+                          videoKind:(NSString *)videoKind
+                          completion:(void(^)(NSArray *results, NSString *errorMessage))completionBlock {
+    NSString *trimmed = [title stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([trimmed length] == 0) {
+        if (completionBlock) completionBlock([NSArray array], @"Enter a movie or TV-show title first.");
+        return;
+    }
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
+        if (completionBlock) completionBlock([NSArray array], @"Online catalog search is disabled by Only Local Mode.");
+        return;
+    }
+
+    NSString *encoded = IGMediaEncodeURLComponent(trimmed);
+    BOOL television = [videoKind isEqualToString:@"TV Show"];
+    NSString *imdbURL = [NSString stringWithFormat:@"https://v3.sg.media-imdb.com/suggestion/x/%@.json", encoded];
+    NSString *appleURL = [NSString stringWithFormat:@"https://itunes.apple.com/search?term=%@&country=US&media=%@&entity=%@&limit=20",
+                          encoded, television ? @"tvShow" : @"movie", television ? @"tvSeason" : @"movie"];
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"--fail", @"--proto", @"=https", @"--proto-redir", @"=https",
+                                                                 @"--max-filesize", @"10485760", @"-m", @"20"]];
+        IGMediaAddCACertIfAvailable(args);
+        [args addObject:imdbURL];
+        int status = -1;
+        NSData *data = IGMediaRunCurlWithLimit(args, &status, 10ULL * 1024ULL * 1024ULL);
+        NSArray *matches = status == 0 && [data length] > 0 ? IGMediaIMDbVideoMatches(data, television) : [NSArray array];
+        NSString *errorMessage = nil;
+        if ([matches count] > 0) {
+            NSMutableString *values = [NSMutableString string];
+            for (NSDictionary *match in matches) {
+                NSString *identifier = [match objectForKey:@"catalogID"];
+                if ([identifier length] > 0) [values appendFormat:@" \"%@\"", identifier];
+            }
+            NSString *sparql = [NSString stringWithFormat:
+                                @"SELECT ?imdb ?ruLabel ?ruDescription ?enDescription "
+                                 "(GROUP_CONCAT(DISTINCT ?genreRu; separator=\", \") AS ?genresRu) "
+                                 "(GROUP_CONCAT(DISTINCT ?genreEn; separator=\", \") AS ?genresEn) "
+                                 "(GROUP_CONCAT(DISTINCT ?directorRu; separator=\", \") AS ?directorsRu) "
+                                 "(GROUP_CONCAT(DISTINCT ?directorEn; separator=\", \") AS ?directorsEn) WHERE { "
+                                 "VALUES ?imdb { %@ } ?item wdt:P345 ?imdb. "
+                                 "?item rdfs:label ?ruLabel. FILTER(LANG(?ruLabel) = \"ru\") "
+                                 "OPTIONAL { ?item schema:description ?ruDescription. FILTER(LANG(?ruDescription) = \"ru\") } "
+                                 "OPTIONAL { ?item schema:description ?enDescription. FILTER(LANG(?enDescription) = \"en\") } "
+                                 "OPTIONAL { ?item wdt:P136 ?genre. OPTIONAL { ?genre rdfs:label ?genreRu. FILTER(LANG(?genreRu) = \"ru\") } OPTIONAL { ?genre rdfs:label ?genreEn. FILTER(LANG(?genreEn) = \"en\") } } "
+                                 "OPTIONAL { ?item wdt:P57 ?director. OPTIONAL { ?director rdfs:label ?directorRu. FILTER(LANG(?directorRu) = \"ru\") } OPTIONAL { ?director rdfs:label ?directorEn. FILTER(LANG(?directorEn) = \"en\") } } "
+                                 "} GROUP BY ?imdb ?ruLabel ?ruDescription ?enDescription",
+                                values];
+            NSString *wikidataURL = [NSString stringWithFormat:@"https://query.wikidata.org/sparql?format=json&query=%@", IGMediaEncodeURLComponent(sparql)];
+            NSMutableArray *wikidataArgs = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"20", @"-A", @"Syncrosa/3.4.9 metadata lookup"]];
+            IGMediaAddCACertIfAvailable(wikidataArgs);
+            [wikidataArgs addObject:wikidataURL];
+            int wikidataStatus = -1;
+            NSData *wikidataData = IGMediaRunCurl(wikidataArgs, &wikidataStatus);
+            if (wikidataStatus == 0 && [wikidataData length] > 0) {
+                matches = IGMediaMatchesByAddingRussianWikidataLabels(matches, wikidataData);
+            }
+        }
+        if ([matches count] == 1) {
+            NSDictionary *onlyMatch = [matches objectAtIndex:0];
+            NSString *localizedName = [onlyMatch objectForKey:@"localizedName"];
+            NSCharacterSet *cyrillic = [NSCharacterSet characterSetWithCharactersInString:
+                                        @"АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"];
+            if ([localizedName length] == 0 && [trimmed rangeOfCharacterFromSet:cyrillic].location != NSNotFound) {
+                NSMutableDictionary *localizedMatch = [[onlyMatch mutableCopy] autorelease];
+                [localizedMatch setObject:trimmed forKey:@"localizedName"];
+                matches = [NSArray arrayWithObject:localizedMatch];
+            }
+        }
+        if ([matches count] == 0) {
+            NSMutableArray *fallbackArgs = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"20"]];
+            IGMediaAddCACertIfAvailable(fallbackArgs);
+            [fallbackArgs addObject:appleURL];
+            int fallbackStatus = -1;
+            NSData *fallbackData = IGMediaRunCurl(fallbackArgs, &fallbackStatus);
+            if (fallbackStatus == 0 && [fallbackData length] > 0) {
+                matches = IGMediaAppleVideoMatches(fallbackData, television);
+            } else if (status != 0) {
+                errorMessage = @"Movie catalog search failed. Check the network connection and try again.";
+            }
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) completionBlock(matches, errorMessage);
+        });
+    });
+}
+
+- (void)downloadVideoArtworkAtURLString:(NSString *)urlString
+                              completion:(void(^)(NSURL *fileURL, NSString *errorMessage))completionBlock {
+    NSString *secureString = [urlString hasPrefix:@"http://"] ? [@"https://" stringByAppendingString:[urlString substringFromIndex:7]] : urlString;
+    NSURL *url = [NSURL URLWithString:secureString];
+    NSString *host = [[url host] lowercaseString];
+    BOOL trustedHost = [host isEqualToString:@"itunes.apple.com"] || [host hasSuffix:@".itunes.apple.com"] ||
+                       [host isEqualToString:@"mzstatic.com"] || [host hasSuffix:@".mzstatic.com"] ||
+                       [host isEqualToString:@"media-amazon.com"] || [host hasSuffix:@".media-amazon.com"];
+    if (![[url scheme] isEqualToString:@"https"] || !trustedHost) {
+        if (completionBlock) completionBlock(nil, @"The catalog returned an unsupported artwork URL.");
+        return;
+    }
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"--fail", @"--proto", @"=https", @"--proto-redir", @"=https",
+                                                                 @"--max-filesize", @"10485760", @"-m", @"20"]];
+        IGMediaAddCACertIfAvailable(args);
+        [args addObject:secureString];
+        int status = -1;
+        NSData *data = IGMediaRunCurlWithLimit(args, &status, 10ULL * 1024ULL * 1024ULL);
+        NSURL *fileURL = nil;
+        NSString *errorMessage = nil;
+        if (status == 0 && [data length] > 0 && [data length] <= 10 * 1024 * 1024) {
+            NSString *path = IGMediaTempPath(@"jpg");
+            NSDictionary *attrs = @{NSFilePosixPermissions: [NSNumber numberWithUnsignedLong:0600]};
+            if ([[NSFileManager defaultManager] createFileAtPath:path contents:data attributes:attrs]) {
+                fileURL = [NSURL fileURLWithPath:path];
+            } else {
+                errorMessage = @"Could not save the selected artwork temporarily.";
+            }
+        } else {
+            errorMessage = @"Could not download artwork from the movie catalog.";
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) completionBlock(fileURL, errorMessage);
+        });
     });
 }
 
