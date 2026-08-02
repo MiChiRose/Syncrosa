@@ -18,6 +18,8 @@
 #import "IGTheme.h"
 #import "IGIconProvider.h"
 #import "IGHelpSheetPresenter.h"
+#import "IGVideoMetadataViewController.h"
+#import "IGOperationActivity.h"
 #import "IGLibraryDoctorSupport.h"
 #import <math.h>
 
@@ -54,6 +56,7 @@ BOOL IGNavigationItemRequiresReadableLibrary(IGNavigationItem item)
         case IGNavigationItemLibraryDoctor:
             return YES;
         case IGNavigationItemOverview:
+        case IGNavigationItemVideoMetadata:
         case IGNavigationItemFolderFixer:
         case IGNavigationItemIPodConverter:
         case IGNavigationItemInfoEraser:
@@ -864,6 +867,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 @property (nonatomic, strong) NSTextField *footerLabel;
 @property (nonatomic, strong) NSView *sidebarBackgroundView;
 @property (nonatomic, strong) NSMutableArray *sidebarButtons;
+@property (nonatomic, strong) NSMutableDictionary *sidebarActivityIndicators;
 @property (nonatomic, strong) NSButton *sidebarToggleButton;
 @property (nonatomic, strong) NSTextField *libraryStatusLabel;
 @property (nonatomic, strong) NSButton *libraryRefreshButton;
@@ -896,6 +900,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
 @property (nonatomic, strong) IGGeniusViewController *geniusVC;
 @property (nonatomic, strong) IGFixerViewController *fixerVC;
+@property (nonatomic, strong) IGVideoMetadataViewController *videoMetadataVC;
 @property (nonatomic, strong) IGFileFixerViewController *fileFixerVC;
 @property (nonatomic, strong) IGIPodConverterViewController *ipodConverterVC;
 @property (nonatomic, strong) IGInfoEraserViewController *infoEraserVC;
@@ -913,6 +918,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 - (void)preparePageViewForEmbedding:(NSView *)view;
 - (void)hideEmbeddedFooterLabelsInView:(NSView *)view;
 - (void)updateGlobalFooterText;
+- (void)updateSidebarActivityIndicators;
 @end
 
 @implementation IGMainWindowController
@@ -968,6 +974,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [_footerLabel release];
 	    [_sidebarBackgroundView release];
 	    [_sidebarButtons release];
+	    [_sidebarActivityIndicators release];
 	    [_sidebarToggleButton release];
 	    [_libraryStatusLabel release];
 	    [_libraryRefreshButton release];
@@ -991,6 +998,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 		    [_preparedPageViews release];
 	    [_geniusVC release];
 	    [_fixerVC release];
+	    [_videoMetadataVC release];
 	    [_fileFixerVC release];
 	    [_infoEraserVC release];
 	    [_usbExportVC release];
@@ -1067,6 +1075,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	    [self updateGlobalFooterText];
 
     self.sidebarButtons = [NSMutableArray array];
+    self.sidebarActivityIndicators = [NSMutableDictionary dictionary];
     [self setupSidebar];
     [self updateButtonStates];
 	    [self restoreSidebarState];
@@ -1084,6 +1093,10 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(themeChanged:)
                                                  name:IGThemeDidChangeNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(operationActivityChanged:)
+                                                 name:IGOperationActivityDidChangeNotification
                                                object:nil];
 	    [[NSNotificationCenter defaultCenter] addObserver:self
 	                                             selector:@selector(footerVisibilityChanged:)
@@ -1146,6 +1159,51 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 
 - (void)updateGlobalFooterText {
     self.footerLabel.stringValue = [[IGLocalizationService sharedService] t:@"footer"] ?: @"";
+}
+
+- (NSInteger)navigationIndexForOperationIdentifier:(NSString *)identifier {
+    if ([identifier isEqualToString:IGOperationActivityUSBExportIdentifier]) return IGNavigationItemUSBExport;
+    if ([identifier isEqualToString:IGOperationActivityAIPlaylistIdentifier]) return IGNavigationItemAIPlaylist;
+    if ([identifier isEqualToString:IGOperationActivityVideoMetadataIdentifier]) return IGNavigationItemVideoMetadata;
+    return -1;
+}
+
+- (void)operationActivityChanged:(NSNotification *)notification {
+    (void)notification;
+    [self updateSidebarActivityIndicators];
+}
+
+- (void)updateSidebarActivityIndicators {
+    NSString *identifier = [IGOperationActivity sharedActivity].activeIdentifier;
+    if ([identifier length] > 0 && [self.sidebarActivityIndicators objectForKey:identifier]) {
+        return;
+    }
+
+    for (NSProgressIndicator *indicator in [self.sidebarActivityIndicators allValues]) {
+        [indicator stopAnimation:nil];
+        [indicator removeFromSuperview];
+    }
+    [self.sidebarActivityIndicators removeAllObjects];
+    for (NSButton *button in self.sidebarButtons) {
+        button.toolTip = [NSString stringWithFormat:@"Open %@", button.title ?: @"Syncrosa"];
+    }
+
+    NSInteger index = [self navigationIndexForOperationIdentifier:identifier];
+    if (index < 0 || index >= (NSInteger)[self.sidebarButtons count]) return;
+
+    NSButton *button = [self.sidebarButtons objectAtIndex:index];
+    NSProgressIndicator *spinner = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(NSWidth(button.bounds) - 18.0,
+                                                                                           floor((NSHeight(button.bounds) - 14.0) / 2.0),
+                                                                                           14.0,
+                                                                                           14.0)] autorelease];
+    spinner.style = NSProgressIndicatorSpinningStyle;
+    spinner.indeterminate = YES;
+    spinner.controlSize = NSSmallControlSize;
+    spinner.autoresizingMask = NSViewMinXMargin;
+    [button addSubview:spinner];
+    [spinner startAnimation:nil];
+    [self.sidebarActivityIndicators setObject:spinner forKey:identifier];
+    button.toolTip = [NSString stringWithFormat:@"%@ — operation in progress", button.title ?: @"Syncrosa"];
 }
 
 - (void)footerVisibilityChanged:(NSNotification *)notification {
@@ -1773,6 +1831,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
         @"Overview",
         [lang t:@"ai_playlist"],
         [lang t:@"media_fixer"],
+        [lang.selectedLanguage isEqualToString:@"ru"] ? @"Фильмы и сериалы" : @"Video Metadata",
         [lang t:@"folder_fix"],
         [lang.selectedLanguage isEqualToString:@"ru"] ? @"Конвертер для iPod" : @"iPod Converter",
         [lang t:@"usb_export"],
@@ -1788,6 +1847,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	        @"compass",
 	        @"star",
 	        @"refresh",
+	        @"artwork",
 	        @"folder",
 	        @"device",
 	        @"usb",
@@ -1828,6 +1888,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #endif
 	        y -= 32;
 	    }
+
+    [self updateSidebarActivityIndicators];
 
     [self.libraryStatusLabel removeFromSuperview];
     self.libraryStatusLabel = nil;
@@ -1976,6 +2038,16 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 #endif
 	            }
 	            targetVC = self.fixerVC;
+	            break;
+	        case IGNavigationItemVideoMetadata:
+	            if (!self.videoMetadataVC) {
+	                IGVideoMetadataViewController *vc = [[IGVideoMetadataViewController alloc] init];
+	                self.videoMetadataVC = vc;
+#if !__has_feature(objc_arc)
+	                [vc release];
+#endif
+	            }
+	            targetVC = self.videoMetadataVC;
 	            break;
 	        case IGNavigationItemFolderFixer:
 	            if (!self.fileFixerVC) {

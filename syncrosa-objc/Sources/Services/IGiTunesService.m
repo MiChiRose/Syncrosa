@@ -599,7 +599,11 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
                 "            set alb to my textValue(album of t)\n"
                 "            set gen to my textValue(genre of t)\n"
                 "            set yr to year of t\n"
-                "            set out to out & pid & tab & art & tab & nm & tab & alb & tab & gen & tab & yr & linefeed\n"
+                "            set sz to 0\n"
+                "            try\n"
+                "                set sz to size of t\n"
+                "            end try\n"
+                "            set out to out & pid & tab & art & tab & nm & tab & alb & tab & gen & tab & yr & tab & sz & linefeed\n"
                 "        end try\n"
                 "    end repeat\n"
                 "end tell\n"
@@ -611,13 +615,14 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
                 for (NSString *line in lines) {
                     if ([line rangeOfString:@"\t"].location != NSNotFound) {
                         NSArray *parts = [line componentsSeparatedByString:@"\t"];
-                        if (parts.count >= 6) {
+                        if (parts.count >= 7) {
                             IGTrack *track = [[IGTrack alloc] initWithPersistentID:parts[0]
                                                                               name:parts[2]
                                                                             artist:parts[1]
                                                                              album:parts[3]
                                                                              genre:parts[4]
                                                                               year:[parts[5] integerValue]];
+                            track.fileSizeBytes = (unsigned long long)[parts[6] longLongValue];
                             [allTracks addObject:track];
 #if !__has_feature(objc_arc)
                             [track release];
@@ -1027,6 +1032,156 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
             if (completionBlock) {
                 completionBlock(tracks);
             }
+        });
+    });
+}
+
+- (void)fetchVideoTracksWithCompletion:(void(^)(NSArray *tracks, NSString *errorMessage))completionBlock {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *script =
+            @"on cleanText(v)\n"
+             "    try\n"
+             "        if v is missing value then return \"\"\n"
+             "        set s to v as text\n"
+             "        set AppleScript's text item delimiters to tab\n"
+             "        set s to text items of s\n"
+             "        set AppleScript's text item delimiters to \" \"\n"
+             "        set s to s as text\n"
+             "        set AppleScript's text item delimiters to \"\"\n"
+             "        set AppleScript's text item delimiters to linefeed\n"
+             "        set s to text items of s\n"
+             "        set AppleScript's text item delimiters to \" \"\n"
+             "        set s to s as text\n"
+             "        set AppleScript's text item delimiters to \"\"\n"
+             "        return s\n"
+             "    on error\n"
+             "        return \"\"\n"
+             "    end try\n"
+             "end cleanText\n"
+             "set out to \"\"\n"
+             "tell application \"iTunes\"\n"
+             "    try\n"
+             "        repeat with t in every file track of library playlist 1\n"
+             "            try\n"
+             "                set vk to video kind of t\n"
+             "                if vk is movie or vk is TV show then\n"
+             "                    if vk is movie then\n"
+             "                        set vkText to \"Movie\"\n"
+             "                    else\n"
+             "                        set vkText to \"TV Show\"\n"
+             "                    end if\n"
+             "                    set artFlag to \"0\"\n"
+             "                    if (count of artworks of t) > 0 then set artFlag to \"1\"\n"
+             "                    set out to out & my cleanText(persistent ID of t) & tab & vkText & tab & my cleanText(name of t) & tab & my cleanText(show of t) & tab & (season number of t as text) & tab & (episode number of t as text) & tab & my cleanText(genre of t) & tab & (year of t as text) & tab & my cleanText(description of t) & tab & my cleanText(long description of t) & tab & my cleanText(artist of t) & tab & artFlag & linefeed\n"
+             "                end if\n"
+             "            end try\n"
+             "        end repeat\n"
+             "        return out\n"
+             "    on error errMsg number errNum\n"
+             "        return \"ERROR\" & tab & (errNum as text) & \" \" & errMsg\n"
+             "    end try\n"
+             "end tell";
+
+        NSString *raw = [self runAppleScriptNamed:@"videoMetadata.fetch" source:script];
+        NSMutableArray *tracks = [NSMutableArray array];
+        NSString *errorMessage = nil;
+        if ([raw hasPrefix:@"ERROR\t"]) {
+            NSArray *parts = [raw componentsSeparatedByString:@"\t"];
+            errorMessage = [parts count] > 1 ? [parts objectAtIndex:1] : @"Could not read video metadata from iTunes.";
+        } else {
+            for (NSString *line in [raw componentsSeparatedByString:@"\n"]) {
+                NSArray *parts = [line componentsSeparatedByString:@"\t"];
+                if ([parts count] < 12 || [[parts objectAtIndex:0] length] == 0) continue;
+                [tracks addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+                                   [parts objectAtIndex:0], @"persistentID",
+                                   [parts objectAtIndex:1], @"videoKind",
+                                   [parts objectAtIndex:2], @"name",
+                                   [parts objectAtIndex:3], @"show",
+                                   [NSNumber numberWithInteger:[[parts objectAtIndex:4] integerValue]], @"seasonNumber",
+                                   [NSNumber numberWithInteger:[[parts objectAtIndex:5] integerValue]], @"episodeNumber",
+                                   [parts objectAtIndex:6], @"genre",
+                                   [NSNumber numberWithInteger:[[parts objectAtIndex:7] integerValue]], @"year",
+                                   [parts objectAtIndex:8], @"description",
+                                   [parts objectAtIndex:9], @"longDescription",
+                                   [parts objectAtIndex:10], @"director",
+                                   [NSNumber numberWithBool:[[parts objectAtIndex:11] boolValue]], @"hasArtwork",
+                                   nil]];
+            }
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) completionBlock(tracks, errorMessage);
+        });
+    });
+}
+
+- (void)updateVideoTrackWithPersistentID:(NSString *)persistentID
+                                metadata:(NSDictionary *)metadata
+                              artworkURL:(NSURL *)artworkURL
+                              completion:(void(^)(BOOL success, NSString *errorMessage))completionBlock {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        if ([persistentID length] == 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{ if (completionBlock) completionBlock(NO, @"The video track identifier is missing."); });
+            return;
+        }
+
+        NSString *videoKind = [[metadata objectForKey:@"videoKind"] isEqualToString:@"TV Show"] ? @"TV show" : @"movie";
+        NSInteger season = MAX((NSInteger)0, [[metadata objectForKey:@"seasonNumber"] integerValue]);
+        NSInteger episode = MAX((NSInteger)0, [[metadata objectForKey:@"episodeNumber"] integerValue]);
+        NSInteger year = MAX((NSInteger)0, [[metadata objectForKey:@"year"] integerValue]);
+        NSString *artworkLines = @"";
+        if ([artworkURL isFileURL] && [[[NSFileManager defaultManager] attributesOfItemAtPath:[artworkURL path] error:nil] count] > 0) {
+            artworkLines = [NSString stringWithFormat:
+                @"        set artworkFile to POSIX file %@\n"
+                 "        set artworkData to read artworkFile as picture\n"
+                 "        if (count of artworks of t) is 0 then\n"
+                 "            make new artwork at t with properties {data:artworkData}\n"
+                 "        else\n"
+                 "            set data of artwork 1 of t to artworkData\n"
+                 "        end if\n", IGAppleScriptLiteral([artworkURL path])];
+        }
+
+        NSString *script = [NSString stringWithFormat:
+            @"tell application \"iTunes\"\n"
+             "    try\n"
+             "        set t to some file track of library playlist 1 whose persistent ID is %@\n"
+             "        set name of t to %@\n"
+             "        set video kind of t to %@\n"
+             "        set show of t to %@\n"
+             "        set season number of t to %ld\n"
+             "        set episode number of t to %ld\n"
+             "        set genre of t to %@\n"
+             "        set year of t to %ld\n"
+             "        set artist of t to %@\n"
+             "        set description of t to %@\n"
+             "        set long description of t to %@\n"
+             "%@"
+             "        return \"OK\"\n"
+             "    on error errMsg number errNum\n"
+             "        return \"ERROR\" & tab & (errNum as text) & \" \" & errMsg\n"
+             "    end try\n"
+             "end tell",
+             IGAppleScriptLiteral(persistentID),
+             IGAppleScriptLiteral([metadata objectForKey:@"name"]),
+             videoKind,
+             IGAppleScriptLiteral([metadata objectForKey:@"show"]),
+             (long)season,
+             (long)episode,
+             IGAppleScriptLiteral([metadata objectForKey:@"genre"]),
+             (long)year,
+             IGAppleScriptLiteral([metadata objectForKey:@"director"]),
+             IGAppleScriptLiteral([metadata objectForKey:@"description"]),
+             IGAppleScriptLiteral([metadata objectForKey:@"description"]),
+             artworkLines];
+
+        NSString *raw = [self runAppleScriptNamed:@"videoMetadata.update" source:script];
+        BOOL success = [raw isEqualToString:@"OK"];
+        NSString *errorMessage = nil;
+        if (!success) {
+            NSArray *parts = [raw componentsSeparatedByString:@"\t"];
+            errorMessage = [parts count] > 1 ? [parts objectAtIndex:1] : @"iTunes could not update this video track.";
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completionBlock) completionBlock(success, errorMessage);
         });
     });
 }

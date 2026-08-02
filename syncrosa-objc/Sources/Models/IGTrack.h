@@ -8,6 +8,7 @@
 @property (nonatomic, copy) NSString *album;
 @property (nonatomic, copy) NSString *genre;
 @property (nonatomic, assign) NSInteger year;
+@property (nonatomic, assign) unsigned long long fileSizeBytes;
 
 - (instancetype)initWithPersistentID:(NSString *)pid 
                                 name:(NSString *)name 

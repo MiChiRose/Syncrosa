@@ -6,6 +6,7 @@
 #import "IGTheme.h"
 #import "IGIconProvider.h"
 #import "IGHelpSheetPresenter.h"
+#import "IGOperationActivity.h"
 
 typedef NS_ENUM(NSInteger, IGExportMode) {
     IGExportModeAll = 0,
@@ -446,6 +447,16 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         return;
     }
 
+    IGOperationActivity *activity = [IGOperationActivity sharedActivity];
+    if (![activity beginOperationWithIdentifier:IGOperationActivityUSBExportIdentifier]) {
+        NSString *message = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
+            @"Сначала завершите текущую фоновую операцию." :
+            @"Finish the current background operation before starting USB Export.";
+        self.statusLabel.stringValue = message;
+        [IGNotificationView showInView:self.view message:message isError:YES];
+        return;
+    }
+
     // Calculate size
     int64_t totalBytes = 0;
     for (NSDictionary *t in self.currentPlaylistTracks) {
@@ -472,6 +483,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             [self.modePopup selectItemAtIndex:IGExportModeFit];
             mode = IGExportModeFit;
         } else {
+            [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
             return;
         }
     }
@@ -536,6 +548,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
         dispatch_async(dispatch_get_main_queue(), ^{
             self.progressIndicator.maxValue = totalTracks;
+            [[IGOperationActivity sharedActivity] updateProgress:0.0 forIdentifier:IGOperationActivityUSBExportIdentifier];
         });
 
         NSFileManager *fm = [NSFileManager defaultManager];
@@ -577,6 +590,8 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.progressIndicator.doubleValue = i;
                 self.statusLabel.stringValue = [NSString stringWithFormat:[[IGLocalizationService sharedService] t:@"exporting"], (int)(i + 1), (int)totalTracks];
+                [[IGOperationActivity sharedActivity] updateProgress:(double)i / (double)MAX((NSInteger)1, totalTracks)
+                                                       forIdentifier:IGOperationActivityUSBExportIdentifier];
             });
 
             // Check DRM (extension .m4p)
@@ -616,6 +631,8 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
                                     NSString *fileStr = [NSByteCountFormatter stringFromByteCount:fileSize countStyle:NSByteCountFormatterCountStyleFile];
                                     dispatch_async(dispatch_get_main_queue(), ^{
                                         self.progressIndicator.doubleValue = (double)i + fraction;
+                                        [[IGOperationActivity sharedActivity] updateProgress:((double)i + fraction) / (double)MAX((NSInteger)1, totalTracks)
+                                                                               forIdentifier:IGOperationActivityUSBExportIdentifier];
                                         self.statusLabel.stringValue = [NSString stringWithFormat:@"Copying %ld/%ld: %@ / %@",
                                                                         (long)(i + 1),
                                                                         (long)totalTracks,
@@ -772,6 +789,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 }
 
 - (void)finishExportWithError:(NSString *)errorMsg {
+    [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
     self.isExporting = NO;
     self.shouldCancelExport = NO;
     self.progressIndicator.hidden = YES;
@@ -793,6 +811,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
                              totalRequested:(NSInteger)total
                                  skippedDRM:(NSInteger)skippedDRM
                                       bytes:(int64_t)bytes {
+    [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
     self.isExporting = NO;
     self.shouldCancelExport = NO;
     self.progressIndicator.hidden = YES;
@@ -821,6 +840,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
                       totalRequested:(NSInteger)total
                           skippedDRM:(NSInteger)skippedDRM
                                bytes:(int64_t)bytes {
+    [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
     self.isExporting = NO;
     self.shouldCancelExport = NO;
     self.progressIndicator.hidden = YES;
@@ -837,15 +857,21 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:bytes countStyle:NSByteCountFormatterCountStyleFile];
-    NSString *message = @"";
-
-    if (skippedDRM > 0) {
-        message = [NSString stringWithFormat:[lang t:@"export_partial"], (int)copied, (int)total, (int)skippedDRM];
+    BOOL russian = [lang.selectedLanguage isEqualToString:@"ru"];
+    NSString *message = nil;
+    if (skippedDRM > 0 || copied < total) {
+        message = russian ?
+            [NSString stringWithFormat:@"Экспорт завершён частично: скопировано %ld из %ld, пропущено DRM: %ld, записано %@.",
+             (long)copied, (long)total, (long)skippedDRM, sizeStr] :
+            [NSString stringWithFormat:@"Export completed with skipped files: %ld of %ld tracks copied, %ld DRM-protected skipped, %@ written.",
+             (long)copied, (long)total, (long)skippedDRM, sizeStr];
     } else {
-        message = [NSString stringWithFormat:[lang t:@"export_success"], (int)copied];
+        message = russian ?
+            [NSString stringWithFormat:@"Экспорт завершён: скопировано %ld треков, записано %@.", (long)copied, sizeStr] :
+            [NSString stringWithFormat:@"Export completed: %ld tracks copied, %@ written.", (long)copied, sizeStr];
     }
 
-    self.statusLabel.stringValue = [NSString stringWithFormat:@"%@ (%@)", message, sizeStr];
+    self.statusLabel.stringValue = message;
     [IGNotificationView showInView:self.view message:message isError:NO];
 }
 
