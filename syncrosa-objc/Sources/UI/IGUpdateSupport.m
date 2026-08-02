@@ -118,30 +118,14 @@ static NSDictionary *IGLatestManifestUpdateInfoWithError(NSError **error) {
         return nil;
     }
 
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url
-                                                           cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
-                                                       timeoutInterval:12.0];
-    [request setHTTPMethod:@"GET"];
-    [request setValue:IGUpdateCheckUserAgentString() forHTTPHeaderField:@"User-Agent"];
-    [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
-    [request setValue:@"no-cache" forHTTPHeaderField:@"Cache-Control"];
-
-    NSURLResponse *response = nil;
-    NSData *data = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:error];
+    // On Mavericks the URL-loading Objective-C classes live behind CFNetwork
+    // class clusters and their concrete class symbols are not exported. Loading
+    // through NSData keeps the binary free of those hard class references.
+    NSData *data = [NSData dataWithContentsOfURL:url
+                                        options:NSDataReadingUncached
+                                          error:error];
     if (![data isKindOfClass:[NSData class]] || [data length] == 0) {
         return nil;
-    }
-    if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
-        NSInteger statusCode = [(NSHTTPURLResponse *)response statusCode];
-        if (statusCode < 200 || statusCode >= 300) {
-            if (error) {
-                NSString *message = [NSString stringWithFormat:@"Update manifest returned HTTP %ld.", (long)statusCode];
-                *error = [NSError errorWithDomain:@"SyncrosaUpdate"
-                                             code:statusCode
-                                         userInfo:[NSDictionary dictionaryWithObject:message forKey:NSLocalizedDescriptionKey]];
-            }
-            return nil;
-        }
     }
 
     id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:error];

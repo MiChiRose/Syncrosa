@@ -112,5 +112,8 @@ NSDictionary *IGPlaylistJSONObjectForTrack(IGTrack *track)
             album, @"album",
             genre, @"genre",
             [NSNumber numberWithInteger:track.year], @"year",
+            [NSNumber numberWithUnsignedLongLong:track.fileSizeBytes], @"fileSizeBytes",
+            [NSByteCountFormatter stringFromByteCount:(long long)track.fileSizeBytes
+                                           countStyle:NSByteCountFormatterCountStyleFile], @"fileSize",
             nil];
 }

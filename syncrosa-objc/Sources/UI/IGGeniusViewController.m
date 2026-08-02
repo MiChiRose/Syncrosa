@@ -6,6 +6,7 @@
 #import "IGTheme.h"
 #import "IGHelpSheetPresenter.h"
 #import "IGIconProvider.h"
+#import "IGOperationActivity.h"
 
 @interface IGGeniusViewController () <NSTextFieldDelegate>
 
@@ -20,6 +21,8 @@
 @property (nonatomic, strong) NSTextField *countLabel;
 @property (nonatomic, strong) NSTextField *countField;
 @property (nonatomic, strong) NSStepper *stepper;
+@property (nonatomic, strong) NSTextField *capacityLabel;
+@property (nonatomic, strong) NSPopUpButton *capacityPopup;
 @property (nonatomic, strong) NSButton *generateButton;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
@@ -74,6 +77,8 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
     [_countLabel release];
     [_countField release];
     [_stepper release];
+    [_capacityLabel release];
+    [_capacityPopup release];
     [_generateButton release];
     [_helpSheetWindow release];
     [_progressIndicator release];
@@ -112,17 +117,17 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
     [[self.configLabel cell] setLineBreakMode:NSLineBreakByTruncatingMiddle];
     [configPanel addSubview:self.configLabel];
 
-    NSBox *detailsPanel = IGGeniusRoundedPanel(NSMakeRect(35, 270, 510, 104));
+    NSBox *detailsPanel = IGGeniusRoundedPanel(NSMakeRect(35, 244, 510, 130));
     [self.view addSubview:detailsPanel];
 
-    self.nameLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 66, 250, 20)] autorelease];
+    self.nameLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 92, 250, 20)] autorelease];
     self.nameLabel.font = [NSFont systemFontOfSize:13];
     self.nameLabel.editable = NO;
     self.nameLabel.bordered = NO;
     self.nameLabel.drawsBackground = NO;
     [detailsPanel addSubview:self.nameLabel];
 
-    self.nameCounterLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(276, 66, 62, 20)] autorelease];
+    self.nameCounterLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(276, 92, 62, 20)] autorelease];
     self.nameCounterLabel.font = [NSFont systemFontOfSize:11];
     self.nameCounterLabel.textColor = IGThemeMutedTextColor();
     self.nameCounterLabel.alignment = NSRightTextAlignment;
@@ -131,26 +136,26 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
     self.nameCounterLabel.drawsBackground = NO;
     [detailsPanel addSubview:self.nameCounterLabel];
 
-    self.countLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(358, 66, 128, 20)] autorelease];
+    self.countLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(358, 92, 128, 20)] autorelease];
     self.countLabel.font = [NSFont systemFontOfSize:13];
     self.countLabel.editable = NO;
     self.countLabel.bordered = NO;
     self.countLabel.drawsBackground = NO;
     [detailsPanel addSubview:self.countLabel];
 
-    self.playlistNameField = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 24, 316, 30)] autorelease];
+    self.playlistNameField = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 54, 316, 30)] autorelease];
     self.playlistNameField.bezelStyle = NSTextFieldRoundedBezel;
     self.playlistNameField.stringValue = @"My AI Playlist";
     self.playlistNameField.delegate = self;
     [detailsPanel addSubview:self.playlistNameField];
 
-    self.countField = [[[NSTextField alloc] initWithFrame:NSMakeRect(358, 24, 88, 30)] autorelease];
+    self.countField = [[[NSTextField alloc] initWithFrame:NSMakeRect(358, 54, 88, 30)] autorelease];
     self.countField.bezelStyle = NSTextFieldRoundedBezel;
     self.countField.stringValue = @"20";
     self.countField.delegate = self;
     [detailsPanel addSubview:self.countField];
 
-    self.stepper = [[[NSStepper alloc] initWithFrame:NSMakeRect(454, 24, 19, 30)] autorelease];
+    self.stepper = [[[NSStepper alloc] initWithFrame:NSMakeRect(454, 54, 19, 30)] autorelease];
     self.stepper.minValue = 1;
     self.stepper.maxValue = 100;
     self.stepper.integerValue = 20;
@@ -158,7 +163,18 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
     self.stepper.action = @selector(stepperChanged:);
     [detailsPanel addSubview:self.stepper];
 
-    NSBox *promptPanel = IGGeniusRoundedPanel(NSMakeRect(35, 157, 510, 99));
+    self.capacityLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 17, 150, 20)] autorelease];
+    self.capacityLabel.font = [NSFont systemFontOfSize:12];
+    self.capacityLabel.editable = NO;
+    self.capacityLabel.bordered = NO;
+    self.capacityLabel.drawsBackground = NO;
+    [detailsPanel addSubview:self.capacityLabel];
+
+    self.capacityPopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(178, 13, 295, 26) pullsDown:NO] autorelease];
+    [self.capacityPopup addItemsWithTitles:@[@"Unlimited", @"8 GB", @"16 GB", @"32 GB", @"64 GB"]];
+    [detailsPanel addSubview:self.capacityPopup];
+
+    NSBox *promptPanel = IGGeniusRoundedPanel(NSMakeRect(35, 133, 510, 99));
     [self.view addSubview:promptPanel];
 
     self.promptLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(22, 61, 390, 20)] autorelease];
@@ -182,7 +198,7 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
     self.promptField.delegate = self;
     [promptPanel addSubview:self.promptField];
 
-    NSBox *actionPanel = IGGeniusRoundedPanel(NSMakeRect(35, 35, 510, 108));
+    NSBox *actionPanel = IGGeniusRoundedPanel(NSMakeRect(35, 15, 510, 108));
     [self.view addSubview:actionPanel];
 
     self.generateButton = [[[NSButton alloc] initWithFrame:NSMakeRect(125, 59, 260, 38)] autorelease];
@@ -218,6 +234,13 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
     self.nameLabel.stringValue = [lang t:@"pl_name"];
     self.promptLabel.stringValue = [lang t:@"pl_mood"];
     self.countLabel.stringValue = [lang t:@"track_count"];
+    self.capacityLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Лимит размера:" : @"Size limit:";
+    NSInteger selectedCapacity = [self.capacityPopup indexOfSelectedItem];
+    [self.capacityPopup removeAllItems];
+    [self.capacityPopup addItemsWithTitles:[lang.selectedLanguage isEqualToString:@"ru"] ?
+        @[@"Без ограничений", @"8 ГБ", @"16 ГБ", @"32 ГБ", @"64 ГБ"] :
+        @[@"Unlimited", @"8 GB", @"16 GB", @"32 GB", @"64 GB"]];
+    [self.capacityPopup selectItemAtIndex:MAX((NSInteger)0, selectedCapacity)];
     self.generateButton.title = [lang t:@"generate_playlist"];
     IGConfigureIconButton(self.generateButton, @"star", @"Generate an AI playlist from the current iTunes library", NO);
     IGApplyThemeToButton(self.generateButton, IGThemeButtonRolePrimary);
@@ -290,10 +313,12 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
 
 - (void)updateGenerateButtonState {
     self.generateButton.enabled = [self canGeneratePlaylist];
+    self.capacityPopup.enabled = !self.isGenerating;
     IGApplyThemeToButton(self.generateButton, IGThemeButtonRolePrimary);
 }
 
 - (void)finishGeneration {
+    [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityAIPlaylistIdentifier];
     self.isGenerating = NO;
     [self updateGenerateButtonState];
 }
@@ -305,6 +330,14 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
         return;
     }
     IGLocalizationService *lang = [IGLocalizationService sharedService];
+    if (![[IGOperationActivity sharedActivity] beginOperationWithIdentifier:IGOperationActivityAIPlaylistIdentifier]) {
+        NSString *message = [lang.selectedLanguage isEqualToString:@"ru"] ?
+            @"Сначала завершите текущую фоновую операцию." : @"Finish the current background operation first.";
+        [IGNotificationView showInView:self.view message:message isError:YES];
+        return;
+    }
+    NSInteger capacityIndex = [self.capacityPopup indexOfSelectedItem];
+    unsigned long long capacityBytes = capacityIndex > 0 ? (unsigned long long)(8ULL << (capacityIndex - 1)) * 1024ULL * 1024ULL * 1024ULL : 0ULL;
     self.isGenerating = YES;
     [self updateGenerateButtonState];
     self.progressIndicator.hidden = NO;
@@ -332,6 +365,8 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
         [[IGiTunesService sharedService] fetchAllTracksWithProgress:^(NSInteger current, NSInteger total) {
         self.progressIndicator.maxValue = total;
         self.progressIndicator.doubleValue = current;
+        [[IGOperationActivity sharedActivity] updateProgress:(double)current / (double)MAX((NSInteger)1, total)
+                                               forIdentifier:IGOperationActivityAIPlaylistIdentifier];
         } completion:^(NSArray *tracks) {
         if (tracks.count == 0) {
             self.statusLabel.stringValue = [lang t:@"lib_empty"];
@@ -354,10 +389,15 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
         
         NSMutableArray *sampleStrings = [NSMutableArray array];
         for (IGTrack *t in limitedSample) {
-            [sampleStrings addObject:[NSString stringWithFormat:@"%@|%@|%@|%@|%ld", t.persistentID, t.artist, t.name, t.genre, (long)t.year]];
+            [sampleStrings addObject:[NSString stringWithFormat:@"%@|%@|%@|%@|%ld|%llu", t.persistentID, t.artist, t.name, t.genre, (long)t.year, t.fileSizeBytes]];
         }
-        
-        [[IGAIService sharedService] generatePlaylistWithPrompt:self.promptField.stringValue
+
+        NSString *aiPrompt = self.promptField.stringValue;
+        if (capacityBytes > 0) {
+            aiPrompt = [aiPrompt stringByAppendingFormat:@". Keep the total fileSizeBytes at or below %llu bytes. Each library row ends with fileSizeBytes.", capacityBytes];
+        }
+
+        [[IGAIService sharedService] generatePlaylistWithPrompt:aiPrompt
                                                            count:[self.countField integerValue]
                                                    librarySample:sampleStrings
                                                       completion:^(NSArray *suggestedIDs) {
@@ -371,10 +411,32 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
                 return;
             }
             
+            NSMutableDictionary *tracksByID = [NSMutableDictionary dictionaryWithCapacity:[tracks count]];
+            for (IGTrack *track in tracks) {
+                if ([track.persistentID length] > 0) [tracksByID setObject:track forKey:[track.persistentID uppercaseString]];
+            }
+            NSMutableArray *boundedIDs = [NSMutableArray array];
+            unsigned long long selectedBytes = 0ULL;
+            for (NSString *suggestedID in suggestedIDs) {
+                IGTrack *track = [tracksByID objectForKey:[suggestedID uppercaseString]];
+                if (!track) continue;
+                if (capacityBytes > 0 && (track.fileSizeBytes == 0ULL || selectedBytes + track.fileSizeBytes > capacityBytes)) continue;
+                [boundedIDs addObject:track.persistentID];
+                selectedBytes += track.fileSizeBytes;
+            }
+            if ([boundedIDs count] == 0) {
+                self.statusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
+                    @"ИИ не вернул треки, помещающиеся в выбранный лимит." : @"AI returned no tracks that fit the selected size limit.";
+                [self finishGeneration];
+                self.progressIndicator.hidden = YES;
+                [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
+                return;
+            }
+
             self.statusLabel.stringValue = [lang t:@"creating_playlist"];
             
             [[IGiTunesService sharedService] createPlaylistWithName:self.playlistNameField.stringValue
-                                                      persistentIDs:suggestedIDs
+                                                      persistentIDs:boundedIDs
                                                          completion:^(NSInteger addedCount) {
                 if (addedCount <= 0) {
                     self.statusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
@@ -385,7 +447,8 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
                     [IGNotificationView showInView:self.view message:self.statusLabel.stringValue isError:YES];
                     return;
                 }
-                NSString *successMsg = [lang t:@"success_added" args:@[@((long)addedCount)]];
+                NSString *sizeString = [NSByteCountFormatter stringFromByteCount:(long long)selectedBytes countStyle:NSByteCountFormatterCountStyleFile];
+                NSString *successMsg = [NSString stringWithFormat:@"%@ (%@)", [lang t:@"success_added" args:@[@((long)addedCount)]], sizeString];
                 self.statusLabel.stringValue = successMsg;
                 [self finishGeneration];
                 self.progressIndicator.hidden = YES;
