@@ -128,17 +128,19 @@ static NSURL *IGVideoFileUniqueBackupURL(NSURL *fileURL) {
     return matches;
 }
 
-+ (NSDictionary *)filenameHintsForURL:(NSURL *)fileURL {
-    NSString *base = [[fileURL lastPathComponent] stringByDeletingPathExtension] ?: @"";
++ (NSDictionary *)filenameHintsForName:(NSString *)name {
+    NSString *base = name ?: @"";
     NSString *clean = [[base stringByReplacingOccurrencesOfString:@"_" withString:@" "] stringByReplacingOccurrencesOfString:@"." withString:@" "];
     clean = [clean stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    NSRegularExpression *episodeExpression = [NSRegularExpression regularExpressionWithPattern:@"(?i)\\bS([0-9]{1,2})E([0-9]{1,3})\\b"
+    NSRegularExpression *episodeExpression = [NSRegularExpression regularExpressionWithPattern:@"(?i)\\b(?:S([0-9]{1,2})E([0-9]{1,3})|([0-9]{1,2})X([0-9]{1,3}))\\b"
                                                                                         options:0
                                                                                           error:nil];
     NSTextCheckingResult *episodeMatch = [episodeExpression firstMatchInString:clean options:0 range:NSMakeRange(0, [clean length])];
-    if (episodeMatch && [episodeMatch numberOfRanges] >= 3) {
-        NSInteger season = [[clean substringWithRange:[episodeMatch rangeAtIndex:1]] integerValue];
-        NSInteger episode = [[clean substringWithRange:[episodeMatch rangeAtIndex:2]] integerValue];
+    if (episodeMatch && [episodeMatch numberOfRanges] >= 5) {
+        NSRange seasonRange = [episodeMatch rangeAtIndex:1].location != NSNotFound ? [episodeMatch rangeAtIndex:1] : [episodeMatch rangeAtIndex:3];
+        NSRange episodeRange = [episodeMatch rangeAtIndex:2].location != NSNotFound ? [episodeMatch rangeAtIndex:2] : [episodeMatch rangeAtIndex:4];
+        NSInteger season = [[clean substringWithRange:seasonRange] integerValue];
+        NSInteger episode = [[clean substringWithRange:episodeRange] integerValue];
         NSString *show = [[clean substringToIndex:[episodeMatch range].location] stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" .-_"]];
         NSString *episodeTitle = [[clean substringFromIndex:NSMaxRange([episodeMatch range])] stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" .-_"]];
         return [NSDictionary dictionaryWithObjectsAndKeys:
@@ -158,8 +160,31 @@ static NSURL *IGVideoFileUniqueBackupURL(NSURL *fileURL) {
             nil];
 }
 
++ (NSDictionary *)filenameHintsForURL:(NSURL *)fileURL {
+    NSString *base = [[fileURL lastPathComponent] stringByDeletingPathExtension] ?: @"";
+    return [self filenameHintsForName:base];
+}
+
 + (NSDictionary *)televisionHintsForMetadataComment:(NSString *)comment {
     return IGVideoFileTelevisionNumbersFromComment(comment);
+}
+
++ (NSString *)episodeDisplayTitleForTitle:(NSString *)title
+                             seasonNumber:(NSInteger)seasonNumber
+                            episodeNumber:(NSInteger)episodeNumber {
+    NSString *cleanTitle = [IGVideoFileString(title) stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (seasonNumber <= 0 || episodeNumber <= 0 || [cleanTitle length] == 0) return cleanTitle;
+
+    NSRegularExpression *existingPrefix = [NSRegularExpression regularExpressionWithPattern:@"(?i)^S[0-9]{1,2}E[0-9]{1,3}\\s*(?:—|–|-|:)\\s*"
+                                                                                       options:0
+                                                                                         error:nil];
+    cleanTitle = [existingPrefix stringByReplacingMatchesInString:cleanTitle
+                                                           options:0
+                                                             range:NSMakeRange(0, [cleanTitle length])
+                                                      withTemplate:@""];
+    cleanTitle = [cleanTitle stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([cleanTitle length] == 0) return @"";
+    return [NSString stringWithFormat:@"S%ldE%02ld — %@", (long)seasonNumber, (long)episodeNumber, cleanTitle];
 }
 
 - (void)readMetadataAtURL:(NSURL *)fileURL

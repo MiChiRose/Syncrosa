@@ -53,6 +53,12 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @interface IGSettingsViewController () <NSComboBoxDelegate>
 
 @property (nonatomic, strong) NSTextField *titleLabel;
+@property (nonatomic, strong) NSScrollView *pageScrollView;
+@property (nonatomic, strong) NSView *settingsCanvas;
+@property (nonatomic, strong) NSBox *appearanceSectionBox;
+@property (nonatomic, strong) NSBox *aiSectionBox;
+@property (nonatomic, strong) NSBox *safetySectionBox;
+@property (nonatomic, strong) NSBox *updatesSectionBox;
 @property (nonatomic, strong) NSTextField *langLabel;
 @property (nonatomic, strong) NSPopUpButton *langPopup;
 @property (nonatomic, strong) NSTextField *themeLabel;
@@ -92,9 +98,23 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @implementation IGSettingsViewController
 
 - (void)loadView {
-    self.view = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 500)] autorelease];
+    self.pageScrollView = [[[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 580, 500)] autorelease];
+    self.pageScrollView.hasVerticalScroller = YES;
+    self.pageScrollView.hasHorizontalScroller = NO;
+    self.pageScrollView.autohidesScrollers = YES;
+    self.pageScrollView.borderType = NSNoBorder;
+    self.pageScrollView.drawsBackground = YES;
+    self.pageScrollView.backgroundColor = IGThemeContentColor();
+    self.pageScrollView.verticalScrollElasticity = NSScrollElasticityNone;
+    self.pageScrollView.horizontalScrollElasticity = NSScrollElasticityNone;
+    self.pageScrollView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [[self.pageScrollView contentView] setCopiesOnScroll:NO];
+    self.settingsCanvas = IGCreateThemedBackgroundView(NSMakeRect(0, 0, 580, 660), IGThemeBackgroundRoleContent);
+    self.pageScrollView.documentView = self.settingsCanvas;
+    self.view = self.pageScrollView;
     [self setupUI];
     [self loadSettings];
+    [self performSelector:@selector(scrollPageToTop) withObject:nil afterDelay:0.0];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(localizationChanged:)
@@ -109,6 +129,12 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 #if !__has_feature(objc_arc)
+    [_pageScrollView release];
+    [_settingsCanvas release];
+    [_appearanceSectionBox release];
+    [_aiSectionBox release];
+    [_safetySectionBox release];
+    [_updatesSectionBox release];
     [_titleLabel release];
     [_langLabel release];
     [_langPopup release];
@@ -148,7 +174,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 }
 
 - (void)setupUI {
-    CGFloat y = 465;
+    CGFloat y = 620;
     CGFloat rowGap = 42.0;
     CGFloat compactRowGap = 32.0;
     CGFloat buttonHeight = 26.0;
@@ -163,29 +189,47 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.titleLabel.bordered = NO;
     self.titleLabel.drawsBackground = NO;
     self.titleLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:self.titleLabel];
+    [self.settingsCanvas addSubview:self.titleLabel];
+
+    self.appearanceSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 514, 556, 92)] autorelease];
+    self.appearanceSectionBox.boxType = NSBoxPrimary;
+    [self.settingsCanvas addSubview:self.appearanceSectionBox];
+    self.aiSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 327, 556, 180)] autorelease];
+    self.aiSectionBox.boxType = NSBoxPrimary;
+    [self.settingsCanvas addSubview:self.aiSectionBox];
+    self.safetySectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 163, 556, 157)] autorelease];
+    self.safetySectionBox.boxType = NSBoxPrimary;
+    [self.settingsCanvas addSubview:self.safetySectionBox];
+    self.updatesSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 43, 556, 101)] autorelease];
+    self.updatesSectionBox.boxType = NSBoxPrimary;
+    [self.settingsCanvas addSubview:self.updatesSectionBox];
     
-    y -= rowGap;
+    /*
+     Native NSBox titles occupy part of the top edge.  Keep the first row
+     eight points lower so the visible inset matches the 8-point side inset.
+     The shift carries through Appearance, AI Provider, and Library & Safety.
+     */
+    y -= 63.0;
     // Language Section
     self.langLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)] autorelease];
     self.langLabel.font = [NSFont systemFontOfSize:13];
     self.langLabel.editable = NO;
     self.langLabel.bordered = NO;
     self.langLabel.drawsBackground = NO;
-    [self.view addSubview:self.langLabel];
+    [self.settingsCanvas addSubview:self.langLabel];
     
     self.langPopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26) pullsDown:NO] autorelease];
     [self.langPopup addItemsWithTitles:@[@"English", @"Русский", @"Беларуская", @"한국어", @"日本語", @"中文", @"Deutsch", @"Polski", @"Eesti", @"Español"]];
     self.langPopup.target = self;
     self.langPopup.action = @selector(languagePopupChanged:);
-    [self.view addSubview:self.langPopup];
+    [self.settingsCanvas addSubview:self.langPopup];
 
     self.themeLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(370, y, 60, 20)] autorelease];
     self.themeLabel.font = [NSFont systemFontOfSize:13];
     self.themeLabel.editable = NO;
     self.themeLabel.bordered = NO;
     self.themeLabel.drawsBackground = NO;
-    [self.view addSubview:self.themeLabel];
+    [self.settingsCanvas addSubview:self.themeLabel];
 
     self.themePopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 26) pullsDown:NO] autorelease];
     NSArray *themeIDs = IGThemeIdentifiers();
@@ -194,7 +238,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     }
     self.themePopup.target = self;
     self.themePopup.action = @selector(themePopupChanged:);
-    [self.view addSubview:self.themePopup];
+    [self.settingsCanvas addSubview:self.themePopup];
 
     y -= 32.0;
     self.appearanceLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 140, 20)] autorelease];
@@ -202,7 +246,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.appearanceLabel.editable = NO;
     self.appearanceLabel.bordered = NO;
     self.appearanceLabel.drawsBackground = NO;
-    [self.view addSubview:self.appearanceLabel];
+    [self.settingsCanvas addSubview:self.appearanceLabel];
 
     self.appearancePopup = [[[NSPopUpButton alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26) pullsDown:NO] autorelease];
     NSArray *appearanceIDs = IGAppearanceModeIdentifiers();
@@ -212,22 +256,28 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.appearancePopup.target = self;
     self.appearancePopup.action = @selector(appearancePopupChanged:);
     self.appearancePopup.toolTip = @"System follows macOS appearance where supported. On OS X 10.9 it safely uses light Classic Graphite.";
-    [self.view addSubview:self.appearancePopup];
+    [self.settingsCanvas addSubview:self.appearancePopup];
     
-    y -= rowGap - 10.0;
+    y -= 70.0;
     // AI Provider Section
     self.providerLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)] autorelease];
     self.providerLabel.font = [NSFont systemFontOfSize:13];
     self.providerLabel.editable = NO;
     self.providerLabel.bordered = NO;
     self.providerLabel.drawsBackground = NO;
-    [self.view addSubview:self.providerLabel];
+    [self.settingsCanvas addSubview:self.providerLabel];
     
-    self.providerCombo = [[[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 200, 26)] autorelease];
+    self.providerCombo = [[[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 270, 26)] autorelease];
     [self.providerCombo addItemsWithObjectValues:@[@"Gemini", @"OpenRouter", @"Groq"]];
     self.providerCombo.editable = NO;
     self.providerCombo.delegate = self;
-    [self.view addSubview:self.providerCombo];
+    [self.settingsCanvas addSubview:self.providerCombo];
+
+    self.syncModelsBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 30)] autorelease];
+    self.syncModelsBtn.bezelStyle = NSRoundedBezelStyle;
+    self.syncModelsBtn.target = self;
+    self.syncModelsBtn.action = @selector(syncClicked:);
+    [self.settingsCanvas addSubview:self.syncModelsBtn];
     
     y -= rowGap;
     // Model Section
@@ -236,16 +286,11 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.modelLabel.editable = NO;
     self.modelLabel.bordered = NO;
     self.modelLabel.drawsBackground = NO;
-    [self.view addSubview:self.modelLabel];
+    [self.settingsCanvas addSubview:self.modelLabel];
     
-    self.modelCombo = [[[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 270, 26)] autorelease];
-    [self.view addSubview:self.modelCombo];
-    
-    self.syncModelsBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 30)] autorelease];
-    self.syncModelsBtn.bezelStyle = NSRoundedBezelStyle;
-    self.syncModelsBtn.target = self;
-    self.syncModelsBtn.action = @selector(syncClicked:);
-    [self.view addSubview:self.syncModelsBtn];
+    self.modelCombo = [[[NSComboBox alloc] initWithFrame:NSMakeRect(150, y-2, 410, 26)] autorelease];
+    self.modelCombo.delegate = self;
+    [self.settingsCanvas addSubview:self.modelCombo];
     
     y -= rowGap;
     // API Key Section
@@ -254,17 +299,17 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.apiKeyLabel.editable = NO;
     self.apiKeyLabel.bordered = NO;
     self.apiKeyLabel.drawsBackground = NO;
-    [self.view addSubview:self.apiKeyLabel];
+    [self.settingsCanvas addSubview:self.apiKeyLabel];
     
     self.apiKeyField = [[[NSSecureTextField alloc] initWithFrame:NSMakeRect(150, y-2, 410, 24)] autorelease];
-    [self.view addSubview:self.apiKeyField];
+    [self.settingsCanvas addSubview:self.apiKeyField];
 
     y -= 34;
     self.saveButton = [[[NSButton alloc] initWithFrame:NSMakeRect(150, y, 200, buttonHeight)] autorelease];
     self.saveButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.saveButton.target = self;
     self.saveButton.action = @selector(saveClicked:);
-    [self.view addSubview:self.saveButton];
+    [self.settingsCanvas addSubview:self.saveButton];
 
     self.statusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(360, y + 3, 200, 20)] autorelease];
     self.statusLabel.stringValue = @"";
@@ -273,7 +318,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
     self.statusLabel.alignment = NSLeftTextAlignment;
-    [self.view addSubview:self.statusLabel];
+    [self.settingsCanvas addSubview:self.statusLabel];
     
     y -= compactRowGap;
     // Logging Checkbox
@@ -281,40 +326,40 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.enableLoggingCheckbox.buttonType = NSSwitchButton;
     self.enableLoggingCheckbox.hidden = ![IGLogger desktopDiagnosticsEnabled];
     self.enableLoggingCheckbox.enabled = [IGLogger desktopDiagnosticsEnabled];
-    [self.view addSubview:self.enableLoggingCheckbox];
+    [self.settingsCanvas addSubview:self.enableLoggingCheckbox];
 
     y -= compactRowGap;
     self.onlyLocalCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)] autorelease];
     self.onlyLocalCheckbox.buttonType = NSSwitchButton;
     self.onlyLocalCheckbox.title = @"Only Local Mode";
-    [self.view addSubview:self.onlyLocalCheckbox];
+    [self.settingsCanvas addSubview:self.onlyLocalCheckbox];
 
     self.historyButton = [[[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)] autorelease];
     self.historyButton.bezelStyle = NSRoundedBezelStyle;
     self.historyButton.title = @"Operation History";
     self.historyButton.target = self;
     self.historyButton.action = @selector(historyClicked:);
-    [self.view addSubview:self.historyButton];
+    [self.settingsCanvas addSubview:self.historyButton];
 
     y -= compactRowGap;
     self.hddSafeCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)] autorelease];
     self.hddSafeCheckbox.buttonType = NSSwitchButton;
     self.hddSafeCheckbox.title = @"HDD Safe Mode";
-    [self.view addSubview:self.hddSafeCheckbox];
+    [self.settingsCanvas addSubview:self.hddSafeCheckbox];
 
     self.recoveryButton = [[[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)] autorelease];
     self.recoveryButton.bezelStyle = NSRoundedBezelStyle;
     self.recoveryButton.title = @"Recovery Center";
     self.recoveryButton.target = self;
     self.recoveryButton.action = @selector(recoveryClicked:);
-    [self.view addSubview:self.recoveryButton];
+    [self.settingsCanvas addSubview:self.recoveryButton];
 
     y -= compactRowGap;
     self.showFooterCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 260, 20)] autorelease];
     self.showFooterCheckbox.buttonType = NSSwitchButton;
     self.showFooterCheckbox.target = self;
     self.showFooterCheckbox.action = @selector(showFooterChanged:);
-    [self.view addSubview:self.showFooterCheckbox];
+    [self.settingsCanvas addSubview:self.showFooterCheckbox];
 
     y -= compactRowGap + 4.0;
     // Library Sync Section
@@ -322,7 +367,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.syncLibButton.bezelStyle = NSRoundedBezelStyle;
     self.syncLibButton.target = self;
     self.syncLibButton.action = @selector(syncLibClicked:);
-    [self.view addSubview:self.syncLibButton];
+    [self.settingsCanvas addSubview:self.syncLibButton];
     
     self.syncLibStatusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(230, y + 3, 330, 20)] autorelease];
     self.syncLibStatusLabel.font = [NSFont systemFontOfSize:11];
@@ -330,29 +375,30 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.syncLibStatusLabel.editable = NO;
     self.syncLibStatusLabel.bordered = NO;
     self.syncLibStatusLabel.drawsBackground = NO;
-    [self.view addSubview:self.syncLibStatusLabel];
+    [self.settingsCanvas addSubview:self.syncLibStatusLabel];
 
-    y -= rowGap;
+    // Match the same visible top inset inside Application Updates.
+    y = 92.0;
     // Updates Section
     self.updateCheckButton = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 160, buttonHeight)] autorelease];
     self.updateCheckButton.bezelStyle = NSRoundedBezelStyle;
     self.updateCheckButton.target = self;
     self.updateCheckButton.action = @selector(checkUpdatesClicked:);
-    [self.view addSubview:self.updateCheckButton];
+    [self.settingsCanvas addSubview:self.updateCheckButton];
 
     self.updateOpenButton = [[[NSButton alloc] initWithFrame:NSMakeRect(190, y, 120, buttonHeight)] autorelease];
     self.updateOpenButton.bezelStyle = NSRoundedBezelStyle;
     self.updateOpenButton.target = self;
     self.updateOpenButton.action = @selector(openUpdateClicked:);
     self.updateOpenButton.enabled = NO;
-    [self.view addSubview:self.updateOpenButton];
+    [self.settingsCanvas addSubview:self.updateOpenButton];
 
     self.releaseNotesButton = [[[NSButton alloc] initWithFrame:NSMakeRect(320, y, 140, buttonHeight)] autorelease];
     self.releaseNotesButton.bezelStyle = NSRoundedBezelStyle;
     self.releaseNotesButton.target = self;
     self.releaseNotesButton.action = @selector(releaseNotesClicked:);
     self.releaseNotesButton.enabled = YES;
-    [self.view addSubview:self.releaseNotesButton];
+    [self.settingsCanvas addSubview:self.releaseNotesButton];
 
     self.updateStatusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y - 24, 540, 20)] autorelease];
     self.updateStatusLabel.font = [NSFont systemFontOfSize:11];
@@ -361,15 +407,15 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.updateStatusLabel.bordered = NO;
     self.updateStatusLabel.drawsBackground = NO;
     self.updateStatusLabel.stringValue = [NSString stringWithFormat:@"Current version: %@", IGCurrentApplicationVersionString()];
-    [self.view addSubview:self.updateStatusLabel];
+    [self.settingsCanvas addSubview:self.updateStatusLabel];
     
     // Help Button
-    self.helpBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(520, 467, 25, 25)] autorelease];
+    self.helpBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(520, 622, 25, 25)] autorelease];
     self.helpBtn.bezelStyle = NSHelpButtonBezelStyle;
     self.helpBtn.title = @"";
     self.helpBtn.target = self;
     self.helpBtn.action = @selector(helpClicked:);
-    [self.view addSubview:self.helpBtn];
+    [self.settingsCanvas addSubview:self.helpBtn];
     
     // Footer
     self.footerLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, 4, 500, 30)] autorelease];
@@ -379,16 +425,29 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.footerLabel.editable = NO;
     self.footerLabel.bordered = NO;
     self.footerLabel.drawsBackground = NO;
-    [self.view addSubview:self.footerLabel];
+    [self.settingsCanvas addSubview:self.footerLabel];
     
     [self updateLocalization];
 
+}
+
+- (void)scrollPageToTop {
+    NSView *documentView = [self.pageScrollView documentView];
+    NSClipView *clipView = [self.pageScrollView contentView];
+    CGFloat topOffset = MAX(0.0, NSHeight([documentView bounds]) - NSHeight([clipView bounds]));
+    [clipView scrollToPoint:NSMakePoint(0.0, topOffset)];
+    [self.pageScrollView reflectScrolledClipView:clipView];
 }
 
 - (void)updateLocalization {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
     
     self.titleLabel.stringValue = [lang t:@"settings"];
+    BOOL russian = [lang.selectedLanguage isEqualToString:@"ru"];
+    self.appearanceSectionBox.title = russian ? @"Оформление" : @"Appearance";
+    self.aiSectionBox.title = russian ? @"AI-провайдер" : @"AI Provider";
+    self.safetySectionBox.title = russian ? @"Медиатека и безопасность" : @"Library & Safety";
+    self.updatesSectionBox.title = russian ? @"Обновления приложения" : @"Application Updates";
     self.langLabel.stringValue = [NSString stringWithFormat:@"%@:", [lang t:@"lang_section"]];
     self.themeLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Тема:" : @"Theme:";
     self.appearanceLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Режим оформления:" : @"Appearance mode:";
@@ -708,7 +767,19 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
             NSString *selected = [self.providerCombo itemObjectValueAtIndex:index];
             [self updateModelAndKeyForProvider:selected];
         }
+    } else if (notification.object == self.modelCombo) {
+        [self updateModelToolTip];
     }
+}
+
+- (void)controlTextDidChange:(NSNotification *)notification {
+    if (notification.object == self.modelCombo) {
+        [self updateModelToolTip];
+    }
+}
+
+- (void)updateModelToolTip {
+    self.modelCombo.toolTip = [self.modelCombo.stringValue length] > 0 ? self.modelCombo.stringValue : nil;
 }
 
 - (void)updateModelAndKeyForProvider:(NSString *)provider {
@@ -739,6 +810,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
         NSString *savedModel = [defaults stringForKey:@"model_openrouter"];
         self.modelCombo.stringValue = savedModel ?: @"google/gemini-2.0-flash-exp:free";
     }
+    [self updateModelToolTip];
 }
 
 - (void)loadSettings {
@@ -805,6 +877,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
         if (models.count > 0) {
             [self.modelCombo removeAllItems];
             [self.modelCombo addItemsWithObjectValues:models];
+            [self updateModelToolTip];
             
             NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
             [defaults setObject:models forKey:@"cachedOpenRouterModels"];

@@ -280,20 +280,22 @@ static NSArray *IGMediaMatchesByAddingRussianWikidataLabels(NSArray *matches, NS
     return localizedMatches;
 }
 
-static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
+NSArray *IGMediaAppleVideoMatchesFromData(NSData *data, BOOL television, NSInteger requestedSeason, NSInteger requestedEpisode) {
     id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     if (![jsonObject isKindOfClass:[NSDictionary class]]) return [NSArray array];
     id resultsObject = [(NSDictionary *)jsonObject objectForKey:@"results"];
     if (![resultsObject isKindOfClass:[NSArray class]]) return [NSArray array];
     NSArray *results = resultsObject;
     NSMutableArray *matches = [NSMutableArray array];
+    NSMutableArray *numberedMatches = [NSMutableArray array];
+    BOOL specificEpisode = television && requestedSeason > 0 && requestedEpisode > 0;
     for (NSDictionary *item in results) {
         if (![item isKindOfClass:[NSDictionary class]]) continue;
         NSString *trackName = IGMediaJSONString([item objectForKey:@"trackName"]);
         NSString *collectionName = IGMediaJSONString([item objectForKey:@"collectionName"]);
         NSString *artistName = IGMediaJSONString([item objectForKey:@"artistName"]);
         NSString *showName = television ? (artistName.length > 0 ? artistName : collectionName) : @"";
-        NSString *name = television ? (collectionName.length > 0 ? collectionName : trackName) : trackName;
+        NSString *name = specificEpisode ? trackName : (television ? (collectionName.length > 0 ? collectionName : trackName) : trackName);
         if ([name length] == 0) continue;
         NSString *description = IGMediaJSONString([item objectForKey:@"longDescription"]);
         if ([description length] == 0) description = IGMediaJSONString([item objectForKey:@"shortDescription"]);
@@ -301,20 +303,107 @@ static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
         NSString *genre = IGMediaJSONString([item objectForKey:@"primaryGenreName"]);
         NSString *artworkURL = IGMediaJSONString([item objectForKey:@"artworkUrl100"]);
         if ([artworkURL length] > 0) artworkURL = [artworkURL stringByReplacingOccurrencesOfString:@"100x100" withString:@"600x600"];
-        NSString *display = [NSString stringWithFormat:@"%@%@%@", name,
+        NSInteger seasonNumber = television ? IGMediaSeasonNumberFromName(collectionName) : 0;
+        NSInteger episodeNumber = specificEpisode ? [[item objectForKey:@"trackNumber"] integerValue] : 0;
+        NSString *display = specificEpisode ?
+            [NSString stringWithFormat:@"%@ — S%02ldE%02ld %@%@", showName, (long)seasonNumber, (long)episodeNumber, name,
+             year > 0 ? [NSString stringWithFormat:@" (%ld)", (long)year] : @""] :
+            [NSString stringWithFormat:@"%@%@%@", name,
                              year > 0 ? [NSString stringWithFormat:@" (%ld)", (long)year] : @"",
                              genre.length > 0 ? [NSString stringWithFormat:@" — %@", genre] : @""];
-        [matches addObject:@{ @"name": name, @"videoKind": television ? @"TV Show" : @"Movie",
-                              @"show": showName, @"seasonNumber": @(television ? IGMediaSeasonNumberFromName(collectionName) : 0),
-                              @"episodeNumber": @0, @"genre": genre, @"originalGenre": genre, @"localizedGenre": @"",
+        NSDictionary *match = @{ @"name": name, @"videoKind": television ? @"TV Show" : @"Movie",
+                              @"show": showName, @"seasonNumber": @(seasonNumber),
+                              @"episodeNumber": @(episodeNumber), @"genre": genre, @"originalGenre": genre, @"localizedGenre": @"",
                               @"year": @(year), @"description": description,
                               @"originalDescription": description, @"localizedDescription": @"",
                               @"director": @"", @"originalDirector": @"", @"localizedDirector": @"",
                               @"artworkURL": artworkURL, @"artworkWidth": @0, @"artworkHeight": @0,
                               @"displayTitle": display, @"originalName": name, @"localizedName": @"",
-                              @"catalogSource": @"Apple" }];
+                              @"catalogSource": @"Apple" };
+        [matches addObject:match];
+        if (television && requestedSeason > 0 && requestedEpisode > 0 &&
+            seasonNumber == requestedSeason && episodeNumber == requestedEpisode) {
+            [numberedMatches addObject:match];
+        }
     }
-    return matches;
+    return [numberedMatches count] > 0 ? numberedMatches : matches;
+}
+
+static NSString *IGMediaPlainTextFromHTML(id value) {
+    NSString *text = IGMediaJSONString(value);
+    if ([text length] == 0) return @"";
+    NSString *withoutTags = [text stringByReplacingOccurrencesOfString:@"<[^>]+>"
+                                                              withString:@""
+                                                                 options:NSRegularExpressionSearch
+                                                                   range:NSMakeRange(0, [text length])];
+    withoutTags = [withoutTags stringByReplacingOccurrencesOfString:@"&amp;" withString:@"&"];
+    withoutTags = [withoutTags stringByReplacingOccurrencesOfString:@"&quot;" withString:@"\""];
+    withoutTags = [withoutTags stringByReplacingOccurrencesOfString:@"&#39;" withString:@"'"];
+    withoutTags = [withoutTags stringByReplacingOccurrencesOfString:@"&nbsp;" withString:@" "];
+    return [withoutTags stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+}
+
+static NSArray *IGMediaTVMazeEpisodeMatches(NSData *data, NSInteger requestedSeason, NSInteger requestedEpisode) {
+    id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![jsonObject isKindOfClass:[NSDictionary class]]) return [NSArray array];
+    NSDictionary *show = jsonObject;
+    NSDictionary *embedded = [[show objectForKey:@"_embedded"] isKindOfClass:[NSDictionary class]] ? [show objectForKey:@"_embedded"] : nil;
+    NSArray *episodes = [[embedded objectForKey:@"episodes"] isKindOfClass:[NSArray class]] ? [embedded objectForKey:@"episodes"] : nil;
+    NSDictionary *episode = nil;
+    for (NSDictionary *candidate in episodes) {
+        if (![candidate isKindOfClass:[NSDictionary class]]) continue;
+        if ([[candidate objectForKey:@"season"] integerValue] == requestedSeason &&
+            [[candidate objectForKey:@"number"] integerValue] == requestedEpisode) {
+            episode = candidate;
+            break;
+        }
+    }
+    if (!episode) return [NSArray array];
+
+    NSString *showName = IGMediaJSONString([show objectForKey:@"name"]);
+    NSString *episodeName = IGMediaJSONString([episode objectForKey:@"name"]);
+    NSArray *genres = [[show objectForKey:@"genres"] isKindOfClass:[NSArray class]] ? [show objectForKey:@"genres"] : [NSArray array];
+    NSString *genre = [genres componentsJoinedByString:@", "];
+    NSString *description = IGMediaPlainTextFromHTML([episode objectForKey:@"summary"]);
+    if ([description length] == 0) description = IGMediaPlainTextFromHTML([show objectForKey:@"summary"]);
+    NSString *airdate = IGMediaJSONString([episode objectForKey:@"airdate"]);
+    NSInteger year = [airdate length] >= 4 ? [[airdate substringToIndex:4] integerValue] : 0;
+    if (year == 0) {
+        NSString *premiered = IGMediaJSONString([show objectForKey:@"premiered"]);
+        year = [premiered length] >= 4 ? [[premiered substringToIndex:4] integerValue] : 0;
+    }
+    NSDictionary *episodeImage = [[episode objectForKey:@"image"] isKindOfClass:[NSDictionary class]] ? [episode objectForKey:@"image"] : nil;
+    NSDictionary *showImage = [[show objectForKey:@"image"] isKindOfClass:[NSDictionary class]] ? [show objectForKey:@"image"] : nil;
+    NSString *artworkURL = IGMediaJSONString([episodeImage objectForKey:@"original"]);
+    if ([artworkURL length] == 0) artworkURL = IGMediaJSONString([showImage objectForKey:@"original"]);
+    NSString *identifier = [NSString stringWithFormat:@"tvmaze:%@", [episode objectForKey:@"id"] ?: @""];
+    NSString *display = [NSString stringWithFormat:@"%@ — S%02ldE%02ld %@%@",
+                         showName, (long)requestedSeason, (long)requestedEpisode, episodeName,
+                         year > 0 ? [NSString stringWithFormat:@" (%ld)", (long)year] : @""];
+    NSDictionary *match = @{ @"name": episodeName,
+                             @"videoKind": @"TV Show",
+                             @"show": showName,
+                             @"seasonNumber": @(requestedSeason),
+                             @"episodeNumber": @(requestedEpisode),
+                             @"genre": genre,
+                             @"originalGenre": genre,
+                             @"localizedGenre": @"",
+                             @"year": @(year),
+                             @"description": description,
+                             @"originalDescription": description,
+                             @"localizedDescription": @"",
+                             @"director": @"",
+                             @"originalDirector": @"",
+                             @"localizedDirector": @"",
+                             @"artworkURL": artworkURL,
+                             @"artworkWidth": @0,
+                             @"artworkHeight": @0,
+                             @"displayTitle": display,
+                             @"catalogID": identifier,
+                             @"originalName": episodeName,
+                             @"localizedName": @"",
+                             @"catalogSource": @"TVmaze" };
+    return [NSArray arrayWithObject:match];
 }
 
 @implementation IGMediaFixerManager
@@ -402,6 +491,20 @@ static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
 - (void)searchVideoMetadataForTitle:(NSString *)title
                           videoKind:(NSString *)videoKind
                           completion:(void(^)(NSArray *results, NSString *errorMessage))completionBlock {
+    [self searchVideoMetadataForTitle:title
+                            videoKind:videoKind
+                             showName:@""
+                         seasonNumber:0
+                        episodeNumber:0
+                           completion:completionBlock];
+}
+
+- (void)searchVideoMetadataForTitle:(NSString *)title
+                          videoKind:(NSString *)videoKind
+                           showName:(NSString *)showName
+                       seasonNumber:(NSInteger)seasonNumber
+                      episodeNumber:(NSInteger)episodeNumber
+                         completion:(void(^)(NSArray *results, NSString *errorMessage))completionBlock {
     NSString *trimmed = [title stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if ([trimmed length] == 0) {
         if (completionBlock) completionBlock([NSArray array], @"Enter a movie or TV-show title first.");
@@ -412,13 +515,62 @@ static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
         return;
     }
 
-    NSString *encoded = IGMediaEncodeURLComponent(trimmed);
     BOOL television = [videoKind isEqualToString:@"TV Show"];
+    NSString *trimmedShow = [showName stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    BOOL specificEpisode = television && [trimmedShow length] > 0 && seasonNumber > 0 && episodeNumber > 0;
+    NSString *searchText = specificEpisode ? [NSString stringWithFormat:@"%@ %@", trimmedShow, trimmed] : trimmed;
+    NSString *encoded = IGMediaEncodeURLComponent(searchText);
+    NSString *encodedShow = IGMediaEncodeURLComponent(specificEpisode ? trimmedShow : trimmed);
     NSString *imdbURL = [NSString stringWithFormat:@"https://v3.sg.media-imdb.com/suggestion/x/%@.json", encoded];
     NSString *appleURL = [NSString stringWithFormat:@"https://itunes.apple.com/search?term=%@&country=US&media=%@&entity=%@&limit=20",
-                          encoded, television ? @"tvShow" : @"movie", television ? @"tvSeason" : @"movie"];
+                          encoded, television ? @"tvShow" : @"movie", television ? (specificEpisode ? @"tvEpisode" : @"tvSeason") : @"movie"];
+    NSString *tvMazeURL = specificEpisode ?
+        [NSString stringWithFormat:@"https://api.tvmaze.com/singlesearch/shows?q=%@&embed=episodes", encodedShow] : nil;
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        if (specificEpisode) {
+            NSMutableArray *episodeMatches = [NSMutableArray array];
+            NSMutableArray *tvMazeArgs = [NSMutableArray arrayWithArray:@[@"-sSL", @"--fail", @"--proto", @"=https", @"--proto-redir", @"=https",
+                                                                         @"--max-filesize", @"10485760", @"-m", @"20", @"-A", @"Syncrosa/3.5.0 metadata lookup"]];
+            IGMediaAddCACertIfAvailable(tvMazeArgs);
+            [tvMazeArgs addObject:tvMazeURL];
+            int tvMazeStatus = -1;
+            NSData *tvMazeData = IGMediaRunCurlWithLimit(tvMazeArgs, &tvMazeStatus, 10ULL * 1024ULL * 1024ULL);
+            if (tvMazeStatus == 0 && [tvMazeData length] > 0) {
+                [episodeMatches addObjectsFromArray:IGMediaTVMazeEpisodeMatches(tvMazeData, seasonNumber, episodeNumber)];
+            }
+
+            NSMutableArray *appleArgs = [NSMutableArray arrayWithArray:@[@"-sSL", @"--fail", @"--proto", @"=https", @"--proto-redir", @"=https",
+                                                                        @"--max-filesize", @"10485760", @"-m", @"20"]];
+            IGMediaAddCACertIfAvailable(appleArgs);
+            [appleArgs addObject:appleURL];
+            int appleStatus = -1;
+            NSData *appleData = IGMediaRunCurlWithLimit(appleArgs, &appleStatus, 10ULL * 1024ULL * 1024ULL);
+            if (appleStatus == 0 && [appleData length] > 0) {
+                NSArray *appleMatches = IGMediaAppleVideoMatchesFromData(appleData, YES, seasonNumber, episodeNumber);
+                for (NSDictionary *appleMatch in appleMatches) {
+                    BOOL duplicate = NO;
+                    for (NSDictionary *existing in episodeMatches) {
+                        if ([[existing objectForKey:@"name"] caseInsensitiveCompare:[appleMatch objectForKey:@"name"]] == NSOrderedSame &&
+                            [[existing objectForKey:@"seasonNumber"] integerValue] == [[appleMatch objectForKey:@"seasonNumber"] integerValue] &&
+                            [[existing objectForKey:@"episodeNumber"] integerValue] == [[appleMatch objectForKey:@"episodeNumber"] integerValue]) {
+                            duplicate = YES;
+                            break;
+                        }
+                    }
+                    if (!duplicate) [episodeMatches addObject:appleMatch];
+                }
+            }
+            NSString *episodeError = nil;
+            if ([episodeMatches count] == 0 && tvMazeStatus != 0 && appleStatus != 0) {
+                episodeError = @"TV episode catalog search failed. Check the network connection and try again.";
+            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (completionBlock) completionBlock(episodeMatches, episodeError);
+            });
+            return;
+        }
+
         NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"--fail", @"--proto", @"=https", @"--proto-redir", @"=https",
                                                                  @"--max-filesize", @"10485760", @"-m", @"20"]];
         IGMediaAddCACertIfAvailable(args);
@@ -448,7 +600,7 @@ static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
                                  "} GROUP BY ?imdb ?ruLabel ?ruDescription ?enDescription",
                                 values];
             NSString *wikidataURL = [NSString stringWithFormat:@"https://query.wikidata.org/sparql?format=json&query=%@", IGMediaEncodeURLComponent(sparql)];
-            NSMutableArray *wikidataArgs = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"20", @"-A", @"Syncrosa/3.4.9 metadata lookup"]];
+            NSMutableArray *wikidataArgs = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"20", @"-A", @"Syncrosa/3.5.0 metadata lookup"]];
             IGMediaAddCACertIfAvailable(wikidataArgs);
             [wikidataArgs addObject:wikidataURL];
             int wikidataStatus = -1;
@@ -475,7 +627,7 @@ static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
             int fallbackStatus = -1;
             NSData *fallbackData = IGMediaRunCurl(fallbackArgs, &fallbackStatus);
             if (fallbackStatus == 0 && [fallbackData length] > 0) {
-                matches = IGMediaAppleVideoMatches(fallbackData, television);
+                matches = IGMediaAppleVideoMatchesFromData(fallbackData, television, 0, 0);
             } else if (status != 0) {
                 errorMessage = @"Movie catalog search failed. Check the network connection and try again.";
             }
@@ -493,7 +645,8 @@ static NSArray *IGMediaAppleVideoMatches(NSData *data, BOOL television) {
     NSString *host = [[url host] lowercaseString];
     BOOL trustedHost = [host isEqualToString:@"itunes.apple.com"] || [host hasSuffix:@".itunes.apple.com"] ||
                        [host isEqualToString:@"mzstatic.com"] || [host hasSuffix:@".mzstatic.com"] ||
-                       [host isEqualToString:@"media-amazon.com"] || [host hasSuffix:@".media-amazon.com"];
+                       [host isEqualToString:@"media-amazon.com"] || [host hasSuffix:@".media-amazon.com"] ||
+                       [host isEqualToString:@"tvmaze.com"] || [host hasSuffix:@".tvmaze.com"];
     if (![[url scheme] isEqualToString:@"https"] || !trustedHost) {
         if (completionBlock) completionBlock(nil, @"The catalog returned an unsupported artwork URL.");
         return;
