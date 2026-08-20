@@ -87,6 +87,55 @@
     XCTAssertNil(activity.activeIdentifier);
 }
 
+- (void)testEpisodeDisplayTitleSortsLegacyIPodEpisodesAndAvoidsDuplicatePrefixes {
+    XCTAssertEqualObjects([IGVideoFileMetadataService episodeDisplayTitleForTitle:@"Ash Catches a Pokémon"
+                                                                      seasonNumber:1
+                                                                     episodeNumber:1],
+                          @"S1E01 — Ash Catches a Pokémon");
+    XCTAssertEqualObjects([IGVideoFileMetadataService episodeDisplayTitleForTitle:@"S01E05 - Showdown in Pewter City"
+                                                                      seasonNumber:1
+                                                                     episodeNumber:5],
+                          @"S1E05 — Showdown in Pewter City");
+    XCTAssertEqualObjects([IGVideoFileMetadataService episodeDisplayTitleForTitle:@"S1E09 — The School of Hard Knocks"
+                                                                      seasonNumber:1
+                                                                     episodeNumber:9],
+                          @"S1E09 — The School of Hard Knocks");
+    XCTAssertEqualObjects([IGVideoFileMetadataService episodeDisplayTitleForTitle:@"Movie Title"
+                                                                      seasonNumber:0
+                                                                     episodeNumber:0],
+                          @"Movie Title");
+}
+
+- (void)testAppleVideoParserKeepsSeasonResultsAndFormatsSpecificEpisodes {
+    NSDictionary *seasonJSON = @{@"results": @[@{
+        @"collectionName": @"Pokémon, Season 1",
+        @"artistName": @"Pokémon",
+        @"releaseDate": @"1998-09-08T07:00:00Z",
+        @"primaryGenreName": @"Animation"
+    }]};
+    NSData *seasonData = [NSJSONSerialization dataWithJSONObject:seasonJSON options:0 error:nil];
+    NSArray *seasonMatches = IGMediaAppleVideoMatchesFromData(seasonData, YES, 0, 0);
+    XCTAssertEqual([seasonMatches count], (NSUInteger)1);
+    XCTAssertEqualObjects([[seasonMatches objectAtIndex:0] objectForKey:@"name"], @"Pokémon, Season 1");
+    XCTAssertEqualObjects([[seasonMatches objectAtIndex:0] objectForKey:@"episodeNumber"], @0);
+    XCTAssertEqualObjects([[seasonMatches objectAtIndex:0] objectForKey:@"displayTitle"], @"Pokémon, Season 1 (1998) — Animation");
+
+    NSDictionary *episodeJSON = @{@"results": @[@{
+        @"trackName": @"Showdown in Pewter City",
+        @"collectionName": @"Pokémon, Season 1",
+        @"artistName": @"Pokémon",
+        @"trackNumber": @5,
+        @"releaseDate": @"1998-09-14T07:00:00Z"
+    }]};
+    NSData *episodeData = [NSJSONSerialization dataWithJSONObject:episodeJSON options:0 error:nil];
+    NSArray *episodeMatches = IGMediaAppleVideoMatchesFromData(episodeData, YES, 1, 5);
+    XCTAssertEqual([episodeMatches count], (NSUInteger)1);
+    XCTAssertEqualObjects([[episodeMatches objectAtIndex:0] objectForKey:@"name"], @"Showdown in Pewter City");
+    XCTAssertEqualObjects([[episodeMatches objectAtIndex:0] objectForKey:@"episodeNumber"], @5);
+    XCTAssertEqualObjects([[episodeMatches objectAtIndex:0] objectForKey:@"displayTitle"],
+                          @"Pokémon — S01E05 Showdown in Pewter City (1998)");
+}
+
 - (void)testUpdateVersionComparison {
     XCTAssertTrue(IGVersionStringIsNewer(@"3.4.6", @"3.4.5"));
     XCTAssertTrue(IGVersionStringIsNewer(@"v3.5.0", @"3.4.9"));
@@ -330,6 +379,19 @@
     XCTAssertEqualObjects([episode objectForKey:@"name"], @"Chapter Name");
     XCTAssertEqualObjects([episode objectForKey:@"seasonNumber"], @2);
     XCTAssertEqualObjects([episode objectForKey:@"episodeNumber"], @7);
+
+    NSDictionary *pokemon = [IGVideoFileMetadataService filenameHintsForName:@"Pokemon 1x05 Showdown in Pewter City"];
+    XCTAssertEqualObjects([pokemon objectForKey:@"videoKind"], @"TV Show");
+    XCTAssertEqualObjects([pokemon objectForKey:@"show"], @"Pokemon");
+    XCTAssertEqualObjects([pokemon objectForKey:@"name"], @"Showdown in Pewter City");
+    XCTAssertEqualObjects([pokemon objectForKey:@"seasonNumber"], @1);
+    XCTAssertEqualObjects([pokemon objectForKey:@"episodeNumber"], @5);
+
+    NSDictionary *lowercase = [IGVideoFileMetadataService filenameHintsForName:@"Pokemon 01x006 Clefairy and the Moon Stone"];
+    XCTAssertEqualObjects([lowercase objectForKey:@"videoKind"], @"TV Show");
+    XCTAssertEqualObjects([lowercase objectForKey:@"seasonNumber"], @1);
+    XCTAssertEqualObjects([lowercase objectForKey:@"episodeNumber"], @6);
+    XCTAssertEqualObjects([lowercase objectForKey:@"name"], @"Clefairy and the Moon Stone");
 }
 
 - (void)testVideoMetadataCommentPreservesTelevisionNumbers {

@@ -76,22 +76,21 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.4.9.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Adds safe movie/TV metadata lookup and editing, external-folder video support, visible background activity, size-aware AI playlists, and clearer USB exports. |
+| `Syncrosa_Cocoa_v3.5.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Adds exact TV episode matching, iPod-friendly sequence prefixes, responsive Video Metadata layouts, and further Cocoa UI polish. |
 | `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.4.9.zip` | Modern Apple Silicon Macs | macOS 14 | Current modern Music.app build, refreshed and version-aligned with the 3.4.9 native release. |
+| `Syncrosa_SwiftUI_v3.5.0.zip` | Modern Apple Silicon Macs | macOS 14 | Current modern Music.app build, refreshed and version-aligned with the 3.5.0 native release. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.4.9
+### Latest Release: 3.5.0
 
-Syncrosa 3.4.9 updates the two native application tracks. The Python maintenance package remains available as version 3.4.8:
+Syncrosa 3.5.0 updates the two native application tracks. The Python maintenance package remains available as version 3.4.8:
 
-- **Video Metadata for Cocoa:** Match movies and TV shows against online catalog data, choose Russian or original titles, select artwork, and review genre, year, director, and description before saving.
-- **Folders and External Drives:** Edit MP4/M4V metadata outside iTunes using a verified passthrough export while retaining the original as a `.syncrosa-backup` file.
-- **Visible Background Work:** USB Export, AI Playlist, and Video Metadata show activity in the navigation drawer and cannot accidentally interrupt one another.
-- **Size-Aware Playlists:** Cocoa JSON exports include file sizes, and AI playlists can target 8, 16, 32, or 64 GB limits.
-- **Clearer USB Results:** Completion messages distinguish copied, skipped, DRM-protected, and total written data.
-- **Two Native Packages:** Cocoa for OS X 10.9+ and SwiftUI for macOS 14+ are published as version 3.4.9; Python remains on 3.4.8.
+- **Exact TV Episode Matching:** Cocoa recognizes `S01E05` and `1x05` names and searches by show, season, and episode, including artwork fallback from the series poster.
+- **Ordered Episodes on Legacy iPods:** Saved TV titles receive a stable prefix such as `S1E01 — …`, preventing alphabetical episode shuffling without duplicating an existing prefix.
+- **Responsive Video Workspace:** The Video Metadata page, track list, status area, and three-stage metadata chooser resize and scroll more naturally.
+- **Cocoa UI Polish:** Overview, Settings, USB Export, navigation activity, spacing, and alignment have been refined for classic AppKit.
+- **Two Native Packages:** Cocoa for OS X 10.9+ and SwiftUI for macOS 14+ are published as version 3.5.0; Python remains on 3.4.8.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.

@@ -166,16 +166,26 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
     quickBox.boxType = NSBoxPrimary;
     [self.view addSubview:quickBox];
 
-    NSButton *refresh = [self actionButton:@"Check iTunes" frame:NSMakeRect(15, 17, 117, 30) action:@selector(refreshClicked:)];
+	CGFloat quickGap = 8.0;
+	CGFloat quickButtonHeight = 30.0;
+	CGFloat quickContentHeight = NSHeight(quickBox.bounds) - 14.0;
+	CGFloat quickButtonY = floor((quickContentHeight - quickButtonHeight) / 2.0);
+	CGFloat quickGroupWidth = 112.0 + 119.0 + 137.0 + 108.0 + (quickGap * 3.0);
+	CGFloat legacyBoxContentOffsetX = 7.0;
+	CGFloat quickX = floor((NSWidth(quickBox.bounds) - quickGroupWidth) / 2.0) - legacyBoxContentOffsetX;
+	NSButton *refresh = [self actionButton:@"Check iTunes" frame:NSMakeRect(quickX, quickButtonY, 112, quickButtonHeight) action:@selector(refreshClicked:)];
 	    IGConfigureIconButton(refresh, @"refresh", @"Refresh iTunes library status", NO);
     [quickBox addSubview:refresh];
-    self.doctorButton = [self actionButton:@"Library Doctor" frame:NSMakeRect(142, 17, 117, 30) action:@selector(openDoctorClicked:)];
+    quickX = NSMaxX(refresh.frame) + quickGap;
+    self.doctorButton = [self actionButton:@"Library Doctor" frame:NSMakeRect(quickX, quickButtonY, 119, quickButtonHeight) action:@selector(openDoctorClicked:)];
     IGConfigureIconButton(self.doctorButton, @"doctor", @"Open Library Doctor", NO);
     [quickBox addSubview:self.doctorButton];
-    NSButton *recovery = [self actionButton:@"Recovery Center" frame:NSMakeRect(269, 17, 117, 30) action:@selector(openRecoveryClicked:)];
+	quickX = NSMaxX(self.doctorButton.frame) + quickGap;
+	NSButton *recovery = [self actionButton:@"Recovery Center" frame:NSMakeRect(quickX, quickButtonY, 137, quickButtonHeight) action:@selector(openRecoveryClicked:)];
 	    IGConfigureIconButton(recovery, @"restore", @"Open Recovery Center", NO);
     [quickBox addSubview:recovery];
-    NSButton *wizard = [self actionButton:@"Setup Guide" frame:NSMakeRect(396, 17, 117, 30) action:@selector(wizardClicked:)];
+	quickX = NSMaxX(recovery.frame) + quickGap;
+	NSButton *wizard = [self actionButton:@"Setup Guide" frame:NSMakeRect(quickX, quickButtonY, 108, quickButtonHeight) action:@selector(wizardClicked:)];
 	    IGConfigureIconButton(wizard, @"info", @"Open the setup guide", NO);
     [quickBox addSubview:wizard];
 
@@ -189,12 +199,23 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
         @"Destructive file tools require confirmation and preserve recovery data.",
         @"Interrupted operations leave a marker in Recovery Center."
     ];
-    CGFloat safeguardY = 72.0;
+    CGFloat safeguardRowHeight = 17.0;
+    CGFloat safeguardGap = 2.0;
+    CGFloat safeguardGroupHeight = safeguardRowHeight * safeguards.count + safeguardGap * (safeguards.count - 1);
+    CGFloat safeguardContentHeight = NSHeight(safetyBox.bounds) - 14.0;
+    CGFloat safeguardY = floor((safeguardContentHeight - safeguardGroupHeight) / 2.0) +
+                         safeguardGroupHeight - safeguardRowHeight;
     for (NSString *text in safeguards) {
-        NSTextField *row = IGCreateGuideTextField([@"- " stringByAppendingString:text], NSMakeRect(16, safeguardY, 498, 17),
-                                                  [NSFont systemFontOfSize:10.5], IGThemeMutedTextColor(), NSLeftTextAlignment);
+        CGFloat safeguardVisualInset = 16.0;
+        CGFloat safeguardX = safeguardVisualInset - legacyBoxContentOffsetX;
+        NSTextField *row = IGCreateGuideTextField([@"- " stringByAppendingString:text],
+                                                  NSMakeRect(safeguardX,
+                                                             safeguardY,
+                                                             NSWidth(safetyBox.bounds) - (safeguardVisualInset * 2.0),
+                                                             safeguardRowHeight),
+                                                  [NSFont systemFontOfSize:10.5], IGThemeTextColor(), NSCenterTextAlignment);
         [safetyBox addSubview:row];
-        safeguardY -= 19.0;
+        safeguardY -= safeguardRowHeight + safeguardGap;
     }
 
     [self refreshOverview];
@@ -221,7 +242,8 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
         NSControl *control = [layout objectForKey:@"control"];
         CGFloat iconSize = 26.0;
         CGFloat gap = 10.0;
-        CGFloat maximumControlWidth = MAX(80.0, NSWidth(box.bounds) - iconSize - gap - 28.0);
+        CGFloat horizontalPadding = 16.0;
+        CGFloat maximumControlWidth = MAX(80.0, NSWidth(box.bounds) - (horizontalPadding * 2.0) - iconSize - gap);
         CGFloat controlWidth = 80.0;
         CGFloat controlHeight = 22.0;
 
@@ -241,8 +263,7 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
 
         CGFloat usableHeight = MAX(iconSize, NSHeight(box.bounds) - 18.0);
         CGFloat centerY = floor(usableHeight / 2.0);
-        CGFloat groupWidth = iconSize + gap + controlWidth;
-        CGFloat startX = floor((NSWidth(box.bounds) - groupWidth) / 2.0);
+        CGFloat startX = horizontalPadding;
         icon.frame = NSMakeRect(startX, floor(centerY - iconSize / 2.0), iconSize, iconSize);
         control.frame = NSMakeRect(startX + iconSize + gap,
                                    floor(centerY - controlHeight / 2.0),
@@ -1279,6 +1300,9 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     NSNumber *storedWidth = [self.pagePreferredWidths objectForKey:key];
     CGFloat preferredHeight = storedHeight ? [storedHeight doubleValue] : MAX(480.0, NSHeight(view.frame));
     CGFloat preferredWidth = storedWidth ? [storedWidth doubleValue] : MAX(580.0, NSWidth(view.frame));
+    if ([self.activeViewController isKindOfClass:[IGVideoMetadataViewController class]]) {
+        preferredHeight = NSHeight(self.pageContainer.bounds);
+    }
     view.frame = IGCenteredLegacyPageFrame(NSMakeSize(preferredWidth, preferredHeight), self.pageContainer.bounds);
 }
 
@@ -1335,7 +1359,10 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     CGFloat sidebarWidth = NSWidth(self.sidebarContainer.bounds);
     CGFloat sidebarHeight = NSHeight(self.sidebarContainer.bounds);
     CGFloat contentHeight = NSHeight(self.contentContainer.bounds);
-    self.sidebarToggleButton.frame = NSMakeRect(12.0, MAX(6.0, contentHeight - 38.0), 30.0, 28.0);
+    BOOL sidebarVisible = !self.sidebarCollapsed && ![self.sidebarContainer isHidden];
+    CGFloat toggleX = sidebarVisible ? MAX(6.0, sidebarWidth - 42.0) : 12.0;
+    CGFloat toggleHeight = sidebarVisible ? sidebarHeight : contentHeight;
+    self.sidebarToggleButton.frame = NSMakeRect(toggleX, MAX(6.0, toggleHeight - 38.0), 30.0, 28.0);
     self.sidebarToggleButton.toolTip = self.sidebarCollapsed ? @"Show Sidebar" : @"Hide Sidebar";
     self.sidebarToggleButton.title = @"";
     NSImage *toggleImage = IGIconImageNamed(@"menu");
@@ -1347,7 +1374,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     for (NSButton *button in self.sidebarButtons) {
         button.hidden = NO;
     }
-    if (!self.sidebarCollapsed && ![self.sidebarContainer isHidden]) {
+    if (sidebarVisible) {
         CGFloat buttonY = sidebarHeight - 72.0;
         CGFloat buttonWidth = MAX(80.0, sidebarWidth - 30.0);
         for (NSButton *button in self.sidebarButtons) {
@@ -1357,7 +1384,12 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     }
 
     self.sidebarBackgroundView.frame = self.sidebarContainer.bounds;
-    [self.contentContainer addSubview:self.sidebarToggleButton positioned:NSWindowAbove relativeTo:nil];
+    [self.sidebarToggleButton removeFromSuperview];
+    if (sidebarVisible) {
+        [self.sidebarContainer addSubview:self.sidebarToggleButton positioned:NSWindowAbove relativeTo:self.sidebarBackgroundView];
+    } else {
+        [self.contentContainer addSubview:self.sidebarToggleButton positioned:NSWindowAbove relativeTo:self.pageContainer];
+    }
 }
 
 - (void)showFirstLaunchSetupIfNeeded {
@@ -2160,7 +2192,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	        IGInstallThemedContentBackground(targetVC.view);
 	        IGApplyThemeToViewHierarchy(targetVC.view);
 	        [self.pageContainer addSubview:targetVC.view];
-	        [self.contentContainer addSubview:self.sidebarToggleButton positioned:NSWindowAbove relativeTo:nil];
+	        [self layoutSidebarControls];
 	    }
     } @catch (NSException *exception) {
         [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Switch view exception index=%ld: %@ - %@", (long)index, exception.name, exception.reason]];
