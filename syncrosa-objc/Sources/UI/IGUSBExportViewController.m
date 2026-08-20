@@ -26,6 +26,8 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 @property (nonatomic, strong) NSButton *exportButton;
 @property (nonatomic, strong) NSProgressIndicator *progressIndicator;
 @property (nonatomic, strong) NSTextField *statusLabel;
+@property (nonatomic, strong) NSTextField *emptyStateLabel;
+@property (nonatomic, strong) NSBox *setupBox;
 
 @property (nonatomic, strong) NSTextField *titleLabel;
 @property (nonatomic, strong) NSTextField *instrLabel;
@@ -70,13 +72,15 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.playlistPopup removeAllItems];
     [self.playlistPopup addItemWithTitle:[[IGLocalizationService sharedService] t:@"no_playlists"]];
     self.playlistPopup.enabled = NO;
-    self.playlistInfoLabel.stringValue = @"";
+    self.playlistInfoLabel.stringValue = [self playlistPlaceholderText];
 }
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [[IGUSBService sharedService] stopMonitoring];
 #if !__has_feature(objc_arc)
+    [_emptyStateLabel release];
+    [_setupBox release];
     [super dealloc];
 #endif
 }
@@ -108,21 +112,25 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     self.instrLabel.alignment = NSCenterTextAlignment;
     [self.view addSubview:self.instrLabel];
 
+    self.setupBox = [[[NSBox alloc] initWithFrame:NSMakeRect(35, 120, 510, 262)] autorelease];
+    self.setupBox.boxType = NSBoxPrimary;
+    [self.view addSubview:self.setupBox];
+
     // Drive Picker
-    self.driveLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 350, 150, 20)];
+    self.driveLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(48, 330, 142, 20)];
     self.driveLabel.font = [NSFont systemFontOfSize:13];
-    self.driveLabel.alignment = NSRightTextAlignment;
+    self.driveLabel.alignment = NSLeftTextAlignment;
     self.driveLabel.editable = NO;
     self.driveLabel.bordered = NO;
     self.driveLabel.drawsBackground = NO;
     [self.view addSubview:self.driveLabel];
 
-    self.drivePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 348, 292, 26) pullsDown:NO];
+    self.drivePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 328, 284, 26) pullsDown:NO];
     self.drivePopup.target = self;
     self.drivePopup.action = @selector(driveSelected:);
     [self.view addSubview:self.drivePopup];
 
-    self.refreshBtn = [[NSButton alloc] initWithFrame:NSMakeRect(504, 346, 36, 28)];
+    self.refreshBtn = [[NSButton alloc] initWithFrame:NSMakeRect(496, 326, 36, 28)];
     self.refreshBtn.bezelStyle = NSRoundedBezelStyle;
     self.refreshBtn.title = @"";
     self.refreshBtn.target = self;
@@ -131,7 +139,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     IGApplyThemeToButton(self.refreshBtn, IGThemeButtonRoleSecondary);
     [self.view addSubview:self.refreshBtn];
 
-    self.driveInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 322, 340, 18)];
+    self.driveInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 302, 332, 18)];
     self.driveInfoLabel.font = [NSFont systemFontOfSize:11];
     self.driveInfoLabel.textColor = IGThemeMutedTextColor();
     self.driveInfoLabel.editable = NO;
@@ -140,20 +148,20 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.driveInfoLabel];
 
     // Playlist Picker
-    self.playlistLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 280, 150, 20)];
+    self.playlistLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(48, 266, 142, 20)];
     self.playlistLabel.font = [NSFont systemFontOfSize:13];
-    self.playlistLabel.alignment = NSRightTextAlignment;
+    self.playlistLabel.alignment = NSLeftTextAlignment;
     self.playlistLabel.editable = NO;
     self.playlistLabel.bordered = NO;
     self.playlistLabel.drawsBackground = NO;
     [self.view addSubview:self.playlistLabel];
 
-    self.playlistPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 278, 340, 26) pullsDown:NO];
+    self.playlistPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 264, 332, 26) pullsDown:NO];
     self.playlistPopup.target = self;
     self.playlistPopup.action = @selector(playlistSelected:);
     [self.view addSubview:self.playlistPopup];
 
-    self.playlistInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 252, 340, 18)];
+    self.playlistInfoLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(200, 238, 332, 18)];
     self.playlistInfoLabel.font = [NSFont systemFontOfSize:11];
     self.playlistInfoLabel.textColor = IGThemeMutedTextColor();
     self.playlistInfoLabel.editable = NO;
@@ -162,31 +170,31 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     [self.view addSubview:self.playlistInfoLabel];
 
     // Mode Picker
-    self.modeLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 210, 150, 20)];
+    self.modeLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(48, 204, 142, 20)];
     self.modeLabel.font = [NSFont systemFontOfSize:13];
-    self.modeLabel.alignment = NSRightTextAlignment;
+    self.modeLabel.alignment = NSLeftTextAlignment;
     self.modeLabel.editable = NO;
     self.modeLabel.bordered = NO;
     self.modeLabel.drawsBackground = NO;
     [self.view addSubview:self.modeLabel];
 
-    self.modePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 208, 340, 26) pullsDown:NO];
+    self.modePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(200, 202, 332, 26) pullsDown:NO];
     [self.view addSubview:self.modePopup];
 
-    self.m3uButton = [[NSButton alloc] initWithFrame:NSMakeRect(195, 176, 90, 20)];
+    self.m3uButton = [[NSButton alloc] initWithFrame:NSMakeRect(200, 174, 85, 20)];
     [self.m3uButton setButtonType:NSSwitchButton];
     self.m3uButton.title = @".m3u";
     self.m3uButton.enabled = NO;
     [self.view addSubview:self.m3uButton];
 
-    self.m3u8Button = [[NSButton alloc] initWithFrame:NSMakeRect(305, 176, 95, 20)];
+    self.m3u8Button = [[NSButton alloc] initWithFrame:NSMakeRect(305, 174, 90, 20)];
     [self.m3u8Button setButtonType:NSSwitchButton];
     self.m3u8Button.title = @".m3u8";
     self.m3u8Button.state = NSOnState;
     self.m3u8Button.enabled = NO;
     [self.view addSubview:self.m3u8Button];
 
-    self.ipodSafeButton = [[NSButton alloc] initWithFrame:NSMakeRect(415, 176, 125, 20)];
+    self.ipodSafeButton = [[NSButton alloc] initWithFrame:NSMakeRect(410, 174, 122, 20)];
     [self.ipodSafeButton setButtonType:NSSwitchButton];
     self.ipodSafeButton.title = @"iPod-safe names";
     [self.ipodSafeButton setToolTip:@"Shortens and cleans filenames for older iPods, car stereos, and FAT/exFAT drives."];
@@ -217,6 +225,17 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     self.statusLabel.drawsBackground = NO;
     [self.view addSubview:self.statusLabel];
 
+    self.emptyStateLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(72, 66, 436, 48)] autorelease];
+    self.emptyStateLabel.font = [NSFont systemFontOfSize:11];
+    self.emptyStateLabel.textColor = IGThemeMutedTextColor();
+    self.emptyStateLabel.alignment = NSCenterTextAlignment;
+    self.emptyStateLabel.editable = NO;
+    self.emptyStateLabel.bordered = NO;
+    self.emptyStateLabel.drawsBackground = NO;
+    [[self.emptyStateLabel cell] setLineBreakMode:NSLineBreakByWordWrapping];
+    [[self.emptyStateLabel cell] setUsesSingleLineMode:NO];
+    [self.view addSubview:self.emptyStateLabel];
+
     // Footer
     self.footerLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 20, 540, 40)];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
@@ -232,6 +251,18 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 
 #pragma mark - Data Loading
 
+- (NSString *)drivePlaceholderText {
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    return russian ? @"После подключения здесь появятся свободное место и формат."
+                   : @"Free space and format will appear after connection.";
+}
+
+- (NSString *)playlistPlaceholderText {
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    return russian ? @"После выбора здесь появятся количество треков и размер."
+                   : @"Track count and size will appear after selection.";
+}
+
 - (void)reloadDrives {
     self.drives = [IGUSBService sharedService].availableDrives;
     [self.drivePopup removeAllItems];
@@ -243,12 +274,12 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             @"Поиск накопителей..." : @"Searching for drives...";
         [self.drivePopup addItemWithTitle:searchStr];
         self.drivePopup.enabled = NO;
-        self.driveInfoLabel.stringValue = @"";
+        self.driveInfoLabel.stringValue = [self drivePlaceholderText];
         self.refreshBtn.enabled = NO;
     } else if (self.drives.count == 0) {
         [self.drivePopup addItemWithTitle:[[IGLocalizationService sharedService] t:@"no_drives"]];
         self.drivePopup.enabled = NO;
-        self.driveInfoLabel.stringValue = @"";
+        self.driveInfoLabel.stringValue = [self drivePlaceholderText];
         self.refreshBtn.enabled = YES;
     } else {
         self.drivePopup.enabled = YES;
@@ -274,7 +305,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         if (self.playlists.count == 0) {
             [self.playlistPopup addItemWithTitle:[[IGLocalizationService sharedService] t:@"no_playlists"]];
             self.playlistPopup.enabled = NO;
-            self.playlistInfoLabel.stringValue = @"";
+            self.playlistInfoLabel.stringValue = [self playlistPlaceholderText];
             [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
                 NSString *message = @"";
                 if (trackCount < 0) {
@@ -349,7 +380,11 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
             }
 
             NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:totalBytes countStyle:NSByteCountFormatterCountStyleFile];
-            self.playlistInfoLabel.stringValue = [NSString stringWithFormat:@"Tracks: %ld | Total Size: %@", (long)self.currentPlaylistTracks.count, sizeStr];
+            if (totalBytes == 0) sizeStr = @"0 KB";
+            BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+            self.playlistInfoLabel.stringValue = russian ?
+                [NSString stringWithFormat:@"Треков: %ld · %@", (long)self.currentPlaylistTracks.count, sizeStr] :
+                [NSString stringWithFormat:@"%ld tracks · %@", (long)self.currentPlaylistTracks.count, sizeStr];
             if (self.currentPlaylistTracks.count == 0) {
                 self.statusLabel.stringValue = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
                     @"В выбранном плейлисте нет локальных файлов для экспорта." :
@@ -367,6 +402,11 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     BOOL hasPlaylist = (self.currentPlaylistTracks.count > 0);
     self.exportButton.enabled = self.isExporting || (hasDrive && hasPlaylist);
     BOOL optionsEnabled = (!self.isExporting && hasDrive && hasPlaylist);
+    self.emptyStateLabel.hidden = hasDrive || self.isExporting;
+    self.statusLabel.hidden = !hasDrive && !self.isExporting;
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    self.emptyStateLabel.stringValue = russian ? @"USB-накопитель не подключён.\nПодключите его и нажмите кнопку обновления."
+                                               : @"No USB drive is connected.\nConnect one, then use the refresh button.";
     self.m3uButton.enabled = optionsEnabled;
     self.m3u8Button.enabled = optionsEnabled;
     self.ipodSafeButton.enabled = optionsEnabled;
@@ -379,6 +419,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
 
     self.titleLabel.stringValue = [lang t:@"usb_export"];
+    self.setupBox.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Настройка экспорта" : @"Export Setup";
     self.instrLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ?
         @"Экспорт плейлистов iTunes прямо на внешний флеш-накопитель." :
         @"Export your iTunes playlists directly to an external flash drive.";

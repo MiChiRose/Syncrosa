@@ -5,8 +5,12 @@
 + (instancetype)sharedService;
 + (NSArray *)supportedVideoExtensions;
 + (NSArray *)videoFileURLsInDirectory:(NSURL *)directoryURL;
++ (NSDictionary *)filenameHintsForName:(NSString *)name;
 + (NSDictionary *)filenameHintsForURL:(NSURL *)fileURL;
 + (NSDictionary *)televisionHintsForMetadataComment:(NSString *)comment;
++ (NSString *)episodeDisplayTitleForTitle:(NSString *)title
+                             seasonNumber:(NSInteger)seasonNumber
+                            episodeNumber:(NSInteger)episodeNumber;
 
 - (void)readMetadataAtURL:(NSURL *)fileURL
                completion:(void(^)(NSDictionary *metadata, NSString *errorMessage))completionBlock;

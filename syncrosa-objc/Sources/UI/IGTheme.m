@@ -771,6 +771,17 @@ void IGInstallThemedContentBackground(NSView *view) {
     if (!view) {
         return;
     }
+    if ([view isKindOfClass:[NSScrollView class]]) {
+        NSScrollView *scrollView = (NSScrollView *)view;
+        NSClipView *clipView = [scrollView contentView];
+        [scrollView setDrawsBackground:YES];
+        [scrollView setBackgroundColor:IGThemeContentColor()];
+        [clipView setDrawsBackground:YES];
+        [clipView setBackgroundColor:IGThemeContentColor()];
+        [clipView setCopiesOnScroll:NO];
+        [scrollView setNeedsDisplay:YES];
+        return;
+    }
     for (NSView *subview in [view subviews]) {
         if ([subview isKindOfClass:[IGThemedBackgroundView class]]) {
             [(IGThemedBackgroundView *)subview setThemeRole:IGThemeBackgroundRoleContent];
