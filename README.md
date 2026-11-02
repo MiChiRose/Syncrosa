@@ -103,7 +103,29 @@ Because the application is distributed directly without an Apple Developer certi
 
 ---
 
+## Metadata Repair Safeguards
+
+The native SwiftUI and Cocoa repair tools fill only missing selected fields and preserve existing tags and lyrics. Fields are checked again immediately before writing, so edits made while a lookup is running are retained. Album merging remains an explicit operation; the Cocoa repair flow defaults to keeping existing album names.
+
+Catalog matching compares the full title, artist and known album across multiple results. Live, remix and remaster labels are preserved. Conflicting editions are skipped rather than chosen by search rank. Completion reports distinguish changed tracks, skipped tracks, missing matches and errors; history counts tracks actually changed, including partial failures.
+
 ## ✨ Modern SwiftUI App Guide
+
+### Use your own AI assistant with the entire music library
+
+Both native apps can export **every readable library track** as JSON, without the built-in AI playlist sampling limit. This workflow requires **no Syncrosa API key**: use a free assistant or an agent covered by your own subscription. Built-in provider integration remains optional; provider availability, free quotas, and account requirements are set by the provider.
+
+1. Open **iTunes Media Fixer / Media Fixer** and choose **Export Library JSON**. The result reports the number of readable tracks exported; if it is lower than the library count, check Music/iTunes and export again.
+2. Give the JSON file to your assistant along with a request such as: “Choose 30 tracks for a relaxed night drive from this whole catalog. Follow `instructions` and return only the `selectionExample` JSON format.”
+3. Save the assistant's reply as a separate `.json` file. It should contain a playlist name and the exact IDs in the desired listening order:
+
+```json
+{"playlistName":"Night Drive","trackIDs":["A1B2C3D4E5F67890","0123456789ABCDEF"]}
+```
+
+4. Choose **Import AI Playlist / Import Playlist JSON**, select the reply, and review the playlist name and replacement confirmation. Syncrosa checks every ID against the current library; malformed or unknown IDs stop the import before replacing a playlist. Duplicate IDs are removed while retaining the assistant's order.
+
+The export contains catalog metadata, not audio files, local file paths, or API keys. The file itself is not uploaded by Syncrosa; you choose whether and where to share it. Import the assistant's selection rather than the original catalog export. If tracks have been removed since export, create a fresh export and ask the assistant to revise its selection.
 
 The SwiftUI build is the modern Syncrosa experience for macOS 14+ on Apple Silicon. Screenshots below use the English interface; you can switch the app language at any time in **Settings**.
 
