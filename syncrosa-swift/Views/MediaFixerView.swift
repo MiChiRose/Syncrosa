@@ -76,7 +76,13 @@ struct MediaFixerView: View {
                         Toggle(lang.selectedLanguage == "ru" ? "Текст песен" : "Lyrics", isOn: $fixLyrics)
                             .toggleStyle(SyncrosaCheckboxToggleStyle())
                     }
+                    Text(lang.selectedLanguage == "ru"
+                        ? "Заполняются только пропуски. Существующие теги и тексты песен сохраняются; неоднозначные совпадения пропускаются."
+                        : "Only missing fields are filled. Existing tags and lyrics are preserved; ambiguous matches are skipped.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .disabled(isAnalyzing)
                 .syncrosaCard()
                 
                 // Card 1: Controls
@@ -319,126 +325,98 @@ struct MediaFixerView: View {
     }
     
     func updateMetadata() {
+        guard !isAnalyzing else { return }
         if UserDefaults.standard.bool(forKey: "only_local_mode") {
             alertMessage = lang.selectedLanguage == "ru" ? "Only Local Mode включён. Сетевое обновление метаданных пропущено." : "Only Local Mode is enabled. Online metadata update was skipped."
             showAlert = true
-            OperationHistoryService.shared.record(
-                tool: "Media Fixer",
-                title: "Update Metadata",
-                status: "WARN",
-                message: alertMessage,
-                affectedCount: 0
-            )
+            OperationHistoryService.shared.record(tool: "Media Fixer", title: "Update Metadata", status: "WARN", message: alertMessage, affectedCount: 0)
             return
         }
-
+        let selected = Set([
+            fixAlbum ? "album" : nil, fixTitle ? "title" : nil,
+            fixArtist ? "artist" : nil, fixGenre ? "genre" : nil,
+            fixTrackNumber ? "trackNumber" : nil, fixLyrics ? "lyrics" : nil
+        ].compactMap { $0 })
+        guard !selected.isEmpty else { return }
+        let russian = lang.selectedLanguage == "ru"
         isAnalyzing = true
-        activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Загрузка списка треков..." : "Loading track list...", isError: false)
-        
-        DispatchQueue.global().async {
-            guard let libraryCount = MusicService.shared.getLibraryTrackCount() else {
-                DispatchQueue.main.async {
-                    isAnalyzing = false
-                    alertMessage = lang.selectedLanguage == "ru" ? "Не удалось прочитать медиатеку Music, или она пуста." : "Could not read your Music library, or it may be empty."
-                    showAlert = true
-                    activeNotification = nil
+        activeNotification = NotificationMessage(text: russian ? "Загрузка списка треков..." : "Loading track list...", isError: false)
+        let recoveryID = OperationRecoveryService.shared.begin(
+            tool: "Media Fixer", title: "Update Metadata",
+            message: russian ? "Восстановление пропущенных тегов было прервано. Проверьте медиатеку и историю." : "Missing-tag repair was interrupted. Check your library and history."
+        )
+        Task { @MainActor in
+            do {
+                let tracks = try await Task.detached(priority: .userInitiated) {
+                    try MusicService.shared.getMetadataRepairTracks { _, _ in }
+                }.value
+                guard !tracks.isEmpty else {
+                    throw NSError(domain: "Syncrosa.Metadata", code: 5, userInfo: [NSLocalizedDescriptionKey: russian ? "Медиатека Music пуста." : "The Music library is empty."])
                 }
-                return
-            }
-
-            guard libraryCount > 0 else {
-                DispatchQueue.main.async {
-                    isAnalyzing = false
-                    alertMessage = lang.selectedLanguage == "ru" ? "В Music нет треков. Обновлять метаданные пока не у чего." : "Music has no tracks. There is no metadata to update."
-                    showAlert = true
-                    activeNotification = nil
-                }
-                return
-            }
-
-            let tracks = MusicService.shared.getAllTracks { _, _ in }
-            guard !tracks.isEmpty else {
-                DispatchQueue.main.async {
-                    isAnalyzing = false
-                    alertMessage = lang.selectedLanguage == "ru" ? "Music прочитан, но доступных треков не вернул." : "Music was read, but no usable tracks were returned."
-                    showAlert = true
-                    activeNotification = nil
-                }
-                return
-            }
-            
-            let total = tracks.count
-            var current = 0
-            
-            for track in tracks {
-                current += 1
-                DispatchQueue.main.async {
-                    activeNotification = NotificationMessage(
-                        text: lang.selectedLanguage == "ru" ? "Обновление: \(current)/\(total) (\(track.name))" : "Updating: \(current)/\(total) (\(track.name))",
-                        isError: false
-                    )
-                }
-                
-                // Wrap each track's operation safely.
-                let semaphore = DispatchSemaphore(value: 0)
-                var propertiesToUpdate: [String: String] = [:]
-                
-                MetadataService.shared.fetchMetadata(for: track.name, artist: track.artist) { result in
-                    if let res = result {
-                        if fixAlbum, let album = res.collectionName {
-                            propertiesToUpdate["album"] = album
-                        }
-                        if fixTitle, let name = res.trackName {
-                            propertiesToUpdate["title"] = name
-                        }
-                        if fixArtist, let artist = res.artistName {
-                            propertiesToUpdate["artist"] = artist
-                        }
-                        if fixGenre, let genre = res.primaryGenreName {
-                            propertiesToUpdate["genre"] = genre
-                        }
-                        if fixTrackNumber, let trkNum = res.trackNumber {
-                            propertiesToUpdate["trackNumber"] = "\(trkNum)"
+                var summary = MetadataRepairSummary()
+                var issues: [String] = []
+                for (index, track) in tracks.enumerated() {
+                    activeNotification = NotificationMessage(text: russian
+                        ? "Обновление: \(index + 1)/\(tracks.count) (\(track.title))"
+                        : "Updating: \(index + 1)/\(tracks.count) (\(track.title))", isError: false)
+                    let missing = track.missingFields(in: selected)
+                    var hadError = (selected.contains("lyrics") && track.hasLyrics == nil) || (selected.contains("trackNumber") && track.trackNumber == nil)
+                    if hadError, issues.count < 10 {
+                        issues.append("\(track.persistentID): " + (russian ? "Не удалось прочитать часть исходных полей; они сохранены." : "Some original fields could not be read; they were preserved."))
+                    }
+                    if missing.isEmpty {
+                        summary.record(skipped: !hadError, failed: hadError)
+                        continue
+                    }
+                    var metadata: iTunesResult?
+                    var lyrics: String?
+                    var noMatch = false
+                    if !missing.subtracting(["lyrics"]).isEmpty {
+                        switch await MetadataService.shared.lookupMetadata(for: track.title, artist: track.artist, album: track.album) {
+                        case .matched(let result): metadata = result
+                        case .notFound, .ambiguous: noMatch = true
+                        case .failed(let message):
+                            hadError = true
+                            if issues.count < 10 { issues.append("\(track.persistentID): \(message)") }
                         }
                     }
-                    semaphore.signal()
-                }
-                _ = semaphore.wait(timeout: .now() + 5.0)
-                
-                if fixLyrics {
-                    let semLyrics = DispatchSemaphore(value: 0)
-                    LyricsService.shared.fetchLyrics(artist: track.artist, title: track.name) { lyrics in
-                        if let ly = lyrics, !ly.isEmpty {
-                            propertiesToUpdate["lyrics"] = ly
+                    if missing.contains("lyrics") {
+                        switch await LyricsService.shared.lookupLyrics(artist: track.artist, title: track.title) {
+                        case .found(let text): lyrics = text
+                        case .notFound: noMatch = true
+                        case .failed(let message):
+                            hadError = true
+                            if issues.count < 10 { issues.append("\(track.persistentID): \(message)") }
                         }
-                        semLyrics.signal()
                     }
-                    _ = semLyrics.wait(timeout: .now() + 5.0)
-                }
-                
-                if !propertiesToUpdate.isEmpty {
-                    let success = MusicService.shared.updateTrack(persistentID: track.persistentID, properties: propertiesToUpdate)
-                    if !success {
-                        print("Warning: failed to update track \(track.name)")
+                    let properties = track.changes(selected: selected, metadata: metadata, lyrics: lyrics)
+                    if properties.isEmpty {
+                        summary.record(noMatch: !hadError || noMatch, failed: hadError)
+                        continue
                     }
+                    let result = await Task.detached(priority: .userInitiated) {
+                        MusicService.shared.fillMissingTrackProperties(persistentID: track.persistentID, properties: properties)
+                    }.value
+                    if result.failed > 0 {
+                        hadError = true
+                        if issues.count < 10 { issues.append("\(track.persistentID): " + (russian ? "Music не записал полей: \(result.failed)." : "Music failed to write \(result.failed) fields.")) }
+                    }
+                    summary.record(changed: result.changed > 0, skipped: result.changed == 0 && !hadError && !noMatch, noMatch: noMatch, failed: hadError)
                 }
+                alertMessage = summary.message(russian: russian)
+                let details = issues.isEmpty ? alertMessage : alertMessage + "\n\n" + issues.joined(separator: "\n")
+                OperationHistoryService.shared.record(tool: "Media Fixer", title: "Update Metadata", status: summary.status, message: details, affectedCount: summary.updated)
+            } catch {
+                alertMessage = error.localizedDescription
+                OperationHistoryService.shared.record(tool: "Media Fixer", title: "Update Metadata", status: "ERROR", message: alertMessage, affectedCount: 0)
             }
-            
-            DispatchQueue.main.async {
-                isAnalyzing = false
-                alertMessage = lang.selectedLanguage == "ru" ? "Обновление метаданных завершено!" : "Metadata update complete!"
-                showAlert = true
-                activeNotification = nil
-                OperationHistoryService.shared.record(
-                    tool: "Media Fixer",
-                    title: "Update Metadata",
-                    status: "OK",
-                    message: alertMessage,
-                    affectedCount: total
-                )
-            }
+            OperationRecoveryService.shared.finish(recoveryID)
+            isAnalyzing = false
+            activeNotification = nil
+            showAlert = true
         }
     }
+
 }
 
 private enum FolderPlaylistImportAction {
@@ -465,8 +443,8 @@ private struct MusicLibraryAIExchangeCard: View {
             )
 
             Text(lang.selectedLanguage == "ru"
-                 ? "Передайте каталог своей музыки выбранному AI-агенту и импортируйте полученный список обратно как плейлист. Аудиофайлы и API-ключ в JSON не попадают."
-                 : "Give your music catalog to an AI assistant, then import its selection as a playlist. Audio files and your API key are never included in the JSON.")
+                 ? "Экспортируйте всю доступную медиатеку без лимита в 500 треков и передайте JSON любому бесплатному AI-сервису или своему платному агенту. Попросите вернуть подборку по инструкции внутри файла. API-ключ Syncrosa не нужен; аудиофайлы и ключи в JSON не попадают."
+                 : "Export your entire readable library without a 500-track limit and give the JSON to any free AI service or your own paid agent. Ask it to return a selection using the instructions inside the file. No Syncrosa API key is needed; audio files and keys are never included.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -597,12 +575,12 @@ private struct MusicLibraryAIExchangeCard: View {
 
             let manifest = MusicLibraryExchangeService.shared.makeManifest(from: tracks)
             DispatchQueue.main.async {
-                chooseManifestDestination(manifest)
+                chooseManifestDestination(manifest, libraryCount: count)
             }
         }
     }
 
-    private func chooseManifestDestination(_ manifest: MusicLibraryAIManifest) {
+    private func chooseManifestDestination(_ manifest: MusicLibraryAIManifest, libraryCount: Int) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "Syncrosa-Music-Library.json"
@@ -620,8 +598,13 @@ private struct MusicLibraryAIExchangeCard: View {
                 DispatchQueue.main.async {
                     isProcessing = false
                     progressText = lang.selectedLanguage == "ru"
-                        ? "Экспортировано треков: \(manifest.tracks.count)"
-                        : "Exported tracks: \(manifest.tracks.count)"
+                        ? "Экспортировано доступных треков: \(manifest.tracks.count) из \(libraryCount)."
+                        : "Exported readable tracks: \(manifest.tracks.count) of \(libraryCount)."
+                    if manifest.tracks.count < libraryCount {
+                        progressText += lang.selectedLanguage == "ru"
+                            ? " Часть медиатеки не удалось прочитать. Повторите экспорт после проверки Music."
+                            : " Some library entries could not be read. Check Music and export again."
+                    }
                     activeNotification = NotificationMessage(
                         text: lang.selectedLanguage == "ru" ? "JSON медиатеки сохранён." : "Library JSON saved.",
                         isError: false
@@ -648,20 +631,33 @@ private struct MusicLibraryAIExchangeCard: View {
         guard panel.runModal() == .OK, let source = panel.url else { return }
         do {
             let selection = try MusicLibraryExchangeService.shared.readSelection(from: source)
-            let ids = MusicLibraryExchangeService.shared.validatedTrackIDs(from: selection)
-            guard !ids.isEmpty else {
-                activeNotification = NotificationMessage(
-                    text: lang.selectedLanguage == "ru" ? "В JSON нет корректных идентификаторов треков Syncrosa." : "The JSON contains no valid Syncrosa track identifiers.",
-                    isError: true
-                )
-                return
+            isProcessing = true
+            progressText = lang.selectedLanguage == "ru" ? "Проверяю подборку по медиатеке..." : "Checking the selection against your library..."
+            DispatchQueue.global(qos: .userInitiated).async {
+                let tracks = MusicService.shared.getAllTracks { _, _ in }
+                do {
+                    let ids = try MusicLibraryExchangeService.shared.validatedTrackIDs(from: selection, availableTrackIDs: Set(tracks.map(\.persistentID)))
+                    DispatchQueue.main.async {
+                        isProcessing = false
+                        progressText = ""
+                        pendingTrackIDs = ids
+                        playlistName = selection.playlistName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        showNamePrompt = true
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        isProcessing = false
+                        progressText = ""
+                        let message = (error as? MusicLibraryExchangeError)?.message(language: lang.selectedLanguage)
+                            ?? (lang.selectedLanguage == "ru" ? "Не удалось проверить подборку. Плейлист не изменён." : "Could not validate the selection. The playlist was not changed.")
+                        activeNotification = NotificationMessage(text: message, isError: true)
+                    }
+                }
             }
-            pendingTrackIDs = ids
-            playlistName = selection.playlistName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            showNamePrompt = true
         } catch {
             activeNotification = NotificationMessage(
-                text: lang.selectedLanguage == "ru" ? "Не удалось прочитать JSON выбора. Проверьте формат файла." : "Could not read the selection JSON. Check its format.",
+                text: (error as? MusicLibraryExchangeError)?.message(language: lang.selectedLanguage)
+                    ?? (lang.selectedLanguage == "ru" ? "Не удалось прочитать JSON выбора. Проверьте формат файла." : "Could not read the selection JSON. Check its format."),
                 isError: true
             )
         }
@@ -697,17 +693,18 @@ private struct MusicLibraryAIExchangeCard: View {
                 isProcessing = false
                 pendingTrackIDs = []
                 let success = added > 0
+                let complete = added == ids.count
                 progressText = success
-                    ? (lang.selectedLanguage == "ru" ? "Добавлено треков: \(added)" : "Added tracks: \(added)")
+                    ? (lang.selectedLanguage == "ru" ? "Добавлено треков: \(added) из \(ids.count)." : "Added tracks: \(added) of \(ids.count).")
                     : ""
                 let message = success
-                    ? (lang.selectedLanguage == "ru" ? "Плейлист «\(cleanName)» создан. Добавлено: \(added)." : "Playlist \"\(cleanName)\" created with \(added) tracks.")
+                    ? (lang.selectedLanguage == "ru" ? "Плейлист «\(cleanName)»: добавлено \(added) из \(ids.count) треков." : "Playlist \"\(cleanName)\": added \(added) of \(ids.count) tracks.")
                     : (lang.selectedLanguage == "ru" ? "Music не смог создать плейлист из выбранных треков." : "Music could not create a playlist from the selected tracks.")
-                activeNotification = NotificationMessage(text: message, isError: !success)
+                activeNotification = NotificationMessage(text: message, isError: !complete)
                 OperationHistoryService.shared.record(
                     tool: "Music Library AI Exchange",
                     title: "Import AI Playlist",
-                    status: success ? "OK" : "FAIL",
+                    status: complete ? "OK" : (success ? "PARTIAL" : "FAIL"),
                     message: message,
                     affectedCount: added
                 )

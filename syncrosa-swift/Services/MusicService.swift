@@ -192,7 +192,7 @@ class MusicService {
                         set yr to year of t as text
                     end try
 
-                    if pid is not "" and nm is not "" then
+                    if pid is not "" then
                         set out to out & pid & tab & my syncrosaCleanField(art) & tab & my syncrosaCleanField(nm) & tab & my syncrosaCleanField(alb) & tab & my syncrosaCleanField(gen) & tab & yr & linefeed
                     end if
                 end repeat
@@ -222,6 +222,114 @@ class MusicService {
         return allTracks
     }
 
+    func getMetadataRepairTracks(progress: @escaping (Int, Int) -> Void) throws -> [MetadataRepairTrack] {
+        guard let total = getLibraryTrackCount() else {
+            throw NSError(domain: "Syncrosa.Metadata", code: 1, userInfo: [NSLocalizedDescriptionKey: "Music could not read the library."])
+        }
+        guard total > 0 else { return [] }
+        var tracks: [MetadataRepairTrack] = []
+        for start in stride(from: 1, through: total, by: 200) {
+            let end = min(start + 199, total)
+            let script = """
+            \(cleanFieldHandler)
+            set output to ""
+            tell application "Music"
+                set trks to every track of library playlist 1
+                repeat with idx from \(start) to \(end)
+                    set t to item idx of trks
+                    set pid to persistent ID of t as text
+                    set nm to my syncrosaCleanField(name of t)
+                    set art to my syncrosaCleanField(artist of t)
+                    set alb to my syncrosaCleanField(album of t)
+                    set gen to my syncrosaCleanField(genre of t)
+                    set num to "UNKNOWN"
+                    set hasLyrics to "UNKNOWN"
+                    try
+                        set num to track number of t as text
+                    end try
+                    try
+                        set lyricText to lyrics of t
+                        if lyricText is missing value or lyricText is "" then
+                            set hasLyrics to "NO"
+                        else
+                            set hasLyrics to "YES"
+                        end if
+                    end try
+                    set output to output & pid & tab & nm & tab & art & tab & alb & tab & gen & tab & num & tab & hasLyrics & linefeed
+                end repeat
+            end tell
+            return output
+            """
+            guard let output = runAppleScript(script) else {
+                throw NSError(domain: "Syncrosa.Metadata", code: 2, userInfo: [NSLocalizedDescriptionKey: "Music could not read all track fields. No metadata was changed."])
+            }
+            let rows = output.components(separatedBy: .newlines).filter { !$0.isEmpty }
+            guard rows.count == end - start + 1 else {
+                throw NSError(domain: "Syncrosa.Metadata", code: 3, userInfo: [NSLocalizedDescriptionKey: "The library changed while reading. Refresh it and try again."])
+            }
+            for row in rows {
+                let fields = row.components(separatedBy: fieldSeparator)
+                guard fields.count == 7, !fields[0].isEmpty else {
+                    throw NSError(domain: "Syncrosa.Metadata", code: 4, userInfo: [NSLocalizedDescriptionKey: "Music returned an incomplete track snapshot."])
+                }
+                tracks.append(MetadataRepairTrack(persistentID: fields[0], title: fields[1], artist: fields[2], album: fields[3], genre: fields[4], trackNumber: Int(fields[5]), hasLyrics: fields[6] == "YES" ? true : (fields[6] == "NO" ? false : nil)))
+            }
+            progress(end, total)
+        }
+        return tracks
+    }
+
+    /// Recheck each field inside Music immediately before writing. A user edit
+    /// made during a network lookup must not be replaced by a stale snapshot.
+    func fillMissingTrackProperties(persistentID: String, properties: [String: String]) -> (changed: Int, failed: Int) {
+        guard !properties.isEmpty else { return (0, 0) }
+        let script = metadataRepairScript(persistentID: persistentID, properties: properties)
+        guard let result = runAppleScript(script) else { return (0, properties.count) }
+        let fields = result.components(separatedBy: fieldSeparator)
+        guard fields.count == 2, let changed = Int(fields[0]), let failed = Int(fields[1]) else { return (0, properties.count) }
+        return (changed, failed)
+    }
+
+    func metadataRepairScript(persistentID: String, properties: [String: String]) -> String {
+        let fieldNames = ["title": "name", "artist": "artist", "album": "album", "genre": "genre", "trackNumber": "track number", "lyrics": "lyrics"]
+        var updates: [String] = []
+        for key in properties.keys.sorted() {
+            guard let property = fieldNames[key], let value = properties[key], !MetadataRepairTrack.isMissing(value) else { continue }
+            let replacement: String
+            let missingCondition: String
+            if key == "trackNumber" {
+                guard let number = Int(value), number > 0 else { continue }
+                replacement = String(number)
+                missingCondition = "(track number of t) is 0"
+            } else {
+                replacement = "\"\(escapeAppleScriptString(value))\""
+                let placeholder = key == "lyrics" ? "" : " or currentValue is \"Unknown \(key == "title" ? "Title" : key.capitalized)\""
+                missingCondition = "currentValue is missing value or currentValue is \"\" or currentValue is \"missing value\"\(placeholder)"
+            }
+            let readLine = key == "trackNumber" ? "" : "set currentValue to \(property) of t"
+            updates.append("""
+                    try
+                        \(readLine)
+                        if \(missingCondition) then
+                            set \(property) of t to \(replacement)
+                            set changedCount to changedCount + 1
+                        end if
+                    on error
+                        set failedCount to failedCount + 1
+                    end try
+            """)
+        }
+        return """
+        tell application "Music"
+            set t to some track of library playlist 1 whose persistent ID is "\(escapeAppleScriptString(persistentID))"
+            set changedCount to 0
+            set failedCount to 0
+        \(updates.joined(separator: "\n"))
+            return (changedCount as text) & tab & (failedCount as text)
+        end tell
+        """
+    }
+
     func createPlaylist(name: String, persistentIDs: [String]) -> Int {
         guard !persistentIDs.isEmpty else {
             return 0
@@ -245,7 +353,7 @@ class MusicService {
                 end try
             end repeat
 
-            if (count of tracksToAdd) is 0 then return "0"
+            if (count of tracksToAdd) is not (count of idList) then return "0"
 
             if not (exists user playlist plName) then
                 make new user playlist with properties {name:plName}

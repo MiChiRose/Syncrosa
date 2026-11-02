@@ -408,7 +408,7 @@ final class LibraryToolkitServiceTests: XCTestCase {
 
         XCTAssertEqual(query["term"], "Rock & Roll? AC/DC")
         XCTAssertEqual(query["entity"], "song")
-        XCTAssertEqual(query["limit"], "1")
+        XCTAssertEqual(query["limit"], "25")
     }
 
     func testSharedInterfaceKeysAreLocalizedForEverySupportedLanguage() {

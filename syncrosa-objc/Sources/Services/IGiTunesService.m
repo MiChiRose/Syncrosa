@@ -677,6 +677,7 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
             "    end repeat\n"
             "    \n"
             "    if (count of tracksToAdd) is 0 then return \"0\"\n"
+            "    if (count of tracksToAdd) is not (count of idList) then return \"0\"\n"
             "    \n"
             "    if not (exists user playlist plName) then\n"
             "        make new user playlist with properties {name:plName}\n"
