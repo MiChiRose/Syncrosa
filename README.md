@@ -76,21 +76,21 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.5.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Preserves existing tags and lyrics, improves recording matches, and validates external playlist selections. |
+| `Syncrosa_Cocoa_v3.6.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Resumes interrupted USB exports and reuses verified tracks without copying them again. |
 | `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.5.1.zip` | Modern Apple Silicon Macs | macOS 14 | Current Music.app build with safer metadata repair, accurate operation reports, and full-library JSON exchange. |
+| `Syncrosa_SwiftUI_v3.6.0.zip` | Modern Apple Silicon Macs | macOS 14 | Current Music.app build with resumable USB transfers, verified file reuse, and separate recovery records. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.5.1
+### Latest Release: 3.6.0
 
-Syncrosa 3.5.1 improves library repair and playlist exchange in both native applications. The Python maintenance package remains available as version 3.4.8 in its previous release.
+Syncrosa 3.6.0 adds resumable, incremental USB exports to both native applications. The Python maintenance package remains available as version 3.4.8 in its previous release.
 
-- **Preserve Existing Tags:** Repair fills only missing selected fields and rechecks each field before writing, keeping saved lyrics and edits made during lookups.
-- **More Reliable Catalog Matching:** Searches compare complete titles, artists and known albums across multiple results. Live, remix and remaster labels are retained; ambiguous editions are skipped.
-- **Accurate Results:** Reports distinguish changed tracks, skipped tracks, unmatched results and errors, including partial failures and unique affected-track counts.
-- **Full-Library JSON Exchange:** Export every readable track with instructions and a reply example, then import a selection from your preferred assistant without a Syncrosa API key.
-- **Safer Playlist Replacement:** Malformed or unknown IDs are rejected before an existing playlist is cleared, while supported legacy JSON reply formats remain accepted.
+- **Resume Interrupted Transfers:** Reconnect the same drive and continue an unfinished USB task from Recovery Center after an app crash, cancellation, or disconnection.
+- **Copy Only What Is Needed:** Verify existing tracks by content and reuse completed files, including compatible exports from earlier versions.
+- **Preserve Existing Files:** Keep completed music separate from partial copies and give changed content a safe new filename.
+- **Reliable Playlists:** M3U/M3U8 files contain only verified completed tracks, including when a transfer stops partway through.
+- **Separate Recovery Records:** Interrupted operations keep their own records, backup links, and available undo packages.
 - **Two Native Packages:** Cocoa for Intel Macs with OS X 10.9+ and SwiftUI for Apple Silicon with macOS 14+.
 
 ### Running the Application (Important)
@@ -103,6 +103,14 @@ Because the application is distributed directly without an Apple Developer certi
 4. From then on, you can launch the app normally with a double-click!
 
 ---
+
+## Continue Interrupted USB Exports
+
+USB Export now checks the content of existing files before copying. Repeating an export reuses verified tracks, including compatible exports created by earlier versions, and transfers only new or changed content. Existing final files are preserved; incomplete copies stay separate from finished music files.
+
+If the app closes unexpectedly, a drive disconnects, or you stop an export, open **Recovery Center**, reconnect the same drive, select the unfinished USB task, and choose **Resume**. Select the drive again when prompted. Syncrosa verifies the saved files and continues the remaining work. M3U/M3U8 files contain only verified completed tracks, including when a transfer stops partway through.
+
+Recovery records are kept separately for each operation, so starting another tool does not erase an earlier interrupted task. Other tools retain their backup links and available undo packages. Removing a recovery record removes only that record; source music, completed USB files, and backups remain intact.
 
 ## Metadata Repair Safeguards
 

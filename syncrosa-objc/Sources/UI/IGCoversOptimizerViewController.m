@@ -1,3 +1,4 @@
+#import "IGOperationActivity.h"
 #import "IGCoversOptimizerViewController.h"
 #import "IGLocalizationService.h"
 #import "IGiTunesService.h"
@@ -62,17 +63,12 @@ static NSString *IGCoversBeginActiveOperation(NSString *title, NSString *message
         @"affectedCount": @(affectedCount),
         @"backupPath": backupPath ?: @""
     };
-    NSString *path = [IGCoversSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
-    [marker writeToFile:path atomically:YES];
+    [[IGOperationActivity sharedActivity] saveRecoveryMarker:marker error:NULL];
     return identifier;
 }
 
 static void IGCoversFinishActiveOperation(NSString *identifier) {
-    NSString *path = [IGCoversSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
-    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:path];
-    if (!identifier || [[marker objectForKey:@"id"] isEqualToString:identifier]) {
-        [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
-    }
+    [[IGOperationActivity sharedActivity] finishRecoveryMarkerWithIdentifier:identifier error:NULL];
 }
 
 @interface IGCoversOptimizerViewController ()

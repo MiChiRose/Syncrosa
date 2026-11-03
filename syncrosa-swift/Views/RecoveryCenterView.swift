@@ -12,6 +12,13 @@ struct RecoveryCenterView: View {
     @State private var safetyPreview: SafetyPreviewRequest? = nil
     @State private var pendingUndoPackage: LibraryToolkitUndoPackage? = nil
     @State private var activeNotification: NotificationMessage? = nil
+    @State private var usbJobs: [USBExportJobSummary] = []
+    @State private var usbWarnings: [String] = []
+    @State private var isResumingUSB = false
+    @State private var usbProgressText = ""
+    @State private var sourceAccessURL: URL?
+    @State private var pendingRemoval: RecoveryRecordRemoval?
+    @State private var showRemovalConfirmation = false
 
     var body: some View {
         SyncrosaPage {
@@ -28,6 +35,7 @@ struct RecoveryCenterView: View {
             }
 
             interruptedOperationCard
+            usbRecoveryCard
             undoPackagesCard
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14)], spacing: 14) {
@@ -91,7 +99,20 @@ struct RecoveryCenterView: View {
             .syncrosaCard()
         }
         .onAppear {
-            reloadUndoPackages()
+            refreshRecoveryData()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PlaylistExportService.jobsDidChangeNotification)) { _ in
+            reloadUSBJobs()
+        }
+        .alert(lang.selectedLanguage == "ru" ? "Убрать запись восстановления?" : "Remove recovery record?", isPresented: $showRemovalConfirmation) {
+            Button(lang.t("cancel"), role: .cancel) { pendingRemoval = nil }
+            Button(lang.selectedLanguage == "ru" ? "Убрать запись" : "Remove Record", role: .destructive) {
+                removePendingRecord()
+            }
+        } message: {
+            Text(lang.selectedLanguage == "ru"
+                 ? "Будет удалена только выбранная запись. Музыка, готовые копии на USB и резервные копии сохранятся."
+                 : "Only the selected record is removed. Music, completed USB copies and backups are kept.")
         }
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHistory) {
@@ -126,11 +147,13 @@ struct RecoveryCenterView: View {
             steps: lang.selectedLanguage == "ru" ? [
                 "Проверьте блок прерванной операции после неожиданного закрытия приложения.",
                 "Откройте историю, чтобы увидеть завершённые действия и число затронутых файлов.",
-                "Выберите пакет отмены и внимательно проверьте детали перед восстановлением."
+                "Для USB-задачи подключите тот же накопитель, нажмите «Продолжить» и выберите его заново.",
+                "Для других изменений выберите доступный пакет отмены или покажите резервную копию."
             ] : [
                 "Check the interrupted-operation card after an unexpected app exit.",
                 "Open history to review completed actions and affected file counts.",
-                "Choose an undo package and review its details before restoring."
+                "For a USB task, reconnect the same drive, choose Resume and select the drive again.",
+                "For other changes, choose an available undo package or show the backup."
             ],
             notes: lang.selectedLanguage == "ru" ? [
                 "Маркер прерванной операции сам по себе ничего не откатывает.",
@@ -143,52 +166,172 @@ struct RecoveryCenterView: View {
         )
     }
 
-    @ViewBuilder
     private var interruptedOperationCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "Прерванная операция" : "Interrupted Operation", systemImage: "bolt.trianglebadge.exclamationmark")
-
-            if let marker = recovery.activeOperation {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.title2)
-                        .foregroundStyle(SyncrosaTheme.caution)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(marker.title)
-                            .font(.headline)
-                        Text(marker.message)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text("\(marker.tool) · \(marker.startedAt.formatted(date: .abbreviated, time: .standard))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if let backupPath = marker.backupPath, !backupPath.isEmpty {
-                            Text(backupPath)
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                    }
-
-                    Spacer()
-
-                    Button(lang.selectedLanguage == "ru" ? "Очистить маркер" : "Clear Marker") {
-                        recovery.clear()
-                    }
+            HStack {
+                SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "Прерванные операции" : "Interrupted Operations", systemImage: "bolt.trianglebadge.exclamationmark")
+                Spacer()
+                Button(lang.selectedLanguage == "ru" ? "Обновить" : "Refresh", action: refreshRecoveryData)
                     .buttonStyle(SyncrosaSecondaryButtonStyle())
-                }
-            } else {
+            }
+            ForEach(recovery.persistenceWarnings, id: \.self) { warning in
+                Text(warning).font(.caption).foregroundStyle(SyncrosaTheme.caution)
+            }
+            if recovery.interruptedOperations.isEmpty {
                 SyncrosaEmptyState(
                     systemImage: "checkmark.shield",
                     title: lang.selectedLanguage == "ru" ? "Нет прерванных операций." : "No interrupted operations.",
-                    message: lang.selectedLanguage == "ru" ? "Если приложение упадёт во время долгого процесса, Syncrosa покажет это здесь после запуска." : "If the app crashes during a long operation, Syncrosa will show it here after launch."
-                )
-                .padding(.vertical, -12)
+                    message: lang.selectedLanguage == "ru"
+                        ? "Незавершённые задачи сохраняются отдельно и остаются здесь после перезапуска."
+                        : "Unfinished tasks are saved separately and remain available after restarting."
+                ).padding(.vertical, -12)
+            } else {
+                ForEach(recovery.interruptedOperations) { marker in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(marker.title).font(.headline)
+                        Text(marker.message).font(.subheadline).foregroundStyle(.secondary)
+                        Text("\(marker.tool) · \(marker.startedAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                        HStack {
+                            if let path = marker.backupPath, !path.isEmpty {
+                                Button(lang.selectedLanguage == "ru" ? "Показать backup" : "Show Backup") {
+                                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                                }.buttonStyle(SyncrosaSecondaryButtonStyle())
+                            }
+                            Button(lang.selectedLanguage == "ru" ? "Убрать запись" : "Remove Record") {
+                                pendingRemoval = .marker(marker.id)
+                                showRemovalConfirmation = true
+                            }.buttonStyle(SyncrosaSecondaryButtonStyle())
+                        }
+                        Divider()
+                    }
+                }
             }
+        }.syncrosaCard()
+    }
+
+    private var usbRecoveryCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "Продолжить USB-экспорт" : "Resume USB Export", systemImage: "externaldrive.badge.checkmark")
+            Text(lang.selectedLanguage == "ru"
+                 ? "Подключите тот же накопитель и выберите его заново. Готовые файлы проверяются по содержимому; копируются только оставшиеся треки."
+                 : "Reconnect the same drive and select it again. Completed files are checked by content; only remaining tracks are copied.")
+                .font(.subheadline).foregroundStyle(.secondary)
+            HStack {
+                Button(lang.selectedLanguage == "ru" ? "Доступ к исходной папке…" : "Source Folder Access…", action: selectSourceAccessFolder)
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
+                    .disabled(isResumingUSB)
+                if let sourceAccessURL {
+                    Text(sourceAccessURL.lastPathComponent).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Text(lang.selectedLanguage == "ru"
+                 ? "Если исходная музыка недоступна после перезапуска, разрешите доступ к папке, в которой она хранится."
+                 : "If source music cannot be read after restarting, grant access to the folder where it is stored.")
+                .font(.caption).foregroundStyle(.secondary)
+            ForEach(usbWarnings, id: \.self) { warning in
+                Text(warning).font(.caption).foregroundStyle(SyncrosaTheme.caution)
+            }
+            if !usbProgressText.isEmpty {
+                Text(usbProgressText).font(.caption).textSelection(.enabled)
+            }
+            if isResumingUSB {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Button(lang.selectedLanguage == "ru" ? "Остановить" : "Stop") {
+                        PlaylistExportService.shared.cancel()
+                    }.buttonStyle(SyncrosaSecondaryButtonStyle())
+                }
+            }
+            if usbJobs.isEmpty {
+                Text(lang.selectedLanguage == "ru" ? "Незавершённых USB-задач нет." : "No unfinished USB exports.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(usbJobs, id: \.id) { job in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(job.playlistName).font(.headline)
+                    if let message = job.lastError, !message.isEmpty {
+                        Text(message).font(.caption).foregroundStyle(SyncrosaTheme.caution)
+                    }
+                    Text("\(job.destinationName) · \(job.completedCount)/\(job.totalCount) · \(job.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Button(lang.selectedLanguage == "ru" ? "Продолжить…" : "Resume…") { resumeUSB(job) }
+                            .buttonStyle(SyncrosaPrimaryButtonStyle())
+                            .disabled(isResumingUSB || PlaylistExportService.shared.isRunning)
+                        Button(lang.selectedLanguage == "ru" ? "Убрать запись" : "Remove Record") {
+                            pendingRemoval = .usb(job.id)
+                            showRemovalConfirmation = true
+                        }.buttonStyle(SyncrosaSecondaryButtonStyle())
+                            .disabled(isResumingUSB || PlaylistExportService.shared.isRunning)
+                    }
+                    Divider()
+                }
+            }
+        }.syncrosaCard()
+    }
+
+    private func refreshRecoveryData() {
+        recovery.refresh()
+        reloadUndoPackages()
+        reloadUSBJobs()
+    }
+
+    private func reloadUSBJobs() {
+        let result = PlaylistExportService.shared.loadPendingJobs()
+        usbJobs = result.jobs
+        usbWarnings = result.errors
+    }
+
+    private func removePendingRecord() {
+        defer { pendingRemoval = nil }
+        switch pendingRemoval {
+        case .marker(let id): recovery.clear(id: id)
+        case .usb(let id):
+            do { try PlaylistExportService.shared.discardJob(id) }
+            catch { activeNotification = NotificationMessage(text: error.localizedDescription, isError: true) }
+        case nil: break
         }
-        .syncrosaCard()
+        refreshRecoveryData()
+    }
+
+    private func selectSourceAccessFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.title = lang.selectedLanguage == "ru" ? "Папка с исходной музыкой" : "Source Music Folder"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        sourceAccessURL = url
+    }
+
+    private func resumeUSB(_ job: USBExportJobSummary) {
+        guard !PlaylistExportService.shared.isRunning else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.title = lang.selectedLanguage == "ru" ? "Выберите тот же USB-накопитель" : "Select the same USB drive"
+        panel.prompt = lang.selectedLanguage == "ru" ? "Продолжить" : "Resume"
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        let sourceGrant = sourceAccessURL
+        let scopedSource = sourceGrant?.startAccessingSecurityScopedResource() ?? false
+        isResumingUSB = true
+        usbProgressText = lang.selectedLanguage == "ru" ? "Проверка сохранённых файлов…" : "Checking saved files…"
+        PlaylistExportService.shared.resume(jobID: job.id, destination: destination, progress: { progress in
+            usbProgressText = "\(progress.currentTrack)/\(progress.totalTracks) · \(progress.currentTrackName)"
+        }, completion: { result in
+            if scopedSource { sourceGrant?.stopAccessingSecurityScopedResource() }
+            isResumingUSB = false
+            let russian = lang.selectedLanguage == "ru"
+            let summary = russian
+                ? "Скопировано: \(result.copiedCount). Уже перенесено: \(result.existingCount). Ошибок: \(result.errors.count)."
+                : "Copied: \(result.copiedCount). Already present: \(result.existingCount). Errors: \(result.errors.count)."
+            usbProgressText = (result.wasCancelled ? (russian ? "Остановлено. " : "Stopped. ") : "") + summary
+            activeNotification = NotificationMessage(text: usbProgressText, isError: !result.errors.isEmpty)
+            OperationHistoryService.shared.record(tool: "USB Export", title: "Resume USB Export", status: result.errors.isEmpty && !result.wasCancelled ? "OK" : "WARN", message: usbProgressText + (result.errors.isEmpty ? "" : "\n" + result.errors.joined(separator: "\n")), affectedCount: result.copiedCount)
+            reloadUSBJobs()
+        })
     }
 
     private var undoPackagesCard: some View {
@@ -321,4 +464,9 @@ struct RecoveryCenterView: View {
             activeNotification = NotificationMessage(text: error.localizedDescription, isError: true)
         }
     }
+}
+
+private enum RecoveryRecordRemoval {
+    case marker(UUID)
+    case usb(UUID)
 }

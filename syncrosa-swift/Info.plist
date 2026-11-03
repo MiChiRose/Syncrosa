@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleShortVersionString</key>
-    <string>3.5.1</string>
+    <string>3.6.0</string>
     <key>CFBundleVersion</key>
-    <string>3.5.1</string>
+    <string>3.6.0</string>
     <key>CFBundleIconFile</key>
     <string>genius_atom</string>
 </dict>

@@ -77,7 +77,9 @@ let package = Package(
             sources: [
                 "LibraryToolkitServiceTests.swift",
                 "MetadataRepairTests.swift",
-                "MusicLibraryExchangeTests.swift"
+                "MusicLibraryExchangeTests.swift",
+                "USBExportTests.swift",
+                "OperationRecoveryTests.swift"
             ]
         )
     ]

@@ -580,6 +580,21 @@ final class LibraryToolkitServiceTests: XCTestCase {
         XCTAssertTrue(contents.contains(",100,"))
     }
 
+    func testPlaylistExportReferencesKeepPersistentIDsAndLocalFileDetails() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("syncrosa-playlist-reference-\(UUID().uuidString).mp3")
+        try Data("sample audio".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let service = PlaylistReferenceTestService()
+        service.response = "AABBCCDDEEFF0011\tНазвание\tArtist\t\(file.path)\ninvalid row\n"
+        let tracks = service.getPlaylistTrackPaths(playlistName: "My Playlist")
+        XCTAssertEqual(tracks.count, 1)
+        XCTAssertEqual(tracks.first?.persistentID, "AABBCCDDEEFF0011")
+        XCTAssertEqual(tracks.first?.name, "Название")
+        XCTAssertEqual(tracks.first?.artist, "Artist")
+        XCTAssertEqual(tracks.first?.path, file.path)
+        XCTAssertEqual(tracks.first?.size, 12)
+    }
+
     private func makeTrack(
         title: String,
         artist: String,
@@ -612,4 +627,9 @@ final class LibraryToolkitServiceTests: XCTestCase {
             fileExists: fileExists
         )
     }
+}
+
+private final class PlaylistReferenceTestService: MusicService {
+    var response = ""
+    override func runAppleScript(_ scriptSource: String) -> String? { response }
 }
