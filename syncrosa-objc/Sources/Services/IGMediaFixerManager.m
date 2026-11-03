@@ -17,6 +17,79 @@ static NSInteger IGMediaYearFromReleaseDate(id value) {
     return [releaseDate length] >= 4 ? [[releaseDate substringToIndex:4] integerValue] : 0;
 }
 
+static NSString *IGMediaMusicComparisonText(id value) {
+    NSString *text = [IGMediaJSONString(value) stringByFoldingWithOptions:(NSDiacriticInsensitiveSearch | NSWidthInsensitiveSearch)
+                                                               locale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
+    text = [text lowercaseString];
+    NSArray *words = [text componentsSeparatedByCharactersInSet:[[NSCharacterSet alphanumericCharacterSet] invertedSet]];
+    NSMutableArray *nonempty = [NSMutableArray array];
+    for (NSString *word in words) if ([word length] > 0) [nonempty addObject:word];
+    return [nonempty componentsJoinedByString:@" "];
+}
+
+static BOOL IGMediaFieldIsMissing(id value, NSString *field) {
+    NSString *text = [IGMediaJSONString(value) stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return [text length] == 0 || [text caseInsensitiveCompare:@"missing value"] == NSOrderedSame ||
+           [text caseInsensitiveCompare:[@"Unknown " stringByAppendingString:field]] == NSOrderedSame;
+}
+
+NSDictionary *IGMediaBestAppleMusicMatch(NSArray *results, NSString *artist, NSString *title, NSString *album) {
+    if (IGMediaFieldIsMissing(artist, @"Artist") || IGMediaFieldIsMissing(title, @"Title")) return nil;
+    NSString *requestedArtist = IGMediaMusicComparisonText(artist);
+    NSString *requestedTitle = IGMediaMusicComparisonText(title);
+    NSString *requestedAlbum = IGMediaFieldIsMissing(album, @"Album") ? @"" : IGMediaMusicComparisonText(album);
+    NSDictionary *best = nil;
+    NSInteger bestScore = -1;
+    BOOL ambiguous = NO;
+    for (id value in results) {
+        if (![value isKindOfClass:[NSDictionary class]]) continue;
+        NSDictionary *candidate = value;
+        /* Compare the complete title. Dropping brackets loses Live/Remix/Remaster identity. */
+        if (![IGMediaMusicComparisonText(candidate[@"artistName"]) isEqualToString:requestedArtist] ||
+            ![IGMediaMusicComparisonText(candidate[@"trackName"]) isEqualToString:requestedTitle]) continue;
+        NSString *kind = IGMediaJSONString(candidate[@"kind"]);
+        if ([kind length] > 0 && ![kind isEqualToString:@"song"]) continue;
+        BOOL albumMatches = [requestedAlbum length] > 0 && [IGMediaMusicComparisonText(candidate[@"collectionName"]) isEqualToString:requestedAlbum];
+        /* A known edition must agree; selecting another edition can change track numbering. */
+        if ([requestedAlbum length] > 0 && !albumMatches) continue;
+        NSInteger score = 100 + (albumMatches ? 40 : 0);
+        NSDictionary *properties = @{@"alb": IGMediaJSONString(candidate[@"collectionName"]),
+                                     @"gen": IGMediaJSONString(candidate[@"primaryGenreName"]),
+                                     @"yr": @(IGMediaYearFromReleaseDate(candidate[@"releaseDate"])),
+                                     @"title": IGMediaJSONString(candidate[@"trackName"]),
+                                     @"art": IGMediaJSONString(candidate[@"artistName"]),
+                                     @"trackNumber": IGMediaJSONNumber(candidate[@"trackNumber"])};
+        if (score > bestScore) {
+            best = properties;
+            bestScore = score;
+            ambiguous = NO;
+        } else if (score == bestScore && ![best isEqualToDictionary:properties]) {
+            ambiguous = YES;
+        }
+    }
+    return ambiguous ? nil : best;
+}
+
+NSDictionary *IGMediaMissingMetadataProperties(NSDictionary *track, NSDictionary *metadata, NSString *lyrics, NSDictionary *options) {
+    NSMutableDictionary *changes = [NSMutableDictionary dictionary];
+    NSArray *fields = @[@"album", @"title", @"artist", @"genre"];
+    NSArray *catalogKeys = @[@"alb", @"title", @"art", @"gen"];
+    NSArray *labels = @[@"Album", @"Title", @"Artist", @"Genre"];
+    for (NSUInteger index = 0; index < [fields count]; index++) {
+        NSString *field = fields[index];
+        NSString *replacement = IGMediaJSONString(metadata[catalogKeys[index]]);
+        if ([options[field] boolValue] && IGMediaFieldIsMissing(track[field], labels[index]) &&
+            [[replacement stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length] > 0) {
+            changes[field] = replacement;
+        }
+    }
+    NSInteger number = [metadata[@"trackNumber"] integerValue];
+    if ([options[@"trackNumber"] boolValue] && [track[@"trackNumber"] integerValue] == 0 && number > 0) changes[@"trackNumber"] = @(number);
+    if ([options[@"lyrics"] boolValue] && ![track[@"hasLyrics"] boolValue] &&
+        [[IGMediaJSONString(lyrics) stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length] > 0) changes[@"lyrics"] = lyrics;
+    return changes;
+}
+
 static NSInteger IGMediaSeasonNumberFromName(NSString *name) {
     if (![name isKindOfClass:[NSString class]]) return 0;
     NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"season\\s+([0-9]+)"
@@ -433,59 +506,34 @@ static NSArray *IGMediaTVMazeEpisodeMatches(NSData *data, NSInteger requestedSea
     return normalized;
 }
 
-- (void)fetchAppleMetadataForArtist:(NSString *)artist title:(NSString *)title completion:(void(^)(NSDictionary *info))completionBlock {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
-        [[IGLogger sharedLogger] log:@"Only Local Mode enabled: skipping Apple metadata request."];
-        completionBlock(nil);
-        return;
-    }
-
-    NSString *cleanTitle = title;
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"[\\(\\[].*?[\\)\\]]" options:0 error:nil];
-    cleanTitle = [regex stringByReplacingMatchesInString:title options:0 range:NSMakeRange(0, title.length) withTemplate:@""];
-    cleanTitle = [cleanTitle stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-
-    NSString *searchTerm = [NSString stringWithFormat:@"%@ %@", artist, cleanTitle];
-    NSString *encodedTerm = [searchTerm stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
-    NSString *urlString = [NSString stringWithFormat:@"https://itunes.apple.com/search?term=%@&media=music&limit=1", encodedTerm];
-
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        @try {
-            NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-sSL", @"-m", @"20"]];
-            IGMediaAddCACertIfAvailable(args);
-            [args addObject:urlString];
-
-            int status = -1;
-            NSData *data = IGMediaRunCurl(args, &status);
-            if (status == 0 && data.length > 0) {
-                id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-                NSDictionary *json = [jsonObject isKindOfClass:[NSDictionary class]] ? jsonObject : nil;
-                id resultsObject = [json objectForKey:@"results"];
-                NSArray *results = [resultsObject isKindOfClass:[NSArray class]] ? resultsObject : nil;
-                if (results.count > 0) {
-                    NSDictionary *res = [[results objectAtIndex:0] isKindOfClass:[NSDictionary class]] ? [results objectAtIndex:0] : nil;
-                    if (!res) {
-                        completionBlock(nil);
-                        return;
-                    }
-                    NSString *releaseDate = IGMediaJSONString(res[@"releaseDate"]);
-                    NSString *year = releaseDate.length >= 4 ? [releaseDate substringToIndex:4] : @"";
-                    completionBlock(@{
-                        @"alb": IGMediaJSONString(res[@"collectionName"]),
-                        @"gen": IGMediaJSONString(res[@"primaryGenreName"]),
-                        @"yr": year,
-                        @"title": IGMediaJSONString(res[@"trackName"]),
-                        @"art": IGMediaJSONString(res[@"artistName"]),
-                        @"trackNumber": IGMediaJSONNumber(res[@"trackNumber"])
-                    });
-                    return;
-                }
-            }
-        } @catch (NSException *exception) {
-            NSLog(@"Curl Apple metadata fetch failed: %@", exception.reason);
+- (NSDictionary *)appleMetadataForArtist:(NSString *)artist title:(NSString *)title album:(NSString *)album errorMessage:(NSString **)errorMessage {
+    if (errorMessage) *errorMessage = nil;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) return nil;
+    if (IGMediaFieldIsMissing(artist, @"Artist") || IGMediaFieldIsMissing(title, @"Title")) return nil;
+    NSString *searchTerm = [NSString stringWithFormat:@"%@ %@", artist, title];
+    NSString *urlString = [NSString stringWithFormat:@"https://itunes.apple.com/search?term=%@&media=music&entity=song&limit=25", IGMediaEncodeURLComponent(searchTerm)];
+    @try {
+        NSMutableArray *args = [NSMutableArray arrayWithArray:@[@"-fsSL", @"-m", @"20"]];
+        IGMediaAddCACertIfAvailable(args);
+        [args addObject:urlString];
+        int status = -1;
+        NSData *data = IGMediaRunCurlWithLimit(args, &status, 4ULL * 1024ULL * 1024ULL);
+        if (status != 0 || [data length] == 0) {
+            if (errorMessage) *errorMessage = @"Apple metadata request failed or timed out.";
+            return nil;
         }
-        completionBlock(nil);
-    });
+        NSError *parseError = nil;
+        id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&parseError];
+        id results = [json isKindOfClass:[NSDictionary class]] ? [json objectForKey:@"results"] : nil;
+        if (parseError || ![results isKindOfClass:[NSArray class]]) {
+            if (errorMessage) *errorMessage = @"Apple metadata returned an invalid response.";
+            return nil;
+        }
+        return IGMediaBestAppleMusicMatch(results, artist, title, album);
+    } @catch (NSException *exception) {
+        if (errorMessage) *errorMessage = @"Apple metadata request could not be completed.";
+        return nil;
+    }
 }
 
 - (void)searchVideoMetadataForTitle:(NSString *)title
@@ -809,33 +857,43 @@ static NSArray *IGMediaTVMazeEpisodeMatches(NSData *data, NSInteger requestedSea
     [self runMetadataFixWithOptions:allOptions progress:progressBlock completion:completionBlock];
 }
 
+- (IGiTunesService *)metadataLibraryService {
+    return [IGiTunesService sharedService];
+}
+
+- (NSString *)metadataLyricsForArtist:(NSString *)artist title:(NSString *)title errorMessage:(NSString **)errorMessage {
+    return [[IGLyricsService sharedService] lyricsForArtist:artist title:title errorMessage:errorMessage];
+}
+
 - (void)runMetadataFixWithOptions:(NSDictionary *)options
                          progress:(void(^)(NSInteger current, NSInteger total))progressBlock
                        completion:(void(^)(void))completionBlock {
+    [self runMetadataFixWithOptions:options progress:progressBlock reportCompletion:^(NSDictionary *report) {
+        if (completionBlock) completionBlock();
+    }];
+}
+
+- (void)runMetadataFixWithOptions:(NSDictionary *)options
+                         progress:(void(^)(NSInteger current, NSInteger total))progressBlock
+                 reportCompletion:(void(^)(NSDictionary *report))completionBlock {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer manager: metadata scan started options=%@", options]];
-        IGiTunesService *service = [IGiTunesService sharedService];
+        IGiTunesService *service = [self metadataLibraryService];
         NSString *countStr = [service runAppleScriptNamed:@"mediaFixer.metadata.count" source:@"tell application \"iTunes\" to count every track of library playlist 1"];
-        NSInteger total = [countStr integerValue];
-        [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer manager: metadata total=%ld raw=%@", (long)total, countStr ?: @""]];
-
-        BOOL fixAlbum = [options[@"album"] boolValue];
-        BOOL fixTitle = [options[@"title"] boolValue];
-        BOOL fixArtist = [options[@"artist"] boolValue];
-        BOOL fixGenre = [options[@"genre"] boolValue];
-        BOOL fixTrackNumber = [options[@"trackNumber"] boolValue];
-        BOOL fixLyrics = [options[@"lyrics"] boolValue];
-        if (fixLyrics && [[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
-            fixLyrics = NO;
-            [[IGLogger sharedLogger] log:@"Only Local Mode enabled: skipping lyrics requests."];
+        NSScanner *countScanner = [NSScanner scannerWithString:countStr ?: @""];
+        NSInteger total = 0;
+        BOOL readable = [countScanner scanInteger:&total] && [countScanner isAtEnd] && total >= 0;
+        NSInteger changed = 0, skipped = 0, noMatch = 0, errors = 0;
+        NSMutableSet *changedIDs = [NSMutableSet set];
+        NSMutableArray *errorMessages = [NSMutableArray array];
+        if (!readable) {
+            total = 0;
+            errors = 1;
+            [errorMessages addObject:@"Could not read the iTunes library count."];
         }
-
+        BOOL onlyLocal = [[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"];
         void (^reportProgress)(NSInteger) = ^(NSInteger current) {
-            if (progressBlock) {
-                dispatch_async(dispatch_get_main_queue(), ^{ progressBlock(current, total); });
-            }
+            if (progressBlock) dispatch_async(dispatch_get_main_queue(), ^{ progressBlock(current, total); });
         };
-
         NSInteger chunkSize = 150;
         for (NSInteger start = 1; start <= total; start += chunkSize) {
             NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -866,7 +924,7 @@ static NSArray *IGMediaTVMazeEpisodeMatches(NSData *data, NSInteger requestedSea
                 "        if v is missing value then return \"0\"\n"
                 "        return (v as integer) as text\n"
                 "    on error\n"
-                "        return \"0\"\n"
+                "        return \"-1\"\n"
                 "    end try\n"
                 "end numberValue\n"
                 "set out to \"\"\n"
@@ -880,11 +938,12 @@ static NSArray *IGMediaTVMazeEpisodeMatches(NSData *data, NSInteger requestedSea
                 "            set alb to my textValue(album of t)\n"
                 "            set gen to my textValue(genre of t)\n"
                 "            set trk to my numberValue(track number of t)\n"
-                "            set hasLyrics to \"YES\"\n"
+                "            set hasLyrics to \"UNKNOWN\"\n"
                 "            try\n"
+                "                set hasLyrics to \"YES\"\n"
                 "                if lyrics of t is \"\" or lyrics of t is missing value then set hasLyrics to \"NO\"\n"
                 "            on error\n"
-                "                set hasLyrics to \"NO\"\n"
+                "                set hasLyrics to \"UNKNOWN\"\n"
                 "            end try\n"
                 "            set out to out & pid & tab & nm & tab & art & tab & alb & tab & gen & tab & trk & tab & hasLyrics & linefeed\n"
                 "        on error\n"
@@ -897,162 +956,105 @@ static NSArray *IGMediaTVMazeEpisodeMatches(NSData *data, NSInteger requestedSea
             NSString *chunkRaw = [service runAppleScriptNamed:@"mediaFixer.metadata.chunk" source:chunkScript];
             NSArray *lines = [chunkRaw componentsSeparatedByString:@"\n"];
             NSInteger seenRows = 0;
-            NSInteger parsedRows = 0;
-            NSInteger updatedRows = 0;
-
             for (NSString *rawLine in lines) {
                 NSString *line = [rawLine stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];
-                if (line.length == 0) continue;
-
-                NSInteger currentIndex = MIN(start + seenRows, total);
-                seenRows++;
-                __block NSDictionary *fetchedInfo = nil;
-                __block NSString *fetchedLyrics = nil;
-
+                if ([line length] == 0) continue;
+                if (seenRows >= end - start + 1) break;
+                NSInteger currentIndex = start + seenRows++;
                 @try {
-                    if ([line isEqualToString:@"SKIP"] || [line rangeOfString:@"\t"].location == NSNotFound) {
-                        reportProgress(currentIndex);
-                        continue;
-                    }
-
                     NSArray *parts = [line componentsSeparatedByString:@"\t"];
-                    if (parts.count < 7) {
+                    if ([parts count] < 7 || [parts[0] length] == 0) {
+                        errors++;
+                        if ([errorMessages count] < 25) [errorMessages addObject:[NSString stringWithFormat:@"Could not read track %ld.", (long)currentIndex]];
                         reportProgress(currentIndex);
                         continue;
                     }
-
-                    NSString *pid = parts[0];
-                    NSString *name = parts[1];
-                    NSString *artist = parts[2];
-                    NSString *album = parts[3];
-                    NSString *genre = parts[4];
-                    NSString *trackNumStr = parts[5];
-                    NSString *hasLyricsStr = parts[6];
-                    parsedRows++;
-
-                    BOOL needsFix = NO;
-                    if (fixTitle && (name.length == 0 || [name isEqualToString:@"Unknown Title"])) needsFix = YES;
-                    if (fixArtist && (artist.length == 0 || [artist isEqualToString:@"Unknown Artist"])) needsFix = YES;
-                    if (fixAlbum && (album.length == 0 || [album isEqualToString:@"Unknown Album"] || [album isEqualToString:@"missing value"])) needsFix = YES;
-                    if (fixGenre && (genre.length == 0 || [genre isEqualToString:@"Unknown Genre"])) needsFix = YES;
-                    if (fixTrackNumber && ([trackNumStr integerValue] == 0)) needsFix = YES;
-                    if (fixLyrics && [hasLyricsStr isEqualToString:@"NO"]) needsFix = YES;
-
-                    if (!needsFix) {
+                    NSDictionary *track = @{@"title": parts[1], @"artist": parts[2], @"album": parts[3], @"genre": parts[4],
+                                            @"trackNumber": @([parts[5] integerValue]), @"hasLyrics": @(![parts[6] isEqualToString:@"NO"])};
+                    BOOL unreadableLyrics = [options[@"lyrics"] boolValue] && ![parts[6] isEqualToString:@"YES"] && ![parts[6] isEqualToString:@"NO"];
+                    BOOL unreadableNumber = [options[@"trackNumber"] boolValue] && [track[@"trackNumber"] integerValue] < 0;
+                    BOOL snapshotReadError = unreadableLyrics || unreadableNumber;
+                    if (snapshotReadError && [errorMessages count] < 25) [errorMessages addObject:[NSString stringWithFormat:@"Could not read selected fields for %@; unreadable fields were preserved.", track[@"title"]]];
+                    BOOL needsMetadata = ([options[@"title"] boolValue] && IGMediaFieldIsMissing(track[@"title"], @"Title")) ||
+                                         ([options[@"artist"] boolValue] && IGMediaFieldIsMissing(track[@"artist"], @"Artist")) ||
+                                         ([options[@"album"] boolValue] && IGMediaFieldIsMissing(track[@"album"], @"Album")) ||
+                                         ([options[@"genre"] boolValue] && IGMediaFieldIsMissing(track[@"genre"], @"Genre")) ||
+                                         ([options[@"trackNumber"] boolValue] && [track[@"trackNumber"] integerValue] == 0);
+                    BOOL needsLyrics = [options[@"lyrics"] boolValue] && ![track[@"hasLyrics"] boolValue];
+                    if ((!needsMetadata && !needsLyrics) || onlyLocal) {
+                        if (snapshotReadError) errors++;
+                        else skipped++;
                         reportProgress(currentIndex);
                         continue;
                     }
-
-                    if (fixAlbum || fixTitle || fixArtist || fixGenre || fixTrackNumber) {
-                        dispatch_semaphore_t metadataSema = dispatch_semaphore_create(0);
-                        NSString *searchArtist = artist.length > 0 ? artist : @"";
-                        NSString *searchTitle = name.length > 0 ? name : @"";
-
-                        [self fetchAppleMetadataForArtist:searchArtist title:searchTitle completion:^(NSDictionary *info) {
-#if !__has_feature(objc_arc)
-                            fetchedInfo = [info retain];
-#else
-                            fetchedInfo = info;
-#endif
-                            dispatch_semaphore_signal(metadataSema);
-                        }];
-                        long waitResult = dispatch_semaphore_wait(metadataSema, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(35 * NSEC_PER_SEC)));
-                        if (waitResult != 0) {
-                            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer manager: Apple metadata timeout pid=%@ title=%@", pid ?: @"", name ?: @""]];
+                    NSString *metadataError = nil;
+                    NSDictionary *metadata = needsMetadata ? [self appleMetadataForArtist:track[@"artist"] title:track[@"title"] album:track[@"album"] errorMessage:&metadataError] : nil;
+                    NSString *lyricsError = nil;
+                    NSString *lyrics = nil;
+                    if (needsLyrics) {
+                        NSString *artist = IGMediaFieldIsMissing(track[@"artist"], @"Artist") ? metadata[@"art"] : track[@"artist"];
+                        NSString *title = IGMediaFieldIsMissing(track[@"title"], @"Title") ? metadata[@"title"] : track[@"title"];
+                        lyrics = [self metadataLyricsForArtist:artist title:title errorMessage:&lyricsError];
+                    }
+                    NSDictionary *changes = IGMediaMissingMetadataProperties(track, metadata, lyrics, options);
+                    BOOL trackFailed = snapshotReadError || [metadataError length] > 0 || [lyricsError length] > 0;
+                    BOOL didChange = NO;
+                    if ([changes count] > 0) {
+                        NSMutableArray *updates = [NSMutableArray array];
+                        NSArray *fields = @[@"album", @"title", @"artist", @"genre", @"trackNumber", @"lyrics"];
+                        NSArray *scriptFields = @[@"album", @"name", @"artist", @"genre", @"track number", @"lyrics"];
+                        NSArray *labels = @[@"Album", @"Title", @"Artist", @"Genre", @"", @""];
+                        for (NSUInteger index = 0; index < [fields count]; index++) {
+                            id replacement = changes[fields[index]];
+                            if (!replacement) continue;
+                            NSString *field = scriptFields[index];
+                            NSString *condition = [fields[index] isEqualToString:@"trackNumber"] ? @"existingValue is missing value or existingValue is 0" :
+                                [NSString stringWithFormat:@"existingValue is missing value or existingValue is \"\" or existingValue is \"missing value\"%@", [labels[index] length] > 0 ? [NSString stringWithFormat:@" or existingValue is \"Unknown %@\"", labels[index]] : @""];
+                            NSString *valueLiteral = [fields[index] isEqualToString:@"trackNumber"] ? [replacement stringValue] : [NSString stringWithFormat:@"\"%@\"", IGMediaAppleScriptLiteral(replacement)];
+                            [updates addObject:[NSString stringWithFormat:@"set existingValue to %@ of t\nif %@ then\nset %@ of t to %@\nset changedFields to changedFields + 1\nend if", field, condition, field, valueLiteral]];
                         }
-#if !OS_OBJECT_USE_OBJC
-                        if (waitResult == 0) {
-                            dispatch_release(metadataSema);
+                        NSString *script = [NSString stringWithFormat:
+                            @"set changedFields to 0\ntell application \"iTunes\"\ntry\nset t to (some track of library playlist 1 whose persistent ID is \"%@\")\n%@\nreturn \"OK\" & tab & (changedFields as text)\non error\nreturn \"ERROR\" & tab & (changedFields as text)\nend try\nend tell", IGMediaAppleScriptLiteral(parts[0]), [updates componentsJoinedByString:@"\n"]];
+                        NSString *result = [service runAppleScriptNamed:@"mediaFixer.metadata.updateTrack" source:script];
+                        NSArray *status = [result componentsSeparatedByString:@"\t"];
+                        BOOL validResult = [status count] == 2 && ([status[0] isEqualToString:@"OK"] || [status[0] isEqualToString:@"ERROR"]);
+                        didChange = validResult && [status[1] integerValue] > 0;
+                        if (!validResult || ![status[0] isEqualToString:@"OK"]) {
+                            trackFailed = YES;
+                            if ([errorMessages count] < 25) [errorMessages addObject:[NSString stringWithFormat:@"iTunes could not finish updating %@.", track[@"title"]]];
                         }
-#endif
                     }
-
-                    if (fixLyrics) {
-                        dispatch_semaphore_t lyricsSema = dispatch_semaphore_create(0);
-                        NSString *lyricsArtist = artist.length > 0 ? artist : (fetchedInfo[@"art"] ?: @"");
-                        NSString *lyricsTitle = name.length > 0 ? name : (fetchedInfo[@"title"] ?: @"");
-
-                        [[IGLyricsService sharedService] fetchLyricsForArtist:lyricsArtist title:lyricsTitle completion:^(NSString *lyrics) {
-#if !__has_feature(objc_arc)
-                            fetchedLyrics = [lyrics copy];
-#else
-                            fetchedLyrics = lyrics;
-#endif
-                            dispatch_semaphore_signal(lyricsSema);
-                        }];
-                        long waitResult = dispatch_semaphore_wait(lyricsSema, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(35 * NSEC_PER_SEC)));
-                        if (waitResult != 0) {
-                            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer manager: lyrics timeout pid=%@ title=%@", pid ?: @"", name ?: @""]];
+                    if (didChange) {
+                        changed++;
+                        [changedIDs addObject:parts[0]];
+                    }
+                    if (trackFailed) {
+                        errors++;
+                        if ([errorMessages count] < 25 && ([metadataError length] > 0 || [lyricsError length] > 0)) {
+                            [errorMessages addObject:[NSString stringWithFormat:@"%@: %@%@%@", track[@"title"], metadataError ?: @"", metadataError && lyricsError ? @" " : @"", lyricsError ?: @""]];
                         }
-#if !OS_OBJECT_USE_OBJC
-                        if (waitResult == 0) {
-                            dispatch_release(lyricsSema);
-                        }
-#endif
-                    }
-
-                    NSMutableArray *updates = [NSMutableArray array];
-                    NSString *newAlbum = IGMediaJSONString(fetchedInfo[@"alb"]);
-                    NSString *newGenre = IGMediaJSONString(fetchedInfo[@"gen"]);
-                    NSString *newTitle = IGMediaJSONString(fetchedInfo[@"title"]);
-                    NSString *newArtist = IGMediaJSONString(fetchedInfo[@"art"]);
-                    NSNumber *newTrackNumber = IGMediaJSONNumber(fetchedInfo[@"trackNumber"]);
-
-                    if (fixAlbum && newAlbum.length > 0 && (album.length == 0 || [album isEqualToString:@"Unknown Album"] || [album isEqualToString:@"missing value"])) {
-                        [updates addObject:[NSString stringWithFormat:@"set album of t to \"%@\"", IGMediaAppleScriptLiteral(newAlbum)]];
-                    }
-                    if (fixGenre && newGenre.length > 0 && (genre.length == 0 || [genre isEqualToString:@"Unknown Genre"])) {
-                        [updates addObject:[NSString stringWithFormat:@"set genre of t to \"%@\"", IGMediaAppleScriptLiteral(newGenre)]];
-                    }
-                    if (fixTrackNumber && [newTrackNumber integerValue] > 0 && [trackNumStr integerValue] == 0) {
-                        [updates addObject:[NSString stringWithFormat:@"set track number of t to %@", newTrackNumber]];
-                    }
-                    if (fixTitle && newTitle.length > 0 && (name.length == 0 || [name isEqualToString:@"Unknown Title"])) {
-                        [updates addObject:[NSString stringWithFormat:@"set name of t to \"%@\"", IGMediaAppleScriptLiteral(newTitle)]];
-                    }
-                    if (fixArtist && newArtist.length > 0 && (artist.length == 0 || [artist isEqualToString:@"Unknown Artist"])) {
-                        [updates addObject:[NSString stringWithFormat:@"set artist of t to \"%@\"", IGMediaAppleScriptLiteral(newArtist)]];
-                    }
-                    if (fixLyrics && fetchedLyrics) {
-                        [updates addObject:[NSString stringWithFormat:@"set lyrics of t to \"%@\"", IGMediaAppleScriptLiteral(fetchedLyrics)]];
-                    }
-
-                    if (updates.count > 0) {
-                        NSString *updateScript = [NSString stringWithFormat:
-                            @"tell application \"iTunes\"\n"
-                            "    try\n"
-                            "        set t to (some track of library playlist 1 whose persistent ID is \"%@\")\n"
-                            "        %@\n"
-                            "    end try\n"
-                            "end tell", pid, [updates componentsJoinedByString:@"\n"]];
-                        [service runAppleScriptNamed:@"mediaFixer.metadata.updateTrack" source:updateScript];
-                        updatedRows++;
-                    }
+                    } else if ([changes count] == 0) noMatch++;
+                    else if (!didChange) skipped++; /* Another tool filled the field after the snapshot. */
                 } @catch (NSException *exception) {
-                    [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer manager: exception processing track %ld: %@", (long)currentIndex, exception]];
-                    NSLog(@"Exception caught processing track %ld: %@", (long)currentIndex, exception);
+                    errors++;
+                    if ([errorMessages count] < 25) [errorMessages addObject:[NSString stringWithFormat:@"Could not process track %ld.", (long)currentIndex]];
                 }
-
-#if !__has_feature(objc_arc)
-                [fetchedInfo release];
-                [fetchedLyrics release];
-#endif
                 reportProgress(currentIndex);
             }
-
-            if (seenRows == 0) {
-                reportProgress(end);
+            NSInteger unread = (end - start + 1) - seenRows;
+            if (unread > 0) {
+                errors += unread;
+                if ([errorMessages count] < 25) [errorMessages addObject:[NSString stringWithFormat:@"Could not read %ld tracks in this batch.", (long)unread]];
             }
-            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer manager: metadata chunk %ld-%ld parsed=%ld updated=%ld",
-                                          (long)start, (long)end, (long)parsedRows, (long)updatedRows]];
-#if !__has_feature(objc_arc)
+            reportProgress(end);
             [pool drain];
-#endif
         }
-
+        NSDictionary *report = @{@"total": @(total), @"changed": @(changed), @"skipped": @(skipped), @"noMatch": @(noMatch),
+                                 @"errors": @(errors), @"errorMessages": errorMessages, @"onlyLocal": @(onlyLocal),
+                                 @"changedIDs": [[changedIDs allObjects] sortedArrayUsingSelector:@selector(compare:)]};
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[IGLogger sharedLogger] log:@"MediaFixer manager: metadata scan completed"];
-            completionBlock();
+            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"MediaFixer metadata report: %@", report]];
+            if (completionBlock) completionBlock(report);
         });
     });
 }

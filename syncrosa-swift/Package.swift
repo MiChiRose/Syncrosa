@@ -75,7 +75,9 @@ let package = Package(
             dependencies: ["Syncrosa"],
             path: "Tests/SyncrosaTests",
             sources: [
-                "LibraryToolkitServiceTests.swift"
+                "LibraryToolkitServiceTests.swift",
+                "MetadataRepairTests.swift",
+                "MusicLibraryExchangeTests.swift"
             ]
         )
     ]

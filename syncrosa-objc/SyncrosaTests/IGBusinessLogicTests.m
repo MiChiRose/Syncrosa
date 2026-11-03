@@ -14,9 +14,125 @@
 #import "IGOperationActivity.h"
 #import "IGVideoFileMetadataService.h"
 
+/* Offline doubles keep repair regression tests away from the user's iTunes library. */
+@interface IGMetadataRepairTestLibrary : NSObject
+@property (nonatomic, copy) NSString *rows;
+@property (nonatomic, copy) NSString *lastUpdateScript;
+@end
+@implementation IGMetadataRepairTestLibrary
+- (NSString *)runAppleScriptNamed:(NSString *)name source:(NSString *)source {
+    if ([name isEqualToString:@"mediaFixer.metadata.count"]) return @"10";
+    if ([name isEqualToString:@"mediaFixer.metadata.chunk"]) return self.rows;
+    self.lastUpdateScript = source;
+    if ([source rangeOfString:@"0000000000000005"].location != NSNotFound) return @"ERROR\t0";
+    if ([source rangeOfString:@"0000000000000007"].location != NSNotFound) return @"OK\t0";
+    return @"OK\t1";
+}
+- (void)dealloc { [_rows release]; [_lastUpdateScript release]; [super dealloc]; }
+@end
+
+@interface IGMetadataRepairTestManager : IGMediaFixerManager
+@property (nonatomic, retain) IGMetadataRepairTestLibrary *testLibrary;
+@property (nonatomic, assign) NSInteger lyricsRequests;
+@end
+@implementation IGMetadataRepairTestManager
+- (id)metadataLibraryService { return self.testLibrary; }
+- (NSDictionary *)appleMetadataForArtist:(NSString *)artist title:(NSString *)title album:(NSString *)album errorMessage:(NSString **)errorMessage {
+    if (errorMessage) *errorMessage = nil;
+    if ([title isEqualToString:@"Unmatched"]) return nil;
+    if ([title isEqualToString:@"Network Error"]) {
+        if (errorMessage) *errorMessage = @"Network unavailable";
+        return nil;
+    }
+    return @{@"gen": @"Rock"};
+}
+- (NSString *)metadataLyricsForArtist:(NSString *)artist title:(NSString *)title errorMessage:(NSString **)errorMessage {
+    self.lyricsRequests++;
+    if (errorMessage) *errorMessage = @"Lyrics unavailable";
+    return nil;
+}
+- (void)dealloc { [_testLibrary release]; [super dealloc]; }
+@end
+
 @interface IGBusinessLogicTests : XCTestCase @end
 
 @implementation IGBusinessLogicTests
+
+- (void)testMusicMatchingKeepsRecordingVersionsAndRejectsAmbiguousEditions {
+    NSDictionary *studio = @{@"artistName": @"The Artist", @"trackName": @"A Song", @"collectionName": @"Original Album", @"trackNumber": @2};
+    NSDictionary *live = @{@"artistName": @"The Artist", @"trackName": @"A Song (Live)", @"collectionName": @"Concert", @"trackNumber": @7};
+    NSDictionary *compilation = @{@"artistName": @"The Artist", @"trackName": @"A Song", @"collectionName": @"Greatest Hits", @"trackNumber": @9};
+    NSDictionary *match = IGMediaBestAppleMusicMatch(@[studio, live], @"THE ARTIST", @"A Song [Live]", @"");
+    XCTAssertEqualObjects(match[@"alb"], @"Concert");
+    XCTAssertNil(IGMediaBestAppleMusicMatch(@[live], @"The Artist", @"A Song", @""));
+    XCTAssertNil(IGMediaBestAppleMusicMatch(@[studio, compilation], @"The Artist", @"A Song", @""));
+    XCTAssertEqualObjects(IGMediaBestAppleMusicMatch(@[compilation, studio], @"The Artist", @"A Song", @"Original Album")[@"trackNumber"], @2);
+    XCTAssertNil(IGMediaBestAppleMusicMatch(@[studio], @"Other Artist", @"A Song", @""));
+    XCTAssertNil(IGMediaBestAppleMusicMatch(@[studio], @"", @"A Song", @""));
+}
+
+- (void)testMissingMetadataRepairPreservesExistingLyricsAndDisabledFields {
+    NSDictionary *track = @{@"title": @"Original", @"artist": @"Artist", @"album": @"Album", @"genre": @"", @"trackNumber": @3, @"hasLyrics": @YES};
+    NSDictionary *metadata = @{@"title": @"Replacement", @"art": @"New Artist", @"alb": @"Other Album", @"gen": @"Rock", @"trackNumber": @9};
+    NSDictionary *options = @{@"title": @YES, @"artist": @YES, @"album": @YES, @"genre": @YES, @"trackNumber": @YES, @"lyrics": @YES};
+    XCTAssertEqualObjects(IGMediaMissingMetadataProperties(track, metadata, @"New lyrics", options), (@{@"genre": @"Rock"}));
+    NSMutableDictionary *missingLyrics = [NSMutableDictionary dictionaryWithDictionary:track];
+    missingLyrics[@"hasLyrics"] = @NO;
+    XCTAssertEqualObjects(IGMediaMissingMetadataProperties(missingLyrics, metadata, @"New lyrics", @{@"lyrics": @YES}), (@{@"lyrics": @"New lyrics"}));
+    XCTAssertEqualObjects(IGMediaMissingMetadataProperties(missingLyrics, metadata, @"New lyrics", @{}), (@{}));
+}
+
+- (void)testMetadataRepairReportsRealWritesAndErrorsWithoutTouchingITunes {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    id savedLocalMode = [[defaults objectForKey:@"only_local_mode"] retain];
+    [defaults setBool:NO forKey:@"only_local_mode"];
+    IGMetadataRepairTestManager *manager = [[[IGMetadataRepairTestManager alloc] init] autorelease];
+    manager.testLibrary = [[[IGMetadataRepairTestLibrary alloc] init] autorelease];
+    manager.testLibrary.rows = @"0000000000000001\tComplete\tArtist\tAlbum\tRock\t1\tYES\n"
+                               "0000000000000002\tMissing Genre\tArtist\tAlbum\t\t1\tYES\n"
+                               "0000000000000003\tUnmatched\tArtist\tAlbum\t\t1\tYES\n"
+                               "0000000000000004\tNetwork Error\tArtist\tAlbum\t\t1\tYES\n"
+                               "0000000000000005\tWrite Error\tArtist\tAlbum\t\t1\tYES\n"
+                               "0000000000000006\tLyrics Error\tArtist\tAlbum\tRock\t1\tNO\n"
+                               "0000000000000007\tRace\tArtist\tAlbum\t\t1\tYES\n"
+                               "0000000000000008\tPartial\tArtist\tAlbum\t\t1\tNO\n"
+                               "0000000000000009\tUnreadable Lyrics\tArtist\tAlbum\tRock\t1\tUNKNOWN\n"
+                               "0000000000000010\tUnreadable Number\tArtist\tAlbum\tRock\t-1\tYES\n";
+    XCTestExpectation *finished = [self expectationWithDescription:@"offline metadata repair"];
+    [manager runMetadataFixWithOptions:@{@"genre": @YES, @"lyrics": @YES, @"trackNumber": @YES} progress:nil reportCompletion:^(NSDictionary *report) {
+        XCTAssertEqualObjects(report[@"total"], @10);
+        XCTAssertEqualObjects(report[@"changed"], @2);
+        XCTAssertEqualObjects(report[@"skipped"], @2);
+        XCTAssertEqualObjects(report[@"noMatch"], @1);
+        XCTAssertEqualObjects(report[@"errors"], @6);
+        XCTAssertEqualObjects(report[@"changedIDs"], (@[@"0000000000000002", @"0000000000000008"]));
+        XCTAssertEqual(manager.lyricsRequests, (NSInteger)2);
+        XCTAssertTrue([manager.testLibrary.lastUpdateScript rangeOfString:@"set existingValue to genre of t"].location != NSNotFound);
+        XCTAssertTrue([manager.testLibrary.lastUpdateScript rangeOfString:@"changedFields"].location != NSNotFound);
+        [finished fulfill];
+    }];
+    @try {
+        [self waitForExpectationsWithTimeout:5.0 handler:nil];
+    } @finally {
+        if (savedLocalMode) [defaults setObject:savedLocalMode forKey:@"only_local_mode"];
+        else [defaults removeObjectForKey:@"only_local_mode"];
+        [savedLocalMode release];
+    }
+}
+
+- (void)testExternalAgentJSONValidationRequiresOnlyKnownCatalogIDs {
+    NSString *identifier = @"A1B2C3D4E5F67890";
+    NSSet *available = [NSSet setWithObject:identifier];
+    XCTAssertNil(IGPlaylistJSONSelectionValidationError(@{@"playlistName": @"Mix", @"trackIDs": @[identifier]}, available));
+    XCTAssertNotNil(IGPlaylistJSONSelectionValidationError(@{@"trackIDs": @[identifier, @"1111111111111111"]}, available));
+    XCTAssertNotNil(IGPlaylistJSONSelectionValidationError(@{@"schema": @"syncrosa-itunes-library-v1", @"tracks": @[@{@"persistentID": identifier}]}, available));
+    XCTAssertNotNil(IGPlaylistJSONSelectionValidationError(@{@"tracks": @[[NSNull null]]}, available));
+    XCTAssertNil(IGPlaylistJSONSelectionValidationError(@[identifier], available));
+    XCTAssertNil(IGPlaylistJSONSelectionValidationError(@[@{@"id": identifier}], available));
+    XCTAssertNotNil(IGPlaylistJSONSelectionValidationError(@[identifier, [NSNull null]], available));
+    XCTAssertNotNil(IGPlaylistJSONSelectionValidationError(@[identifier, @"1111111111111111"], available));
+    XCTAssertNotNil(IGPlaylistJSONSelectionValidationError(@{@"schema": @42, @"trackIDs": @[identifier]}, available));
+}
 
 - (void)testTrackModelIntegrity {
     IGTrack *track = [[IGTrack alloc] initWithPersistentID:@"TEST_PID" 

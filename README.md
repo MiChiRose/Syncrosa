@@ -76,21 +76,22 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.5.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Adds exact TV episode matching, iPod-friendly sequence prefixes, responsive Video Metadata layouts, and further Cocoa UI polish. |
+| `Syncrosa_Cocoa_v3.5.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Preserves existing tags and lyrics, improves recording matches, and validates external playlist selections. |
 | `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.5.0.zip` | Modern Apple Silicon Macs | macOS 14 | Current modern Music.app build, refreshed and version-aligned with the 3.5.0 native release. |
+| `Syncrosa_SwiftUI_v3.5.1.zip` | Modern Apple Silicon Macs | macOS 14 | Current Music.app build with safer metadata repair, accurate operation reports, and full-library JSON exchange. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.5.0
+### Latest Release: 3.5.1
 
-Syncrosa 3.5.0 updates the two native application tracks. The Python maintenance package remains available as version 3.4.8:
+Syncrosa 3.5.1 improves library repair and playlist exchange in both native applications. The Python maintenance package remains available as version 3.4.8 in its previous release.
 
-- **Exact TV Episode Matching:** Cocoa recognizes `S01E05` and `1x05` names and searches by show, season, and episode, including artwork fallback from the series poster.
-- **Ordered Episodes on Legacy iPods:** Saved TV titles receive a stable prefix such as `S1E01 — …`, preventing alphabetical episode shuffling without duplicating an existing prefix.
-- **Responsive Video Workspace:** The Video Metadata page, track list, status area, and three-stage metadata chooser resize and scroll more naturally.
-- **Cocoa UI Polish:** Overview, Settings, USB Export, navigation activity, spacing, and alignment have been refined for classic AppKit.
-- **Two Native Packages:** Cocoa for OS X 10.9+ and SwiftUI for macOS 14+ are published as version 3.5.0; Python remains on 3.4.8.
+- **Preserve Existing Tags:** Repair fills only missing selected fields and rechecks each field before writing, keeping saved lyrics and edits made during lookups.
+- **More Reliable Catalog Matching:** Searches compare complete titles, artists and known albums across multiple results. Live, remix and remaster labels are retained; ambiguous editions are skipped.
+- **Accurate Results:** Reports distinguish changed tracks, skipped tracks, unmatched results and errors, including partial failures and unique affected-track counts.
+- **Full-Library JSON Exchange:** Export every readable track with instructions and a reply example, then import a selection from your preferred assistant without a Syncrosa API key.
+- **Safer Playlist Replacement:** Malformed or unknown IDs are rejected before an existing playlist is cleared, while supported legacy JSON reply formats remain accepted.
+- **Two Native Packages:** Cocoa for Intel Macs with OS X 10.9+ and SwiftUI for Apple Silicon with macOS 14+.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
@@ -103,7 +104,29 @@ Because the application is distributed directly without an Apple Developer certi
 
 ---
 
+## Metadata Repair Safeguards
+
+The native SwiftUI and Cocoa repair tools fill only missing selected fields and preserve existing tags and lyrics. Fields are checked again immediately before writing, so edits made while a lookup is running are retained. Album merging remains an explicit operation; the Cocoa repair flow defaults to keeping existing album names.
+
+Catalog matching compares the full title, artist and known album across multiple results. Live, remix and remaster labels are preserved. Conflicting editions are skipped rather than chosen by search rank. Completion reports distinguish changed tracks, skipped tracks, missing matches and errors; history counts tracks actually changed, including partial failures.
+
 ## ✨ Modern SwiftUI App Guide
+
+### Use your own AI assistant with the entire music library
+
+Both native apps can export **every readable library track** as JSON, without the built-in AI playlist sampling limit. This workflow requires **no Syncrosa API key**: use a free assistant or an agent covered by your own subscription. Built-in provider integration remains optional; provider availability, free quotas, and account requirements are set by the provider.
+
+1. Open **iTunes Media Fixer / Media Fixer** and choose **Export Library JSON**. The result reports the number of readable tracks exported; if it is lower than the library count, check Music/iTunes and export again.
+2. Give the JSON file to your assistant along with a request such as: “Choose 30 tracks for a relaxed night drive from this whole catalog. Follow `instructions` and return only the `selectionExample` JSON format.”
+3. Save the assistant's reply as a separate `.json` file. It should contain a playlist name and the exact IDs in the desired listening order:
+
+```json
+{"playlistName":"Night Drive","trackIDs":["A1B2C3D4E5F67890","0123456789ABCDEF"]}
+```
+
+4. Choose **Import AI Playlist / Import Playlist JSON**, select the reply, and review the playlist name and replacement confirmation. Syncrosa checks every ID against the current library; malformed or unknown IDs stop the import before replacing a playlist. Duplicate IDs are removed while retaining the assistant's order.
+
+The export contains catalog metadata, not audio files, local file paths, or API keys. The file itself is not uploaded by Syncrosa; you choose whether and where to share it. Import the assistant's selection rather than the original catalog export. If tracks have been removed since export, create a fresh export and ask the assistant to revise its selection.
 
 The SwiftUI build is the modern Syncrosa experience for macOS 14+ on Apple Silicon. Screenshots below use the English interface; you can switch the app language at any time in **Settings**.
 

@@ -26,6 +26,31 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     return literal;
 }
 
+static void IGFixerRecordMetadataHistory(NSDictionary *report, NSString *message, NSSet *mergedIDs, NSInteger mergeErrors) {
+    NSArray *directories = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSString *directory = [(directories.count ? directories[0] : NSHomeDirectory()) stringByAppendingPathComponent:@"Syncrosa"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *path = [directory stringByAppendingPathComponent:@"operation-history.json"];
+    NSData *existing = [NSData dataWithContentsOfFile:path];
+    id decoded = existing ? [NSJSONSerialization JSONObjectWithData:existing options:0 error:nil] : nil;
+    NSMutableArray *entries = [NSMutableArray array];
+    if ([decoded isKindOfClass:[NSArray class]]) for (id entry in decoded) if ([entry isKindOfClass:[NSDictionary class]]) [entries addObject:entry];
+    NSMutableSet *changedIDs = [NSMutableSet setWithArray:report[@"changedIDs"] ?: @[]];
+    if (mergedIDs) [changedIDs unionSet:mergedIDs];
+    NSInteger changed = [changedIDs count];
+    NSInteger errors = [report[@"errors"] integerValue] + mergeErrors;
+    if ([mergedIDs count] > 0 || mergeErrors > 0) message = [NSString stringWithFormat:@"%@. Album merge: %lu changed, %ld errors.", message ?: @"", (unsigned long)[mergedIDs count], (long)mergeErrors];
+    NSString *status = errors > 0 ? (changed > 0 ? @"PARTIAL" : @"ERROR") : ([report[@"noMatch"] integerValue] > 0 ? @"NO MATCH" : @"OK");
+    [entries insertObject:@{@"id": [[NSProcessInfo processInfo] globallyUniqueString], @"tool": @"Media Fixer",
+                            @"title": @"Repair Missing Metadata", @"status": status, @"message": message ?: @"",
+                            @"createdAt": @([[NSDate date] timeIntervalSince1970]), @"affectedCount": @(changed),
+                            @"backupPath": @"", @"report": report, @"mergedTracks": @([mergedIDs count])} atIndex:0];
+    while ([entries count] > 250) [entries removeLastObject];
+    NSData *data = [NSJSONSerialization dataWithJSONObject:entries options:NSJSONWritingPrettyPrinted error:nil];
+    NSError *writeError = nil;
+    if (![data writeToFile:path options:NSDataWritingAtomic error:&writeError]) [[IGLogger sharedLogger] log:@"Media Fixer could not save operation history."];
+}
+
 @interface IGFixerViewController ()
 
 @property (nonatomic, strong) NSTextField *titleLabel;
@@ -46,6 +71,9 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 @property (nonatomic, strong) NSButton *importLibraryJSONButton;
 @property (nonatomic, strong) NSWindow *helpSheetWindow;
 @property (nonatomic, assign) BOOL isRunning;
+@property (nonatomic, assign) NSInteger mergeChangedCount;
+@property (nonatomic, assign) NSInteger mergeErrorCount;
+@property (nonatomic, retain) NSMutableSet *mergeChangedIDs;
 
 @end
 
@@ -64,6 +92,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 #if !__has_feature(objc_arc)
+    [_mergeChangedIDs release];
     [super dealloc];
 #endif
 }
@@ -217,6 +246,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     self.lyricsCheckbox.title = [lang t:@"tag_lyrics"];
     self.exportLibraryJSONButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Экспорт JSON медиатеки" : @"Export Library JSON";
     self.importLibraryJSONButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Импорт JSON плейлиста" : @"Import Playlist JSON";
+    self.exportLibraryJSONButton.toolTip = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Вся доступная медиатека без ограничения количества. API-ключ не нужен; JSON можно передать бесплатному AI или своему агенту." : @"Export the entire readable library without a track limit. No API key needed; use any free AI or your own agent.";
+    self.importLibraryJSONButton.toolTip = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Импортируйте ответ агента с playlistName и trackIDs. Сначала проверяются все идентификаторы." : @"Import the agent's reply with playlistName and trackIDs. All identifiers are checked before replacement.";
     
     if (self.statusLabel.stringValue.length == 0 ||
         [self.statusLabel.stringValue isEqualToString:@"Ready to scan for metadata issues"] ||
@@ -276,6 +307,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     self.startButton.enabled = (!self.isRunning && [self hasSelectedTags]);
     self.exportLibraryJSONButton.enabled = !self.isRunning;
     self.importLibraryJSONButton.enabled = !self.isRunning;
+    for (NSButton *checkbox in @[self.selectAllCheckbox, self.albumCheckbox, self.titleCheckbox, self.artistCheckbox,
+                                self.genreCheckbox, self.trackNumberCheckbox, self.lyricsCheckbox]) checkbox.enabled = !self.isRunning;
 }
 
 - (void)tagCheckboxClicked:(id)sender {
@@ -294,7 +327,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
     if (self.helpSheetWindow) return;
     NSArray *sections = @[
         IGHelpSectionMake(@"Choose what may change", @"Select only the metadata fields you want Syncrosa to repair: album, title, artist, genre, track number, lyrics, or artwork."),
-        IGHelpSectionMake(@"Use an external AI", @"Export Library JSON to share a clean catalog. Import a returned JSON selection, review it, name the playlist, and let Syncrosa create it in iTunes."),
+        IGHelpSectionMake(@"Use any AI without an API key", @"Export Library JSON includes every readable track, without the built-in AI sampling limit. Give it to a free assistant or your own paid agent with a mood and track count. Follow instructions and selectionExample inside the file; import the returned playlistName and trackIDs JSON. Audio files, file paths and keys are not exported. Syncrosa validates every ID against iTunes before asking to replace a playlist."),
         IGHelpSectionMake(@"Safe processing", @"Tracks are handled one at a time. A locked or unreadable item is skipped and reported without stopping the rest of the job.")
     ];
     self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"iTunes Media Fixer"
@@ -510,7 +543,9 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
                                       ([[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"] ?: @""), @"appVersion",
                                       [NSNumber numberWithDouble:[[NSDate date] timeIntervalSince1970]], @"exportedAt",
                                       [NSNumber numberWithUnsignedInteger:[jsonTracks count]], @"trackCount",
-                                      @"Ask an external AI agent to return JSON with either {\"playlistName\":\"Name\",\"persistentIDs\":[\"...\"]} or {\"playlistName\":\"Name\",\"tracks\":[{\"persistentID\":\"...\"}]}.", @"instructions",
+                                      [NSNumber numberWithInteger:trackCount], @"libraryTrackCount",
+                                      IGPlaylistJSONAgentInstructions(), @"instructions",
+                                      [NSDictionary dictionaryWithObjectsAndKeys:@"My Playlist", @"playlistName", [[jsonTracks subarrayWithRange:NSMakeRange(0, MIN((NSUInteger)2, [jsonTracks count]))] valueForKey:@"id"], @"trackIDs", nil], @"selectionExample",
                                       jsonTracks, @"tracks",
                                       nil];
 
@@ -532,7 +567,8 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
                 return;
             }
 
-            NSString *message = [NSString stringWithFormat:@"Exported %lu tracks to JSON.", (unsigned long)[jsonTracks count]];
+            NSString *message = [NSString stringWithFormat:@"Exported %lu readable tracks of %ld to JSON.%@", (unsigned long)[jsonTracks count], (long)trackCount,
+                                 [jsonTracks count] < (NSUInteger)trackCount ? @" Some entries could not be read; check iTunes and export again." : @""];
             [self log:message];
             [self finishLibraryJSONOperationWithStatus:message error:NO];
         }];
@@ -578,6 +614,11 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
         [self showSimpleAlertWithTitle:@"Import JSON" message:[NSString stringWithFormat:@"Could not parse JSON: %@", [jsonError localizedDescription] ?: @"unknown error"]];
         return;
     }
+    NSString *selectionError = IGPlaylistJSONSelectionValidationError(json, nil);
+    if (selectionError) {
+        [self showSimpleAlertWithTitle:@"Import JSON" message:selectionError];
+        return;
+    }
     NSArray *requestedIDs = IGPlaylistJSONPersistentIDsFromJSONObject(json);
     if ([requestedIDs count] == 0) {
         [self showSimpleAlertWithTitle:@"Import JSON" message:@"This file does not contain readable iTunes persistent IDs."];
@@ -620,6 +661,13 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
             }
         }
 
+        NSString *validationError = IGPlaylistJSONSelectionValidationError(json, availableIDs);
+        if (validationError) {
+            [self finishLibraryJSONOperationWithStatus:validationError error:YES];
+            [self showSimpleAlertWithTitle:@"Import JSON" message:validationError];
+            return;
+        }
+
         NSMutableArray *matchedIDs = [NSMutableArray array];
         for (NSString *pid in requestedIDs) {
             if ([availableIDs containsObject:pid]) {
@@ -653,18 +701,18 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
         [self log:[NSString stringWithFormat:@"Creating playlist '%@' from JSON selection...", playlistName]];
 
         [[IGiTunesService sharedService] createPlaylistWithName:playlistName persistentIDs:matchedIDs completion:^(NSInteger addedCount) {
-            NSString *message = [NSString stringWithFormat:@"Created playlist '%@' with %ld tracks.", playlistName, (long)addedCount];
+            NSString *message = [NSString stringWithFormat:@"Playlist '%@': added %ld of %lu tracks.", playlistName, (long)addedCount, (unsigned long)[matchedIDs count]];
             if (addedCount <= 0) {
                 message = @"iTunes did not add any tracks to the playlist.";
             }
             [self log:message];
-            [self finishLibraryJSONOperationWithStatus:message error:(addedCount <= 0)];
+            [self finishLibraryJSONOperationWithStatus:message error:(addedCount != (NSInteger)[matchedIDs count])];
         }];
     }];
 }
 
 - (void)startClicked:(id)sender {
-    if (![self hasSelectedTags]) {
+    if (self.isRunning || ![self hasSelectedTags]) {
         return;
     }
     if (![self prepareITunesForUserAction:@"iTunes Media Fixer"]) {
@@ -680,6 +728,9 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
                                   (long)self.lyricsCheckbox.state]];
 
     self.isRunning = YES;
+    self.mergeChangedCount = 0;
+    self.mergeErrorCount = 0;
+    self.mergeChangedIDs = [NSMutableSet set];
     [self updateStartButtonState];
     self.statusLabel.stringValue = @"Checking iTunes library...";
 
@@ -701,6 +752,11 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
             return;
         }
 
+        if (self.albumCheckbox.state != NSOnState) {
+            [self log:@"Album repair is not selected. Keeping existing album tags."];
+            [self runMetadataPhase];
+            return;
+        }
         [self log:@"Phase 1: Scanning for split albums..."];
         self.statusLabel.stringValue = @"Scanning for merge candidates...";
         self.progressIndicator.indeterminate = YES;
@@ -709,7 +765,23 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
         [[IGMediaFixerManager sharedManager] getMergeCandidatesWithCompletion:^(NSArray *candidates) {
             if (candidates.count > 0) {
                 [self log:[NSString stringWithFormat:@"Found %ld split albums to merge.", (long)candidates.count]];
-                [self runMergePhase:candidates];
+                [self.progressIndicator stopAnimation:nil];
+                NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+                [alert setMessageText:@"Review Album Merges"];
+                NSMutableArray *examples = [NSMutableArray array];
+                for (NSDictionary *candidate in candidates) {
+                    for (NSDictionary *target in candidate[@"targets"]) {
+                        if ([examples count] < 8) [examples addObject:[NSString stringWithFormat:@"%@ → %@", target[@"alb"], candidate[@"main"]]];
+                    }
+                }
+                [alert setInformativeText:[NSString stringWithFormat:@"Missing-field repair keeps your existing tags. Merging all %lu album groups will replace existing album names.\n\nExamples (up to 8):\n%@", (unsigned long)[candidates count], [examples componentsJoinedByString:@"\n"]]];
+                [alert addButtonWithTitle:@"Keep Existing Albums"];
+                [alert addButtonWithTitle:@"Merge All Album Groups"];
+                if ([alert runModal] == NSAlertSecondButtonReturn) [self runMergePhase:candidates];
+                else {
+                    [self log:@"Kept existing album tags. Proceeding to missing-field repair."];
+                    [self runMetadataPhase];
+                }
             } else {
                 [self log:@"No split albums found. Proceeding to metadata check."];
                 [self runMetadataPhase];
@@ -739,9 +811,18 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
             for (NSDictionary *t in targets) {
                 @try {
                     NSString *pid = t[@"pid"];
-                    NSString *script = [NSString stringWithFormat:@"tell application \"iTunes\" to set album of (some track of library playlist 1 whose persistent ID is %@) to %@", IGFixerAppleScriptLiteral(pid), mainLiteral];
-                    [service runAppleScriptNamed:@"mediaFixer.mergeAlbum" source:script];
+                    NSString *script = [NSString stringWithFormat:@"tell application \"iTunes\"\ntry\nset t to (some track of library playlist 1 whose persistent ID is %@)\nif album of t is not %@ then return \"SKIPPED\"\nset album of t to %@\nreturn \"OK\"\non error\nreturn \"ERROR\"\nend try\nend tell", IGFixerAppleScriptLiteral(pid), IGFixerAppleScriptLiteral(t[@"alb"]), mainLiteral];
+                    NSString *result = [service runAppleScriptNamed:@"mediaFixer.mergeAlbum" source:script];
+                    if ([result isEqualToString:@"OK"]) {
+                        [self.mergeChangedIDs addObject:pid];
+                        self.mergeChangedCount = [self.mergeChangedIDs count];
+                    }
+                    else if (![result isEqualToString:@"SKIPPED"]) {
+                        self.mergeErrorCount++;
+                        [self log:[NSString stringWithFormat:@"Could not merge track %@ into %@.", pid, main]];
+                    }
                 } @catch (NSException *ex) {
+                    self.mergeErrorCount++;
                     NSLog(@"Error merging split album: %@", ex);
                 }
             }
@@ -750,7 +831,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.progressIndicator.doubleValue = processed;
             });
-            [self log:[NSString stringWithFormat:@"Merged variants into: %@", main]];
+            [self log:[NSString stringWithFormat:@"Finished merge attempts for: %@", main]];
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -761,7 +842,7 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
 }
 
 - (void)runMetadataPhase {
-    [self log:@"Phase 2: Fetching missing metadata..."];
+    [self log:@"Phase 2: Repairing missing fields. Existing tags and lyrics are preserved."];
     
     NSDictionary *options = @{
         @"album": @(self.albumCheckbox.state == NSOnState),
@@ -776,16 +857,23 @@ static NSString *IGFixerAppleScriptLiteral(NSString *value) {
         self.progressIndicator.maxValue = total;
         self.progressIndicator.doubleValue = current;
         self.statusLabel.stringValue = [NSString stringWithFormat:@"Processing track %ld of %ld...", (long)current, (long)total];
-    } completion:^{
-        self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"done"];
-        [self log:@"All metadata tasks finished."];
+    } reportCompletion:^(NSDictionary *report) {
+        NSInteger errors = [report[@"errors"] integerValue] + self.mergeErrorCount;
+        NSString *summary = [NSString stringWithFormat:@"Changed %@ · Skipped %@ · No match %@ · Errors %@",
+                             report[@"changed"], report[@"skipped"], report[@"noMatch"], @(errors)];
+        self.statusLabel.stringValue = summary;
+        [self log:summary];
+        if (self.mergeChangedCount > 0 || self.mergeErrorCount > 0) [self log:[NSString stringWithFormat:@"Album merge: %ld changed, %ld errors.", (long)self.mergeChangedCount, (long)self.mergeErrorCount]];
+        if ([report[@"onlyLocal"] boolValue]) [self log:@"Only Local Mode: online metadata and lyrics lookups were skipped."];
+        for (NSString *message in report[@"errorMessages"]) [self log:message];
+        IGFixerRecordMetadataHistory(report, summary, self.mergeChangedIDs, self.mergeErrorCount);
         self.isRunning = NO;
         [self updateStartButtonState];
         [self.progressIndicator stopAnimation:nil];
         self.progressIndicator.indeterminate = NO;
         self.progressIndicator.doubleValue = self.progressIndicator.maxValue;
         
-        [IGNotificationView showInView:self.view message:[[IGLocalizationService sharedService] t:@"done"] isError:NO];
+        [IGNotificationView showInView:self.view message:summary isError:(errors > 0)];
     }];
 }
 
