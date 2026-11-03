@@ -1,3 +1,4 @@
+#import "IGOperationActivity.h"
 #import "IGSettingsViewController.h"
 #import "IGAIService.h"
 #import "IGMainWindowController.h"
@@ -690,18 +691,15 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     NSString *support = [self applicationSupportSyncrosaPath];
     NSString *backups = [support stringByAppendingPathComponent:@"Backups"];
     NSString *history = [self operationHistoryPath];
-    NSString *activePath = [support stringByAppendingPathComponent:@"active-operation.plist"];
-    NSDictionary *active = [NSDictionary dictionaryWithContentsOfFile:activePath];
-    NSString *activeText = @"No interrupted operation marker found.";
-    if ([active isKindOfClass:[NSDictionary class]] && [active objectForKey:@"title"]) {
-        NSDate *date = [NSDate dateWithTimeIntervalSince1970:[[active objectForKey:@"startedAt"] doubleValue]];
-        activeText = [NSString stringWithFormat:@"%@\nTool: %@\nStarted: %@\nAffected: %@\nBackup: %@",
-                      [active objectForKey:@"title"] ?: @"",
-                      [active objectForKey:@"tool"] ?: @"",
-                      date ?: [NSDate date],
-                      [active objectForKey:@"affectedCount"] ?: @0,
-                      [active objectForKey:@"backupPath"] ?: @""];
+    IGOperationActivity *recovery = [IGOperationActivity sharedActivity];
+    [recovery reloadRecoveryMarkers];
+    NSMutableArray *recoveryDescriptions = [NSMutableArray array];
+    for (NSDictionary *marker in recovery.recoveryMarkers) {
+        [recoveryDescriptions addObject:[NSString stringWithFormat:@"%@ — %@\nAffected: %@\nBackup: %@",
+                                          marker[@"tool"], marker[@"title"], marker[@"affectedCount"], marker[@"backupPath"]]];
     }
+    [recoveryDescriptions addObjectsFromArray:recovery.recoveryWarnings];
+    NSString *activeText = [recoveryDescriptions count] > 0 ? [recoveryDescriptions componentsJoinedByString:@"\n\n"] : @"No interrupted operation marker found.";
     NSString *text = [NSString stringWithFormat:
                       @"Interrupted operations:\n"
                       "%@\n\n"

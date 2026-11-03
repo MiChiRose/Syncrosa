@@ -468,10 +468,11 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 - (void)exportClicked:(id)sender {
     if (self.isExporting) {
         self.shouldCancelExport = YES;
+        [[IGUSBExportService sharedService] cancel];
         self.exportButton.enabled = NO;
         self.statusLabel.stringValue = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
-            @"Остановка после текущего файла..." :
-            @"Stopping after the current file...";
+            @"Остановка с сохранением прогресса..." :
+            @"Stopping and saving progress...";
         return;
     }
 
@@ -498,36 +499,7 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
         return;
     }
 
-    // Calculate size
-    int64_t totalBytes = 0;
-    for (NSDictionary *t in self.currentPlaylistTracks) {
-        totalBytes += [t[@"size"] longLongValue];
-    }
-
     IGExportMode mode = (IGExportMode)[self.modePopup indexOfSelectedItem];
-
-    // Check space
-    int64_t safetyMargin = MAX((int64_t)(64 * 1024 * 1024), drive.freeSpace / 100);
-    if (drive.freeSpace < totalBytes + safetyMargin && mode == IGExportModeAll) {
-        NSAlert *alert = [[NSAlert alloc] init];
-        [alert setMessageText:[[IGLocalizationService sharedService] t:@"disk_full_title"]];
-
-        NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:totalBytes countStyle:NSByteCountFormatterCountStyleFile];
-        NSString *freeStr = [NSByteCountFormatter stringFromByteCount:drive.freeSpace countStyle:NSByteCountFormatterCountStyleFile];
-
-        [alert setInformativeText:[NSString stringWithFormat:[[IGLocalizationService sharedService] t:@"disk_full_msg"],
-                                 drive.name, (int)self.currentPlaylistTracks.count, sizeStr, freeStr]];
-        [alert addButtonWithTitle:[[IGLocalizationService sharedService] t:@"fit_available"]];
-        [alert addButtonWithTitle:[[IGLocalizationService sharedService] t:@"cancel"]];
-
-        if ([alert runModal] == NSAlertFirstButtonReturn) {
-            [self.modePopup selectItemAtIndex:IGExportModeFit];
-            mode = IGExportModeFit;
-        } else {
-            [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
-            return;
-        }
-    }
 
     self.isExporting = YES;
     self.shouldCancelExport = NO;
@@ -546,374 +518,32 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
 }
 
 - (void)runExportProcessToDrive:(IGUSBDrive *)drive mode:(IGExportMode)mode {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSArray *tracksToCopy = self.currentPlaylistTracks;
-
-        if (mode == IGExportModeFit) {
-            // Shuffle
-            NSMutableArray *shuffled = [self.currentPlaylistTracks mutableCopy];
-            for (NSUInteger i = shuffled.count; i > 1; i--) {
-                [shuffled exchangeObjectAtIndex:i - 1 withObjectAtIndex:arc4random_uniform((uint32_t)i)];
-            }
-
-            // Filter to fit available space
-            NSMutableArray *filtered = [NSMutableArray array];
-            int64_t accumulatedSize = 0;
-            int64_t safetyMargin = MAX((int64_t)(64 * 1024 * 1024), drive.freeSpace / 100);
-            int64_t usableSpace = MAX((int64_t)0, drive.freeSpace - safetyMargin);
-            for (NSDictionary *t in shuffled) {
-                int64_t fileSize = [t[@"size"] longLongValue];
-                if (accumulatedSize + fileSize < usableSpace) {
-                    accumulatedSize += fileSize;
-                    [filtered addObject:t];
-                }
-            }
-            tracksToCopy = filtered;
-        }
-
-        NSInteger copiedCount = 0;
-        NSInteger skippedDRM = 0;
-        NSInteger totalTracks = tracksToCopy.count;
-        int64_t totalBytesCopied = 0;
-        NSMutableArray *copiedEntries = [NSMutableArray array];
-
-        if (totalTracks == 0) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                NSString *message = [[IGLocalizationService sharedService].selectedLanguage isEqualToString:@"ru"] ?
-                    @"Нет треков, которые помещаются на выбранный накопитель." :
-                    @"No tracks fit on the selected drive.";
-                [self finishExportWithError:message];
-            });
-            return;
-        }
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self.progressIndicator.maxValue = totalTracks;
-            [[IGOperationActivity sharedActivity] updateProgress:0.0 forIdentifier:IGOperationActivityUSBExportIdentifier];
-        });
-
-        NSFileManager *fm = [NSFileManager defaultManager];
-        NSString *playlistName = @"Syncrosa Playlist";
-        NSInteger playlistIndex = [self.playlistPopup indexOfSelectedItem];
-        if (playlistIndex >= 0 && playlistIndex < self.playlists.count) {
-            NSString *candidate = [[self.playlists objectAtIndex:playlistIndex] objectForKey:@"name"];
-            if (candidate.length > 0) playlistName = candidate;
-        }
-        NSURL *exportFolder = [drive.volumeURL URLByAppendingPathComponent:[self sanitizedFolderName:playlistName]];
-        NSError *folderError = nil;
-        if (![fm createDirectoryAtURL:exportFolder withIntermediateDirectories:YES attributes:nil error:&folderError]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self finishExportWithError:[NSString stringWithFormat:@"Could not create playlist folder: %@", folderError.localizedDescription ?: @""]];
-            });
-            return;
-        }
-
-        for (NSInteger i = 0; i < totalTracks; i++) {
-            if (self.shouldCancelExport) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self finishExportCanceledWithCopiedCount:copiedCount totalRequested:totalTracks skippedDRM:skippedDRM bytes:totalBytesCopied];
-                });
-                return;
-            }
-
-            // Check if drive is still mounted
-            if (![fm fileExistsAtPath:drive.volumeURL.path]) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self finishExportWithError:[[IGLocalizationService sharedService] t:@"drive_disconnected"]];
-                });
-                return;
-            }
-
-            NSDictionary *track = tracksToCopy[i];
-            NSString *filePath = track[@"path"];
-            int64_t fileSize = [track[@"size"] longLongValue];
-
-            dispatch_async(dispatch_get_main_queue(), ^{
-                self.progressIndicator.doubleValue = i;
-                self.statusLabel.stringValue = [NSString stringWithFormat:[[IGLocalizationService sharedService] t:@"exporting"], (int)(i + 1), (int)totalTracks];
-                [[IGOperationActivity sharedActivity] updateProgress:(double)i / (double)MAX((NSInteger)1, totalTracks)
-                                                       forIdentifier:IGOperationActivityUSBExportIdentifier];
-            });
-
-            // Check DRM (extension .m4p)
-            if ([[filePath pathExtension].lowercaseString isEqualToString:@"m4p"]) {
-                skippedDRM++;
-                continue;
-            }
-
-            NSURL *sourceURL = [NSURL fileURLWithPath:filePath];
-
-            // Build unique destination filename to prevent collision
-            NSString *sanitizedArtist = (self.ipodSafeButton.state == NSOnState) ? [self iPodSafeFilename:track[@"artist"]] : [self sanitizeFilename:track[@"artist"]];
-            NSString *sanitizedTitle = (self.ipodSafeButton.state == NSOnState) ? [self iPodSafeFilename:track[@"name"]] : [self sanitizeFilename:track[@"name"]];
-            NSString *ext = [filePath pathExtension];
-
-            NSString *destName = [NSString stringWithFormat:@"%@ - %@.%@", sanitizedArtist, sanitizedTitle, ext];
-            NSURL *destURL = [exportFolder URLByAppendingPathComponent:destName];
-
-            NSInteger suffix = 2;
-            while ([fm fileExistsAtPath:destURL.path]) {
-                destName = [NSString stringWithFormat:@"%@ - %@_%ld.%@", sanitizedArtist, sanitizedTitle, (long)suffix, ext];
-                destURL = [exportFolder URLByAppendingPathComponent:destName];
-                suffix++;
-            }
-
-            NSError *copyError = nil;
-            __block int64_t currentFileBytes = 0;
-            BOOL success = [self copyFileFrom:sourceURL
-                                           to:destURL
-                                  cancelBlock:^BOOL{
-                                      return self.shouldCancelExport;
-                                  }
-                                progressBlock:^(int64_t copiedBytes) {
-                                    currentFileBytes = copiedBytes;
-                                    double fraction = fileSize > 0 ? MIN(0.99, (double)copiedBytes / (double)fileSize) : 0;
-                                    NSString *copiedStr = [NSByteCountFormatter stringFromByteCount:copiedBytes countStyle:NSByteCountFormatterCountStyleFile];
-                                    NSString *fileStr = [NSByteCountFormatter stringFromByteCount:fileSize countStyle:NSByteCountFormatterCountStyleFile];
-                                    dispatch_async(dispatch_get_main_queue(), ^{
-                                        self.progressIndicator.doubleValue = (double)i + fraction;
-                                        [[IGOperationActivity sharedActivity] updateProgress:((double)i + fraction) / (double)MAX((NSInteger)1, totalTracks)
-                                                                               forIdentifier:IGOperationActivityUSBExportIdentifier];
-                                        self.statusLabel.stringValue = [NSString stringWithFormat:@"Copying %ld/%ld: %@ / %@",
-                                                                        (long)(i + 1),
-                                                                        (long)totalTracks,
-                                                                        copiedStr,
-                                                                        fileStr];
-                                    });
-                                }
-                                        error:&copyError];
-            if (success) {
-                copiedCount++;
-                totalBytesCopied += fileSize;
-                [copiedEntries addObject:destURL.lastPathComponent ?: destName];
-            } else {
-                if (currentFileBytes > 0 && [fm fileExistsAtPath:destURL.path]) {
-                    [fm removeItemAtURL:destURL error:nil];
-                }
-                if (self.shouldCancelExport) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self finishExportCanceledWithCopiedCount:copiedCount totalRequested:totalTracks skippedDRM:skippedDRM bytes:totalBytesCopied];
-                    });
-                    return;
-                }
-                NSLog(@"Failed to copy %@: %@", destName, copyError.localizedDescription);
-            }
-        }
-
-        if (copiedEntries.count > 0 && (self.m3uButton.state == NSOnState || self.m3u8Button.state == NSOnState)) {
-            [self writePlaylistFiles:copiedEntries playlistName:playlistName folderURL:exportFolder];
-        }
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self finishExportWithCopiedCount:copiedCount totalRequested:totalTracks skippedDRM:skippedDRM bytes:totalBytesCopied];
-        });
-    });
-}
-
-- (NSString *)sanitizeFilename:(NSString *)name {
-    NSCharacterSet *invalidCharacters = [NSCharacterSet characterSetWithCharactersInString:@"/\\?%*|\"<>:"];
-    NSArray *parts = [name componentsSeparatedByCharactersInSet:invalidCharacters];
-    return [parts componentsJoinedByString:@"_"];
-}
-
-- (NSString *)sanitizedFolderName:(NSString *)name {
-    NSString *clean = [[self sanitizeFilename:name ?: @""] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    return clean.length > 0 ? clean : @"Syncrosa Playlist";
-}
-
-- (NSString *)iPodSafeFilename:(NSString *)name {
-    NSMutableString *value = [[name ?: @"Track" mutableCopy] autorelease];
-    CFStringTransform((CFMutableStringRef)value, NULL, kCFStringTransformStripCombiningMarks, NO);
-    NSCharacterSet *allowed = [[NSCharacterSet alphanumericCharacterSet] mutableCopy];
-    [(NSMutableCharacterSet *)allowed addCharactersInString:@" ._-"];
-    NSMutableString *out = [NSMutableString string];
-    for (NSUInteger i = 0; i < value.length; i++) {
-        unichar ch = [value characterAtIndex:i];
-        if ([allowed characterIsMember:ch]) {
-            [out appendFormat:@"%C", ch];
-        } else {
-            [out appendString:@"_"];
-        }
-    }
-#if !__has_feature(objc_arc)
-    [allowed release];
-#endif
-    while ([out rangeOfString:@"__"].location != NSNotFound) {
-        [out replaceOccurrencesOfString:@"__" withString:@"_" options:0 range:NSMakeRange(0, out.length)];
-    }
-    NSString *trimmed = [out stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._-\n\r\t"]];
-    if (trimmed.length == 0) trimmed = @"Track";
-    if (trimmed.length > 80) trimmed = [trimmed substringToIndex:80];
-    return [self sanitizeFilename:trimmed];
-}
-
-- (void)writePlaylistFiles:(NSArray *)entries playlistName:(NSString *)playlistName folderURL:(NSURL *)folderURL {
-    if (entries.count == 0) return;
-    NSString *base = [self sanitizedFolderName:playlistName];
-    NSString *body = [NSString stringWithFormat:@"#EXTM3U\n%@\n", [entries componentsJoinedByString:@"\n"]];
-    if (self.m3u8Button.state == NSOnState) {
-        [body writeToURL:[folderURL URLByAppendingPathComponent:[base stringByAppendingPathExtension:@"m3u8"]]
-              atomically:YES
-                encoding:NSUTF8StringEncoding
-                   error:nil];
-    }
-    if (self.m3uButton.state == NSOnState) {
-        [body writeToURL:[folderURL URLByAppendingPathComponent:[base stringByAppendingPathExtension:@"m3u"]]
-              atomically:YES
-                encoding:NSUTF8StringEncoding
-                   error:nil];
-    }
-}
-
-- (BOOL)copyFileFrom:(NSURL *)source
-                  to:(NSURL *)destination
-         cancelBlock:(BOOL(^)(void))cancelBlock
-       progressBlock:(void(^)(int64_t copiedBytes))progressBlock
-               error:(NSError **)outError {
-    NSFileHandle *srcHandle = [NSFileHandle fileHandleForReadingFromURL:source error:outError];
-    if (!srcHandle) return NO;
-
-    if (![[NSFileManager defaultManager] createFileAtPath:destination.path contents:nil attributes:nil]) {
-        [srcHandle closeFile];
-        if (outError) {
-            *outError = [NSError errorWithDomain:@"IGCopyError" code:-3
-                                        userInfo:@{NSLocalizedDescriptionKey: @"Could not create destination file"}];
-        }
-        return NO;
-    }
-    NSFileHandle *dstHandle = [NSFileHandle fileHandleForWritingToURL:destination error:outError];
-    if (!dstHandle) {
-        [srcHandle closeFile];
-        [[NSFileManager defaultManager] removeItemAtURL:destination error:nil];
-        return NO;
-    }
-
-    NSUInteger chunkSize = 512 * 1024; // Gentle chunks for old HDD/USB media
-    int64_t copiedBytes = 0;
-    @try {
-        while (YES) {
-            if (cancelBlock && cancelBlock()) {
-                if (outError) {
-                    *outError = [NSError errorWithDomain:@"IGCopyError" code:-2 userInfo:@{NSLocalizedDescriptionKey: @"Copy canceled"}];
-                }
-                [srcHandle closeFile];
-                [dstHandle closeFile];
-                [[NSFileManager defaultManager] removeItemAtURL:destination error:nil];
-                return NO;
-            }
-            NSData *data = [srcHandle readDataOfLength:chunkSize];
-            if (data.length == 0) break;
-            [dstHandle writeData:data];
-            copiedBytes += data.length;
-            if (progressBlock) {
-                progressBlock(copiedBytes);
-            }
-            if ([[NSUserDefaults standardUserDefaults] boolForKey:@"hdd_safe_mode"] &&
-                copiedBytes > 0 &&
-                copiedBytes % (16 * 1024 * 1024) == 0) {
-                [NSThread sleepForTimeInterval:0.005];
-            }
-        }
-    } @catch (NSException *e) {
-        [srcHandle closeFile];
-        [dstHandle closeFile];
-        if (outError) {
-            *outError = [NSError errorWithDomain:@"IGCopyError" code:-1
-                                        userInfo:@{NSLocalizedDescriptionKey: e.reason ?: @"File writing crashed"}];
-        }
-        return NO;
-    }
-
-    [srcHandle closeFile];
-    [dstHandle closeFile];
-    return YES;
-}
-
-- (void)finishExportWithError:(NSString *)errorMsg {
-    [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
-    self.isExporting = NO;
-    self.shouldCancelExport = NO;
-    self.progressIndicator.hidden = YES;
-    self.statusLabel.stringValue = errorMsg;
-
-    [self.drivePopup setEnabled:YES];
-    [self.playlistPopup setEnabled:YES];
-    [self.modePopup setEnabled:YES];
-    [self.m3uButton setEnabled:YES];
-    [self.m3u8Button setEnabled:YES];
-    [self.ipodSafeButton setEnabled:YES];
-    self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
-    [self updateExportButtonState];
-
-    [IGNotificationView showInView:self.view message:errorMsg isError:YES];
-}
-
-- (void)finishExportCanceledWithCopiedCount:(NSInteger)copied
-                             totalRequested:(NSInteger)total
-                                 skippedDRM:(NSInteger)skippedDRM
-                                      bytes:(int64_t)bytes {
-    [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
-    self.isExporting = NO;
-    self.shouldCancelExport = NO;
-    self.progressIndicator.hidden = YES;
-
-    [self.drivePopup setEnabled:YES];
-    [self.playlistPopup setEnabled:YES];
-    [self.modePopup setEnabled:YES];
-    [self.m3uButton setEnabled:YES];
-    [self.m3u8Button setEnabled:YES];
-    [self.ipodSafeButton setEnabled:YES];
-    self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
-    [self updateExportButtonState];
-    [self reloadDrives];
-
-    NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:bytes countStyle:NSByteCountFormatterCountStyleFile];
-    NSString *message = [NSString stringWithFormat:@"Export canceled. Copied %ld of %ld tracks (%@). Skipped DRM: %ld.",
-                         (long)copied,
-                         (long)total,
-                         sizeStr,
-                         (long)skippedDRM];
-    self.statusLabel.stringValue = message;
-    [IGNotificationView showInView:self.view message:@"Export canceled." isError:NO];
-}
-
-- (void)finishExportWithCopiedCount:(NSInteger)copied
-                      totalRequested:(NSInteger)total
-                          skippedDRM:(NSInteger)skippedDRM
-                               bytes:(int64_t)bytes {
-    [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
-    self.isExporting = NO;
-    self.shouldCancelExport = NO;
-    self.progressIndicator.hidden = YES;
-
-    [self.drivePopup setEnabled:YES];
-    [self.playlistPopup setEnabled:YES];
-    [self.modePopup setEnabled:YES];
-    [self.m3uButton setEnabled:YES];
-    [self.m3u8Button setEnabled:YES];
-    [self.ipodSafeButton setEnabled:YES];
-    self.exportButton.title = [[IGLocalizationService sharedService] t:@"export_button"];
-    [self updateExportButtonState];
-    [self reloadDrives]; // Refresh free space info
-
-    IGLocalizationService *lang = [IGLocalizationService sharedService];
-    NSString *sizeStr = [NSByteCountFormatter stringFromByteCount:bytes countStyle:NSByteCountFormatterCountStyleFile];
-    BOOL russian = [lang.selectedLanguage isEqualToString:@"ru"];
-    NSString *message = nil;
-    if (skippedDRM > 0 || copied < total) {
-        message = russian ?
-            [NSString stringWithFormat:@"Экспорт завершён частично: скопировано %ld из %ld, пропущено DRM: %ld, записано %@.",
-             (long)copied, (long)total, (long)skippedDRM, sizeStr] :
-            [NSString stringWithFormat:@"Export completed with skipped files: %ld of %ld tracks copied, %ld DRM-protected skipped, %@ written.",
-             (long)copied, (long)total, (long)skippedDRM, sizeStr];
-    } else {
-        message = russian ?
-            [NSString stringWithFormat:@"Экспорт завершён: скопировано %ld треков, записано %@.", (long)copied, sizeStr] :
-            [NSString stringWithFormat:@"Export completed: %ld tracks copied, %@ written.", (long)copied, sizeStr];
-    }
-
-    self.statusLabel.stringValue = message;
-    [IGNotificationView showInView:self.view message:message isError:NO];
+    NSInteger index=[self.playlistPopup indexOfSelectedItem];
+    NSString *playlistName=(index>=0&&index<(NSInteger)[self.playlists count])?self.playlists[index][@"name"]:@"Syncrosa Playlist";
+    NSDictionary *options=@{@"fitAvailable":@(mode==IGExportModeFit),@"m3u":@(self.m3uButton.state==NSOnState),@"m3u8":@(self.m3u8Button.state==NSOnState),@"ipodSafeNames":@(self.ipodSafeButton.state==NSOnState)};
+    [[IGUSBExportService sharedService] exportTracks:self.currentPlaylistTracks destination:drive.volumeURL playlistName:playlistName options:options progress:^(NSDictionary *progress) {
+        NSInteger total=MAX((NSInteger)1,[progress[@"totalCount"] integerValue]);
+        NSInteger completed=[progress[@"completedCount"] integerValue];
+        BOOL russian=[[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+        BOOL checking=[progress[@"phase"] isEqualToString:@"checking"];
+        self.progressIndicator.maxValue=total;
+        self.progressIndicator.doubleValue=completed;
+        [[IGOperationActivity sharedActivity] updateProgress:(double)completed/(double)total forIdentifier:IGOperationActivityUSBExportIdentifier];
+        self.statusLabel.stringValue=[NSString stringWithFormat:russian?(checking?@"Проверка %ld/%ld: %@":@"Копирование: %ld/%ld · %@"):(checking?@"Checking %ld/%ld: %@":@"Copying: %ld/%ld · %@"),(long)(checking?[progress[@"currentTrack"] integerValue]:completed),(long)total,progress[@"currentTrackName"]?:@""];
+    } completion:^(NSDictionary *result) {
+        [[IGOperationActivity sharedActivity] finishOperationWithIdentifier:IGOperationActivityUSBExportIdentifier];
+        self.isExporting=NO;self.shouldCancelExport=NO;self.progressIndicator.hidden=YES;
+        self.drivePopup.enabled=YES;self.playlistPopup.enabled=YES;self.modePopup.enabled=YES;
+        self.exportButton.title=[[IGLocalizationService sharedService] t:@"export_button"];
+        [self updateExportButtonState];[self reloadDrives];
+        BOOL russian=[[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+        NSString *bytes=[NSByteCountFormatter stringFromByteCount:[result[@"totalBytesCopied"] longLongValue] countStyle:NSByteCountFormatterCountStyleFile];
+        NSString *summary=[NSString stringWithFormat:russian?@"Новых копий: %@ · Уже перенесено: %@ · Недоступно: %@ · DRM: %@ · Не вместилось: %@ · Записано %@":@"New copies: %@ · Already exported: %@ · Unavailable: %@ · DRM: %@ · Did not fit: %@ · Written %@",result[@"copiedCount"],result[@"existingCount"],result[@"skippedMissing"],result[@"skippedDRM"],result[@"skippedSpace"],bytes];
+        if(![result[@"status"] isEqualToString:@"completed"])summary=[summary stringByAppendingString:russian?@". Продолжите через Центр восстановления.":@". Continue from Recovery Center."];
+        self.statusLabel.stringValue=summary;
+        self.statusLabel.toolTip=[result[@"errors"] componentsJoinedByString:@"\n"];
+        [IGNotificationView showInView:self.view message:summary isError:[result[@"errors"] count]>0];
+    }];
 }
 
 - (void)helpClicked:(id)sender {
@@ -921,7 +551,8 @@ typedef NS_ENUM(NSInteger, IGExportMode) {
     if (self.helpSheetWindow) return;
     NSArray *sections = @[
         IGHelpSectionMake(@"Choose the destination", @"Select a connected drive and an iTunes playlist. Syncrosa creates a folder named after that playlist and copies tracks inside it."),
-        IGHelpSectionMake(@"Choose a space policy", @"Copy All requires enough free space. Fit Available Space copies complete files until the safe capacity limit is reached. Optional M3U or M3U8 files preserve playback order."),
+        IGHelpSectionMake(@"Repeat or continue an export", @"Existing files are checked by content and reused. Only missing or changed tracks are copied; unrelated files and older copies are preserved. Recovery Center can continue a stopped export after you reconnect the same drive."),
+        IGHelpSectionMake(@"Choose a space policy", @"Only files still needing transfer count against free space. Fit Available Space saves one stable selection. Optional M3U or M3U8 files preserve playlist order, including completed tracks after cancellation."),
         IGHelpSectionMake(@"Older-device compatibility", @"iPod-safe names shorten and clean filenames for older iPods, car stereos, and FAT or exFAT drives. DRM-protected or unavailable local files are skipped and reported.")
     ];
     self.helpSheetWindow = [IGHelpSheetPresenter sheetWithTitle:@"USB Export"

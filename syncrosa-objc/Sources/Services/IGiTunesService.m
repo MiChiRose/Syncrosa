@@ -899,7 +899,7 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
             "                    set trackName to my textValue(name of t)\n"
             "                    set trackArtist to my textValue(artist of t)\n"
             "                    set trackSize to size of t\n"
-            "                    set output to output & trackName & tab & trackArtist & tab & my textValue(trackPath) & tab & trackSize & linefeed\n"
+            "                    set output to output & trackName & tab & trackArtist & tab & my textValue(trackPath) & tab & trackSize & tab & (persistent ID of t as text) & linefeed\n"
             "                end if\n"
             "            end try\n"
             "        end repeat\n"
@@ -920,7 +920,8 @@ static BOOL IGApplicationIsRunning(NSString *appName) {
                         @"name": parts[0],
                         @"artist": parts[1],
                         @"path": parts[2],
-                        @"size": @([parts[3] longLongValue])
+                        @"size": @([parts[3] longLongValue]),
+                        @"persistentID": parts.count >= 5 ? parts[4] : @""
                     }];
                 }
             }

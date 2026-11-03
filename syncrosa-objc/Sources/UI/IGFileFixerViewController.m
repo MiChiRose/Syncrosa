@@ -1,3 +1,4 @@
+#import "IGOperationActivity.h"
 #import "IGFileFixerViewController.h"
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
@@ -139,17 +140,12 @@ static NSString *IGFileFixerBeginActiveOperation(NSString *tool, NSString *title
         @"affectedCount": @(affectedCount),
         @"backupPath": backupPath ?: @""
     };
-    NSString *path = [IGFileFixerSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
-    [marker writeToFile:path atomically:YES];
+    [[IGOperationActivity sharedActivity] saveRecoveryMarker:marker error:NULL];
     return identifier;
 }
 
 static void IGFileFixerFinishActiveOperation(NSString *identifier) {
-    NSString *path = [IGFileFixerSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
-    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:path];
-    if (!identifier || [[marker objectForKey:@"id"] isEqualToString:identifier]) {
-        [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
-    }
+    [[IGOperationActivity sharedActivity] finishRecoveryMarkerWithIdentifier:identifier error:NULL];
 }
 
 static BOOL IGFileFixerIsImportableMusicFile(NSURL *url) {

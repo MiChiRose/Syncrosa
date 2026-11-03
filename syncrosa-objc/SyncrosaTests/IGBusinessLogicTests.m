@@ -13,6 +13,36 @@
 #import "IGIPodCompatibilityService.h"
 #import "IGOperationActivity.h"
 #import "IGVideoFileMetadataService.h"
+#import "IGUSBService.h"
+#import <sys/file.h>
+#import <fcntl.h>
+#import <unistd.h>
+
+@interface IGUSBExportTestService : IGUSBExportService
+@property (nonatomic, assign) int64_t availableOverride;
+@property (nonatomic, assign) BOOL blockCapacityForPartial;
+@end
+@implementation IGUSBExportTestService
+- (instancetype)initWithJournalDirectory:(NSURL *)directory { self=[super initWithJournalDirectory:directory];if(self)self.availableOverride=-1;return self; }
+- (int64_t)availableBytesAtURL:(NSURL *)url {
+    if(self.blockCapacityForPartial)for(NSString *name in [[NSFileManager defaultManager] enumeratorAtPath:[url path]])if([[name lastPathComponent] hasPrefix:@".syncrosa-part-"])return 0;
+    return self.availableOverride>=0?self.availableOverride:[super availableBytesAtURL:url];
+}
+@end
+
+static NSURL *IGUSBTestFolder(void) {
+    NSURL *root=[NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:[@"syncrosa-usb-test-" stringByAppendingString:[[NSUUID UUID] UUIDString]]] isDirectory:YES];
+    for(NSString *name in @[@"sources",@"destination",@"journals",@"other"])[[NSFileManager defaultManager] createDirectoryAtURL:[root URLByAppendingPathComponent:name] withIntermediateDirectories:YES attributes:nil error:nil];
+    return root;
+}
+static NSDictionary *IGUSBTestTrack(NSURL *root,NSString *filename,NSString *title,NSData *data) {
+    NSURL *url=[[root URLByAppendingPathComponent:@"sources"] URLByAppendingPathComponent:filename];[data writeToURL:url atomically:YES];
+    return @{@"path":[url path],@"name":title,@"artist":@"Artist",@"size":@([data length])};
+}
+static NSArray *IGUSBTestMusicNames(NSURL *root) {
+    NSArray *names=[[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[root URLByAppendingPathComponent:@"destination/Mix"] path] error:nil];
+    NSMutableArray *music=[NSMutableArray array];for(NSString *name in names)if([[name pathExtension] isEqualToString:@"mp3"])[music addObject:name];return music;
+}
 
 /* Offline doubles keep repair regression tests away from the user's iTunes library. */
 @interface IGMetadataRepairTestLibrary : NSObject
@@ -57,6 +87,141 @@
 @interface IGBusinessLogicTests : XCTestCase @end
 
 @implementation IGBusinessLogicTests
+
+- (void)testUSBRepeatSkipsVerifiedFilesAndDetectsSameSizeChanges {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSDictionary *track=IGUSBTestTrack(root,@"source.mp3",@"Song",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+        IGUSBExportTestService *service=[[[IGUSBExportTestService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];
+        NSDictionary *first=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];
+        XCTAssertEqualObjects(first[@"status"],@"completed");XCTAssertEqualObjects(first[@"copiedCount"],@1);
+        service.availableOverride=0;
+        NSDictionary *repeat=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];
+        XCTAssertEqualObjects(repeat[@"status"],@"completed");XCTAssertEqualObjects(repeat[@"copiedCount"],@0);XCTAssertEqualObjects(repeat[@"existingCount"],@1);
+        NSDate *date=[[[NSFileManager defaultManager] attributesOfItemAtPath:track[@"path"] error:nil] objectForKey:NSFileModificationDate];
+        [[@"BBBB" dataUsingEncoding:NSUTF8StringEncoding] writeToFile:track[@"path"] atomically:YES];
+        [[NSFileManager defaultManager] setAttributes:@{NSFileModificationDate:date} ofItemAtPath:track[@"path"] error:nil];
+        service.availableOverride=-1;
+        NSDictionary *changed=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];
+        XCTAssertEqualObjects(changed[@"copiedCount"],@1);XCTAssertEqualObjects(changed[@"existingCount"],@0);XCTAssertEqual([IGUSBTestMusicNames(root) count],(NSUInteger)2);
+        XCTAssertEqualObjects([NSData dataWithContentsOfURL:[root URLByAppendingPathComponent:@"destination/Mix/Artist - Song.mp3"]],[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
+- (void)testUSBAdoptsLegacyCopiesAndPreservesUnrelatedPlaylistFiles {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSDictionary *track=IGUSBTestTrack(root,@"source.mp3",@"Song",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+        [[NSFileManager defaultManager] createDirectoryAtURL:[root URLByAppendingPathComponent:@"destination/Mix"] withIntermediateDirectories:NO attributes:nil error:nil];
+        [[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding] writeToURL:[root URLByAppendingPathComponent:@"destination/Mix/Artist - Song_2.mp3"] atomically:YES];
+        NSURL *userPlaylist=[root URLByAppendingPathComponent:@"destination/Mix/Mix.m3u8"];
+        [@"User playlist" writeToURL:userPlaylist atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        IGUSBExportService *service=[[[IGUSBExportService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];
+        NSDictionary *result=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{@"m3u8":@YES} progress:nil cancel:nil];
+        XCTAssertEqualObjects(result[@"status"],@"completed");XCTAssertEqualObjects(result[@"existingCount"],@1);XCTAssertEqualObjects(result[@"copiedCount"],@0);
+        XCTAssertEqualObjects([NSString stringWithContentsOfURL:userPlaylist encoding:NSUTF8StringEncoding error:nil],@"User playlist");
+        XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[[root URLByAppendingPathComponent:@"destination/Mix/Mix_2.m3u8"] path]]);
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
+- (void)testUSBCancelRestartAndOwnedPartialCleanupBeforeSpaceCheck {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSDictionary *first=IGUSBTestTrack(root,@"one.mp3",@"One",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+        NSMutableData *big=[NSMutableData dataWithLength:2*1024*1024];memset([big mutableBytes],42,[big length]);
+        NSDictionary *second=IGUSBTestTrack(root,@"two.mp3",@"Two",big);
+        IGUSBExportTestService *service=[[[IGUSBExportTestService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];
+        __block BOOL cancel=NO;
+        NSDictionary *stopped=[service performExportTracks:@[first,second] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{@"m3u8":@YES} progress:^(NSDictionary *progress){if([progress[@"currentTrackName"] isEqualToString:@"Artist - Two.mp3"]&&[progress[@"fileBytes"] longLongValue]>0)cancel=YES;} cancel:^BOOL{return cancel;}];
+        XCTAssertEqualObjects(stopped[@"status"],@"cancelled");XCTAssertEqualObjects(stopped[@"copiedCount"],@1);
+        NSString *partialPlaylist=[NSString stringWithContentsOfURL:[root URLByAppendingPathComponent:@"destination/Mix/Mix.m3u8"] encoding:NSUTF8StringEncoding error:nil];
+        XCTAssertEqualObjects(partialPlaylist,@"#EXTM3U\nArtist - One.mp3\n");
+        IGUSBExportTestService *restarted=[[[IGUSBExportTestService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];restarted.blockCapacityForPartial=YES;
+        NSArray *warnings=nil;NSArray *pending=[restarted pendingJobsWithWarnings:&warnings];XCTAssertEqual([pending count],(NSUInteger)1);XCTAssertEqual([warnings count],(NSUInteger)0);
+        NSURL *steps=[[root URLByAppendingPathComponent:@"journals"] URLByAppendingPathComponent:[NSString stringWithFormat:@"cocoa-%@.steps",stopped[@"jobID"]]];
+        unsigned char tail[]={0x7b,0xf0};[[NSData dataWithBytes:tail length:2] writeToURL:steps atomically:YES];
+        XCTAssertEqual([[restarted pendingJobsWithWarnings:&warnings] count],(NSUInteger)1);XCTAssertEqual([warnings count],(NSUInteger)0);
+        NSDictionary *finished=[restarted performResumeJobWithIdentifier:stopped[@"jobID"] destination:[root URLByAppendingPathComponent:@"destination"] progress:nil cancel:nil];
+        XCTAssertEqualObjects(finished[@"status"],@"completed");XCTAssertEqualObjects(finished[@"existingCount"],@1);XCTAssertEqualObjects(finished[@"copiedCount"],@1);XCTAssertEqual([IGUSBTestMusicNames(root) count],(NSUInteger)2);
+        for(NSString *name in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[root URLByAppendingPathComponent:@"destination/Mix"] path] error:nil])XCTAssertFalse([name hasPrefix:@".syncrosa-part-"]);
+        XCTAssertEqualObjects([NSString stringWithContentsOfURL:[root URLByAppendingPathComponent:@"destination/Mix/Mix.m3u8"] encoding:NSUTF8StringEncoding error:nil],@"#EXTM3U\nArtist - One.mp3\nArtist - Two.mp3\n");
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
+- (void)testUSBRejectsWrongRootAndCorruptManifestWithoutChangingFiles {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSDictionary *track=IGUSBTestTrack(root,@"source.mp3",@"Song",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+        IGUSBExportService *service=[[[IGUSBExportService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];
+        NSDictionary *stopped=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:^BOOL{return YES;}];
+        NSDictionary *wrong=[service performResumeJobWithIdentifier:stopped[@"jobID"] destination:[root URLByAppendingPathComponent:@"other"] progress:nil cancel:nil];
+        XCTAssertEqualObjects(wrong[@"status"],@"paused");XCTAssertEqualObjects(wrong[@"copiedCount"],@0);XCTAssertFalse([[NSFileManager defaultManager] fileExistsAtPath:[[root URLByAppendingPathComponent:@"other/Mix"] path]]);
+        NSURL *manifest=[root URLByAppendingPathComponent:@"destination/Mix/.syncrosa-export.json"];
+        NSDictionary *bad=@{@"schemaVersion":@1,@"folderID":[[NSUUID UUID] UUIDString],@"entries":@[@{@"sourceKey":[@"path:" stringByAppendingString:[@"" stringByPaddingToLength:64 withString:@"a" startingAtIndex:0]],@"filename":@"../escape.mp3",@"size":@4,@"sha256":[@"" stringByPaddingToLength:64 withString:@"b" startingAtIndex:0]}]};
+        [[NSJSONSerialization dataWithJSONObject:bad options:0 error:nil] writeToURL:manifest atomically:YES];
+        NSDictionary *result=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];
+        XCTAssertEqualObjects(result[@"status"],@"paused");XCTAssertEqualObjects(result[@"copiedCount"],@0);XCTAssertEqual([IGUSBTestMusicNames(root) count],(NSUInteger)0);
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
+- (void)testUSBSymlinkFolderAndCrossProcessLockNeverWriteThrough {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSDictionary *track=IGUSBTestTrack(root,@"source.mp3",@"Song",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+        NSURL *mix=[root URLByAppendingPathComponent:@"destination/Mix"];
+        [[NSFileManager defaultManager] createSymbolicLinkAtPath:[mix path] withDestinationPath:[[root URLByAppendingPathComponent:@"other"] path] error:nil];
+        IGUSBExportService *service=[[[IGUSBExportService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];
+        NSDictionary *unsafe=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];XCTAssertEqualObjects(unsafe[@"status"],@"paused");
+        XCTAssertEqual([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[root URLByAppendingPathComponent:@"other"] path] error:nil] count],(NSUInteger)0);
+        [[NSFileManager defaultManager] removeItemAtURL:mix error:nil];[[NSFileManager defaultManager] createDirectoryAtURL:mix withIntermediateDirectories:NO attributes:nil error:nil];
+        int fd=open([[[mix URLByAppendingPathComponent:@".syncrosa-export.lock"] path] fileSystemRepresentation],O_RDWR|O_CREAT,0600);flock(fd,LOCK_EX|LOCK_NB);
+        NSDictionary *busy=[service performExportTracks:@[track] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];
+        flock(fd,LOCK_UN);close(fd);XCTAssertEqualObjects(busy[@"status"],@"paused");XCTAssertEqual([IGUSBTestMusicNames(root) count],(NSUInteger)0);
+        XCTAssertFalse([[NSFileManager defaultManager] fileExistsAtPath:[[mix URLByAppendingPathComponent:@".syncrosa-export.json"] path]]);
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
+- (void)testUSBStablePersistentIDReusesAudioAfterLibraryMetadataAndPathChange {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSDictionary *original=IGUSBTestTrack(root,@"source.mp3",@"Before",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+        NSMutableDictionary *first=[NSMutableDictionary dictionaryWithDictionary:original];first[@"persistentID"]=@"AABBCCDDEEFF0011";
+        IGUSBExportService *service=[[[IGUSBExportService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];
+        NSDictionary *initial=[service performExportTracks:@[first] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];XCTAssertEqualObjects(initial[@"copiedCount"],@1);
+        NSString *renamed=[[root URLByAppendingPathComponent:@"sources/renamed.mp3"] path];
+        [[NSFileManager defaultManager] moveItemAtPath:first[@"path"] toPath:renamed error:nil];
+        NSMutableDictionary *updated=[NSMutableDictionary dictionaryWithDictionary:first];updated[@"path"]=renamed;updated[@"name"]=@"After";updated[@"artist"]=@"Another Artist";
+        NSDictionary *result=[service performExportTracks:@[updated] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{} progress:nil cancel:nil];
+        XCTAssertEqualObjects(result[@"status"],@"completed");XCTAssertEqualObjects(result[@"copiedCount"],@0);XCTAssertEqualObjects(result[@"existingCount"],@1);XCTAssertEqual([IGUSBTestMusicNames(root) count],(NSUInteger)1);
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
+- (void)testUSBFitSelectionStaysStableAcrossCancellationAndLargerCapacity {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSArray *tracks=@[IGUSBTestTrack(root,@"one.mp3",@"One",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]),IGUSBTestTrack(root,@"two.mp3",@"Two",[@"BBBB" dataUsingEncoding:NSUTF8StringEncoding]),IGUSBTestTrack(root,@"three.mp3",@"Three",[@"CCCC" dataUsingEncoding:NSUTF8StringEncoding])];
+        IGUSBExportTestService *service=[[[IGUSBExportTestService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];service.availableOverride=6;
+        __block BOOL cancel=NO;
+        NSDictionary *stopped=[service performExportTracks:tracks destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{@"fitAvailable":@YES} progress:^(NSDictionary *progress){if([progress[@"fileBytes"] longLongValue]>0)cancel=YES;} cancel:^BOOL{return cancel;}];
+        XCTAssertEqualObjects(stopped[@"status"],@"cancelled");XCTAssertEqualObjects(stopped[@"skippedSpace"],@2);
+        service.availableOverride=1000;
+        NSDictionary *resumed=[service performResumeJobWithIdentifier:stopped[@"jobID"] destination:[root URLByAppendingPathComponent:@"destination"] progress:nil cancel:nil];
+        XCTAssertEqualObjects(resumed[@"status"],@"completed");XCTAssertEqualObjects(resumed[@"copiedCount"],@1);XCTAssertEqualObjects(resumed[@"skippedSpace"],@2);XCTAssertEqual([IGUSBTestMusicNames(root) count],(NSUInteger)1);
+        NSURL *badJournal=[[root URLByAppendingPathComponent:@"journals"] URLByAppendingPathComponent:[NSString stringWithFormat:@"cocoa-%@.json",[[NSUUID UUID] UUIDString]]];
+        [[@"{" dataUsingEncoding:NSUTF8StringEncoding] writeToURL:badJournal atomically:YES];
+        NSArray *warnings=nil;[service pendingJobsWithWarnings:&warnings];XCTAssertEqual([warnings count],(NSUInteger)1);XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[badJournal path]]);
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
+- (void)testUSBRepeatedTrackCopiesOnceAndCaseCollisionsRemainDistinct {
+    NSURL *root=IGUSBTestFolder();
+    @try {
+        NSDictionary *first=IGUSBTestTrack(root,@"one.mp3",@"Song",[@"AAAA" dataUsingEncoding:NSUTF8StringEncoding]);
+        NSDictionary *second=IGUSBTestTrack(root,@"two.mp3",@"song",[@"BBBB" dataUsingEncoding:NSUTF8StringEncoding]);
+        IGUSBExportService *service=[[[IGUSBExportService alloc] initWithJournalDirectory:[root URLByAppendingPathComponent:@"journals"]] autorelease];
+        NSDictionary *result=[service performExportTracks:@[first,first,second] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Mix" options:@{@"m3u8":@YES} progress:nil cancel:nil];
+        XCTAssertEqualObjects(result[@"status"],@"completed");XCTAssertEqualObjects(result[@"copiedCount"],@2);XCTAssertEqualObjects(result[@"existingCount"],@1);XCTAssertEqual([IGUSBTestMusicNames(root) count],(NSUInteger)2);
+        NSString *playlist=[NSString stringWithContentsOfURL:[root URLByAppendingPathComponent:@"destination/Mix/Mix.m3u8"] encoding:NSUTF8StringEncoding error:nil];
+        XCTAssertEqualObjects(playlist,@"#EXTM3U\nArtist - Song.mp3\nArtist - Song.mp3\nArtist - song_2.mp3\n");
+        NSString *longTitle=[@"" stringByPaddingToLength:80 withString:@"🎵" startingAtIndex:0];
+        NSDictionary *unicode=IGUSBTestTrack(root,@"unicode.mp3",longTitle,[@"CCCC" dataUsingEncoding:NSUTF8StringEncoding]);
+        NSDictionary *unicodeResult=[service performExportTracks:@[unicode] destination:[root URLByAppendingPathComponent:@"destination"] playlistName:@"Unicode" options:@{} progress:nil cancel:nil];
+        XCTAssertEqualObjects(unicodeResult[@"status"],@"completed");XCTAssertEqualObjects(unicodeResult[@"copiedCount"],@1);
+    } @finally { [[NSFileManager defaultManager] removeItemAtURL:root error:nil]; }
+}
 
 - (void)testMusicMatchingKeepsRecordingVersionsAndRejectsAmbiguousEditions {
     NSDictionary *studio = @{@"artistName": @"The Artist", @"trackName": @"A Song", @"collectionName": @"Original Album", @"trackNumber": @2};

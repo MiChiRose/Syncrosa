@@ -104,6 +104,14 @@ Because the application is distributed directly without an Apple Developer certi
 
 ---
 
+## Continue Interrupted USB Exports
+
+USB Export now checks the content of existing files before copying. Repeating an export reuses verified tracks, including compatible exports created by earlier versions, and transfers only new or changed content. Existing final files are preserved; incomplete copies stay separate from finished music files.
+
+If the app closes unexpectedly, a drive disconnects, or you stop an export, open **Recovery Center**, reconnect the same drive, select the unfinished USB task, and choose **Resume**. Select the drive again when prompted. Syncrosa verifies the saved files and continues the remaining work. M3U/M3U8 files contain only verified completed tracks, including when a transfer stops partway through.
+
+Recovery records are kept separately for each operation, so starting another tool does not erase an earlier interrupted task. Other tools retain their backup links and available undo packages. Removing a recovery record removes only that record; source music, completed USB files, and backups remain intact.
+
 ## Metadata Repair Safeguards
 
 The native SwiftUI and Cocoa repair tools fill only missing selected fields and preserve existing tags and lyrics. Fields are checked again immediately before writing, so edits made while a lookup is running are retained. Album merging remains an explicit operation; the Cocoa repair flow defaults to keeping existing album names.

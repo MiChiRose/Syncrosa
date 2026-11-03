@@ -6,6 +6,10 @@ struct OverviewView: View {
     @ObservedObject private var recovery = OperationRecoveryService.shared
     @State private var showWizard = false
     @State private var showHistory = false
+    @State private var pendingUSBCount = 0
+    @State private var usbWarningCount = 0
+    @State private var isCheckingRecovery = true
+    @State private var recoveryRefreshID = UUID()
     @AppStorage("only_local_mode") private var onlyLocalMode = false
 
     let libraryStatus: MusicLibraryStatus
@@ -55,16 +59,21 @@ struct OverviewView: View {
                 )
                 overviewCard(
                     title: lang.selectedLanguage == "ru" ? "Восстановление" : "Recovery",
-                    value: recovery.activeOperation == nil ? (lang.selectedLanguage == "ru" ? "Чисто" : "Clean") : (lang.selectedLanguage == "ru" ? "Нужна проверка" : "Needs Review"),
-                    icon: recovery.activeOperation == nil ? "checkmark.shield" : "exclamationmark.triangle",
-                    tint: recovery.activeOperation == nil ? SyncrosaTheme.success : SyncrosaTheme.caution
+                    value: isCheckingRecovery
+                        ? (lang.selectedLanguage == "ru" ? "Проверяется" : "Checking")
+                        : (needsRecoveryReview ? (lang.selectedLanguage == "ru" ? "Нужна проверка" : "Needs Review") : (lang.selectedLanguage == "ru" ? "Чисто" : "Clean")),
+                    icon: isCheckingRecovery ? "hourglass" : (needsRecoveryReview ? "exclamationmark.triangle" : "checkmark.shield"),
+                    tint: isCheckingRecovery ? .secondary : (needsRecoveryReview ? SyncrosaTheme.caution : SyncrosaTheme.success)
                 )
             }
 
             VStack(alignment: .leading, spacing: 14) {
                 SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "Быстрые действия" : "Quick Actions", systemImage: "bolt")
                 SyncrosaAdaptiveRow(spacing: 12) {
-                    Button(action: refreshLibraryStatus) {
+                    Button(action: {
+                        refreshOverviewRecovery()
+                        refreshLibraryStatus()
+                    }) {
                         if isRefreshingLibraryStatus {
                             ProgressView().controlSize(.small)
                         } else {
@@ -119,6 +128,33 @@ struct OverviewView: View {
         }
         .sheet(isPresented: $showHistory) {
             OperationHistoryView()
+        }
+        .onAppear(perform: refreshOverviewRecovery)
+        .onReceive(NotificationCenter.default.publisher(for: PlaylistExportService.jobsDidChangeNotification)) { _ in
+            refreshOverviewRecovery()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshOverviewRecovery()
+        }
+    }
+
+    private var needsRecoveryReview: Bool {
+        !recovery.interruptedOperations.isEmpty || !recovery.persistenceWarnings.isEmpty || pendingUSBCount > 0 || usbWarningCount > 0
+    }
+
+    private func refreshOverviewRecovery() {
+        recovery.refresh()
+        let requestID = UUID()
+        recoveryRefreshID = requestID
+        isCheckingRecovery = true
+        DispatchQueue.global(qos: .utility).async {
+            let pending = PlaylistExportService.shared.loadPendingJobs()
+            DispatchQueue.main.async {
+                guard recoveryRefreshID == requestID else { return }
+                pendingUSBCount = pending.jobs.count
+                usbWarningCount = pending.errors.count
+                isCheckingRecovery = false
+            }
         }
     }
 

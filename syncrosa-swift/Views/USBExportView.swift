@@ -12,6 +12,10 @@ struct USBExportView: View {
     @State private var tracksToExport: [PlaylistExportService.TrackFile] = []
     @State private var isLoadingPlaylistDetails: Bool = false
     
+    @State private var serviceBusy = false
+    @State private var cancelRequested = false
+    @State private var pendingSpaceJobID: UUID?
+    @State private var remainingCopyBytes: Int64 = 0
     @State private var isExporting: Bool = false
     @State private var currentTrackName: String = ""
     @State private var currentTrackIndex: Int = 0
@@ -146,6 +150,7 @@ struct USBExportView: View {
                     }
                 }
                 .syncrosaCard()
+                .disabled(isExporting || serviceBusy)
                 
                 // Card 2: Playlist Info & Export Button
                 if !selectedPlaylistName.isEmpty && selectedDrive != nil {
@@ -162,7 +167,7 @@ struct USBExportView: View {
                         
                         if isExporting {
                             VStack(alignment: .leading, spacing: 8) {
-                                ProgressView(value: Double(bytesCopied), total: Double(totalBytesToExport)) {
+                                ProgressView(value: Double(bytesCopied), total: Double(max(1, totalBytesToExport))) {
                                     Text(lang.t("exporting", currentTrackIndex, totalTracksToExport))
                                         .font(.caption2)
                                 }
@@ -173,6 +178,14 @@ struct USBExportView: View {
                                     .truncationMode(.middle)
                             }
                             .padding(.top, 10)
+                            Button(action: {
+                                cancelRequested = true
+                                PlaylistExportService.shared.cancel()
+                            }) {
+                                Text(lang.selectedLanguage == "ru" ? "Приостановить" : "Pause Export")
+                            }
+                            .buttonStyle(SyncrosaSecondaryButtonStyle())
+                            .disabled(cancelRequested)
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
                                 SyncrosaSectionLabel(
@@ -208,7 +221,7 @@ struct USBExportView: View {
                             }
                             .buttonStyle(SyncrosaPrimaryButtonStyle())
                             .controlSize(.large)
-                            .disabled(isLoadingPlaylistDetails || tracksToExport.isEmpty)
+                            .disabled(isLoadingPlaylistDetails || tracksToExport.isEmpty || serviceBusy)
                         }
                     }
                     .syncrosaCard()
@@ -231,14 +244,16 @@ struct USBExportView: View {
                 Text(lang.t("disk_full_title"))
                     .font(.headline)
                 
-                Text(lang.t("disk_full_msg", selectedPlaylistName, playlistTracksCount, formattedPlaylistSize, ByteCountFormatter.string(fromByteCount: selectedDrive?.freeSpace ?? 0, countStyle: .file)))
+                Text(lang.selectedLanguage == "ru"
+                    ? "Для оставшихся файлов нужно: \(ByteCountFormatter.string(fromByteCount: remainingCopyBytes, countStyle: .file)). Уже перенесённые треки не занимают место повторно."
+                    : "Remaining files need \(ByteCountFormatter.string(fromByteCount: remainingCopyBytes, countStyle: .file)). Existing verified tracks will not be copied again.")
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 
                 VStack(spacing: 12) {
                     Button(action: {
                         showSpaceAlert = false
-                        runExport(mode: .fitAvailable)
+                        runExport(mode: .fitAvailable, resumeJobID: pendingSpaceJobID)
                     }) {
                         Text(lang.t("fit_available"))
                             .frame(maxWidth: .infinity)
@@ -262,7 +277,11 @@ struct USBExportView: View {
             helpSheetView
         }
         .onAppear {
+            serviceBusy = PlaylistExportService.shared.isRunning
             loadPlaylists()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PlaylistExportService.jobsDidChangeNotification)) { _ in
+            serviceBusy = PlaylistExportService.shared.isRunning
         }
     }
     
@@ -286,11 +305,11 @@ struct USBExportView: View {
             notes: lang.selectedLanguage == "ru" ? [
                 "Треки копируются в папку с именем плейлиста, а не в корень накопителя.",
                 "Облачные треки без локального файла не копируются.",
-                "При нехватке места Syncrosa предложит отмену или случайную выборку, которая помещается."
+                "Повторный экспорт проверяет содержимое и пропускает уже перенесённые файлы. После паузы или сбоя продолжите задачу в Центре восстановления."
             ] : [
                 "Tracks go into a folder named after the playlist, not the drive root.",
                 "Cloud-only tracks without a local file are skipped.",
-                "If space is insufficient, Syncrosa offers cancellation or a random subset that fits."
+                "Repeated exports verify and reuse existing files. After a pause or interruption, continue the job in Recovery Center."
             ],
             dismiss: { showHelp = false }
         )
@@ -353,7 +372,8 @@ struct USBExportView: View {
                     artist: track.artist,
                     filePath: track.path,
                     fileSize: track.size,
-                    isDRM: isDRM
+                    isDRM: isDRM,
+                    persistentID: track.persistentID
                 )
             }
             
@@ -368,79 +388,52 @@ struct USBExportView: View {
     }
     
     private func startExportProcess() {
-        guard let drive = selectedDrive else { return }
-        guard !tracksToExport.isEmpty else {
-            activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "В выбранном плейлисте нет доступных файлов для экспорта." : "The selected playlist has no available files to export.", isError: true)
-            return
-        }
-        
-        // 1. Check space
-        let totalDRMSize = tracksToExport.filter { $0.isDRM }.reduce(0) { $0 + $1.fileSize }
-        let estimatedSize = playlistSize - totalDRMSize
-        
-        if estimatedSize > drive.freeSpace {
-            showSpaceAlert = true
-        } else {
-            runExport(mode: .all)
-        }
+        guard selectedDrive != nil, !tracksToExport.isEmpty else { return }
+        pendingSpaceJobID = nil
+        runExport(mode: .all)
     }
-    
-    private func runExport(mode: PlaylistExportService.ExportMode) {
+
+    private func runExport(mode: PlaylistExportService.ExportMode, resumeJobID: UUID? = nil) {
         guard let drive = selectedDrive else { return }
-        
         isExporting = true
-        activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Запуск экспорта..." : "Starting export...", isError: false)
-        
-        PlaylistExportService.shared.exportToUSB(
-            tracks: tracksToExport,
-            destination: drive.volumeURL,
-            playlistName: selectedPlaylistName,
-            mode: mode,
-            createM3U: createM3U,
-            createM3U8: createM3U8,
-            useIPodSafeNames: useIPodSafeNames
-        ) { progressInfo in
-            bytesCopied = progressInfo.bytesCopied
-            totalBytesToExport = progressInfo.totalBytes
-            currentTrackIndex = progressInfo.currentTrack
-            totalTracksToExport = progressInfo.totalTracks
-            currentTrackName = progressInfo.currentTrackName
-        } completion: { result in
-            DispatchQueue.main.async {
-                isExporting = false
-                
-                let copied = result.copiedCount
-                let drm = result.skippedDRM
-                let missing = result.skippedNotDownloaded
-                
-                if !result.errors.isEmpty && result.errors.contains("Drive disconnected") {
-                    activeNotification = NotificationMessage(text: lang.t("drive_disconnected"), isError: true)
-                } else if !result.errors.isEmpty {
-                    activeNotification = NotificationMessage(
-                        text: lang.selectedLanguage == "ru"
-                            ? "Экспортировано \(copied) треков в папку «\(selectedPlaylistName)». Ошибок: \(result.errors.count)."
-                            : "Exported \(copied) tracks to the \"\(selectedPlaylistName)\" folder. Errors: \(result.errors.count).",
-                        isError: copied == 0
-                    )
-                } else if drm > 0 || missing > 0 {
-                    activeNotification = NotificationMessage(
-                        text: lang.selectedLanguage == "ru"
-                            ? "Экспортировано \(copied) треков в папку «\(selectedPlaylistName)». Пропущено: \(drm + missing)."
-                            : "Exported \(copied) tracks to the \"\(selectedPlaylistName)\" folder. Skipped: \(drm + missing).",
-                        isError: false
-                    )
-                } else {
-                    activeNotification = NotificationMessage(
-                        text: lang.selectedLanguage == "ru"
-                            ? "Экспортировано \(copied) треков в папку «\(selectedPlaylistName)»."
-                            : "Exported \(copied) tracks to the \"\(selectedPlaylistName)\" folder.",
-                        isError: false
-                    )
-                }
-                
-                // Refresh drive list to show updated free space
-                usbService.updateDrives()
+        cancelRequested = false
+        bytesCopied = 0
+        totalBytesToExport = 1
+        activeNotification = NotificationMessage(text: lang.selectedLanguage == "ru" ? "Проверка уже перенесённых файлов..." : "Checking previously exported files...", isError: false)
+        let progress: (PlaylistExportService.ExportProgress) -> Void = { value in
+            bytesCopied = value.bytesCopied
+            totalBytesToExport = value.totalBytes
+            currentTrackIndex = value.currentTrack
+            totalTracksToExport = value.totalTracks
+            currentTrackName = value.currentTrackName
+        }
+        let completion: (PlaylistExportService.ExportResult) -> Void = { result in
+            isExporting = false
+            serviceBusy = false
+            if result.insufficientSpace {
+                pendingSpaceJobID = result.jobID
+                remainingCopyBytes = result.remainingBytesToCopy
+                showSpaceAlert = true
             }
+            let russian = lang.selectedLanguage == "ru"
+            let skipped = result.skippedDRM + result.skippedNotDownloaded + result.skippedForSpace
+            var message = russian
+                ? "Скопировано: \(result.copiedCount). Уже на диске: \(result.existingCount). Пропущено: \(skipped). Записано: \(ByteCountFormatter.string(fromByteCount: result.totalBytesCopied, countStyle: .file))."
+                : "Copied: \(result.copiedCount). Already on drive: \(result.existingCount). Skipped: \(skipped). Written: \(ByteCountFormatter.string(fromByteCount: result.totalBytesCopied, countStyle: .file))."
+            if result.wasCancelled || !result.errors.isEmpty {
+                message += russian ? " Продолжение доступно в Центре восстановления." : "Continue this job in Recovery Center."
+            }
+            if !result.errors.isEmpty { message += "\n" + result.errors.prefix(3).joined(separator: "\n") }
+            activeNotification = NotificationMessage(text: message, isError: !result.errors.isEmpty && !result.insufficientSpace)
+            OperationHistoryService.shared.record(tool: "USB Export", title: selectedPlaylistName,
+                status: result.wasCancelled ? "PAUSED" : (result.insufficientSpace ? "WARN" : (result.errors.isEmpty ? "OK" : "ERROR")),
+                message: message, affectedCount: result.copiedCount)
+            usbService.updateDrives()
+        }
+        if let resumeJobID {
+            PlaylistExportService.shared.resume(jobID: resumeJobID, destination: drive.volumeURL, mode: mode, progress: progress, completion: completion)
+        } else {
+            PlaylistExportService.shared.exportToUSB(tracks: tracksToExport, destination: drive.volumeURL, playlistName: selectedPlaylistName, mode: mode, createM3U: createM3U, createM3U8: createM3U8, useIPodSafeNames: useIPodSafeNames, progress: progress, completion: completion)
         }
     }
 }

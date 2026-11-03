@@ -1,3 +1,4 @@
+#import "IGOperationActivity.h"
 #import "IGInfoEraserViewController.h"
 #import "IGTheme.h"
 #import "IGHelpSheetPresenter.h"
@@ -38,17 +39,12 @@ static NSString *IGInfoEraserBeginActiveOperation(NSString *title, NSString *mes
         @"affectedCount": @(affectedCount),
         @"backupPath": backupPath ?: @""
     };
-    NSString *path = [IGInfoEraserSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
-    [marker writeToFile:path atomically:YES];
+    [[IGOperationActivity sharedActivity] saveRecoveryMarker:marker error:NULL];
     return identifier;
 }
 
 static void IGInfoEraserFinishActiveOperation(NSString *identifier) {
-    NSString *path = [IGInfoEraserSupportDir() stringByAppendingPathComponent:@"active-operation.plist"];
-    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:path];
-    if (!identifier || [[marker objectForKey:@"id"] isEqualToString:identifier]) {
-        [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
-    }
+    [[IGOperationActivity sharedActivity] finishRecoveryMarkerWithIdentifier:identifier error:NULL];
 }
 
 static uint32_t IGInfoEraserReadBE32(NSData *data, NSUInteger offset) {
