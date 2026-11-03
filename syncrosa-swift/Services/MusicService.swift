@@ -460,8 +460,8 @@ class MusicService {
         return playlists
     }
     
-    func getPlaylistTrackPaths(playlistName: String) -> [(name: String, artist: String, path: String, size: Int64)] {
-        let escapedName = playlistName.replacingOccurrences(of: "\"", with: "\\\"")
+    func getPlaylistTrackPaths(playlistName: String) -> [(persistentID: String, name: String, artist: String, path: String, size: Int64)] {
+        let escapedName = escapeAppleScriptString(playlistName)
         let script = """
         \(cleanFieldHandler)
         tell application "Music"
@@ -472,7 +472,7 @@ class MusicService {
                     try
                         set loc to location of t
                         if loc is not missing value then
-                            set output to output & my syncrosaCleanField(name of t) & tab & my syncrosaCleanField(artist of t) & tab & my syncrosaCleanField(POSIX path of loc) & linefeed
+                            set output to output & (persistent ID of t as text) & tab & my syncrosaCleanField(name of t) & tab & my syncrosaCleanField(artist of t) & tab & my syncrosaCleanField(POSIX path of loc) & linefeed
                         end if
                     end try
                 end repeat
@@ -481,21 +481,22 @@ class MusicService {
         end tell
         """
         guard let result = runAppleScript(script) else { return [] }
-        var tracks: [(name: String, artist: String, path: String, size: Int64)] = []
+        var tracks: [(persistentID: String, name: String, artist: String, path: String, size: Int64)] = []
         let lines = result.components(separatedBy: .newlines)
         let fm = FileManager.default
         for line in lines where line.contains(fieldSeparator) {
             let parts = line.components(separatedBy: fieldSeparator)
-            if parts.count >= 3 {
-                let name = parts[0]
-                let artist = parts[1]
-                let path = parts[2]
+            if parts.count >= 4 {
+                let persistentID = parts[0]
+                let name = parts[1]
+                let artist = parts[2]
+                let path = parts[3]
                 var size: Int64 = 0
                 if let attrs = try? fm.attributesOfItem(atPath: path),
                    let fileSize = attrs[.size] as? Int64 {
                     size = fileSize
                 }
-                tracks.append((name: name, artist: artist, path: path, size: size))
+                tracks.append((persistentID: persistentID, name: name, artist: artist, path: path, size: size))
             }
         }
         return tracks

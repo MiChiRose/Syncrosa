@@ -24,3 +24,20 @@
 - (void)updateDrives;
 
 @end
+
+FOUNDATION_EXPORT NSString * const IGUSBExportJobsDidChangeNotification;
+
+/* Progress and result dictionaries are delivered on the main thread. */
+@interface IGUSBExportService : NSObject
++ (instancetype)sharedService;
+- (instancetype)initWithJournalDirectory:(NSURL *)directory;
+- (NSArray *)pendingJobsWithWarnings:(NSArray **)warnings;
+- (BOOL)discardJobWithIdentifier:(NSString *)identifier error:(NSError **)error;
+- (void)exportTracks:(NSArray *)tracks destination:(NSURL *)destination playlistName:(NSString *)playlistName options:(NSDictionary *)options progress:(void(^)(NSDictionary *progress))progress completion:(void(^)(NSDictionary *result))completion;
+- (void)resumeJobWithIdentifier:(NSString *)identifier destination:(NSURL *)destination progress:(void(^)(NSDictionary *progress))progress completion:(void(^)(NSDictionary *result))completion;
+- (void)cancel;
+/* Synchronous entry points permit offline filesystem regression tests. */
+- (NSDictionary *)performExportTracks:(NSArray *)tracks destination:(NSURL *)destination playlistName:(NSString *)playlistName options:(NSDictionary *)options progress:(void(^)(NSDictionary *progress))progress cancel:(BOOL(^)(void))cancel;
+- (NSDictionary *)performResumeJobWithIdentifier:(NSString *)identifier destination:(NSURL *)destination progress:(void(^)(NSDictionary *progress))progress cancel:(BOOL(^)(void))cancel;
+- (int64_t)availableBytesAtURL:(NSURL *)url;
+@end

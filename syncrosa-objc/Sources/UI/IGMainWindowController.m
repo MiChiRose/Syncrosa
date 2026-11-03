@@ -218,6 +218,14 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
         safeguardY -= safeguardRowHeight + safeguardGap;
     }
 
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recoveryStateChanged:) name:IGUSBExportJobsDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recoveryStateChanged:) name:IGOperationRecoveryDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recoveryStateChanged:) name:NSApplicationDidBecomeActiveNotification object:nil];
+    [self refreshOverview];
+}
+
+- (void)recoveryStateChanged:(NSNotification *)notification {
+    (void)notification;
     [self refreshOverview];
 }
 
@@ -293,9 +301,12 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
     NSString *backups = [support stringByAppendingPathComponent:@"Backups"];
     self.backupValueLabel.stringValue = [[NSFileManager defaultManager] fileExistsAtPath:backups] ? @"Available in Application Support" : @"No shared backups yet";
 
-    NSString *markerPath = [support stringByAppendingPathComponent:@"active-operation.plist"];
-    NSDictionary *marker = [NSDictionary dictionaryWithContentsOfFile:markerPath];
-    self.recoveryValueLabel.stringValue = [marker count] > 0 ? @"Interrupted operation needs review" : @"Clean - no interrupted operation";
+    IGOperationActivity *recovery = [IGOperationActivity sharedActivity];
+    [recovery reloadRecoveryMarkers];
+    NSArray *usbWarnings = nil;
+    NSArray *usbJobs = [[IGUSBExportService sharedService] pendingJobsWithWarnings:&usbWarnings];
+    BOOL needsReview = [recovery.recoveryMarkers count] > 0 || [recovery.recoveryWarnings count] > 0 || [usbJobs count] > 0 || [usbWarnings count] > 0;
+    self.recoveryValueLabel.stringValue = needsReview ? @"Interrupted operation needs review" : @"Clean - no interrupted operation";
     [self layoutOverviewStatusContent];
 }
 
@@ -326,6 +337,7 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
 }
 
 - (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 #if !__has_feature(objc_arc)
     [_libraryValueLabel release];
     [_backupValueLabel release];
