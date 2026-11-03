@@ -76,21 +76,22 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.5.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Adds exact TV episode matching, iPod-friendly sequence prefixes, responsive Video Metadata layouts, and further Cocoa UI polish. |
+| `Syncrosa_Cocoa_v3.5.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Preserves existing tags and lyrics, improves recording matches, and validates external playlist selections. |
 | `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.5.0.zip` | Modern Apple Silicon Macs | macOS 14 | Current modern Music.app build, refreshed and version-aligned with the 3.5.0 native release. |
+| `Syncrosa_SwiftUI_v3.5.1.zip` | Modern Apple Silicon Macs | macOS 14 | Current Music.app build with safer metadata repair, accurate operation reports, and full-library JSON exchange. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.5.0
+### Latest Release: 3.5.1
 
-Syncrosa 3.5.0 updates the two native application tracks. The Python maintenance package remains available as version 3.4.8:
+Syncrosa 3.5.1 improves library repair and playlist exchange in both native applications. The Python maintenance package remains available as version 3.4.8 in its previous release.
 
-- **Exact TV Episode Matching:** Cocoa recognizes `S01E05` and `1x05` names and searches by show, season, and episode, including artwork fallback from the series poster.
-- **Ordered Episodes on Legacy iPods:** Saved TV titles receive a stable prefix such as `S1E01 — …`, preventing alphabetical episode shuffling without duplicating an existing prefix.
-- **Responsive Video Workspace:** The Video Metadata page, track list, status area, and three-stage metadata chooser resize and scroll more naturally.
-- **Cocoa UI Polish:** Overview, Settings, USB Export, navigation activity, spacing, and alignment have been refined for classic AppKit.
-- **Two Native Packages:** Cocoa for OS X 10.9+ and SwiftUI for macOS 14+ are published as version 3.5.0; Python remains on 3.4.8.
+- **Preserve Existing Tags:** Repair fills only missing selected fields and rechecks each field before writing, keeping saved lyrics and edits made during lookups.
+- **More Reliable Catalog Matching:** Searches compare complete titles, artists and known albums across multiple results. Live, remix and remaster labels are retained; ambiguous editions are skipped.
+- **Accurate Results:** Reports distinguish changed tracks, skipped tracks, unmatched results and errors, including partial failures and unique affected-track counts.
+- **Full-Library JSON Exchange:** Export every readable track with instructions and a reply example, then import a selection from your preferred assistant without a Syncrosa API key.
+- **Safer Playlist Replacement:** Malformed or unknown IDs are rejected before an existing playlist is cleared, while supported legacy JSON reply formats remain accepted.
+- **Two Native Packages:** Cocoa for Intel Macs with OS X 10.9+ and SwiftUI for Apple Silicon with macOS 14+.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
