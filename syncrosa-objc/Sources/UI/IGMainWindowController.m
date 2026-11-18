@@ -2204,6 +2204,24 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	        IGInstallThemedContentBackground(targetVC.view);
 	        IGApplyThemeToViewHierarchy(targetVC.view);
 	        [self.pageContainer addSubview:targetVC.view];
+            if (index == IGNavigationItemSettings) {
+                [self.settingsVC refreshOpenRouterModelsIfNeeded];
+            } else if (index == IGNavigationItemAIPlaylist) {
+                IGAIService *service = [IGAIService sharedService];
+                service.provider = provider;
+                service.apiKey = apiKey;
+                if ([provider isEqualToString:@"OpenRouter"]) {
+                    service.model = [service savedOpenRouterModel];
+                    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
+                        [service refreshOpenRouterModelsForce:NO completion:^(NSArray *models, NSError *error) {}];
+                    }
+                } else {
+                    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+                    NSString *modelKey = [@"model_" stringByAppendingString:provider.lowercaseString];
+                    service.model = [defaults stringForKey:modelKey] ?: [defaults stringForKey:@"model"] ?: @"";
+                }
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"IGAPISettingsSavedNotification" object:service];
+            }
 	        [self layoutSidebarControls];
 	    }
     } @catch (NSException *exception) {

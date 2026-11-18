@@ -1,60 +1,92 @@
 import Foundation
+import CoreFoundation
 
 class AIService {
     static let shared = AIService()
     
-    // Persistent cache for models
+    static let defaultOpenRouterModel = "openrouter/free"
+    private static let openRouterCacheKey = "openrouter_free_text_models"
+    private var openRouterCallbacks: [([String]?) -> Void] = []
+    private var lastOpenRouterRefresh: Date?
+
     var cachedOpenRouterModels: [String] {
-        get {
-            UserDefaults.standard.stringArray(forKey: "cached_openrouter_models") ?? ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.1-8b-instruct:free", "mistralai/mistral-7b-instruct:free"]
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "cached_openrouter_models")
-        }
+        UserDefaults.standard.stringArray(forKey: Self.openRouterCacheKey) ?? [Self.defaultOpenRouterModel]
     }
-    
-    func fetchOpenRouterModels(completion: @escaping ([String]?) -> Void) {
-        guard let url = URL(string: "https://openrouter.ai/api/v1/models") else {
-            completion(nil)
-            return
+
+    static func preferredOpenRouterModel(_ selected: String, in models: [String]) -> String {
+        models.contains(selected) ? selected : defaultOpenRouterModel
+    }
+
+    static func freeOpenRouterModels(from data: Data) -> [String]? {
+        guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let entries = object["data"] as? [Any],
+              !entries.isEmpty else { return nil }
+        let modelIDs = entries.compactMap { entry -> String? in
+            guard let model = entry as? [String: Any],
+                  let id = model["id"] as? String, id.hasSuffix(":free"),
+                  let pricing = model["pricing"] as? [String: Any],
+                  isZeroPrice(pricing["prompt"]), isZeroPrice(pricing["completion"]),
+                  pricing["request"] == nil || isZeroPrice(pricing["request"]) else { return nil }
+            if let architecture = model["architecture"] as? [String: Any] {
+                if let input = architecture["input_modalities"] as? [String], !input.contains("text") { return nil }
+                if let output = architecture["output_modalities"] as? [String], !output.contains("text") { return nil }
+            }
+            return id
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 20
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data,
-                  error == nil,
-                  let response = response as? HTTPURLResponse,
-                  (200...299).contains(response.statusCode) else {
-                completion(nil)
+        // A valid catalog with no named free models still has the free router option.
+        return [defaultOpenRouterModel] + Set(modelIDs).sorted()
+    }
+
+    private static func isZeroPrice(_ value: Any?) -> Bool {
+        if let string = value as? String,
+           let price = Decimal(string: string, locale: Locale(identifier: "en_US_POSIX")),
+           let number = Double(string), number.isFinite {
+            return price == .zero && number == 0
+        }
+        if let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() {
+            return number.doubleValue == 0
+        }
+        return false
+    }
+
+    // Serialize refreshes and deliver callbacks on the main queue for both screens.
+    func fetchOpenRouterModels(force: Bool = false, completion: @escaping ([String]?) -> Void) {
+        DispatchQueue.main.async {
+            if !self.openRouterCallbacks.isEmpty {
+                self.openRouterCallbacks.append(completion)
                 return
             }
-            
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let dataArray = json["data"] as? [[String: Any]] {
-                    let freeModels = dataArray.compactMap { m -> String? in
-                        if let id = m["id"] as? String, id.contains(":free") {
-                            return id
-                        }
-                        return nil
-                    }.sorted()
-                    
-                    if !freeModels.isEmpty {
-                        self.cachedOpenRouterModels = freeModels
-                    }
-                    completion(freeModels)
-                } else {
-                    completion(nil)
-                }
-            } catch {
-                completion(nil)
+            if !force, let lastRefresh = self.lastOpenRouterRefresh,
+               Date().timeIntervalSince(lastRefresh) < 5 * 60 {
+                completion(self.cachedOpenRouterModels)
+                return
             }
-        }.resume()
+
+            self.openRouterCallbacks.append(completion)
+            var request = URLRequest(url: URL(string: "https://openrouter.ai/api/v1/models")!)
+            request.timeoutInterval = 10
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                let models: [String]?
+                if error == nil, let data, let response = response as? HTTPURLResponse,
+                   (200...299).contains(response.statusCode) {
+                    models = Self.freeOpenRouterModels(from: data)
+                } else {
+                    models = nil
+                }
+                DispatchQueue.main.async {
+                    if let models {
+                        UserDefaults.standard.set(models, forKey: Self.openRouterCacheKey)
+                        self.lastOpenRouterRefresh = Date()
+                    }
+                    let callbacks = self.openRouterCallbacks
+                    self.openRouterCallbacks.removeAll()
+                    callbacks.forEach { $0(models) }
+                }
+            }.resume()
+        }
     }
-    
+
     func validateAPIKey(provider: String, apiKey: String, model: String, completion: @escaping (Bool, String) -> Void) {
         guard !apiKey.isEmpty else {
             completion(false, "API Key is empty")
@@ -93,7 +125,7 @@ class AIService {
             let body: [String: Any] = [
                 "model": model,
                 "messages": [["role": "user", "content": "Say 'OK'"]],
-                "max_tokens": 10
+                "max_tokens": 128
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         } else {
