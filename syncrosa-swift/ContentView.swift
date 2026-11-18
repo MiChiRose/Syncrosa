@@ -85,6 +85,10 @@ struct ContentView: View {
                         Label(lang.t("overview"), systemImage: "gauge.with.dots.needle.33percent")
                     }
 
+                    NavigationLink(value: Tab.folderFix) {
+                        Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
+                    }
+
                     NavigationLink(value: Tab.playlist) {
                         Label(lang.t("ai_playlist"), systemImage: "music.note.list")
                     }
@@ -103,10 +107,6 @@ struct ContentView: View {
                     .disabled(musicLibraryStatus.shouldBlockLibraryTools)
                     .opacity(musicLibraryStatus.shouldBlockLibraryTools ? 0.5 : 1.0)
                     
-                    NavigationLink(value: Tab.folderFix) {
-                        Label(lang.t("folder_fix"), systemImage: "folder.badge.gearshape")
-                    }
-
                     NavigationLink(value: Tab.ipodConverter) {
                         Label(lang.selectedLanguage == "ru" ? "Конвертер для iPod" : "iPod Converter", systemImage: "ipod")
                     }
@@ -189,7 +189,8 @@ struct ContentView: View {
                                     isRefreshingLibraryStatus: isRefreshingLibraryStatus,
                                     refreshLibraryStatus: refreshMusicLibraryStatus,
                                     openLibraryDoctor: openLibraryDoctorIfAvailable,
-                                    openRecoveryCenter: { selectedTab = .recoveryCenter }
+                                    openRecoveryCenter: { selectedTab = .recoveryCenter },
+                                    openFolderFixer: { selectedTab = .folderFix }
                                 )
                             case .settings: SettingsView()
                             case .none:
@@ -199,7 +200,8 @@ struct ContentView: View {
                                     isRefreshingLibraryStatus: isRefreshingLibraryStatus,
                                     refreshLibraryStatus: refreshMusicLibraryStatus,
                                     openLibraryDoctor: openLibraryDoctorIfAvailable,
-                                    openRecoveryCenter: { selectedTab = .recoveryCenter }
+                                    openRecoveryCenter: { selectedTab = .recoveryCenter },
+                                    openFolderFixer: { selectedTab = .folderFix }
                                 )
                                 } else {
                                     MusicLibraryUnavailableView(
@@ -216,7 +218,8 @@ struct ContentView: View {
                     // Global Footer
                     VStack {
                         Divider()
-                        Text(lang.t("footer"))
+                        Text(selectedTab == .playlist ? lang.t("footer")
+                             : String(lang.t("footer").prefix(while: { $0 != "|" })).trimmingCharacters(in: .whitespaces))
                             .font(.system(size: 10))
                             .multilineTextAlignment(.center)
                             .foregroundColor(.secondary)
@@ -230,9 +233,7 @@ struct ContentView: View {
         }
         .onAppear {
             refreshMusicLibraryStatus()
-            if !isKeyValidated {
-                selectedTab = .settings
-            }
+            if selectedTab == nil { selectedTab = .overview }
             if !hasSeenSetupWizard {
                 showInitialSetupWizard = true
             }
@@ -280,7 +281,7 @@ struct ContentView: View {
                 isRefreshingLibraryStatus = false
 
                 if requiresMusicLibrary(selectedTab) && newStatus.shouldBlockLibraryTools {
-                    selectedTab = nil
+                    selectedTab = .overview
                 } else if selectedTab == nil && newStatus.isAvailable && isKeyValidated {
                     selectedTab = .overview
                 }

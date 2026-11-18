@@ -5,6 +5,10 @@
 !/syncrosa-objc/
 !/syncrosa-python/
 !/syncrosa-swift/
+!/shared/
+!/shared/TrackTitles/
+!/shared/TrackTitles/SRTrackTitles.h
+!/shared/TrackTitles/SRTrackTitles.m
 !/readme-assets/
 !/readme-assets/swiftui/
 !/readme-assets/swiftui/*.jpeg

@@ -142,14 +142,14 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
                                                    [NSFont systemFontOfSize:11], IGThemeMutedTextColor(), NSCenterTextAlignment);
     [self.view addSubview:subtitle];
 
-    self.libraryValueLabel = [self addStatusBoxWithTitle:@"Library" icon:@"document" frame:NSMakeRect(25, 326, 255, 78)];
+    self.libraryValueLabel = [self addStatusBoxWithTitle:@"Library" icon:@"document" frame:NSMakeRect(25, 234, 255, 78)];
     self.localModeCheckbox = [[[NSButton alloc] initWithFrame:NSMakeRect(52, 20, 184, 28)] autorelease];
     self.localModeCheckbox.buttonType = NSSwitchButton;
     self.localModeCheckbox.title = @"Only Local Mode";
     self.localModeCheckbox.toolTip = @"Skip online metadata lookups. Useful on slower Macs or without a network connection.";
     self.localModeCheckbox.target = self;
     self.localModeCheckbox.action = @selector(localModeChanged:);
-    NSBox *localBox = [[[NSBox alloc] initWithFrame:NSMakeRect(300, 326, 255, 78)] autorelease];
+    NSBox *localBox = [[[NSBox alloc] initWithFrame:NSMakeRect(300, 234, 255, 78)] autorelease];
     localBox.title = @"Network Safety";
     localBox.boxType = NSBoxPrimary;
     NSView *localIcon = IGCreateThemedIconView(@"network-off", NSMakeRect(16, 22, 26, 26), IGThemeIconRoleAccent);
@@ -158,10 +158,10 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
     [self.view addSubview:localBox];
     [self.statusLayouts addObject:@{ @"box": localBox, @"icon": localIcon, @"control": self.localModeCheckbox }];
 
-    self.backupValueLabel = [self addStatusBoxWithTitle:@"Backups" icon:@"folder" frame:NSMakeRect(25, 238, 255, 78)];
-    self.recoveryValueLabel = [self addStatusBoxWithTitle:@"Recovery" icon:@"restore" frame:NSMakeRect(300, 238, 255, 78)];
+    self.backupValueLabel = [self addStatusBoxWithTitle:@"Backups" icon:@"folder" frame:NSMakeRect(25, 146, 255, 78)];
+    self.recoveryValueLabel = [self addStatusBoxWithTitle:@"Recovery" icon:@"restore" frame:NSMakeRect(300, 146, 255, 78)];
 
-    NSBox *quickBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 153, 530, 74)] autorelease];
+    NSBox *quickBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 60, 530, 74)] autorelease];
     quickBox.title = @"Quick Actions";
     quickBox.boxType = NSBoxPrimary;
     [self.view addSubview:quickBox];
@@ -189,34 +189,21 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
 	    IGConfigureIconButton(wizard, @"info", @"Open the setup guide", NO);
     [quickBox addSubview:wizard];
 
-    NSBox *safetyBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 30, 530, 112)] autorelease];
-    safetyBox.title = @"Current Safeguards";
-    safetyBox.boxType = NSBoxPrimary;
-    [self.view addSubview:safetyBox];
-    NSArray *safeguards = @[
-        @"Music tools stay disabled when the library is empty or unavailable.",
-        @"Long jobs run in chunks and report progress on older hard drives.",
-        @"Destructive file tools require confirmation and preserve recovery data.",
-        @"Interrupted operations leave a marker in Recovery Center."
-    ];
-    CGFloat safeguardRowHeight = 17.0;
-    CGFloat safeguardGap = 2.0;
-    CGFloat safeguardGroupHeight = safeguardRowHeight * safeguards.count + safeguardGap * (safeguards.count - 1);
-    CGFloat safeguardContentHeight = NSHeight(safetyBox.bounds) - 14.0;
-    CGFloat safeguardY = floor((safeguardContentHeight - safeguardGroupHeight) / 2.0) +
-                         safeguardGroupHeight - safeguardRowHeight;
-    for (NSString *text in safeguards) {
-        CGFloat safeguardVisualInset = 16.0;
-        CGFloat safeguardX = safeguardVisualInset - legacyBoxContentOffsetX;
-        NSTextField *row = IGCreateGuideTextField([@"- " stringByAppendingString:text],
-                                                  NSMakeRect(safeguardX,
-                                                             safeguardY,
-                                                             NSWidth(safetyBox.bounds) - (safeguardVisualInset * 2.0),
-                                                             safeguardRowHeight),
-                                                  [NSFont systemFontOfSize:10.5], IGThemeTextColor(), NSCenterTextAlignment);
-        [safetyBox addSubview:row];
-        safeguardY -= safeguardRowHeight + safeguardGap;
-    }
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    NSBox *filesBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 325, 530, 77)] autorelease];
+    filesBox.title = russian ? @"Музыка на диске" : @"Music Files on Disk";
+    filesBox.boxType = NSBoxPrimary;
+    NSTextField *fileHelp = IGCreateGuideTextField(
+        russian ? @"Измените название трека или имя файла без ключа и импорта в iTunes."
+                : @"Correct track titles or file names without a key or an iTunes import.",
+        NSMakeRect(15, 30, 495, 19), [NSFont systemFontOfSize:11], IGThemeTextColor(), NSLeftTextAlignment);
+    [filesBox addSubview:fileHelp];
+    NSButton *fixTitles = [self actionButton:(russian ? @"Исправить названия…" : @"Correct Track Titles…")
+                                      frame:NSMakeRect(12, 0, 203, 30) action:@selector(openFolderFixerClicked:)];
+    IGConfigureIconButton(fixTitles, @"folder", nil, NO);
+    IGApplyThemeToButton(fixTitles, IGThemeButtonRolePrimary);
+    [filesBox addSubview:fixTitles];
+    [self.view addSubview:filesBox];
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recoveryStateChanged:) name:IGUSBExportJobsDidChangeNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recoveryStateChanged:) name:IGOperationRecoveryDidChangeNotification object:nil];
@@ -325,6 +312,10 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
 
 - (void)wizardClicked:(id)sender {
     [self.mainController showFirstLaunchGuideMarkingSeen:NO];
+}
+
+- (void)openFolderFixerClicked:(id)sender {
+    [self.mainController switchViewToIndex:IGNavigationItemFolderFixer];
 }
 
 - (void)openRecoveryClicked:(id)sender {
@@ -1146,14 +1137,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     [self layoutApplicationChrome];
     [self applyTheme];
     
-    // Initial VC: if API key exists, show Genius Playlist, otherwise Settings
-	    NSString *provider = [[NSUserDefaults standardUserDefaults] stringForKey:@"provider"] ?: @"Gemini";
-    NSString *apiKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
-    if (apiKey && apiKey.length > 0) {
-        [self switchViewToIndex:IGNavigationItemOverview];
-    } else {
-        [self switchViewToIndex:IGNavigationItemSettings];
-    }
+    [self switchViewToIndex:IGNavigationItemOverview];
 
     [self performSelector:@selector(showFirstLaunchSetupIfNeeded) withObject:nil afterDelay:0.45];
 }
@@ -1191,7 +1175,12 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 }
 
 - (void)updateGlobalFooterText {
-    self.footerLabel.stringValue = [[IGLocalizationService sharedService] t:@"footer"] ?: @"";
+    NSString *caption = [[IGLocalizationService sharedService] t:@"footer"] ?: @"";
+    if (self.activeIndex != IGNavigationItemAIPlaylist) {
+        caption = [[[caption componentsSeparatedByString:@"|"] firstObject]
+                   stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    }
+    self.footerLabel.stringValue = caption;
 }
 
 - (NSInteger)navigationIndexForOperationIdentifier:(NSString *)identifier {
@@ -2029,6 +2018,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
     @try {
 
     self.activeIndex = index;
+    [self updateGlobalFooterText];
 
     // Highlight button state
     for (NSInteger i = 0; i < self.sidebarButtons.count; i++) {

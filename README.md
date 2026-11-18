@@ -76,19 +76,20 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.6.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Resumes interrupted USB exports and reuses verified tracks without copying them again. |
+| `Syncrosa_Cocoa_v3.7.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Includes local track title editing with a preview and original file backups. |
 | `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.6.1.zip` | Modern Apple Silicon Macs | macOS 14 | Current Music.app build with resumable USB transfers, verified file reuse, and separate recovery records. |
+| `Syncrosa_SwiftUI_v3.7.0.zip` | Modern Apple Silicon Macs | macOS 14 | Includes local track title editing with a preview and original file backups. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.6.1
+### Latest Release: 3.7.0
 
-Syncrosa 3.6.1 keeps the list of free OpenRouter models up to date in Cocoa and SwiftUI. Choose OpenRouter in Settings and use its API key to generate playlists.
+Syncrosa 3.7.0 adds local track title editing to Folder Fixer in Cocoa and SwiftUI.
 
-- **Automatic Catalog Refresh:** Syncrosa loads the free text model catalog when you configure OpenRouter or use it to create a playlist.
-- **Free Model Selection:** A saved model stays selected while it is available. When it leaves the catalog, Syncrosa selects OpenRouter's free router, which chooses an available free model.
-- **Last Known List:** If the catalog is temporarily unreachable, Syncrosa keeps the last verified list.
+- Open **Correct Track Titles** from **Overview** to find the editor.
+- Review the file path, current title, and proposed title before applying changes to common MP3, M4A, and FLAC tags.
+- Type a title or take it from an `Artist - Title` file name. Syncrosa keeps the original files and their paths in the backup folder.
+- Use **File Names and Other Tools** to find the separate filename operations.
 
 The Python maintenance package remains available as version 3.4.8 in its previous release.
 
@@ -102,6 +103,14 @@ Because the application is distributed directly without an Apple Developer certi
 4. From then on, you can launch the app normally with a double-click!
 
 ---
+
+## Correct Track Titles in a Folder
+
+Open **Overview → Correct Track Titles**, choose a folder, then open the title editor. The preview shows the file path, the current title tag, and the draft title. Enter a title manually or use **Use File Names** to take the part after \`Artist - \`. Review the table and apply only when the new titles look right.
+
+The editor works locally with common MP3, M4A, and FLAC tag layouts. It writes the Title tag without renaming the audio file or re-encoding the audio. Syncrosa keeps the original files and their paths in the backup folder. Music or iTunes may continue showing a cached title for a track that is already imported.
+
+Expand **File Names and Other Tools** for file renaming and the other Folder Fixer operations.
 
 ## Continue Interrupted USB Exports
 
