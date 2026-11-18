@@ -103,6 +103,14 @@ Because the application is distributed directly without an Apple Developer certi
 
 ---
 
+## Correct Track Titles in a Folder
+
+Open **Overview → Correct Track Titles**, choose a folder, then open the title editor. The preview shows the file path, the current title tag, and the draft title. Enter a title manually or use **Use File Names** to take the part after \`Artist - \`. Review the table and apply only when the new titles look right.
+
+The editor works locally with common MP3, M4A, and FLAC tag layouts. It writes the Title tag without renaming the audio file or re-encoding the audio. Syncrosa keeps the original files and their paths in the backup folder. Music or iTunes may continue showing a cached title for a track that is already imported.
+
+Expand **File Names and Other Tools** for file renaming and the other Folder Fixer operations.
+
 ## Continue Interrupted USB Exports
 
 USB Export now checks the content of existing files before copying. Repeating an export reuses verified tracks, including compatible exports created by earlier versions, and transfers only new or changed content. Existing final files are preserved; incomplete copies stay separate from finished music files.

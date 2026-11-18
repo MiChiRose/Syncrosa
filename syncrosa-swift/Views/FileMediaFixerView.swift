@@ -54,6 +54,10 @@ private enum FileRenameFormat: String, CaseIterable, Hashable {
 struct FileMediaFixerView: View {
     @ObservedObject var lang = LocalizationService.shared
     @State private var folderPath: String = ""
+    @State private var selectedFolder: URL?
+    @State private var showTitleEditor = false
+    @State private var showFileTools = false
+    @State private var scannedOtherToolsFolder: URL?
     @State private var fileItems: [FileItem] = []
     @State private var isProcessing: Bool = false
     @State private var activeNotification: NotificationMessage? = nil
@@ -118,10 +122,40 @@ struct FileMediaFixerView: View {
             SyncrosaPageHeader(
                 title: lang.t("folder_fix"),
                 systemImage: "folder.badge.gearshape",
-                subtitle: lang.selectedLanguage == "ru" ? "Работа с локальными файлами в выбранной папке." : "Repair local music files inside a selected folder.",
+                subtitle: lang.selectedLanguage == "ru" ? "Исправьте названия треков или переименуйте файлы в выбранной папке." : "Correct track titles or rename files in a selected folder.",
                 helpAction: { showHelp = true }
             )
                 
+            VStack(alignment: .leading, spacing: 12) {
+                SyncrosaAdaptiveRow(spacing: 12) {
+                    Text(folderPath.isEmpty ? lang.t("no_folder") : folderPath)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(folderPath)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button(action: selectFolder) {
+                        Label(lang.t("select_folder"), systemImage: "folder")
+                    }
+                    .buttonStyle(SyncrosaSecondaryButtonStyle())
+                    .disabled(isProcessing)
+                }
+                Divider()
+                Text(lang.selectedLanguage == "ru"
+                     ? "Название внутри трека — это тег, который показывают плееры. Поддерживаются MP3, M4A и FLAC."
+                     : "The track title is the tag shown by players. Supports MP3, M4A, and FLAC.")
+                    .foregroundStyle(.secondary)
+                Button(action: { showTitleEditor = true }) {
+                    Label(lang.selectedLanguage == "ru" ? "Исправить названия треков…" : "Correct Track Titles…",
+                          systemImage: "pencil")
+                }
+                .buttonStyle(SyncrosaPrimaryButtonStyle())
+                .disabled(selectedFolder == nil || isProcessing)
+            }
+            .syncrosaCard()
+
+            DisclosureGroup(isExpanded: $showFileTools) {
+                VStack(alignment: .leading, spacing: 14) {
                 // Checklist Card
                 VStack(alignment: .leading, spacing: 15) {
                     SyncrosaSectionLabel(text: lang.selectedLanguage == "ru" ? "ДАННЫЕ ДЛЯ ИМЕНИ ФАЙЛА" : "DATA USED FOR FILENAMES", systemImage: "checklist")
@@ -206,16 +240,6 @@ struct FileMediaFixerView: View {
                         .foregroundColor(.secondary)
                     
                     SyncrosaAdaptiveRow(spacing: 15) {
-                        TextField(lang.t("no_folder"), text: $folderPath)
-                            .textFieldStyle(.roundedBorder)
-                            .disabled(true)
-                        
-                        Button(action: selectFolder) {
-                            Label(lang.t("select_folder"), systemImage: "folder")
-                        }
-                        .buttonStyle(SyncrosaSecondaryButtonStyle())
-                        .disabled(isProcessing)
-                        
                         Button(action: { presentSafetyPreview(.fixMetadata) }) {
                             Label(lang.selectedLanguage == "ru" ? "Найти данные и переименовать" : "Look Up & Rename", systemImage: "wrench.and.screwdriver")
                         }
@@ -267,11 +291,28 @@ struct FileMediaFixerView: View {
 
                     SyncrosaLogConsole(title: lang.t("log").uppercased(), lines: logLines, minHeight: 130)
                 
+                }
+                .padding(.top, 12)
+            } label: {
+                Text(lang.selectedLanguage == "ru" ? "Имена файлов и другие операции" : "File Names and Other Tools")
+                    .font(.headline)
+            }
+
                 Spacer()
+        }
+        .onChange(of: showFileTools) { _, opened in
+            if opened, let selectedFolder, scannedOtherToolsFolder != selectedFolder {
+                scanFolder(selectedFolder)
+            }
         }
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
             helpSheetView
+        }
+        .sheet(isPresented: $showTitleEditor) {
+            if let selectedFolder {
+                FolderTitleEditor(folder: selectedFolder, russian: lang.selectedLanguage == "ru")
+            }
         }
         .sheet(item: $safetyPreview) { request in
             SafetyPreviewSheet(
@@ -308,14 +349,14 @@ struct FileMediaFixerView: View {
                 ? "Исправляет метаданные и имена локальных музыкальных файлов только в выбранной папке и её подпапках."
                 : "Repairs metadata and filenames only inside the selected local folder and its subfolders.",
             steps: lang.selectedLanguage == "ru" ? [
-                "Выберите, использовать ли найденного исполнителя и название в новом имени файла.",
+                "Выберите папку и откройте «Исправить названия треков», чтобы изменить поле «Название» в самом файле.",
                 "Выберите папку. Syncrosa покажет найденные музыкальные файлы.",
                 "Для метаданных нажмите «Исправить все файлы»; для подчёркиваний используйте отдельную очистку имён.",
                 "Для пакетного переименования выберите понятный формат и проверьте пример перед подтверждением."
             ] : [
                 "Choose whether the discovered artist and title should be used in the new filename.",
                 "Select a folder. Syncrosa lists the music files it finds.",
-                "Use Fix All Files for metadata; use Clean Filenames separately for accidental underscores.",
+                "Open Correct Track Titles to review changes to the embedded title. File name tools are available separately.",
                 "For batch renaming, choose a named format and review the example before confirming."
             ],
             notes: lang.selectedLanguage == "ru" ? [
@@ -363,19 +404,27 @@ struct FileMediaFixerView: View {
         
         if panel.runModal() == .OK {
             if let url = panel.url {
+                selectedFolder = url
                 folderPath = url.path
-                scanFolder(url)
+                scannedOtherToolsFolder = nil
+                fileItems = []
+                folderPlaylistTracks = []
+                logLines = []
+                if showFileTools { scanFolder(url) }
             }
         }
     }
     
     func scanFolder(_ url: URL) {
+        scannedOtherToolsFolder = url
         isProcessing = true
         activeNotification = NotificationMessage(
             text: lang.selectedLanguage == "ru" ? "Сканирование папки..." : "Scanning folder...",
             isError: false
         )
         DispatchQueue.global(qos: .utility).async {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             let scannedTracks = FolderPlaylistImportService.shared.scanFolder(url)
             let matches = scannedTracks.map { FileItem(url: url.appendingPathComponent($0.relativePath)) }
             DispatchQueue.main.async {

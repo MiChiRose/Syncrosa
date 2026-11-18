@@ -29,6 +29,11 @@
 		D3E1A2B3C4D5E6F700001007 /* DuplicateFinderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001107 /* DuplicateFinderView.swift */; };
 		D3E1A2B3C4D5E6F700001008 /* OfflinePlaylistGeneratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001108 /* OfflinePlaylistGeneratorView.swift */; };
 		D3E1A2B3C4D5E6F700001009 /* FileMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F700001109 /* FileMetadataService.swift */; };
+		C361F0100000000000000005 /* MusicLibraryExchangeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C361F0100000000000000015 /* MusicLibraryExchangeService.swift */; };
+		C361F0100000000000000004 /* LibraryToolkitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C361F0100000000000000014 /* LibraryToolkitService.swift */; };
+		C361F0100000000000000003 /* AppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C361F0100000000000000013 /* AppearanceService.swift */; };
+		C361F0100000000000000002 /* SRTrackTitles.m in Sources */ = {isa = PBXBuildFile; fileRef = C361F0100000000000000012 /* SRTrackTitles.m */; };
+		C361F0100000000000000001 /* FolderTitleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C361F0100000000000000011 /* FolderTitleEditor.swift */; };
 		D3E1A2B3C4D5E6F70000100A /* InfoEraserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110A /* InfoEraserService.swift */; };
 		D3E1A2B3C4D5E6F70000100B /* SyncrosaStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */; };
 		D3E1A2B3C4D5E6F70000100C /* OperationHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */; };
@@ -70,6 +75,11 @@
 		D3E1A2B3C4D5E6F700001107 /* DuplicateFinderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateFinderView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700001108 /* OfflinePlaylistGeneratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflinePlaylistGeneratorView.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F700001109 /* FileMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataService.swift; sourceTree = "<group>"; };
+		C361F0100000000000000015 /* MusicLibraryExchangeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLibraryExchangeService.swift; sourceTree = "<group>"; };
+		C361F0100000000000000014 /* LibraryToolkitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryToolkitService.swift; sourceTree = "<group>"; };
+		C361F0100000000000000013 /* AppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceService.swift; sourceTree = "<group>"; };
+		C361F0100000000000000012 /* SRTrackTitles.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "../../shared/TrackTitles/SRTrackTitles.m"; sourceTree = "<group>"; };
+		C361F0100000000000000011 /* FolderTitleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FolderTitleEditor.swift"; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000110A /* InfoEraserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoEraserService.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncrosaStorage.swift; sourceTree = "<group>"; };
 		D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationHistoryService.swift; sourceTree = "<group>"; };
@@ -117,6 +127,7 @@
 					D3E1A2B3C4D5E6F700001111 /* SyncrosaDesignSystem.swift */,
 					D3E1A2B3C4D5E6F700000104 /* MediaFixerView.swift */,
 					D3E1A2B3C4D5E6F700000105 /* FileMediaFixerView.swift */,
+					C361F0100000000000000011 /* FolderTitleEditor.swift */,
 					D3E1A2B3C4D5E6F700001116 /* IPodConverterView.swift */,
 					D3E1A2B3C4D5E6F700001101 /* InfoEraserView.swift */,
 					D3E1A2B3C4D5E6F700001102 /* OverviewView.swift */,
@@ -141,6 +152,10 @@
 					D3E1A2B3C4D5E6F700000109 /* AIService.swift */,
 					D3E1A2B3C4D5E6F70000010A /* MetadataService.swift */,
 					D3E1A2B3C4D5E6F700001109 /* FileMetadataService.swift */,
+					C361F0100000000000000015 /* MusicLibraryExchangeService.swift */,
+					C361F0100000000000000014 /* LibraryToolkitService.swift */,
+					C361F0100000000000000013 /* AppearanceService.swift */,
+					C361F0100000000000000012 /* SRTrackTitles.m */,
 					D3E1A2B3C4D5E6F70000110A /* InfoEraserService.swift */,
 					D3E1A2B3C4D5E6F70000110B /* SyncrosaStorage.swift */,
 					D3E1A2B3C4D5E6F70000110C /* OperationHistoryService.swift */,
@@ -256,6 +271,11 @@
 				D3E1A2B3C4D5E6F700000009 /* AIService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000000A /* MetadataService.swift in Sources */,
 				D3E1A2B3C4D5E6F700001009 /* FileMetadataService.swift in Sources */,
+				C361F0100000000000000005 /* MusicLibraryExchangeService.swift in Sources */,
+				C361F0100000000000000004 /* LibraryToolkitService.swift in Sources */,
+				C361F0100000000000000003 /* AppearanceService.swift in Sources */,
+				C361F0100000000000000002 /* SRTrackTitles.m in Sources */,
+				C361F0100000000000000001 /* FolderTitleEditor.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100A /* InfoEraserService.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100B /* SyncrosaStorage.swift in Sources */,
 				D3E1A2B3C4D5E6F70000100C /* OperationHistoryService.swift in Sources */,
@@ -403,6 +423,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.example.iGeniusAI-M";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = AudioTitleCore/include/AudioTitleCore.h;
 				SWIFT_VERSION = 5.0;
 				ENABLE_DEBUG_DYLIB = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -425,6 +446,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.example.iGeniusAI-M";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = AudioTitleCore/include/AudioTitleCore.h;
 				SWIFT_VERSION = 5.0;
 				ENABLE_DEBUG_DYLIB = YES;
 				GENERATE_INFOPLIST_FILE = YES;

@@ -44,6 +44,7 @@
 		71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */; };
 		602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Build */ = {isa = PBXBuildFile; fileRef = F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */; };
 		72FECC5191E0484D8D030A5E /* IGFileFixerViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 739BF74E464946A2AA4C0110 /* IGFileFixerViewController.m */; };
+		C361F0200000000000000002 /* IGFolderTitleEditor.m in Build */ = {isa = PBXBuildFile; fileRef = C361F0200000000000000012 /* IGFolderTitleEditor.m */; };
 		A1B2C3D4E5F60708090A0001 /* IGInfoEraserViewController.m in Build */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60708090A0102 /* IGInfoEraserViewController.m */; };
 		C276892C58134848B0C9C667 /* IGGeniusViewController.m in Build */ = {isa = PBXBuildFile; fileRef = 66FDB03C78DD486E89F166B2 /* IGGeniusViewController.m */; };
 		B4689CDE395842698F3CE170 /* IGNotificationView.m in Build */ = {isa = PBXBuildFile; fileRef = AE10F8E4682E4EA7B7095986 /* IGNotificationView.m */; };
@@ -67,6 +68,7 @@
 		A80100000000000000000001 /* IGOperationActivity.m in Build */ = {isa = PBXBuildFile; fileRef = A80100000000000000000004 /* IGOperationActivity.m */; };
 		A80100000000000000000002 /* IGVideoMetadataViewController.m in Build */ = {isa = PBXBuildFile; fileRef = A80100000000000000000006 /* IGVideoMetadataViewController.m */; };
 		A80200000000000000000001 /* IGVideoFileMetadataService.m in Build */ = {isa = PBXBuildFile; fileRef = A80200000000000000000004 /* IGVideoFileMetadataService.m */; };
+		C361F0200000000000000001 /* SRTrackTitles.m in Build */ = {isa = PBXBuildFile; fileRef = C361F0200000000000000011 /* SRTrackTitles.m */; };
 		A80200000000000000000002 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A80200000000000000000005 /* AVFoundation.framework */; };
 		5D7037A06A23448EB85741D7 /* SyncrosaTests.m in Build */ = {isa = PBXBuildFile; fileRef = 82ED0CB27F3C48F6A4113858 /* SyncrosaTests.m */; };
 		88306CA2A8764D4CBE9EF3C7 /* IGBusinessLogicTests.m in Build */ = {isa = PBXBuildFile; fileRef = 6FC946587A2C4A71BB213DC8 /* IGBusinessLogicTests.m */; };
@@ -127,6 +129,7 @@
 		7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGOfflinePlaylistViewController.m"; sourceTree = "<group>"; };
 		F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGUSBExportViewController.m"; sourceTree = "<group>"; };
 		739BF74E464946A2AA4C0110 /* IGFileFixerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFileFixerViewController.m"; sourceTree = "<group>"; };
+		C361F0200000000000000012 /* IGFolderTitleEditor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGFolderTitleEditor.m"; sourceTree = "<group>"; };
 		A1B2C3D4E5F60708090A0101 /* IGInfoEraserViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGInfoEraserViewController.h"; sourceTree = "<group>"; };
 		A1B2C3D4E5F60708090A0102 /* IGInfoEraserViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGInfoEraserViewController.m"; sourceTree = "<group>"; };
 		1E00386C424D42A2949A6D8B /* IGCoversOptimizerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGCoversOptimizerViewController.h"; sourceTree = "<group>"; };
@@ -171,6 +174,7 @@
 		A80100000000000000000006 /* IGVideoMetadataViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGVideoMetadataViewController.m"; sourceTree = "<group>"; };
 		A80200000000000000000003 /* IGVideoFileMetadataService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGVideoFileMetadataService.h"; sourceTree = "<group>"; };
 		A80200000000000000000004 /* IGVideoFileMetadataService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "IGVideoFileMetadataService.m"; sourceTree = "<group>"; };
+		C361F0200000000000000011 /* SRTrackTitles.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "../../../shared/TrackTitles/SRTrackTitles.m"; sourceTree = "<group>"; };
 		A80200000000000000000005 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		0B11E06C09474BA782581110 /* IGUSBService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGUSBService.h"; sourceTree = "<group>"; };
 		F10000000000000000000010 /* IGIPodCompatibilityService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "IGIPodCompatibilityService.h"; sourceTree = "<group>"; };
@@ -311,6 +315,7 @@
 				A80100000000000000000004 /* IGOperationActivity.m */,
 				A80200000000000000000003 /* IGVideoFileMetadataService.h */,
 				A80200000000000000000004 /* IGVideoFileMetadataService.m */,
+				C361F0200000000000000011 /* SRTrackTitles.m */,
 			);
 			path = "Services";
 			sourceTree = "<group>";
@@ -344,6 +349,7 @@
 				7F483084A1C444FFB8D9A096 /* IGOfflinePlaylistViewController.m */,
 				F680643FC34A4E8DB7E7FDEF /* IGUSBExportViewController.m */,
 				739BF74E464946A2AA4C0110 /* IGFileFixerViewController.m */,
+				C361F0200000000000000012 /* IGFolderTitleEditor.m */,
 				A1B2C3D4E5F60708090A0101 /* IGInfoEraserViewController.h */,
 				A1B2C3D4E5F60708090A0102 /* IGInfoEraserViewController.m */,
 				1E00386C424D42A2949A6D8B /* IGCoversOptimizerViewController.h */,
@@ -547,6 +553,7 @@
 				71D96F8FB9A145948D92D3BC /* IGOfflinePlaylistViewController.m in Sources */,
 				602B6811819A40C48F7A521A /* IGUSBExportViewController.m in Sources */,
 				72FECC5191E0484D8D030A5E /* IGFileFixerViewController.m in Sources */,
+				C361F0200000000000000002 /* IGFolderTitleEditor.m in Sources */,
 				A1B2C3D4E5F60708090A0001 /* IGInfoEraserViewController.m in Sources */,
 				C276892C58134848B0C9C667 /* IGGeniusViewController.m in Sources */,
 				B4689CDE395842698F3CE170 /* IGNotificationView.m in Sources */,
@@ -569,6 +576,7 @@
 				A80100000000000000000001 /* IGOperationActivity.m in Sources */,
 				A80100000000000000000002 /* IGVideoMetadataViewController.m in Sources */,
 				A80200000000000000000001 /* IGVideoFileMetadataService.m in Sources */,
+				C361F0200000000000000001 /* SRTrackTitles.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

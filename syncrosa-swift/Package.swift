@@ -11,9 +11,10 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
+        .target(name: "AudioTitleCore", path: "AudioTitleCore"),
         .executableTarget(
             name: "Syncrosa",
-            dependencies: [],
+            dependencies: ["AudioTitleCore"],
             path: ".",
             exclude: [
                 "README.md",
@@ -21,7 +22,8 @@ let package = Package(
                 "Info.plist",
                 "Syncrosa.entitlements",
                 "Syncrosa.xcodeproj",
-                "Tests"
+                "Tests",
+                "AudioTitleCore"
             ],
             sources: [
                 "SyncrosaApp.swift",
@@ -30,6 +32,7 @@ let package = Package(
                 "Views/PlaylistGeneratorView.swift",
                 "Views/MediaFixerView.swift",
                 "Views/FileMediaFixerView.swift",
+                "Views/FolderTitleEditor.swift",
                 "Views/InfoEraserView.swift",
                 "Views/IPodConverterView.swift",
                 "Views/OverviewView.swift",
@@ -72,7 +75,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SyncrosaTests",
-            dependencies: ["Syncrosa"],
+            dependencies: ["Syncrosa", "AudioTitleCore"],
             path: "Tests/SyncrosaTests",
             sources: [
                 "LibraryToolkitServiceTests.swift",
@@ -80,7 +83,8 @@ let package = Package(
                 "MusicLibraryExchangeTests.swift",
                 "USBExportTests.swift",
                 "OperationRecoveryTests.swift",
-                "OpenRouterCatalogTests.swift"
+                "OpenRouterCatalogTests.swift",
+                "FolderTitleRepairTests.swift"
             ]
         )
     ]

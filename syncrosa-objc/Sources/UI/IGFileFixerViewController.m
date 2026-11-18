@@ -1,5 +1,6 @@
 #import "IGOperationActivity.h"
 #import "IGFileFixerViewController.h"
+#import "IGFolderTitleEditor.h"
 #import "IGLocalizationService.h"
 #import "IGNotificationView.h"
 #import "IGiTunesService.h"
@@ -167,6 +168,13 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
 
 @interface IGFileFixerViewController ()
 @property (nonatomic, strong) NSTextField *folderPathField;
+@property (nonatomic, retain) NSView *folderCanvas;
+@property (nonatomic, retain) NSButton *titleEditorButton;
+@property (nonatomic, retain) NSButton *otherToolsButton;
+@property (nonatomic, retain) NSArray *otherTools;
+@property (nonatomic, retain) IGFolderTitleEditor *titleEditor;
+@property (nonatomic, assign) BOOL showingOtherTools;
+@property (nonatomic, assign) BOOL scannedOtherTools;
 @property (nonatomic, strong) NSButton *selectFolderButton;
 @property (nonatomic, strong) NSButton *downloadCoversButton;
 @property (nonatomic, strong) NSButton *cleanFilenamesButton;
@@ -202,58 +210,93 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 #if !__has_feature(objc_arc)
+    [_folderCanvas release];
+    [_titleEditorButton release];
+    [_otherToolsButton release];
+    [_otherTools release];
+    [_titleEditor release];
     [super dealloc];
 #endif
 }
 
 - (void)loadView {
-    self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)];
+    NSScrollView *scroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 580, 480)] autorelease];
+    scroll.hasVerticalScroller = YES;
+    scroll.autohidesScrollers = YES;
+    scroll.drawsBackground = NO;
+    self.folderCanvas = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 580, 522)] autorelease];
+    scroll.documentView = self.folderCanvas;
+    self.view = scroll;
     [self setupUI];
+    NSClipView *clip = scroll.contentView;
+    [clip scrollToPoint:NSMakePoint(0, NSHeight(self.folderCanvas.bounds) - NSHeight(clip.bounds))];
+    [scroll reflectScrolledClipView:clip];
 }
 
 - (void)setupUI {
     IGLocalizationService *lang = [IGLocalizationService sharedService];
-    CGFloat y = 440;
+    CGFloat y = 482;
+    BOOL russian = [lang.selectedLanguage isEqualToString:@"ru"];
 
     NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)];
-    titleLabel.stringValue = [lang t:@"file_fixing"];
+    titleLabel.stringValue = [lang t:@"folder_fix"];
     titleLabel.font = [NSFont boldSystemFontOfSize:18];
     titleLabel.editable = NO;
     titleLabel.bordered = NO;
     titleLabel.drawsBackground = NO;
     titleLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:titleLabel];
+    [self.folderCanvas addSubview:titleLabel];
 
     NSButton *helpButton = [[NSButton alloc] initWithFrame:NSMakeRect(520, y, 25, 25)];
     helpButton.bezelStyle = NSHelpButtonBezelStyle;
     helpButton.title = @"";
     helpButton.target = self;
     helpButton.action = @selector(helpClicked:);
-    [self.view addSubview:helpButton];
+    [self.folderCanvas addSubview:helpButton];
 
     y -= 35;
     NSTextField *instrLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 35)];
-    instrLabel.stringValue = [lang t:@"file_instr"];
+    instrLabel.stringValue = russian
+        ? @"Встроенные названия треков: MP3, M4A и FLAC."
+        : @"Edit the title tag inside MP3, M4A, and FLAC files.";
     instrLabel.font = [NSFont systemFontOfSize:11];
     instrLabel.textColor = IGThemeMutedTextColor();
     instrLabel.editable = NO;
     instrLabel.bordered = NO;
     instrLabel.drawsBackground = NO;
     instrLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:instrLabel];
+    [self.folderCanvas addSubview:instrLabel];
 
     y -= 31;
     self.folderPathField = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 360, 24)];
     self.folderPathField.editable = NO;
     [[self.folderPathField cell] setPlaceholderString:[lang t:@"no_folder"]];
-    [self.view addSubview:self.folderPathField];
+    [self.folderCanvas addSubview:self.folderPathField];
 
     self.selectFolderButton = [[NSButton alloc] initWithFrame:NSMakeRect(410, y-2, 130, 30)];
     self.selectFolderButton.title = [lang t:@"select_folder"];
     self.selectFolderButton.bezelStyle = NSRoundedBezelStyle;
     self.selectFolderButton.target = self;
     self.selectFolderButton.action = @selector(selectFolderClicked:);
-    [self.view addSubview:self.selectFolderButton];
+    [self.folderCanvas addSubview:self.selectFolderButton];
+
+    y -= 42;
+    self.titleEditorButton = [[[NSButton alloc] initWithFrame:NSMakeRect(36, y - 3, 256, 32)] autorelease];
+    self.titleEditorButton.title = russian ? @"Исправить названия треков…" : @"Correct Track Titles…";
+    self.titleEditorButton.target = self;
+    self.titleEditorButton.action = @selector(editTitlesClicked:);
+    self.titleEditorButton.bezelStyle = NSRoundedBezelStyle;
+    [self.folderCanvas addSubview:self.titleEditorButton];
+    IGApplyThemeToButton(self.titleEditorButton, IGThemeButtonRolePrimary);
+
+    self.otherToolsButton = [[[NSButton alloc] initWithFrame:NSMakeRect(306, y - 3, 240, 32)] autorelease];
+    self.otherToolsButton.title = russian ? @"Имена файлов и другие операции" : @"File Names and Other Tools";
+    self.otherToolsButton.target = self;
+    self.otherToolsButton.action = @selector(toggleOtherTools:);
+    self.otherToolsButton.bezelStyle = NSRoundedBezelStyle;
+    [self.folderCanvas addSubview:self.otherToolsButton];
+    IGApplyThemeToButton(self.otherToolsButton, IGThemeButtonRoleSecondary);
+    NSUInteger firstOtherTool = self.folderCanvas.subviews.count;
 
     // Grid of Checkboxes
     y -= 26;
@@ -263,7 +306,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.selectAllCheckbox.target = self;
     self.selectAllCheckbox.action = @selector(selectAllClicked:);
     self.selectAllCheckbox.state = NSOnState;
-    [self.view addSubview:self.selectAllCheckbox];
+    [self.folderCanvas addSubview:self.selectAllCheckbox];
 
     y -= 25;
     self.albumCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
@@ -272,7 +315,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.albumCheckbox.state = NSOnState;
     self.albumCheckbox.target = self;
     self.albumCheckbox.action = @selector(tagCheckboxClicked:);
-    [self.view addSubview:self.albumCheckbox];
+    [self.folderCanvas addSubview:self.albumCheckbox];
 
     self.titleCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
     [self.titleCheckbox setButtonType:NSSwitchButton];
@@ -280,7 +323,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.titleCheckbox.state = NSOnState;
     self.titleCheckbox.target = self;
     self.titleCheckbox.action = @selector(tagCheckboxClicked:);
-    [self.view addSubview:self.titleCheckbox];
+    [self.folderCanvas addSubview:self.titleCheckbox];
 
     self.artistCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
     [self.artistCheckbox setButtonType:NSSwitchButton];
@@ -288,7 +331,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.artistCheckbox.state = NSOnState;
     self.artistCheckbox.target = self;
     self.artistCheckbox.action = @selector(tagCheckboxClicked:);
-    [self.view addSubview:self.artistCheckbox];
+    [self.folderCanvas addSubview:self.artistCheckbox];
 
     y -= 25;
     self.genreCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 140, 20)];
@@ -297,7 +340,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.genreCheckbox.state = NSOnState;
     self.genreCheckbox.target = self;
     self.genreCheckbox.action = @selector(tagCheckboxClicked:);
-    [self.view addSubview:self.genreCheckbox];
+    [self.folderCanvas addSubview:self.genreCheckbox];
 
     self.trackNumberCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(200, y, 140, 20)];
     [self.trackNumberCheckbox setButtonType:NSSwitchButton];
@@ -305,7 +348,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.trackNumberCheckbox.state = NSOnState;
     self.trackNumberCheckbox.target = self;
     self.trackNumberCheckbox.action = @selector(tagCheckboxClicked:);
-    [self.view addSubview:self.trackNumberCheckbox];
+    [self.folderCanvas addSubview:self.trackNumberCheckbox];
 
     self.lyricsCheckbox = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 140, 20)];
     [self.lyricsCheckbox setButtonType:NSSwitchButton];
@@ -313,14 +356,14 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.lyricsCheckbox.state = NSOnState;
     self.lyricsCheckbox.target = self;
     self.lyricsCheckbox.action = @selector(tagCheckboxClicked:);
-    [self.view addSubview:self.lyricsCheckbox];
+    [self.folderCanvas addSubview:self.lyricsCheckbox];
 
     y -= 25;
     self.downloadCoversButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 220, 20)];
     [self.downloadCoversButton setButtonType:NSSwitchButton];
     self.downloadCoversButton.title = @"Download Album Covers";
     self.downloadCoversButton.state = NSOnState;
-    [self.view addSubview:self.downloadCoversButton];
+    [self.folderCanvas addSubview:self.downloadCoversButton];
 
     y -= 33;
     self.cleanFilenamesButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y - 4, 130, 30)];
@@ -329,13 +372,13 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.cleanFilenamesButton.enabled = NO;
     self.cleanFilenamesButton.target = self;
     self.cleanFilenamesButton.action = @selector(cleanFilenamesClicked:);
-    [self.view addSubview:self.cleanFilenamesButton];
+    [self.folderCanvas addSubview:self.cleanFilenamesButton];
 
     self.playlistNameField = [[NSTextField alloc] initWithFrame:NSMakeRect(180, y, 170, 24)];
     [[self.playlistNameField cell] setPlaceholderString:@"Playlist name"];
     self.playlistNameField.target = self;
     self.playlistNameField.action = @selector(playlistNameChanged:);
-    [self.view addSubview:self.playlistNameField];
+    [self.folderCanvas addSubview:self.playlistNameField];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(playlistNameChanged:)
                                                  name:NSControlTextDidChangeNotification
@@ -347,7 +390,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.importFolderPlaylistButton.enabled = NO;
     self.importFolderPlaylistButton.target = self;
     self.importFolderPlaylistButton.action = @selector(importFolderPlaylistClicked:);
-    [self.view addSubview:self.importFolderPlaylistButton];
+    [self.folderCanvas addSubview:self.importFolderPlaylistButton];
 
     y -= 42;
     self.exportManifestButton = [[NSButton alloc] initWithFrame:NSMakeRect(40, y + 5, 150, 30)];
@@ -356,7 +399,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.exportManifestButton.enabled = NO;
     self.exportManifestButton.target = self;
     self.exportManifestButton.action = @selector(exportManifestClicked:);
-    [self.view addSubview:self.exportManifestButton];
+    [self.folderCanvas addSubview:self.exportManifestButton];
 
     self.importSelectionButton = [[NSButton alloc] initWithFrame:NSMakeRect(200, y + 5, 150, 30)];
     self.importSelectionButton.title = @"Import AI JSON";
@@ -364,21 +407,21 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.importSelectionButton.enabled = NO;
     self.importSelectionButton.target = self;
     self.importSelectionButton.action = @selector(importSelectionClicked:);
-    [self.view addSubview:self.importSelectionButton];
+    [self.folderCanvas addSubview:self.importSelectionButton];
 
     self.fixButton = [[NSButton alloc] initWithFrame:NSMakeRect(360, y, 180, 34)];
-    self.fixButton.title = [lang t:@"fix_all"];
+    self.fixButton.title = russian ? @"Найти и переименовать…" : @"Look Up & Rename…";
     self.fixButton.bezelStyle = NSTexturedRoundedBezelStyle;
     self.fixButton.enabled = NO;
     self.fixButton.target = self;
     self.fixButton.action = @selector(fixClicked:);
-    [self.view addSubview:self.fixButton];
+    [self.folderCanvas addSubview:self.fixButton];
 
     y -= 25;
     self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(40, y, 500, 20)];
     self.progressIndicator.style = NSProgressIndicatorBarStyle;
     self.progressIndicator.indeterminate = NO;
-    [self.view addSubview:self.progressIndicator];
+    [self.folderCanvas addSubview:self.progressIndicator];
 
     y -= 110;
     NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(40, y, 500, 105)];
@@ -391,7 +434,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.logView.textColor = IGThemeAccentColor();
     self.logView.font = [NSFont fontWithName:@"Monaco" size:10];
     scrollView.documentView = self.logView;
-    [self.view addSubview:scrollView];
+    [self.folderCanvas addSubview:scrollView];
 
     y -= 30;
     self.statusLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(40, y, 500, 20)];
@@ -400,7 +443,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.statusLabel.bordered = NO;
     self.statusLabel.drawsBackground = NO;
     self.statusLabel.alignment = NSCenterTextAlignment;
-    [self.view addSubview:self.statusLabel];
+    [self.folderCanvas addSubview:self.statusLabel];
 
     // Footer
     NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 1, 540, 28)];
@@ -411,8 +454,36 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     footer.editable = NO;
     footer.bordered = NO;
     footer.drawsBackground = NO;
-    [self.view addSubview:footer];
+    [self.folderCanvas addSubview:footer];
+    NSArray *controls = self.folderCanvas.subviews;
+    self.otherTools = [controls subarrayWithRange:NSMakeRange(firstOtherTool, controls.count - firstOtherTool)];
+    [self setOtherToolsVisible:NO];
     [self tagCheckboxClicked:nil];
+}
+
+- (void)setOtherToolsVisible:(BOOL)visible {
+    self.showingOtherTools = visible;
+    for (NSView *control in self.otherTools) control.hidden = !visible;
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    self.otherToolsButton.title = visible
+        ? (russian ? @"Скрыть другие операции" : @"Hide Other Tools")
+        : (russian ? @"Имена файлов и другие операции" : @"File Names and Other Tools");
+}
+
+- (void)toggleOtherTools:(id)sender {
+    [self setOtherToolsVisible:!self.showingOtherTools];
+    if (self.showingOtherTools && !self.scannedOtherTools && self.folderPathField.stringValue.length > 0) {
+        [self scanFolder:[NSURL fileURLWithPath:self.folderPathField.stringValue isDirectory:YES]];
+    }
+}
+
+- (void)editTitlesClicked:(id)sender {
+    if (self.isProcessing || self.titleEditor || self.folderPathField.stringValue.length == 0) return;
+    NSURL *folder = [NSURL fileURLWithPath:self.folderPathField.stringValue isDirectory:YES];
+    self.titleEditor = [[[IGFolderTitleEditor alloc] initWithFolder:folder] autorelease];
+    [self.view.window beginSheet:self.titleEditor.window completionHandler:^(NSModalResponse response) {
+        self.titleEditor = nil;
+    }];
 }
 
 - (void)selectAllClicked:(id)sender {
@@ -439,6 +510,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     self.fixButton.enabled = (!self.isProcessing && self.foundFiles.count > 0 && [self hasSelectedTags]);
     BOOL hasFiles = (!self.isProcessing && self.foundFiles.count > 0);
     BOOL hasPlaylistName = ([[self.playlistNameField.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length] > 0);
+    self.titleEditorButton.enabled = !self.isProcessing && self.folderPathField.stringValue.length > 0;
     self.cleanFilenamesButton.enabled = hasFiles;
     self.exportManifestButton.enabled = hasFiles;
     self.importSelectionButton.enabled = hasFiles;
@@ -518,12 +590,19 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     if ([panel runModal] == NSOKButton) {
         NSURL *url = [[panel URLs] firstObject];
         self.folderPathField.stringValue = [url path];
-        [self scanFolder:url];
+        self.scannedOtherTools = NO;
+        self.foundFiles = nil;
+        [self clearLogView];
+        [self updateFixButtonState];
+        if (self.showingOtherTools) [self scanFolder:url];
     }
 }
 
 - (void)scanFolder:(NSURL *)url {
-    self.fixButton.enabled = NO;
+    self.scannedOtherTools = YES;
+    self.isProcessing = YES;
+    self.selectFolderButton.enabled = NO;
+    [self updateFixButtonState];
     self.statusLabel.stringValue = @"Scanning folder...";
     [self clearLogView];
     [self log:[NSString stringWithFormat:@"Scanning folder recursively: %@", url.path ?: @""]];
@@ -555,6 +634,8 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
         NSArray *result = [matches copy];
         dispatch_async(dispatch_get_main_queue(), ^{
             self.foundFiles = result;
+            self.isProcessing = NO;
+            self.selectFolderButton.enabled = YES;
             IGLocalizationService *lang = [IGLocalizationService sharedService];
             self.statusLabel.stringValue = [lang t:@"files_to_process" args:@[@([result count])]];
             [self log:[NSString stringWithFormat:@"Scanned folder recursively: Found %ld music files.", (long)result.count]];
