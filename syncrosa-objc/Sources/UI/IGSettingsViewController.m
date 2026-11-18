@@ -51,6 +51,10 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     return [cleanLines componentsJoinedByString:@"\n"];
 }
 
+static NSString *IGUpdateText(NSString *english, NSString *russian) {
+    return [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"] ? russian : english;
+}
+
 @interface IGSettingsViewController () <NSComboBoxDelegate>
 
 @property (nonatomic, strong) NSTextField *titleLabel;
@@ -87,7 +91,13 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @property (nonatomic, strong) NSButton *updateOpenButton;
 @property (nonatomic, strong) NSButton *releaseNotesButton;
 @property (nonatomic, strong) NSTextField *updateStatusLabel;
-@property (nonatomic, strong) NSString *latestUpdateURL;
+@property (nonatomic, copy) NSDictionary *latestUpdateInfo;
+@property (nonatomic, copy) NSString *downloadedInstaller;
+@property (nonatomic, retain) NSProgress *updateDownload;
+@property (nonatomic) BOOL checkingForUpdates;
+@property (nonatomic) BOOL updateCheckFailed;
+@property (nonatomic) BOOL showManualCheckResult;
+@property (nonatomic) BOOL openingInstaller;
 @property (nonatomic, strong) NSString *latestReleaseTitle;
 @property (nonatomic, strong) NSString *latestReleaseNotes;
 @property (nonatomic, strong) NSButton *saveButton;
@@ -164,7 +174,9 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [_updateOpenButton release];
     [_releaseNotesButton release];
     [_updateStatusLabel release];
-    [_latestUpdateURL release];
+    [_latestUpdateInfo release];
+    [_downloadedInstaller release];
+    [_updateDownload release];
     [_latestReleaseTitle release];
     [_latestReleaseNotes release];
     [_saveButton release];
@@ -181,9 +193,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     CGFloat rowGap = 42.0;
     CGFloat compactRowGap = 32.0;
     CGFloat buttonHeight = 26.0;
-    self.latestUpdateURL = @"https://github.com/MiChiRose/Syncrosa/releases/latest";
-    self.latestReleaseTitle = @"";
-    self.latestReleaseNotes = IGUpdateBundledReleaseNotes();
+
     
     // Title
     self.titleLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 540, 30)] autorelease];
@@ -194,16 +204,16 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.titleLabel.alignment = NSCenterTextAlignment;
     [self.settingsCanvas addSubview:self.titleLabel];
 
-    self.appearanceSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 514, 556, 92)] autorelease];
+    self.appearanceSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 410, 556, 92)] autorelease];
     self.appearanceSectionBox.boxType = NSBoxPrimary;
     [self.settingsCanvas addSubview:self.appearanceSectionBox];
-    self.aiSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 327, 556, 180)] autorelease];
+    self.aiSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 223, 556, 180)] autorelease];
     self.aiSectionBox.boxType = NSBoxPrimary;
     [self.settingsCanvas addSubview:self.aiSectionBox];
-    self.safetySectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 163, 556, 157)] autorelease];
+    self.safetySectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 59, 556, 157)] autorelease];
     self.safetySectionBox.boxType = NSBoxPrimary;
     [self.settingsCanvas addSubview:self.safetySectionBox];
-    self.updatesSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 43, 556, 101)] autorelease];
+    self.updatesSectionBox = [[[NSBox alloc] initWithFrame:NSMakeRect(12, 509, 556, 97)] autorelease];
     self.updatesSectionBox.boxType = NSBoxPrimary;
     [self.settingsCanvas addSubview:self.updatesSectionBox];
     
@@ -212,7 +222,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
      eight points lower so the visible inset matches the 8-point side inset.
      The shift carries through Appearance, AI Provider, and Library & Safety.
      */
-    y -= 63.0;
+    y -= 167.0;
     // Language Section
     self.langLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 120, 20)] autorelease];
     self.langLabel.font = [NSFont systemFontOfSize:13];
@@ -276,7 +286,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.providerCombo.delegate = self;
     [self.settingsCanvas addSubview:self.providerCombo];
 
-    self.syncModelsBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(430, y-2, 130, 30)] autorelease];
+    self.syncModelsBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(430, y-5, 130, 30)] autorelease];
     self.syncModelsBtn.bezelStyle = NSRoundedBezelStyle;
     self.syncModelsBtn.target = self;
     self.syncModelsBtn.action = @selector(syncClicked:);
@@ -337,7 +347,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.onlyLocalCheckbox.title = @"Only Local Mode";
     [self.settingsCanvas addSubview:self.onlyLocalCheckbox];
 
-    self.historyButton = [[[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)] autorelease];
+    self.historyButton = [[[NSButton alloc] initWithFrame:NSMakeRect(380, y - 3, 180, buttonHeight)] autorelease];
     self.historyButton.bezelStyle = NSRoundedBezelStyle;
     self.historyButton.title = @"Operation History";
     self.historyButton.target = self;
@@ -350,7 +360,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.hddSafeCheckbox.title = @"HDD Safe Mode";
     [self.settingsCanvas addSubview:self.hddSafeCheckbox];
 
-    self.recoveryButton = [[[NSButton alloc] initWithFrame:NSMakeRect(300, y - 3, 180, buttonHeight)] autorelease];
+    self.recoveryButton = [[[NSButton alloc] initWithFrame:NSMakeRect(380, y - 3, 180, buttonHeight)] autorelease];
     self.recoveryButton.bezelStyle = NSRoundedBezelStyle;
     self.recoveryButton.title = @"Recovery Center";
     self.recoveryButton.target = self;
@@ -380,38 +390,35 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.syncLibStatusLabel.drawsBackground = NO;
     [self.settingsCanvas addSubview:self.syncLibStatusLabel];
 
-    // Match the same visible top inset inside Application Updates.
-    y = 92.0;
-    // Updates Section
-    self.updateCheckButton = [[[NSButton alloc] initWithFrame:NSMakeRect(20, y, 160, buttonHeight)] autorelease];
+    NSView *updatesContent = self.updatesSectionBox.contentView;
+    self.updateCheckButton = [[[NSButton alloc] initWithFrame:NSZeroRect] autorelease];
     self.updateCheckButton.bezelStyle = NSRoundedBezelStyle;
     self.updateCheckButton.target = self;
     self.updateCheckButton.action = @selector(checkUpdatesClicked:);
-    [self.settingsCanvas addSubview:self.updateCheckButton];
+    [updatesContent addSubview:self.updateCheckButton];
 
-    self.updateOpenButton = [[[NSButton alloc] initWithFrame:NSMakeRect(190, y, 120, buttonHeight)] autorelease];
+    self.updateOpenButton = [[[NSButton alloc] initWithFrame:NSZeroRect] autorelease];
     self.updateOpenButton.bezelStyle = NSRoundedBezelStyle;
     self.updateOpenButton.target = self;
     self.updateOpenButton.action = @selector(openUpdateClicked:);
-    self.updateOpenButton.enabled = NO;
-    [self.settingsCanvas addSubview:self.updateOpenButton];
+    [updatesContent addSubview:self.updateOpenButton];
 
-    self.releaseNotesButton = [[[NSButton alloc] initWithFrame:NSMakeRect(320, y, 140, buttonHeight)] autorelease];
+    self.releaseNotesButton = [[[NSButton alloc] initWithFrame:NSZeroRect] autorelease];
     self.releaseNotesButton.bezelStyle = NSRoundedBezelStyle;
     self.releaseNotesButton.target = self;
     self.releaseNotesButton.action = @selector(releaseNotesClicked:);
-    self.releaseNotesButton.enabled = YES;
-    [self.settingsCanvas addSubview:self.releaseNotesButton];
+    [updatesContent addSubview:self.releaseNotesButton];
 
-    self.updateStatusLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, y - 24, 540, 20)] autorelease];
-    self.updateStatusLabel.font = [NSFont systemFontOfSize:11];
+    self.updateStatusLabel = [[[NSTextField alloc] initWithFrame:NSZeroRect] autorelease];
+    self.updateStatusLabel.font = [NSFont systemFontOfSize:12];
     self.updateStatusLabel.textColor = IGThemeMutedTextColor();
     self.updateStatusLabel.editable = NO;
+    self.updateStatusLabel.selectable = NO;
     self.updateStatusLabel.bordered = NO;
     self.updateStatusLabel.drawsBackground = NO;
-    self.updateStatusLabel.stringValue = [NSString stringWithFormat:@"Current version: %@", IGCurrentApplicationVersionString()];
-    [self.settingsCanvas addSubview:self.updateStatusLabel];
-    
+    self.updateStatusLabel.alignment = NSCenterTextAlignment;
+    [updatesContent addSubview:self.updateStatusLabel];
+
     // Help Button
     self.helpBtn = [[[NSButton alloc] initWithFrame:NSMakeRect(520, 622, 25, 25)] autorelease];
     self.helpBtn.bezelStyle = NSHelpButtonBezelStyle;
@@ -421,7 +428,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [self.settingsCanvas addSubview:self.helpBtn];
     
     // Footer
-    self.footerLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, 4, 500, 30)] autorelease];
+    self.footerLabel = [[[NSTextField alloc] initWithFrame:NSMakeRect(20, 4, 540, 30)] autorelease];
     self.footerLabel.font = [NSFont systemFontOfSize:10];
     self.footerLabel.textColor = IGThemeMutedTextColor();
     self.footerLabel.alignment = NSCenterTextAlignment;
@@ -477,17 +484,12 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     self.showFooterCheckbox.toolTip = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Показывает постоянную нижнюю строку Syncrosa на всех вкладках." : @"Keep the Syncrosa footer note visible on every tab.";
     self.historyButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"История операций" : @"Operation History";
     self.recoveryButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Recovery Center" : @"Recovery Center";
-    self.updateCheckButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Проверить обновления" : @"Check Updates";
-    self.updateOpenButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Update App" : @"Update App";
-    self.releaseNotesButton.title = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Что нового" : @"Release Notes";
-    
+    [self refreshUpdateControls];
+
     if (self.syncLibStatusLabel.stringValue.length == 0 || 
         [self.syncLibStatusLabel.stringValue isEqualToString:@"Refresh your local music database cache."] ||
         [self.syncLibStatusLabel.stringValue isEqualToString:@"Обновите локальный кэш музыкальной базы."]) {
         self.syncLibStatusLabel.stringValue = [lang t:@"refresh_cache"];
-    }
-    if (self.updateStatusLabel.stringValue.length == 0) {
-        self.updateStatusLabel.stringValue = [NSString stringWithFormat:@"Current version: %@", IGCurrentApplicationVersionString()];
     }
     [self applyThemeColors];
 }
@@ -569,7 +571,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     IGApplyThemeToButton(self.historyButton, IGThemeButtonRoleSecondary);
     IGApplyThemeToButton(self.recoveryButton, IGThemeButtonRoleSecondary);
     IGApplyThemeToButton(self.syncLibButton, IGThemeButtonRoleSecondary);
-    IGApplyThemeToButton(self.updateCheckButton, IGThemeButtonRolePrimary);
+    IGApplyThemeToButton(self.updateCheckButton, self.latestUpdateInfo ? IGThemeButtonRoleSecondary : IGThemeButtonRolePrimary);
     IGApplyThemeToButton(self.updateOpenButton, IGThemeButtonRolePrimary);
     IGApplyThemeToButton(self.releaseNotesButton, IGThemeButtonRoleSecondary);
 }
@@ -1020,92 +1022,266 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     }];
 }
 
+- (void)refreshUpdateControls {
+    if (!self.updateCheckButton) return;
+    BOOL canDownload = IGUpdateDownloadURLStringFromInfo(self.latestUpdateInfo).length > 0;
+    self.updateCheckButton.title = IGUpdateText(@"Check for Updates…", @"Проверить обновления…");
+    self.releaseNotesButton.title = IGUpdateText(@"Release Notes", @"Что нового");
+    self.updateOpenButton.title = self.downloadedInstaller ?
+        IGUpdateText(@"Open Disk Image…", @"Открыть образ диска…") :
+        (canDownload ? IGUpdateText(@"Download Update…", @"Загрузить обновление…") :
+                       IGUpdateText(@"Open Releases…", @"Открыть релизы…"));
+    BOOL idle = !self.checkingForUpdates && !self.updateDownload && !self.openingInstaller;
+    self.updateCheckButton.enabled = idle;
+    self.updateOpenButton.enabled = idle;
+    self.updateOpenButton.hidden = !self.latestUpdateInfo;
+    IGApplyThemeToButton(self.updateCheckButton, self.latestUpdateInfo ? IGThemeButtonRoleSecondary : IGThemeButtonRolePrimary);
+    IGApplyThemeToButton(self.updateOpenButton, IGThemeButtonRolePrimary);
+
+    NSString *current = IGCurrentApplicationVersionString();
+    NSString *version = self.latestUpdateInfo[@"version"];
+    if (self.checkingForUpdates) {
+        self.updateStatusLabel.stringValue = IGUpdateText(@"Checking for updates…", @"Проверяем обновления…");
+    } else if (self.updateDownload) {
+        self.updateStatusLabel.stringValue = IGUpdateText(@"Downloading update…", @"Загружаем обновление…");
+    } else if (self.openingInstaller) {
+        self.updateStatusLabel.stringValue = IGUpdateText(@"Verifying disk image…", @"Проверяем образ диска…");
+    } else if (self.downloadedInstaller) {
+        self.updateStatusLabel.stringValue = [NSString stringWithFormat:IGUpdateText(@"Syncrosa %@ is ready to install", @"Syncrosa %@ готова к установке"), version];
+    } else if (version) {
+        self.updateStatusLabel.stringValue = [NSString stringWithFormat:IGUpdateText(@"Installed %@  ·  Available %@", @"Установлена %@  ·  Доступна %@"), current, version];
+    } else {
+        self.updateStatusLabel.stringValue = [NSString stringWithFormat:IGUpdateText(@"Installed version %@", @"Установлена версия %@"), current];
+    }
+
+    NSRect bounds = [(NSView *)self.updatesSectionBox.contentView bounds];
+    CGFloat buttonWidth = 164.0;
+    CGFloat gap = 10.0;
+    CGFloat groupWidth = self.latestUpdateInfo ? 3 * buttonWidth + 2 * gap : 2 * buttonWidth + gap;
+    CGFloat x = floor(NSMidX(bounds) - groupWidth / 2.0);
+    CGFloat y = floor(NSMidY(bounds) - 24.0);
+    self.updateCheckButton.frame = NSMakeRect(x, y, buttonWidth, 27);
+    if (self.latestUpdateInfo) {
+        x += buttonWidth + gap;
+        self.updateOpenButton.frame = NSMakeRect(x, y, buttonWidth, 27);
+    }
+    self.releaseNotesButton.frame = NSMakeRect(x + buttonWidth + gap, y, buttonWidth, 27);
+    self.updateStatusLabel.frame = NSMakeRect(10, y + 33, MAX(0, NSWidth(bounds) - 20), 18);
+}
+
+- (void)checkForUpdatesOnLaunch {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if ([defaults boolForKey:@"only_local_mode"]) return;
+    NSTimeInterval last = [defaults doubleForKey:@"SyncrosaLastAutomaticUpdateCheck"];
+    NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+    if (now >= last && now - last < 24 * 60 * 60) return;
+    [defaults setDouble:now forKey:@"SyncrosaLastAutomaticUpdateCheck"];
+    [self checkForUpdatesManually:NO];
+}
+
 - (void)checkUpdatesClicked:(id)sender {
-    IGLocalizationService *lang = [IGLocalizationService sharedService];
-    self.updateCheckButton.enabled = NO;
-    self.updateOpenButton.enabled = NO;
-    self.latestUpdateURL = @"";
-    self.latestReleaseTitle = @"";
-    self.latestReleaseNotes = IGUpdateBundledReleaseNotes();
-    self.releaseNotesButton.enabled = YES;
-    self.updateStatusLabel.stringValue = [lang.selectedLanguage isEqualToString:@"ru"] ? @"Проверяю обновления..." : @"Checking for updates...";
+    [self checkForUpdatesManually:YES];
+}
 
+- (void)checkForUpdatesManually:(BOOL)manual {
+    if (self.updateDownload || self.openingInstaller || self.updateCheckButton.window.attachedSheet) return;
+    if (manual) self.showManualCheckResult = YES;
+    if (self.checkingForUpdates) return;
+
+    self.checkingForUpdates = YES;
+    [self refreshUpdateControls];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-        NSError *updateError = nil;
-        NSDictionary *info = [IGLatestUpdateInfoWithError(&updateError) retain];
-        NSString *message = nil;
-        NSString *targetURL = nil;
-        NSString *title = nil;
-        NSString *notes = nil;
-        BOOL isError = NO;
-        BOOL updateAvailable = NO;
-
-        if (!info) {
-            message = IGUpdateShortErrorMessage(updateError);
-            title = @"Update Check Details";
-            notes = IGUpdateDetailedErrorMessage(updateError);
-            isError = YES;
-        } else {
-            NSString *latest = [info objectForKey:@"version"];
-            NSString *current = IGCurrentApplicationVersionString();
-            title = IGUpdateReleaseTitleFromInfo(info);
-            notes = IGUpdateReleaseNotesFromInfo(info);
-            targetURL = IGUpdateDownloadURLStringFromInfo(info);
-            if ([targetURL length] == 0) {
-                targetURL = IGUpdateReleaseURLStringFromInfo(info);
-            }
-
-            if ([latest length] == 0) {
-                message = IGUpdateShortErrorMessage(nil);
-                title = @"Update Check Details";
-                notes = @"The update source did not include a readable Syncrosa version.";
-                isError = YES;
-            } else if (IGVersionStringIsNewer(latest, current)) {
-                message = [NSString stringWithFormat:@"Syncrosa %@ is available.", latest];
-                updateAvailable = YES;
-            } else {
-                message = [NSString stringWithFormat:@"Syncrosa %@ is installed.", current];
-            }
+        @autoreleasepool {
+            NSError *error = nil;
+            NSDictionary *info = IGLatestUpdateInfoWithError(&error);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.checkingForUpdates = NO;
+                self.updateCheckFailed = !info;
+                if (info) {
+                    self.latestReleaseTitle = IGUpdateReleaseTitleFromInfo(info);
+                    self.latestReleaseNotes = IGUpdateReleaseNotesFromInfo(info);
+                    NSDictionary *available = IGVersionStringIsNewer(info[@"version"], IGCurrentApplicationVersionString()) ? info : nil;
+                    if (self.downloadedInstaller && (![available[@"version"] isEqual:self.latestUpdateInfo[@"version"]] ||
+                        ![available[@"sha256"] isEqual:self.latestUpdateInfo[@"sha256"]])) {
+                        self.downloadedInstaller = nil;
+                    }
+                    self.latestUpdateInfo = available;
+                } else {
+                    self.latestReleaseTitle = IGUpdateText(@"Update Check Details", @"Сведения о проверке обновлений");
+                    self.latestReleaseNotes = IGUpdateDetailedErrorMessage(error);
+                }
+                [self refreshUpdateControls];
+                BOOL showResult = self.showManualCheckResult;
+                self.showManualCheckResult = NO;
+                if (showResult) [self presentUpdateCheckResult];
+            });
         }
-
-        [message retain];
-        [targetURL retain];
-        [title retain];
-        [notes retain];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self.latestUpdateURL = updateAvailable ? targetURL : @"";
-            self.updateStatusLabel.stringValue = message ?: @"Update check finished.";
-            self.updateCheckButton.enabled = YES;
-            self.updateOpenButton.enabled = updateAvailable;
-            self.latestReleaseTitle = title ?: @"Syncrosa Release Notes";
-            self.latestReleaseNotes = notes ?: IGUpdateBundledReleaseNotes();
-            self.releaseNotesButton.enabled = YES;
-            [IGNotificationView showInView:self.view message:self.updateStatusLabel.stringValue isError:isError];
-            [info release];
-            [message release];
-            [targetURL release];
-            [title release];
-            [notes release];
-        });
-        [pool drain];
     });
 }
 
+- (void)openReleasesPage {
+    NSURL *url = [NSURL URLWithString:IGUpdateReleaseURLStringFromInfo(self.latestUpdateInfo)];
+    [[NSWorkspace sharedWorkspace] openURL:url];
+}
+
+- (void)presentUpdateCheckResult {
+    NSWindow *parent = self.updateCheckButton.window;
+    if (!parent) return;
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    BOOL available = self.latestUpdateInfo != nil;
+    BOOL failed = self.updateCheckFailed;
+    if (failed) {
+        alert.alertStyle = NSWarningAlertStyle;
+        alert.messageText = IGUpdateText(@"Couldn’t check for updates", @"Не удалось проверить обновления");
+        alert.informativeText = IGUpdateText(@"Check your connection or open GitHub Releases to look for a newer Cocoa version.",
+                                            @"Проверьте подключение или посмотрите новую версию Cocoa в GitHub Releases.");
+        [alert addButtonWithTitle:IGUpdateText(@"Open Releases", @"Открыть релизы")];
+        [alert addButtonWithTitle:IGUpdateText(@"Close", @"Закрыть")];
+    } else if (available) {
+        NSString *version = self.latestUpdateInfo[@"version"];
+        alert.messageText = [NSString stringWithFormat:IGUpdateText(@"Syncrosa %@ is available", @"Доступна Syncrosa %@"), version];
+        alert.informativeText = [NSString stringWithFormat:IGUpdateText(@"You’re using version %@.", @"У вас установлена версия %@."), IGCurrentApplicationVersionString()];
+        [alert addButtonWithTitle:self.updateOpenButton.title];
+        if (IGUpdateDownloadURLStringFromInfo(self.latestUpdateInfo).length > 0)
+            [alert addButtonWithTitle:IGUpdateText(@"Open Releases", @"Открыть релизы")];
+        [alert addButtonWithTitle:IGUpdateText(@"Later", @"Позже")].keyEquivalent = @"\033";
+    } else {
+        alert.messageText = IGUpdateText(@"Syncrosa is up to date", @"Установлена актуальная версия Syncrosa");
+        alert.informativeText = [NSString stringWithFormat:IGUpdateText(@"You’re using version %@.", @"У вас установлена версия %@."), IGCurrentApplicationVersionString()];
+        [alert addButtonWithTitle:@"OK"];
+    }
+    BOOL canDownload = IGUpdateDownloadURLStringFromInfo(self.latestUpdateInfo).length > 0;
+    [alert beginSheetModalForWindow:parent completionHandler:^(NSModalResponse result) {
+        if (result == NSAlertFirstButtonReturn) {
+            if (failed) [self openReleasesPage];
+            else if (available) [self openUpdateClicked:nil];
+        } else if (!failed && available && canDownload && result == NSAlertSecondButtonReturn) {
+            [self openReleasesPage];
+        }
+    }];
+}
+
 - (void)openUpdateClicked:(id)sender {
-    if (![self.updateOpenButton isEnabled] || self.latestUpdateURL.length == 0) {
+    NSWindow *parent = self.updateCheckButton.window;
+    if (!parent || self.updateDownload || self.checkingForUpdates || self.openingInstaller || !self.latestUpdateInfo) return;
+    if (self.downloadedInstaller) {
+        [self openDownloadedInstaller];
         return;
     }
-    NSString *urlString = self.latestUpdateURL;
-    if (!IGUpdateURLStringIsTrusted(urlString)) {
-        self.updateStatusLabel.stringValue = @"Update link is not trusted.";
-        [IGNotificationView showInView:self.view message:self.updateStatusLabel.stringValue isError:YES];
+    if (IGUpdateDownloadURLStringFromInfo(self.latestUpdateInfo).length == 0) {
+        [self openReleasesPage];
         return;
     }
-    NSURL *url = [NSURL URLWithString:urlString];
-    if (url) {
-        [[NSWorkspace sharedWorkspace] openURL:url];
+
+    NSDictionary *release = self.latestUpdateInfo;
+    NSProgress *transfer = [NSProgress progressWithTotalUnitCount:100];
+    transfer.cancellable = YES;
+    self.updateDownload = transfer;
+    [self refreshUpdateControls];
+
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    alert.messageText = [NSString stringWithFormat:IGUpdateText(@"Downloading Syncrosa %@", @"Загружаем Syncrosa %@"), release[@"version"]];
+    alert.informativeText = IGUpdateText(@"The disk image will be saved in Downloads.", @"Образ диска будет сохранён в папке «Загрузки».");
+    NSProgressIndicator *bar = [[[NSProgressIndicator alloc] initWithFrame:NSMakeRect(0, 0, 300, 16)] autorelease];
+    bar.indeterminate = NO;
+    bar.maxValue = 100;
+    alert.accessoryView = bar;
+    [alert addButtonWithTitle:IGUpdateText(@"Cancel", @"Отменить")];
+    [alert beginSheetModalForWindow:parent completionHandler:^(NSModalResponse result) {
+        if (result == NSAlertFirstButtonReturn) [transfer cancel];
+    }];
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        @autoreleasepool {
+            NSString *downloads = [NSSearchPathForDirectoriesInDomains(NSDownloadsDirectory, NSUserDomainMask, YES) firstObject];
+            NSError *error = nil;
+            NSString *path = IGDownloadUpdateInstaller(release, downloads, transfer, ^(double fraction) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (![transfer isCancelled]) bar.doubleValue = fraction * 100;
+                });
+            }, &error);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (parent.attachedSheet == alert.window) [parent endSheet:alert.window returnCode:NSModalResponseStop];
+                self.updateDownload = nil;
+                self.downloadedInstaller = path;
+                [self refreshUpdateControls];
+                if (![transfer isCancelled]) [self presentDownloadResultWithError:error parent:parent];
+            });
+        }
+    });
+}
+
+- (void)presentDownloadResultWithError:(NSError *)error parent:(NSWindow *)parent {
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    BOOL downloaded = self.downloadedInstaller != nil;
+    if (downloaded) {
+        alert.messageText = IGUpdateText(@"The update is ready", @"Обновление готово");
+        alert.informativeText = IGUpdateText(@"Syncrosa will quit when the disk image opens. Drag Syncrosa to Applications and replace the old copy.",
+                                            @"Syncrosa закроется при открытии образа. Перетащите Syncrosa в «Программы» и замените старую копию.");
+        [alert addButtonWithTitle:IGUpdateText(@"Open and Quit", @"Открыть и выйти")];
+        [alert addButtonWithTitle:IGUpdateText(@"Later", @"Позже")].keyEquivalent = @"\033";
+    } else {
+        alert.alertStyle = NSWarningAlertStyle;
+        alert.messageText = IGUpdateText(@"Couldn’t download the update", @"Не удалось загрузить обновление");
+        alert.informativeText = IGUpdateText(@"Check your connection and free disk space, then try again.",
+                                            @"Проверьте подключение и свободное место на диске, затем повторите загрузку.");
+        if (error.code == 25 && [error.domain isEqual:@"SyncrosaUpdate"]) {
+            alert.informativeText = IGUpdateText(@"The downloaded disk image failed verification. Try downloading again.",
+                                                @"Загруженный образ не прошёл проверку. Попробуйте загрузить его ещё раз.");
+        }
+        [alert addButtonWithTitle:IGUpdateText(@"Open Releases", @"Открыть релизы")];
+        [alert addButtonWithTitle:IGUpdateText(@"Close", @"Закрыть")];
     }
+    [alert beginSheetModalForWindow:parent completionHandler:^(NSModalResponse result) {
+        if (result != NSAlertFirstButtonReturn) return;
+        if (downloaded) [self openDownloadedInstaller];
+        else [self openReleasesPage];
+    }];
+}
+
+- (void)openDownloadedInstaller {
+    NSWindow *parent = self.updateCheckButton.window;
+    if (!parent || !self.downloadedInstaller || self.openingInstaller) return;
+    NSString *path = self.downloadedInstaller;
+    NSDictionary *release = self.latestUpdateInfo;
+    self.openingInstaller = YES;
+    [self refreshUpdateControls];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        @autoreleasepool {
+            BOOL verified = IGUpdateInstallerMatchesRelease(path, release);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self handOffInstallerAtPath:path verified:verified parent:parent];
+            });
+        }
+    });
+}
+
+- (void)handOffInstallerAtPath:(NSString *)path verified:(BOOL)verified parent:(NSWindow *)parent {
+    self.openingInstaller = NO;
+    [self refreshUpdateControls];
+    if ([IGOperationActivity sharedActivity].activeIdentifier.length > 0) {
+        NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+        alert.messageText = IGUpdateText(@"An operation is still running", @"Операция ещё выполняется");
+        alert.informativeText = IGUpdateText(@"Let it finish, then open the disk image from Settings.",
+                                            @"Дождитесь завершения и откройте образ из настроек.");
+        [alert addButtonWithTitle:@"OK"];
+        [alert beginSheetModalForWindow:parent completionHandler:nil];
+        return;
+    }
+    if (verified && [[NSWorkspace sharedWorkspace] openFile:path]) {
+        [NSApp performSelector:@selector(terminate:) withObject:self afterDelay:0.35];
+        return;
+    }
+
+    self.downloadedInstaller = nil;
+    [self refreshUpdateControls];
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    alert.alertStyle = NSWarningAlertStyle;
+    alert.messageText = IGUpdateText(@"Couldn’t open the disk image", @"Не удалось открыть образ диска");
+    alert.informativeText = IGUpdateText(@"The file may have moved or changed. You can download the update again.",
+                                        @"Файл мог быть перемещён или изменён. Обновление можно загрузить снова.");
+    [alert addButtonWithTitle:@"OK"];
+    [alert beginSheetModalForWindow:parent completionHandler:nil];
 }
 
 - (void)saveClicked:(id)sender {

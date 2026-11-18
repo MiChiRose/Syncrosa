@@ -273,6 +273,9 @@ mkdir -p "$DIST_DIR"
 rm -f "$DIST_ZIP"
 ditto -c -k --norsrc --keepParent "$APP_NAME" "$DIST_ZIP"
 
+echo "💿 Creating Cocoa installer disk image..."
+bash ./package_installer.sh "$APP_NAME" "$DIST_DIR"
+
 rm -rf "$APP_NAME"
 
 echo "✅ $(basename "$DIST_ZIP") successfully created at $DIST_ZIP"

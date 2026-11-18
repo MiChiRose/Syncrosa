@@ -626,7 +626,15 @@ static NSImage *IGTintedButtonImage(NSImage *source, NSColor *color, BOOL enable
     if (originalAlternateImage) {
         [self setAlternateImage:IGTintedButtonImage(originalAlternateImage, text, enabled)];
     }
-    [self drawInteriorWithFrame:NSInsetRect(rect, 5.0, 1.0) inView:controlView];
+    NSRect interior = NSInsetRect(rect, 5.0, 1.0);
+    if (!sidebar && originalImage && [self imagePosition] == NSImageLeft && self.title.length > 0) {
+        NSFont *font = [self font] ?: [NSFont systemFontOfSize:12.0];
+        CGFloat titleWidth = ceil([self.title sizeWithAttributes:@{NSFontAttributeName: font}].width);
+        CGFloat contentWidth = MIN(NSWidth(interior), titleWidth + originalImage.size.width + 14.0);
+        interior.origin.x = floor(NSMidX(interior) - contentWidth / 2.0);
+        interior.size.width = contentWidth;
+    }
+    [self drawInteriorWithFrame:interior inView:controlView];
     [self setImage:originalImage];
     [self setAlternateImage:originalAlternateImage];
 #if !__has_feature(objc_arc)
