@@ -76,22 +76,21 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 | Archive | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.6.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Resumes interrupted USB exports and reuses verified tracks without copying them again. |
+| `Syncrosa_Cocoa_v3.6.1.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Resumes interrupted USB exports and reuses verified tracks without copying them again. |
 | `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.6.0.zip` | Modern Apple Silicon Macs | macOS 14 | Current Music.app build with resumable USB transfers, verified file reuse, and separate recovery records. |
+| `Syncrosa_SwiftUI_v3.6.1.zip` | Modern Apple Silicon Macs | macOS 14 | Current Music.app build with resumable USB transfers, verified file reuse, and separate recovery records. |
 
 Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
 
-### Latest Release: 3.6.0
+### Latest Release: 3.6.1
 
-Syncrosa 3.6.0 adds resumable, incremental USB exports to both native applications. The Python maintenance package remains available as version 3.4.8 in its previous release.
+Syncrosa 3.6.1 keeps the list of free OpenRouter models up to date in Cocoa and SwiftUI. Choose OpenRouter in Settings and use its API key to generate playlists.
 
-- **Resume Interrupted Transfers:** Reconnect the same drive and continue an unfinished USB task from Recovery Center after an app crash, cancellation, or disconnection.
-- **Copy Only What Is Needed:** Verify existing tracks by content and reuse completed files, including compatible exports from earlier versions.
-- **Preserve Existing Files:** Keep completed music separate from partial copies and give changed content a safe new filename.
-- **Reliable Playlists:** M3U/M3U8 files contain only verified completed tracks, including when a transfer stops partway through.
-- **Separate Recovery Records:** Interrupted operations keep their own records, backup links, and available undo packages.
-- **Two Native Packages:** Cocoa for Intel Macs with OS X 10.9+ and SwiftUI for Apple Silicon with macOS 14+.
+- **Automatic Catalog Refresh:** Syncrosa loads the free text model catalog when you configure OpenRouter or use it to create a playlist.
+- **Free Model Selection:** A saved model stays selected while it is available. When it leaves the catalog, Syncrosa selects OpenRouter's free router, which chooses an available free model.
+- **Last Known List:** If the catalog is temporarily unreachable, Syncrosa keeps the last verified list.
+
+The Python maintenance package remains available as version 3.4.8 in its previous release.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
