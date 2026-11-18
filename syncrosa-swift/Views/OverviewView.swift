@@ -17,6 +17,7 @@ struct OverviewView: View {
     let refreshLibraryStatus: () -> Void
     let openLibraryDoctor: () -> Void
     let openRecoveryCenter: () -> Void
+    let openFolderFixer: () -> Void
 
     var body: some View {
         SyncrosaPage {
@@ -37,6 +38,21 @@ struct OverviewView: View {
                     .buttonStyle(SyncrosaSecondaryButtonStyle())
                 }
             }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(lang.selectedLanguage == "ru" ? "Музыка уже на диске?" : "Already have music files?")
+                    .font(.headline)
+                Text(lang.selectedLanguage == "ru"
+                     ? "В «Фиксере папок» можно исправить название трека или имя файла без ключа и без импорта в Music."
+                     : "Use Folder Fixer to correct track titles or file names without a key or a Music import.")
+                    .foregroundStyle(.secondary)
+                Button(action: openFolderFixer) {
+                    Label(lang.selectedLanguage == "ru" ? "Исправить названия" : "Correct Track Titles",
+                          systemImage: "folder.badge.gearshape")
+                }
+                .buttonStyle(SyncrosaPrimaryButtonStyle())
+            }
+            .syncrosaCard()
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 14)], spacing: 14) {
                 overviewCard(
