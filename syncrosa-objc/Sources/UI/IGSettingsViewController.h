@@ -2,4 +2,6 @@
 
 @interface IGSettingsViewController : NSViewController
 
+- (void)refreshOpenRouterModelsIfNeeded;
+
 @end

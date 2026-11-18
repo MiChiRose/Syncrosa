@@ -1,8 +1,53 @@
 #import "IGAIService.h"
 #import "IGLogger.h"
 
+NSString * const IGOpenRouterDefaultModel = @"openrouter/free";
+static NSString * const IGOpenRouterCatalogKey = @"openRouterFreeTextModels";
+
 @interface IGAIService ()
+@property (nonatomic, retain) NSMutableArray *openRouterCallbacks;
+@property (nonatomic, retain) NSDate *lastOpenRouterRefresh;
 @end
+
+static BOOL IGOpenRouterPriceIsZero(id value) {
+    if ([value isKindOfClass:[NSString class]]) {
+        NSScanner *scanner = [NSScanner scannerWithString:value];
+        double number;
+        return [scanner scanDouble:&number] && [scanner isAtEnd] && number == 0;
+    }
+    return [value isKindOfClass:[NSNumber class]] &&
+           CFGetTypeID((CFTypeRef)value) != CFBooleanGetTypeID() && [value doubleValue] == 0;
+}
+
+NSArray *IGOpenRouterFreeModelsFromData(NSData *data) {
+    id object = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL] : nil;
+    id entries = [object isKindOfClass:[NSDictionary class]] ? object[@"data"] : nil;
+    if (![entries isKindOfClass:[NSArray class]] || [entries count] == 0) return nil;
+    NSMutableSet *modelIDs = [NSMutableSet set];
+    for (id model in entries) {
+        if (![model isKindOfClass:[NSDictionary class]]) continue;
+        id identifier = model[@"id"];
+        id pricing = model[@"pricing"];
+        if (![identifier isKindOfClass:[NSString class]] || ![identifier hasSuffix:@":free"] ||
+            ![pricing isKindOfClass:[NSDictionary class]] ||
+            !IGOpenRouterPriceIsZero(pricing[@"prompt"]) || !IGOpenRouterPriceIsZero(pricing[@"completion"]) ||
+            (pricing[@"request"] && !IGOpenRouterPriceIsZero(pricing[@"request"]))) continue;
+        id architecture = model[@"architecture"];
+        if ([architecture isKindOfClass:[NSDictionary class]]) {
+            id input = architecture[@"input_modalities"];
+            id output = architecture[@"output_modalities"];
+            if ([input isKindOfClass:[NSArray class]] && ![input containsObject:@"text"]) continue;
+            if ([output isKindOfClass:[NSArray class]] && ![output containsObject:@"text"]) continue;
+        }
+        [modelIDs addObject:identifier];
+    }
+    NSArray *sorted = [[modelIDs allObjects] sortedArrayUsingSelector:@selector(compare:)];
+    return [@[IGOpenRouterDefaultModel] arrayByAddingObjectsFromArray:sorted];
+}
+
+NSString *IGOpenRouterPreferredModel(NSString *selected, NSArray *models) {
+    return selected.length && [models containsObject:selected] ? selected : IGOpenRouterDefaultModel;
+}
 
 static NSString *IGAITempPath(NSString *extension) {
     NSString *baseName = [NSString stringWithFormat:@"syncrosa-curl-%@", [[NSProcessInfo processInfo] globallyUniqueString]];
@@ -97,7 +142,7 @@ NSString *IGAIUserFacingNetworkErrorMessage(NSError *error) {
         [curlConfig appendString:@"silent\n"];
         [curlConfig appendString:@"show-error\n"];
         [curlConfig appendString:@"location\n"];
-        [curlConfig appendString:@"max-time = \"60\"\n"];
+        [curlConfig appendFormat:@"max-time = \"%d\"\n", [requestMethod isEqualToString:@"GET"] && [url.host isEqualToString:@"openrouter.ai"] ? 10 : 60];
         [curlConfig appendFormat:@"request = \"%@\"\n", IGAICurlConfigQuote(requestMethod)];
         [curlConfig appendFormat:@"url = \"%@\"\n", IGAICurlConfigQuote(url.absoluteString)];
         NSString *caPath = [[NSBundle mainBundle] pathForResource:@"cacert" ofType:@"pem"];
@@ -202,42 +247,74 @@ NSString *IGAIUserFacingNetworkErrorMessage(NSError *error) {
     });
 }
 
-- (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock {
-    [self fetchOpenRouterModelsWithDetailedCompletion:^(NSArray *models, NSError *error) {
-        (void)error;
-        completionBlock(models);
-    }];
+- (void)dealloc {
+    [_openRouterCallbacks release];
+    [_lastOpenRouterRefresh release];
+    [_apiKey release];
+    [_provider release];
+    [_model release];
+    [super dealloc];
 }
 
-- (void)fetchOpenRouterModelsWithDetailedCompletion:(void(^)(NSArray *models, NSError *error))completionBlock {
-    NSURL *url = [NSURL URLWithString:@"https://openrouter.ai/api/v1/models"];
-    NSDictionary *headers = @{
-        @"HTTP-Referer": @"https://github.com/MiChiRose/Syncrosa",
-        @"X-Title": @"Syncrosa-Legacy"
-    };
+- (NSArray *)cachedOpenRouterModels {
+    return [[NSUserDefaults standardUserDefaults] stringArrayForKey:IGOpenRouterCatalogKey] ?: @[IGOpenRouterDefaultModel];
+}
 
-    [self makeRequestToURL:url method:@"GET" headers:headers body:nil completion:^(NSData *data, NSError *error) {
-        if (data && !error) {
-            NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            NSArray *dataArray = json[@"data"];
-            NSMutableArray *freeModels = [NSMutableArray array];
-            for (NSDictionary *m in dataArray) {
-                NSString *modelID = m[@"id"];
-                if ([modelID rangeOfString:@":free"].location != NSNotFound) {
-                    [freeModels addObject:modelID];
-                }
-            }
-            [freeModels sortUsingSelector:@selector(compare:)];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                completionBlock(freeModels, nil);
-            });
-        } else {
-            [[IGLogger sharedLogger] log:[NSString stringWithFormat:@"Sync failed: %@", error.localizedDescription]];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                completionBlock(nil, error);
-            });
+- (NSString *)savedOpenRouterModel {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *saved = [defaults stringForKey:@"model_openrouter"];
+    NSString *provider = [defaults stringForKey:@"provider"];
+    if (!saved && [provider isEqualToString:@"OpenRouter"]) {
+        saved = [defaults stringForKey:@"model"];
+    }
+    return IGOpenRouterPreferredModel(saved, [self cachedOpenRouterModels]);
+}
+
+// Callbacks and refresh state are serialized on the main queue.
+- (void)refreshOpenRouterModelsForce:(BOOL)force completion:(void(^)(NSArray *models, NSError *error))completionBlock {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.openRouterCallbacks.count > 0) {
+            [self.openRouterCallbacks addObject:[[completionBlock copy] autorelease]];
+            return;
         }
-    }];
+        if (!force && self.lastOpenRouterRefresh && -[self.lastOpenRouterRefresh timeIntervalSinceNow] < 5 * 60) {
+            completionBlock([self cachedOpenRouterModels], nil);
+            return;
+        }
+
+        self.openRouterCallbacks = [NSMutableArray arrayWithObject:[[completionBlock copy] autorelease]];
+        NSURL *url = [NSURL URLWithString:@"https://openrouter.ai/api/v1/models"];
+        [self makeRequestToURL:url method:@"GET" headers:@{@"Accept": @"application/json"} body:nil
+                   completion:^(NSData *data, NSError *error) {
+            NSArray *models = error ? nil : IGOpenRouterFreeModelsFromData(data);
+            NSError *resultError = error;
+            if (!models && !resultError) {
+                resultError = [NSError errorWithDomain:@"IGOpenRouterCatalog" code:1 userInfo:nil];
+            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (models) {
+                    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+                    [defaults setObject:models forKey:IGOpenRouterCatalogKey];
+                    self.lastOpenRouterRefresh = [NSDate date];
+                    NSString *provider = [defaults stringForKey:@"provider"];
+                    if ([provider isEqualToString:@"OpenRouter"]) {
+                        NSString *preferred = [self savedOpenRouterModel];
+                        [defaults setObject:preferred forKey:@"model_openrouter"];
+                        [defaults setObject:preferred forKey:@"model"];
+                        if ([self.provider isEqualToString:@"OpenRouter"] && ![self.model isEqualToString:preferred]) {
+                            self.model = preferred;
+                            [[NSNotificationCenter defaultCenter] postNotificationName:@"IGAPISettingsSavedNotification" object:self];
+                        }
+                    }
+                }
+                NSArray *callbacks = [[self.openRouterCallbacks copy] autorelease];
+                self.openRouterCallbacks = nil;
+                for (void (^callback)(NSArray *, NSError *) in callbacks) {
+                    callback(models, resultError);
+                }
+            });
+        }];
+    });
 }
 
 - (void)validateAPIKeyWithCompletion:(void(^)(BOOL success, NSString *errorMsg))completionBlock {
@@ -267,7 +344,7 @@ NSString *IGAIUserFacingNetworkErrorMessage(NSError *error) {
         bodyDict = @{
             @"model": self.model,
             @"messages": @[@{@"role": @"user", @"content": @"Say 'OK'"}],
-            @"max_tokens": @10
+            @"max_tokens": @128
         };
         headers[@"Authorization"] = [NSString stringWithFormat:@"Bearer %@", self.apiKey];
         headers[@"HTTP-Referer"] = @"https://github.com/MiChiRose/Syncrosa";

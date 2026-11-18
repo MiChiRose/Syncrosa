@@ -88,6 +88,30 @@ static NSArray *IGUSBTestMusicNames(NSURL *root) {
 
 @implementation IGBusinessLogicTests
 
+- (void)testOpenRouterCatalogKeepsFreeTextModelsAndReplacesRetiredSelection {
+    NSDictionary *free = @{@"prompt": @"0", @"completion": @"0.0", @"request": @"0"};
+    NSDictionary *catalog = @{@"data": @[
+        @{@"id": @"example/text:free", @"pricing": free},
+        @{@"id": @"example/text:free", @"pricing": free},
+        @{@"id": @"example/image:free", @"pricing": free, @"architecture": @{@"output_modalities": @[@"image"]}},
+        @{@"id": @"example/paid:free", @"pricing": @{@"prompt": @"0", @"completion": @"0.1"}},
+        @{@"id": @"example/request:free", @"pricing": @{@"prompt": @"0", @"completion": @"0", @"request": @"0.01"}},
+        @{@"id": @"example/regular", @"pricing": free},
+        @{@"id": @"example/missing-price:free"},
+        @{@"id": @"example/bad-price:free", @"pricing": @{@"prompt": @"0", @"completion": @NO}}
+    ]};
+    NSData *data = [NSJSONSerialization dataWithJSONObject:catalog options:0 error:NULL];
+    NSArray *models = IGOpenRouterFreeModelsFromData(data);
+    NSArray *expected = @[@"openrouter/free", @"example/text:free"];
+    XCTAssertEqualObjects(models, expected);
+    XCTAssertEqualObjects(IGOpenRouterPreferredModel(@"example/text:free", models), @"example/text:free");
+    XCTAssertEqualObjects(IGOpenRouterPreferredModel(@"example/retired:free", models), @"openrouter/free");
+
+    NSData *errorData = [@"{\"error\":{\"message\":\"temporarily unavailable\"}}" dataUsingEncoding:NSUTF8StringEncoding];
+    XCTAssertNil(IGOpenRouterFreeModelsFromData(errorData));
+    XCTAssertNil(IGOpenRouterFreeModelsFromData([@"{\"data\":[]}" dataUsingEncoding:NSUTF8StringEncoding]));
+}
+
 - (void)testUSBRepeatSkipsVerifiedFilesAndDetectsSameSizeChanges {
     NSURL *root=IGUSBTestFolder();
     @try {

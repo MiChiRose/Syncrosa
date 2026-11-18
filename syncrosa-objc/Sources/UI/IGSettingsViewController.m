@@ -71,6 +71,8 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 @property (nonatomic, strong) NSTextField *modelLabel;
 @property (nonatomic, strong) NSComboBox *modelCombo;
 @property (nonatomic, strong) NSButton *syncModelsBtn;
+@property (nonatomic, assign) BOOL refreshingOpenRouterModels;
+@property (nonatomic, assign) BOOL validatingProvider;
 @property (nonatomic, strong) NSTextField *apiKeyLabel;
 @property (nonatomic, strong) NSSecureTextField *apiKeyField;
 @property (nonatomic, strong) NSButton *enableLoggingCheckbox;
@@ -764,6 +766,7 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
         if (index >= 0 && index < self.providerCombo.numberOfItems) {
             NSString *selected = [self.providerCombo itemObjectValueAtIndex:index];
             [self updateModelAndKeyForProvider:selected];
+            [self refreshOpenRouterModelsIfNeeded];
         }
     } else if (notification.object == self.modelCombo) {
         [self updateModelToolTip];
@@ -784,7 +787,11 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     provider = IGSettingsCanonicalProvider(provider);
     [self.modelCombo removeAllItems];
-    
+    BOOL isOpenRouter = [provider isEqualToString:@"OpenRouter"];
+    self.modelCombo.editable = !isOpenRouter;
+    self.modelCombo.enabled = !isOpenRouter || !self.refreshingOpenRouterModels;
+    self.syncModelsBtn.enabled = [provider isEqualToString:@"OpenRouter"] && !self.refreshingOpenRouterModels;
+
     // Load Key
     NSString *savedKey = [[IGKeychainHelper sharedHelper] readStringForAccount:[provider lowercaseString]];
     self.apiKeyField.stringValue = savedKey ?: @"";
@@ -799,14 +806,9 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
         NSString *savedModel = [defaults stringForKey:@"model_groq"];
         self.modelCombo.stringValue = savedModel ?: @"llama3-8b-8192";
     } else if ([provider isEqualToString:@"OpenRouter"]) {
-        NSArray *cached = [defaults stringArrayForKey:@"cachedOpenRouterModels"];
-        if (cached && cached.count > 0) {
-            [self.modelCombo addItemsWithObjectValues:cached];
-        } else {
-            [self.modelCombo addItemsWithObjectValues:@[@"google/gemini-2.0-flash-exp:free"]];
-        }
-        NSString *savedModel = [defaults stringForKey:@"model_openrouter"];
-        self.modelCombo.stringValue = savedModel ?: @"google/gemini-2.0-flash-exp:free";
+        IGAIService *service = [IGAIService sharedService];
+        [self.modelCombo addItemsWithObjectValues:[service cachedOpenRouterModels]];
+        self.modelCombo.stringValue = [service savedOpenRouterModel];
     }
     [self updateModelToolTip];
 }
@@ -867,33 +869,57 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     }
 }
 
+- (void)refreshOpenRouterModelsIfNeeded {
+    if (self.onlyLocalCheckbox.state != NSOnState) {
+        [self refreshOpenRouterModelsManually:NO];
+    }
+}
+
 - (void)syncClicked:(id)sender {
-    self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"checking"];
-    [IGAIService sharedService].apiKey = self.apiKeyField.stringValue;
-    
-    [[IGAIService sharedService] fetchOpenRouterModelsWithDetailedCompletion:^(NSArray *models, NSError *error) {
-        if (models.count > 0) {
+    [self refreshOpenRouterModelsManually:YES];
+}
+
+- (void)refreshOpenRouterModelsManually:(BOOL)manual {
+    if (self.refreshingOpenRouterModels || self.validatingProvider ||
+        ![IGSettingsCanonicalProvider(self.providerCombo.stringValue) isEqualToString:@"OpenRouter"]) return;
+
+    self.refreshingOpenRouterModels = YES;
+    self.modelCombo.enabled = NO;
+    self.syncModelsBtn.enabled = NO;
+    self.saveButton.enabled = NO;
+    if (manual) self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"checking"];
+    IGAIService *service = [IGAIService sharedService];
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *previousPreference = [defaults stringForKey:@"model_openrouter"];
+    if (!previousPreference && [[defaults stringForKey:@"provider"] isEqualToString:@"OpenRouter"]) {
+        previousPreference = [defaults stringForKey:@"model"];
+    }
+    NSString *previousDisplayedModel = self.modelCombo.stringValue;
+    [service refreshOpenRouterModelsForce:manual completion:^(NSArray *models, NSError *error) {
+        self.refreshingOpenRouterModels = NO;
+        self.saveButton.enabled = !self.validatingProvider;
+        BOOL showingOpenRouter = [IGSettingsCanonicalProvider(self.providerCombo.stringValue) isEqualToString:@"OpenRouter"];
+        self.syncModelsBtn.enabled = showingOpenRouter && !self.validatingProvider;
+        if (!showingOpenRouter) return;
+        self.modelCombo.enabled = !self.validatingProvider;
+
+        if (models) {
+            NSString *selection = self.modelCombo.stringValue;
+            if ([selection isEqualToString:previousDisplayedModel] &&
+                [selection isEqualToString:IGOpenRouterDefaultModel] &&
+                [models containsObject:previousPreference ?: @""]) {
+                selection = previousPreference;
+            }
+            NSString *preferred = IGOpenRouterPreferredModel(selection, models);
             [self.modelCombo removeAllItems];
             [self.modelCombo addItemsWithObjectValues:models];
+            self.modelCombo.stringValue = preferred;
             [self updateModelToolTip];
-            
-            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-            [defaults setObject:models forKey:@"cachedOpenRouterModels"];
-            [defaults synchronize];
-            
-            self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"sync_success"];
-            
-            NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-            [alert setMessageText:@"Success"];
-            [alert setInformativeText:[NSString stringWithFormat:@"Synced %ld models from OpenRouter.", (long)models.count]];
-            [alert runModal];
-        } else {
+            if (manual) self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"sync_success"];
+        } else if (manual) {
             NSString *message = IGAIUserFacingNetworkErrorMessage(error);
             self.statusLabel.stringValue = message;
-            NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-            [alert setMessageText:@"Network Error"];
-            [alert setInformativeText:message];
-            [alert runModal];
+            [IGNotificationView showInView:self.view message:message isError:YES];
         }
     }];
 }
@@ -1084,10 +1110,17 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
 
 - (void)saveClicked:(id)sender {
     self.statusLabel.stringValue = [[IGLocalizationService sharedService] t:@"checking"];
+    self.validatingProvider = YES;
     self.saveButton.enabled = NO;
-    
+    self.syncModelsBtn.enabled = NO;
+    self.providerCombo.enabled = NO;
+    self.modelCombo.enabled = NO;
+
     NSString *currentProvider = IGSettingsCanonicalProvider(self.providerCombo.stringValue);
     NSString *currentModel = self.modelCombo.stringValue;
+    if ([currentProvider isEqualToString:@"OpenRouter"]) {
+        currentModel = IGOpenRouterPreferredModel(currentModel, [[IGAIService sharedService] cachedOpenRouterModels]);
+    }
     NSString *currentKey = self.apiKeyField.stringValue;
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
@@ -1095,11 +1128,12 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
     [defaults setBool:(self.hddSafeCheckbox.state == NSOnState) forKey:@"hdd_safe_mode"];
     [defaults synchronize];
     
-    [IGAIService sharedService].provider = currentProvider;
-    [IGAIService sharedService].model = currentModel;
-    [IGAIService sharedService].apiKey = currentKey;
-    
-    [[IGAIService sharedService] validateAPIKeyWithCompletion:^(BOOL success, NSString *errorMsg) {
+    IGAIService *candidate = [[[IGAIService alloc] init] autorelease];
+    candidate.provider = currentProvider;
+    candidate.model = currentModel;
+    candidate.apiKey = currentKey;
+
+    [candidate validateAPIKeyWithCompletion:^(BOOL success, NSString *errorMsg) {
         if (success) {
             self.statusLabel.stringValue = @"Settings saved successfully!";
             
@@ -1118,6 +1152,12 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
             // Securely save API Key to Keychain
             [[IGKeychainHelper sharedHelper] saveString:currentKey forAccount:[currentProvider lowercaseString]];
             
+            IGAIService *service = [IGAIService sharedService];
+            service.provider = currentProvider;
+            service.model = currentModel;
+            service.apiKey = currentKey;
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"IGAPISettingsSavedNotification" object:service];
+
             // Notify UI to update buttons
             id controller = self.view.window.windowController;
             if ([controller isKindOfClass:[IGMainWindowController class]]) {
@@ -1135,7 +1175,11 @@ static NSString *IGSettingsPlainTextFromMarkdown(NSString *markdown) {
             [alert setInformativeText:errorMsg];
             [alert runModal];
         }
+        self.validatingProvider = NO;
         self.saveButton.enabled = YES;
+        self.syncModelsBtn.enabled = [currentProvider isEqualToString:@"OpenRouter"];
+        self.providerCombo.enabled = YES;
+        self.modelCombo.enabled = YES;
     }];
 }
 

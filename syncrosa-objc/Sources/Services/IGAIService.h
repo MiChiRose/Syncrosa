@@ -1,5 +1,8 @@
 #import <Foundation/Foundation.h>
 
+FOUNDATION_EXPORT NSString * const IGOpenRouterDefaultModel;
+FOUNDATION_EXPORT NSArray *IGOpenRouterFreeModelsFromData(NSData *data);
+FOUNDATION_EXPORT NSString *IGOpenRouterPreferredModel(NSString *selected, NSArray *models);
 FOUNDATION_EXPORT NSString *IGAICurlExecutablePath(void);
 FOUNDATION_EXPORT NSString *IGAIUserFacingNetworkErrorMessage(NSError *error);
 
@@ -11,8 +14,9 @@ FOUNDATION_EXPORT NSString *IGAIUserFacingNetworkErrorMessage(NSError *error);
 @property (nonatomic, copy) NSString *provider; // "Gemini", "OpenRouter", "Groq"
 @property (nonatomic, copy) NSString *model;
 
-- (void)fetchOpenRouterModelsWithCompletion:(void(^)(NSArray *models))completionBlock;
-- (void)fetchOpenRouterModelsWithDetailedCompletion:(void(^)(NSArray *models, NSError *error))completionBlock;
+- (NSArray *)cachedOpenRouterModels;
+- (NSString *)savedOpenRouterModel;
+- (void)refreshOpenRouterModelsForce:(BOOL)force completion:(void(^)(NSArray *models, NSError *error))completionBlock;
 
 - (void)makeRequestToURL:(NSURL *)url
                   method:(NSString *)method

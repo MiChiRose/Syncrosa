@@ -344,6 +344,13 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
     self.progressIndicator.doubleValue = 0;
     self.statusLabel.stringValue = @"Reading iTunes Library...";
 
+    IGAIService *service = [IGAIService sharedService];
+    IGAIService *request = [[[IGAIService alloc] init] autorelease];
+    request.provider = service.provider;
+    request.apiKey = service.apiKey;
+    request.model = service.model;
+    NSInteger requestedCount = [self.countField integerValue];
+
     [[IGiTunesService sharedService] fetchLibraryTrackCountWithCompletion:^(NSInteger trackCount, NSString *errorMessage) {
         if (trackCount < 0) {
             self.statusLabel.stringValue = errorMessage ?: @"Could not read iTunes library.";
@@ -397,10 +404,7 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
             aiPrompt = [aiPrompt stringByAppendingFormat:@". Keep the total fileSizeBytes at or below %llu bytes. Each library row ends with fileSizeBytes.", capacityBytes];
         }
 
-        [[IGAIService sharedService] generatePlaylistWithPrompt:aiPrompt
-                                                           count:[self.countField integerValue]
-                                                   librarySample:sampleStrings
-                                                      completion:^(NSArray *suggestedIDs) {
+        void (^resultHandler)(NSArray *) = ^(NSArray *suggestedIDs) {
             [self.progressIndicator stopAnimation:nil];
             self.progressIndicator.indeterminate = NO;
             
@@ -455,7 +459,18 @@ static NSBox *IGGeniusRoundedPanel(NSRect frame)
                 
                 [IGNotificationView showInView:self.view message:successMsg isError:NO];
             }];
-        }];
+        };
+        if ([request.provider isEqualToString:@"OpenRouter"] &&
+            ![[NSUserDefaults standardUserDefaults] boolForKey:@"only_local_mode"]) {
+            [service refreshOpenRouterModelsForce:NO completion:^(NSArray *models, NSError *error) {
+                request.model = [service savedOpenRouterModel];
+                [request generatePlaylistWithPrompt:aiPrompt count:requestedCount
+                                      librarySample:sampleStrings completion:resultHandler];
+            }];
+        } else {
+            [request generatePlaylistWithPrompt:aiPrompt count:requestedCount
+                                  librarySample:sampleStrings completion:resultHandler];
+        }
     }];
     }];
 }

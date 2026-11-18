@@ -11,7 +11,7 @@ struct SettingsView: View {
     
     @AppStorage("selected_model_gemini") private var geminiModel: String = "gemini-1.5-flash"
     @AppStorage("selected_model_groq") private var groqModel: String = "llama3-8b-8192"
-    @AppStorage("selected_model_openrouter") private var openrouterModel: String = "google/gemini-2.0-flash-exp:free"
+    @AppStorage("selected_model_openrouter") private var openrouterModel: String = AIService.defaultOpenRouterModel
     
     @AppStorage("selected_provider") private var selectedProvider: String = "Gemini"
     @AppStorage("is_key_validated") private var isKeyValidated: Bool = false
@@ -224,7 +224,11 @@ struct SettingsView: View {
                             options: providers.map { SyncrosaMenuOption(title: $0, value: $0) },
                             minSegmentWidth: 104
                         )
-                        .onChange(of: selectedProvider) { _, _ in isKeyValidated = false }
+                        .onChange(of: selectedProvider) { _, _ in
+                            isKeyValidated = false
+                            refreshOpenRouterModelsIfNeeded()
+                        }
+                        .disabled(isValidating)
                     }
                     
                     VStack(alignment: .leading, spacing: 15) {
@@ -242,12 +246,20 @@ struct SettingsView: View {
                                 
                                 HStack(alignment: .center, spacing: 10) {
                                     SyncrosaGlassMenu(
-                                        selection: $openrouterModel,
-                                        options: openRouterModels.map { SyncrosaMenuOption(title: $0, value: $0) },
-                                        width: 360
+                                        selection: Binding(
+                                            get: { AIService.preferredOpenRouterModel(openrouterModel, in: openRouterModels) },
+                                            set: { openrouterModel = $0 }
+                                        ),
+                                        options: openRouterModels.map {
+                                            SyncrosaMenuOption(title: $0 == AIService.defaultOpenRouterModel
+                                                ? (lang.selectedLanguage == "ru" ? "Автовыбор (бесплатно)" : "Automatic (free)")
+                                                : $0, value: $0)
+                                        },
+                                        width: 360,
+                                        isDisabled: isValidating
                                     )
                                     
-                                    Button(action: syncModels) {
+                                    Button(action: { syncModels(manual: true) }) {
                                         if isSyncingModels {
                                             ProgressView().controlSize(.small)
                                         } else {
@@ -257,16 +269,13 @@ struct SettingsView: View {
                                     }
                                     .buttonStyle(SyncrosaSecondaryButtonStyle())
                                     .controlSize(.regular)
-                                    .disabled(isSyncingModels)
+                                    .disabled(isSyncingModels || isValidating)
                                 }
                             }
                             keyField(title: lang.t("enter_key"), text: $openrouterKey)
                         }
                     }
                     .padding(.vertical, 10)
-                    .onChange(of: geminiKey) { _, _ in isKeyValidated = false }
-                    .onChange(of: groqKey) { _, _ in isKeyValidated = false }
-                    .onChange(of: openrouterKey) { _, _ in isKeyValidated = false }
                     
                     Button(action: validateKey) {
                         if isValidating {
@@ -278,7 +287,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(SyncrosaPrimaryButtonStyle())
                     .controlSize(.large)
-                    .disabled(isValidating || isKeyEmpty)
+                    .disabled(isValidating || isKeyEmpty || (selectedProvider == "OpenRouter" && isSyncingModels))
                 }
                 .syncrosaCard()
                 
@@ -289,6 +298,7 @@ struct SettingsView: View {
             geminiKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "gemini") ?? ""
             groqKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "groq") ?? ""
             openrouterKey = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: "openrouter") ?? ""
+            refreshOpenRouterModelsIfNeeded()
         }
         .sheet(isPresented: $showHelp) {
             helpSheetView
@@ -352,26 +362,45 @@ struct SettingsView: View {
             Text(lang.t("enter_key"))
                 .font(.caption2)
                 .foregroundColor(.secondary)
-            SecureField(title, text: text)
-                .textFieldStyle(.roundedBorder)
+            SecureField(title, text: Binding(
+                get: { text.wrappedValue },
+                set: { value in
+                    text.wrappedValue = value
+                    isKeyValidated = false
+                }
+            ))
+            .textFieldStyle(.roundedBorder)
+            .disabled(isValidating)
         }
     }
     
-    func syncModels() {
+    private func refreshOpenRouterModelsIfNeeded() {
+        guard selectedProvider == "OpenRouter", !onlyLocalMode else { return }
+        syncModels(manual: false)
+    }
+
+    private func syncModels(manual: Bool) {
+        guard !isSyncingModels, !isValidating else { return }
+        openRouterModels = AIService.shared.cachedOpenRouterModels
         isSyncingModels = true
-        AIService.shared.fetchOpenRouterModels { models in
-            DispatchQueue.main.async {
-                if let models = models, !models.isEmpty {
-                    self.openRouterModels = models
-                    self.activeNotification = NotificationMessage(text: lang.t("sync_success"), isError: false)
-                } else {
-                    self.activeNotification = NotificationMessage(text: "Failed to sync models.", isError: true)
+        AIService.shared.fetchOpenRouterModels(force: manual) { models in
+            isSyncingModels = false
+            guard selectedProvider == "OpenRouter" else { return }
+            if let models {
+                openRouterModels = models
+                openrouterModel = AIService.preferredOpenRouterModel(openrouterModel, in: models)
+                if manual {
+                    activeNotification = NotificationMessage(text: lang.t("sync_success"), isError: false)
                 }
-                isSyncingModels = false
+            } else if manual {
+                let message = lang.selectedLanguage == "ru"
+                    ? "Не удалось обновить список OpenRouter."
+                    : "Could not refresh the OpenRouter model list."
+                activeNotification = NotificationMessage(text: message, isError: true)
             }
         }
     }
-    
+
     func syncLibrary() {
         isSyncingLibrary = true
         self.activeNotification = NotificationMessage(text: "Syncing...", isError: false)
@@ -589,16 +618,18 @@ struct SettingsView: View {
         isValidating = true
         self.activeNotification = NotificationMessage(text: lang.t("checking"), isError: false)
         let key = selectedProvider == "Gemini" ? geminiKey : (selectedProvider == "Groq" ? groqKey : openrouterKey)
-        let model = selectedProvider == "Gemini" ? geminiModel : (selectedProvider == "Groq" ? groqModel : openrouterModel)
+        let provider = selectedProvider
+        let model = provider == "Gemini" ? geminiModel : (provider == "Groq" ? groqModel
+            : AIService.preferredOpenRouterModel(openrouterModel, in: openRouterModels))
         
-        AIService.shared.validateAPIKey(provider: selectedProvider, apiKey: key, model: model) { success, message in
+        AIService.shared.validateAPIKey(provider: provider, apiKey: key, model: model) { success, message in
             DispatchQueue.main.async {
                 isValidating = false
                 if success {
                     isKeyValidated = true
                     
                     // Save to Keychain on success
-                    let account = selectedProvider.lowercased()
+                    let account = provider.lowercased()
                     KeychainHelper.shared.saveString(key, service: KeychainHelper.serviceName, account: account)
                     
                     self.activeNotification = NotificationMessage(text: lang.t("welcome"), isError: false)
