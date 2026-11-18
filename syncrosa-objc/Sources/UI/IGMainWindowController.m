@@ -166,43 +166,45 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
     quickBox.boxType = NSBoxPrimary;
     [self.view addSubview:quickBox];
 
-	CGFloat quickGap = 8.0;
-	CGFloat quickButtonHeight = 30.0;
-	CGFloat quickContentHeight = NSHeight(quickBox.bounds) - 14.0;
-	CGFloat quickButtonY = floor((quickContentHeight - quickButtonHeight) / 2.0);
-	CGFloat quickGroupWidth = 112.0 + 119.0 + 137.0 + 108.0 + (quickGap * 3.0);
-	CGFloat legacyBoxContentOffsetX = 7.0;
-	CGFloat quickX = floor((NSWidth(quickBox.bounds) - quickGroupWidth) / 2.0) - legacyBoxContentOffsetX;
-	NSButton *refresh = [self actionButton:@"Check iTunes" frame:NSMakeRect(quickX, quickButtonY, 112, quickButtonHeight) action:@selector(refreshClicked:)];
-	    IGConfigureIconButton(refresh, @"refresh", @"Refresh iTunes library status", NO);
-    [quickBox addSubview:refresh];
+    NSView *quickContent = quickBox.contentView;
+    CGFloat quickGap = 8.0;
+    CGFloat quickButtonHeight = 30.0;
+    CGFloat quickGroupWidth = 112.0 + 119.0 + 137.0 + 108.0 + 3 * quickGap;
+    CGFloat quickX = floor(NSMidX(quickContent.bounds) - quickGroupWidth / 2.0);
+    CGFloat quickY = floor(NSMidY(quickContent.bounds) - quickButtonHeight / 2.0);
+    NSButton *refresh = [self actionButton:@"Check iTunes" frame:NSMakeRect(quickX, quickY, 112, quickButtonHeight) action:@selector(refreshClicked:)];
+    IGConfigureIconButton(refresh, @"refresh", @"Refresh iTunes library status", NO);
+    [quickContent addSubview:refresh];
     quickX = NSMaxX(refresh.frame) + quickGap;
-    self.doctorButton = [self actionButton:@"Library Doctor" frame:NSMakeRect(quickX, quickButtonY, 119, quickButtonHeight) action:@selector(openDoctorClicked:)];
+    self.doctorButton = [self actionButton:@"Library Doctor" frame:NSMakeRect(quickX, quickY, 119, quickButtonHeight) action:@selector(openDoctorClicked:)];
     IGConfigureIconButton(self.doctorButton, @"doctor", @"Open Library Doctor", NO);
-    [quickBox addSubview:self.doctorButton];
-	quickX = NSMaxX(self.doctorButton.frame) + quickGap;
-	NSButton *recovery = [self actionButton:@"Recovery Center" frame:NSMakeRect(quickX, quickButtonY, 137, quickButtonHeight) action:@selector(openRecoveryClicked:)];
-	    IGConfigureIconButton(recovery, @"restore", @"Open Recovery Center", NO);
-    [quickBox addSubview:recovery];
-	quickX = NSMaxX(recovery.frame) + quickGap;
-	NSButton *wizard = [self actionButton:@"Setup Guide" frame:NSMakeRect(quickX, quickButtonY, 108, quickButtonHeight) action:@selector(wizardClicked:)];
-	    IGConfigureIconButton(wizard, @"info", @"Open the setup guide", NO);
-    [quickBox addSubview:wizard];
+    [quickContent addSubview:self.doctorButton];
+    quickX = NSMaxX(self.doctorButton.frame) + quickGap;
+    NSButton *recovery = [self actionButton:@"Recovery Center" frame:NSMakeRect(quickX, quickY, 137, quickButtonHeight) action:@selector(openRecoveryClicked:)];
+    IGConfigureIconButton(recovery, @"restore", @"Open Recovery Center", NO);
+    [quickContent addSubview:recovery];
+    quickX = NSMaxX(recovery.frame) + quickGap;
+    NSButton *wizard = [self actionButton:@"Setup Guide" frame:NSMakeRect(quickX, quickY, 108, quickButtonHeight) action:@selector(wizardClicked:)];
+    IGConfigureIconButton(wizard, @"info", @"Open the setup guide", NO);
+    [quickContent addSubview:wizard];
 
     BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
-    NSBox *filesBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 325, 530, 77)] autorelease];
+    NSBox *filesBox = [[[NSBox alloc] initWithFrame:NSMakeRect(25, 324, 530, 82)] autorelease];
     filesBox.title = russian ? @"Музыка на диске" : @"Music Files on Disk";
     filesBox.boxType = NSBoxPrimary;
+    NSView *filesContent = filesBox.contentView;
+    NSRect filesBounds = filesContent.bounds;
+    CGFloat filesY = floor(NSMidY(filesBounds));
     NSTextField *fileHelp = IGCreateGuideTextField(
         russian ? @"Измените название трека или имя файла без ключа и импорта в iTunes."
                 : @"Correct track titles or file names without a key or an iTunes import.",
-        NSMakeRect(15, 30, 495, 19), [NSFont systemFontOfSize:11], IGThemeTextColor(), NSLeftTextAlignment);
-    [filesBox addSubview:fileHelp];
+        NSMakeRect(10, filesY + 6, NSWidth(filesBounds) - 20, 18), [NSFont systemFontOfSize:11], IGThemeTextColor(), NSCenterTextAlignment);
+    [filesContent addSubview:fileHelp];
     NSButton *fixTitles = [self actionButton:(russian ? @"Исправить названия…" : @"Correct Track Titles…")
-                                      frame:NSMakeRect(12, 0, 203, 30) action:@selector(openFolderFixerClicked:)];
+                                      frame:NSMakeRect(floor(NSMidX(filesBounds) - 102.0), filesY - 25, 204, 28) action:@selector(openFolderFixerClicked:)];
     IGConfigureIconButton(fixTitles, @"folder", nil, NO);
     IGApplyThemeToButton(fixTitles, IGThemeButtonRolePrimary);
-    [filesBox addSubview:fixTitles];
+    [filesContent addSubview:fixTitles];
     [self.view addSubview:filesBox];
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recoveryStateChanged:) name:IGUSBExportJobsDidChangeNotification object:nil];
@@ -238,7 +240,8 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
         CGFloat iconSize = 26.0;
         CGFloat gap = 10.0;
         CGFloat horizontalPadding = 16.0;
-        CGFloat maximumControlWidth = MAX(80.0, NSWidth(box.bounds) - (horizontalPadding * 2.0) - iconSize - gap);
+        NSRect bounds = [(NSView *)box.contentView bounds];
+        CGFloat maximumControlWidth = MAX(80.0, NSWidth(bounds) - horizontalPadding * 2.0 - iconSize - gap);
         CGFloat controlWidth = 80.0;
         CGFloat controlHeight = 22.0;
 
@@ -256,9 +259,8 @@ static NSTextField *IGCreateGuideTextField(NSString *text, NSRect frame, NSFont 
             controlHeight = MAX(22.0, MIN(30.0, ceil(cellSize.height)));
         }
 
-        CGFloat usableHeight = MAX(iconSize, NSHeight(box.bounds) - 18.0);
-        CGFloat centerY = floor(usableHeight / 2.0);
-        CGFloat startX = horizontalPadding;
+        CGFloat centerY = NSMidY(bounds);
+        CGFloat startX = floor(NSMidX(bounds) - (iconSize + gap + controlWidth) / 2.0);
         icon.frame = NSMakeRect(startX, floor(centerY - iconSize / 2.0), iconSize, iconSize);
         control.frame = NSMakeRect(startX + iconSize + gap,
                                    floor(centerY - controlHeight / 2.0),
@@ -1394,15 +1396,8 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 }
 
 - (void)showFirstLaunchSetupIfNeeded {
-    NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-    if (!version || version.length == 0) {
-        version = @"development";
-    }
-
     NSString *seenVersion = [[NSUserDefaults standardUserDefaults] stringForKey:@"syncrosa_first_launch_guide_seen_version"];
-    if (![seenVersion isEqualToString:version]) {
-        [self showFirstLaunchGuideMarkingSeen:YES];
-    }
+    if (seenVersion.length == 0) [self showFirstLaunchGuideMarkingSeen:YES];
 }
 
 - (void)showFirstLaunchGuideMarkingSeen:(BOOL)markSeen {
@@ -2175,14 +2170,7 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
 	            targetVC = self.recoveryCenterVC;
 	            break;
 	        case IGNavigationItemSettings:
-	            if (!self.settingsVC) {
-	                IGSettingsViewController *vc = [[IGSettingsViewController alloc] init];
-	                self.settingsVC = vc;
-#if !__has_feature(objc_arc)
-	                [vc release];
-#endif
-	            }
-	            targetVC = self.settingsVC;
+	            targetVC = [self updateSettingsController];
 	            break;
     }
     
@@ -2228,6 +2216,21 @@ static void IGLibraryDoctorRecordHistory(NSString *title, NSString *status, NSSt
             [self switchViewToIndex:IGNavigationItemOverview];
         }
     }
+}
+
+- (IGSettingsViewController *)updateSettingsController {
+    if (!self.settingsVC) self.settingsVC = [[[IGSettingsViewController alloc] init] autorelease];
+    return self.settingsVC;
+}
+
+- (void)checkForUpdatesOnLaunch {
+    [[self updateSettingsController] checkForUpdatesOnLaunch];
+}
+
+- (void)checkForUpdatesFromMenu {
+    if (self.window.attachedSheet) return;
+    [self switchViewToIndex:IGNavigationItemSettings];
+    [[self updateSettingsController] checkForUpdatesManually:YES];
 }
 
 - (void)windowWillClose:(NSNotification *)notification {

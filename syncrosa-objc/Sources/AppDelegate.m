@@ -7,6 +7,7 @@
 @interface AppDelegate ()
 @property (nonatomic, strong) IGMainWindowController *mainWindowController;
 @property (nonatomic, strong) NSMenu *languageMenu;
+@property (nonatomic, strong) NSMenuItem *checkUpdatesItem;
 @property (nonatomic, strong) NSWindow *fallbackWindow;
 @end
 
@@ -44,6 +45,7 @@ static void IGAppStartupLog(NSString *message) {
         [[IGLogger sharedLogger] log:@"main window controller created"];
         IGAppStartupLog(@"main window controller created");
 	        [self.mainWindowController showWindow:self];
+	        [self.mainWindowController performSelector:@selector(checkForUpdatesOnLaunch) withObject:nil afterDelay:2.0];
 	        [[IGLogger sharedLogger] log:@"main window shown"];
 	        IGAppStartupLog(@"main window shown");
 #ifdef DEBUG
@@ -85,6 +87,9 @@ static void IGAppStartupLog(NSString *message) {
     NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];
     [mainMenu addItem:appMenuItem];
     NSMenu *appMenu = [[NSMenu alloc] init];
+    self.checkUpdatesItem = [appMenu addItemWithTitle:@"Check for Updates…" action:@selector(checkForUpdates:) keyEquivalent:@""];
+    self.checkUpdatesItem.target = self;
+    [appMenu addItem:[NSMenuItem separatorItem]];
     [appMenu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@"q"];
     [appMenuItem setSubmenu:appMenu];
 
@@ -109,7 +114,7 @@ static void IGAppStartupLog(NSString *message) {
         [self.languageMenu addItem:item];
     }
     [langMenuItem setSubmenu:self.languageMenu];
-    [self updateLanguageMenuState:self.languageMenu];
+    [self localizationChanged:nil];
 
     [NSApp setMainMenu:mainMenu];
 }
@@ -170,6 +175,12 @@ static void IGAppStartupLog(NSString *message) {
 
 - (void)localizationChanged:(NSNotification *)notification {
     [self updateLanguageMenuState:self.languageMenu];
+    BOOL russian = [[[IGLocalizationService sharedService] selectedLanguage] isEqualToString:@"ru"];
+    self.checkUpdatesItem.title = russian ? @"Проверить обновления…" : @"Check for Updates…";
+}
+
+- (void)checkForUpdates:(id)sender {
+    [self.mainWindowController checkForUpdatesFromMenu];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {

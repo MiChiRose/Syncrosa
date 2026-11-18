@@ -273,7 +273,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     [[self.folderPathField cell] setPlaceholderString:[lang t:@"no_folder"]];
     [self.folderCanvas addSubview:self.folderPathField];
 
-    self.selectFolderButton = [[NSButton alloc] initWithFrame:NSMakeRect(410, y-2, 130, 30)];
+    self.selectFolderButton = [[NSButton alloc] initWithFrame:NSMakeRect(410, y-3, 130, 30)];
     self.selectFolderButton.title = [lang t:@"select_folder"];
     self.selectFolderButton.bezelStyle = NSRoundedBezelStyle;
     self.selectFolderButton.target = self;
@@ -281,7 +281,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     [self.folderCanvas addSubview:self.selectFolderButton];
 
     y -= 42;
-    self.titleEditorButton = [[[NSButton alloc] initWithFrame:NSMakeRect(36, y - 3, 256, 32)] autorelease];
+    self.titleEditorButton = [[[NSButton alloc] initWithFrame:NSMakeRect(40, y - 3, 244, 32)] autorelease];
     self.titleEditorButton.title = russian ? @"Исправить названия треков…" : @"Correct Track Titles…";
     self.titleEditorButton.target = self;
     self.titleEditorButton.action = @selector(editTitlesClicked:);
@@ -289,7 +289,7 @@ static NSString *IGFileFixerTrackID(NSString *relativePath, unsigned long long s
     [self.folderCanvas addSubview:self.titleEditorButton];
     IGApplyThemeToButton(self.titleEditorButton, IGThemeButtonRolePrimary);
 
-    self.otherToolsButton = [[[NSButton alloc] initWithFrame:NSMakeRect(306, y - 3, 240, 32)] autorelease];
+    self.otherToolsButton = [[[NSButton alloc] initWithFrame:NSMakeRect(296, y - 3, 244, 32)] autorelease];
     self.otherToolsButton.title = russian ? @"Имена файлов и другие операции" : @"File Names and Other Tools";
     self.otherToolsButton.target = self;
     self.otherToolsButton.action = @selector(toggleOtherTools:);

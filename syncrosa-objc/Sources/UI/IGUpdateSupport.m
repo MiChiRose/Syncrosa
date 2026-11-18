@@ -1,4 +1,13 @@
 #import "IGUpdateSupport.h"
+#import "IGAIService.h"
+#import <CommonCrypto/CommonDigest.h>
+#import <fcntl.h>
+#import <poll.h>
+#import <unistd.h>
+#import <errno.h>
+#import <stdlib.h>
+#import <string.h>
+#import <sys/stat.h>
 
 static NSString * const IGUpdateManifestURLStringValue = @"https://syncrosa-updates.telegraphica.workers.dev/v1/update-manifest?platform=macos&track=cocoa&channel=stable";
 static NSString * const IGUpdateManifestURLDefaultsKey = @"SyncrosaUpdateManifestURL";
@@ -8,141 +17,164 @@ static NSString *IGUpdateStringValue(id object) {
     return [object isKindOfClass:[NSString class]] ? object : nil;
 }
 
-static NSDictionary *IGUpdatePreferredCocoaAsset(NSArray *assets) {
-    NSUInteger index = 0;
-    for (index = 0; index < [assets count]; index++) {
-        id assetObject = [assets objectAtIndex:index];
-        if (![assetObject isKindOfClass:[NSDictionary class]]) {
-            continue;
-        }
-        NSDictionary *asset = (NSDictionary *)assetObject;
-        NSString *name = IGUpdateStringValue([asset objectForKey:@"name"]);
-        NSString *download = IGUpdateStringValue([asset objectForKey:@"browser_download_url"]);
-        if ([download length] == 0) {
-            download = IGUpdateStringValue([asset objectForKey:@"download_url"]);
-        }
-        NSString *lower = [name lowercaseString];
-        if ([lower rangeOfString:@"syncrosa_cocoa_v"].location != NSNotFound &&
-            [lower hasSuffix:@".zip"] &&
-            [download length] > 0) {
-            return asset;
-        }
-    }
-    return nil;
+static NSString * const IGUpdateGitHubAPIURL = @"https://api.github.com/repos/MiChiRose/Syncrosa/releases/latest";
+static const unsigned long long IGUpdateMaximumInstallerSize = 256ULL * 1024 * 1024;
+
+static NSError *IGUpdateError(NSInteger code, NSString *message) {
+    return [NSError errorWithDomain:@"SyncrosaUpdate" code:code
+                           userInfo:@{NSLocalizedDescriptionKey: message}];
 }
 
 static NSString *IGUpdateFirstStringValue(NSDictionary *dictionary, NSArray *keys) {
     for (NSString *key in keys) {
-        NSString *value = IGUpdateStringValue([dictionary objectForKey:key]);
-        if ([value length] > 0) {
-            return value;
-        }
+        NSString *value = IGUpdateStringValue(dictionary[key]);
+        if (value.length > 0) return value;
     }
     return nil;
 }
 
-static NSDictionary *IGUpdateInfoFromReleaseDictionary(NSDictionary *release, NSString *source) {
-    NSString *tagName = IGUpdateFirstStringValue(release, [NSArray arrayWithObjects:@"tag_name", @"tagName", @"tag", @"version", nil]);
-    NSString *name = IGUpdateFirstStringValue(release, [NSArray arrayWithObjects:@"name", @"title", @"releaseTitle", nil]);
-    NSString *version = [tagName length] > 0 ? tagName : name;
-    if ([version hasPrefix:@"v"]) {
-        version = [version substringFromIndex:1];
-    }
-    if ([version length] == 0) {
-        return nil;
-    }
-
-    NSString *htmlURL = IGUpdateFirstStringValue(release, [NSArray arrayWithObjects:@"html_url", @"release_url", @"releaseURL", @"releaseUrl", @"url", nil]);
-    if ([htmlURL length] == 0) {
-        htmlURL = IGUpdateProjectReleasesURLValue;
-    }
-
-    NSArray *assets = [[release objectForKey:@"assets"] isKindOfClass:[NSArray class]] ? [release objectForKey:@"assets"] : nil;
-    NSDictionary *asset = IGUpdatePreferredCocoaAsset(assets);
-    NSDictionary *cocoa = [[release objectForKey:@"cocoa"] isKindOfClass:[NSDictionary class]] ? [release objectForKey:@"cocoa"] : nil;
-    NSString *downloadURL = IGUpdateFirstStringValue(release, [NSArray arrayWithObjects:@"download_url", @"downloadURL", @"downloadUrl", @"cocoaDownloadURL", @"cocoaDownloadUrl", nil]);
-    NSString *fileName = IGUpdateFirstStringValue(release, [NSArray arrayWithObjects:@"file_name", @"fileName", @"assetName", nil]);
-    if ([downloadURL length] == 0 && cocoa) {
-        downloadURL = IGUpdateFirstStringValue(cocoa, [NSArray arrayWithObjects:@"download_url", @"downloadURL", @"downloadUrl", @"url", nil]);
-    }
-    if ([fileName length] == 0 && cocoa) {
-        fileName = IGUpdateFirstStringValue(cocoa, [NSArray arrayWithObjects:@"file_name", @"fileName", @"assetName", nil]);
-    }
-    if ([downloadURL length] == 0 && asset) {
-        downloadURL = IGUpdateStringValue([asset objectForKey:@"browser_download_url"]);
-        if ([downloadURL length] == 0) {
-            downloadURL = IGUpdateStringValue([asset objectForKey:@"download_url"]);
-        }
-    }
-    if ([fileName length] == 0 && asset) {
-        fileName = IGUpdateStringValue([asset objectForKey:@"name"]);
-    }
-
-    if (!IGUpdateURLStringIsTrusted(downloadURL)) {
-        downloadURL = nil;
-    }
-    if (!IGUpdateURLStringIsTrusted(htmlURL)) {
-        htmlURL = IGUpdateProjectReleasesURLValue;
-    }
-
-    NSString *body = IGUpdateFirstStringValue(release, [NSArray arrayWithObjects:@"body", @"notes", @"releaseNotes", @"release_notes", @"body_markdown", nil]);
-    NSMutableDictionary *info = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                 version, @"version",
-                                 htmlURL, @"url",
-                                 source ? source : @"unknown", @"source",
-                                 nil];
-    if ([name length] > 0) {
-        [info setObject:name forKey:@"title"];
-    }
-    if ([body length] > 0) {
-        [info setObject:body forKey:@"notes"];
-    }
-    if ([downloadURL length] > 0) {
-        [info setObject:downloadURL forKey:@"download_url"];
-    }
-    if ([fileName length] > 0) {
-        [info setObject:fileName forKey:@"file_name"];
-    }
-    return info;
+static BOOL IGUpdateStringContainsOnly(NSString *string, NSString *characters) {
+    return string.length > 0 &&
+        [string rangeOfCharacterFromSet:[[NSCharacterSet characterSetWithCharactersInString:characters] invertedSet]].location == NSNotFound;
 }
 
-static NSDictionary *IGLatestManifestUpdateInfoWithError(NSError **error) {
-    NSString *manifestURL = IGUpdateManifestURLString();
-    NSURL *url = [NSURL URLWithString:manifestURL];
-    if (!url) {
-        if (error) {
-            *error = [NSError errorWithDomain:@"SyncrosaUpdate"
-                                         code:10
-                                     userInfo:[NSDictionary dictionaryWithObject:@"Update manifest URL is invalid." forKey:NSLocalizedDescriptionKey]];
-        }
-        return nil;
+static BOOL IGUpdateVersionIsValid(NSString *version) {
+    if (![version isKindOfClass:[NSString class]]) return NO;
+    NSArray *parts = [version componentsSeparatedByString:@"."];
+    if (parts.count != 3) return NO;
+    for (NSString *part in parts) {
+        if (part.length > 9 || !IGUpdateStringContainsOnly(part, @"0123456789")) return NO;
+    }
+    return YES;
+}
+
+static NSString *IGUpdateInstallerName(NSString *version) {
+    return [NSString stringWithFormat:@"Syncrosa_Cocoa_v%@.dmg", version];
+}
+
+static NSString *IGUpdateInstallerURL(NSString *version) {
+    return [NSString stringWithFormat:@"%@/download/v%@/%@", IGUpdateProjectReleasesURLValue,
+            version, IGUpdateInstallerName(version)];
+}
+
+NSDictionary *IGUpdateInfoFromReleaseDictionary(NSDictionary *release, NSString *source) {
+    if (![release isKindOfClass:[NSDictionary class]]) return nil;
+    if ([release[@"draft"] isEqual:@YES] || [release[@"prerelease"] isEqual:@YES] ||
+        [release[@"test"] isEqual:@YES]) return nil;
+
+    NSString *version = IGUpdateFirstStringValue(release, @[@"tag_name", @"tagName", @"tag", @"version"]);
+    if ([version hasPrefix:@"v"]) version = [version substringFromIndex:1];
+    if (!IGUpdateVersionIsValid(version)) return nil;
+
+    // Build the release link from the validated version and fixed project path.
+    NSString *releaseURL = [NSString stringWithFormat:@"%@/tag/v%@", IGUpdateProjectReleasesURLValue, version];
+    NSMutableDictionary *info = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"version": version, @"url": releaseURL, @"source": source ?: @"unknown"
+    }];
+    NSString *title = IGUpdateFirstStringValue(release, @[@"name", @"title", @"releaseTitle"]);
+    NSString *notes = IGUpdateFirstStringValue(release, @[@"body", @"notes", @"releaseNotes"]);
+    if (title.length) info[@"title"] = title;
+    if (notes.length) info[@"notes"] = notes;
+
+    NSArray *assets = [release[@"assets"] isKindOfClass:[NSArray class]] ? release[@"assets"] : nil;
+    NSString *installerName = IGUpdateInstallerName(version);
+    NSString *zipName = [[installerName stringByDeletingPathExtension] stringByAppendingPathExtension:@"zip"];
+    BOOL hasCocoaAsset = [source isEqual:@"cloudflare"] &&
+        [IGUpdateFirstStringValue(release, @[@"file_name", @"fileName", @"assetName"]) isEqual:zipName];
+    for (id asset in assets) {
+        if (![asset isKindOfClass:[NSDictionary class]]) continue;
+        id assetName = asset[@"name"];
+        if ([assetName isEqual:zipName]) hasCocoaAsset = YES;
+        if (![assetName isEqual:installerName] ||
+            ![asset[@"browser_download_url"] isEqual:IGUpdateInstallerURL(version)]) continue;
+        hasCocoaAsset = YES;
+        id size = asset[@"size"];
+        NSString *digest = IGUpdateStringValue(asset[@"digest"]);
+        if (![size isKindOfClass:[NSNumber class]] || CFGetTypeID((CFTypeRef)size) == CFBooleanGetTypeID() ||
+            [size doubleValue] < 1 || [size doubleValue] > IGUpdateMaximumInstallerSize ||
+            [size doubleValue] != [size unsignedLongLongValue] ||
+            ![digest hasPrefix:@"sha256:"]) continue;
+        NSString *sha256 = [[digest substringFromIndex:7] lowercaseString];
+        if (sha256.length != CC_SHA256_DIGEST_LENGTH * 2 ||
+            !IGUpdateStringContainsOnly(sha256, @"0123456789abcdef")) continue;
+
+        info[@"download_url"] = IGUpdateInstallerURL(version);
+        info[@"file_name"] = IGUpdateInstallerName(version);
+        info[@"sha256"] = sha256;
+        info[@"size"] = size;
+        break;
+    }
+    return hasCocoaAsset ? info : nil;
+}
+
+// Read curl's response in bounded chunks, including when the server omits Content-Length.
+static BOOL IGUpdateTransfer(NSString *url, NSUInteger limit, NSInteger timeout, NSProgress *progress,
+                             BOOL (^consume)(const void *, NSUInteger), NSError **error) {
+    NSTask *task = [[[NSTask alloc] init] autorelease];
+    NSString *curlPath = IGAICurlExecutablePath();
+    [task setLaunchPath:curlPath];
+    if ([curlPath rangeOfString:@"/Contents/Resources/LegacyCurl/"].location != NSNotFound) {
+        NSMutableDictionary *environment = [NSMutableDictionary dictionaryWithDictionary:[[NSProcessInfo processInfo] environment]];
+        environment[@"DYLD_LIBRARY_PATH"] = [[curlPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"lib"];
+        [task setEnvironment:environment];
+    }
+    NSMutableArray *args = [NSMutableArray arrayWithArray:@[
+        @"--disable", @"--silent", @"--fail", @"--location", @"--max-redirs", @"5", @"--globoff",
+        @"--proto", @"=https", @"--proto-redir", @"=https", @"--connect-timeout", @"8",
+        @"--max-time", [NSString stringWithFormat:@"%ld", (long)timeout],
+        @"--speed-time", @"15", @"--speed-limit", @"1", @"--max-filesize",
+        [NSString stringWithFormat:@"%lu", (unsigned long)limit], @"--user-agent", IGUpdateCheckUserAgentString()
+    ]];
+    NSString *caPath = [[NSBundle mainBundle] pathForResource:@"cacert" ofType:@"pem"];
+    if (caPath.length) [args addObjectsFromArray:@[@"--cacert", caPath]];
+    [args addObjectsFromArray:@[@"--url", url]];
+    [task setArguments:args];
+    NSPipe *pipe = [NSPipe pipe];
+    [task setStandardOutput:pipe];
+    [task setStandardError:[NSFileHandle fileHandleWithNullDevice]];
+    @try {
+        [task launch];
+    } @catch (NSException *exception) {
+        if (error) *error = IGUpdateError(20, @"The secure download tool could not start.");
+        return NO;
     }
 
-    // On Mavericks the URL-loading Objective-C classes live behind CFNetwork
-    // class clusters and their concrete class symbols are not exported. Loading
-    // through NSData keeps the binary free of those hard class references.
-    NSData *data = [NSData dataWithContentsOfURL:url
-                                        options:NSDataReadingUncached
-                                          error:error];
-    if (![data isKindOfClass:[NSData class]] || [data length] == 0) {
-        return nil;
-    }
-
-    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:error];
-    if (![json isKindOfClass:[NSDictionary class]]) {
-        if (error) {
-            *error = [NSError errorWithDomain:@"SyncrosaUpdate"
-                                         code:11
-                                     userInfo:[NSDictionary dictionaryWithObject:@"Update manifest did not return an object." forKey:NSLocalizedDescriptionKey]];
+    int fd = [[pipe fileHandleForReading] fileDescriptor];
+    unsigned char buffer[65536];
+    NSUInteger received = 0;
+    BOOL complete = NO;
+    while (![progress isCancelled]) {
+        struct pollfd input = { fd, POLLIN, 0 };
+        int ready = poll(&input, 1, 250);
+        if (ready == 0 || (ready < 0 && errno == EINTR)) continue;
+        if (ready < 0 || (input.revents & (POLLERR | POLLNVAL))) break;
+        ssize_t count = read(fd, buffer, sizeof(buffer));
+        if (count < 0 && errno == EINTR) continue;
+        if (count <= 0) {
+            complete = count == 0;
+            break;
         }
-        return nil;
+        if ((NSUInteger)count > limit - received || !consume(buffer, (NSUInteger)count)) break;
+        received += (NSUInteger)count;
     }
-    NSDictionary *info = IGUpdateInfoFromReleaseDictionary((NSDictionary *)json, @"cloudflare");
-    if (!info && error) {
-        *error = [NSError errorWithDomain:@"SyncrosaUpdate"
-                                     code:12
-                                 userInfo:[NSDictionary dictionaryWithObject:@"Update manifest does not contain a release version." forKey:NSLocalizedDescriptionKey]];
-    }
+    if (!complete && [task isRunning]) [task terminate];
+    [[pipe fileHandleForReading] closeFile];
+    [task waitUntilExit];
+    if (complete && [task terminationStatus] == 0 && ![progress isCancelled]) return YES;
+    if (error) *error = IGUpdateError(21, @"The secure transfer failed or was interrupted.");
+    return NO;
+}
+
+static NSDictionary *IGUpdateReadRelease(NSString *url, NSString *source, NSError **error) {
+    NSMutableData *data = [NSMutableData data];
+    if (!IGUpdateTransfer(url, 1024 * 1024, 15, nil, ^BOOL(const void *bytes, NSUInteger length) {
+        [data appendBytes:bytes length:length];
+        return YES;
+    }, error)) return nil;
+
+    id release = [NSJSONSerialization JSONObjectWithData:data options:0 error:error];
+    NSDictionary *info = IGUpdateInfoFromReleaseDictionary(release, source);
+    if (!info && release && error) *error = IGUpdateError(12, @"The update server returned invalid release information.");
     return info;
 }
 
@@ -218,7 +250,8 @@ BOOL IGUpdateURLStringIsTrusted(NSString *urlString) {
     NSURL *url = [NSURL URLWithString:urlString];
     NSString *scheme = [[url scheme] lowercaseString];
     NSString *host = [[url host] lowercaseString];
-    if (![scheme isEqualToString:@"https"] || [host length] == 0) {
+    if (![scheme isEqualToString:@"https"] || [host length] == 0 || url.user || url.password ||
+        (url.port && [url.port integerValue] != 443)) {
         return NO;
     }
     if ([host isEqualToString:@"github.com"] ||
@@ -232,28 +265,140 @@ BOOL IGUpdateURLStringIsTrusted(NSString *urlString) {
 }
 
 NSDictionary *IGLatestUpdateInfoWithError(NSError **error) {
-    NSError *manifestError = nil;
-    NSDictionary *manifestInfo = IGLatestManifestUpdateInfoWithError(&manifestError);
-    if (manifestInfo) {
-        return manifestInfo;
-    }
+    // GitHub includes the installer digest and size. The existing service
+    // still resolves the latest Cocoa release if GitHub's API is unavailable.
+    NSError *githubError = nil;
+    NSDictionary *github = IGUpdateReadRelease(IGUpdateGitHubAPIURL, @"github", &githubError);
+    if (IGUpdateDownloadURLStringFromInfo(github)) return github;
 
-    if (error) {
-        if (manifestError) {
-            NSString *message = [manifestError localizedDescription];
-            if ([message length] == 0) {
-                message = @"Update manifest did not return release information.";
+    NSError *manifestError = nil;
+    NSString *manifestURL = IGUpdateManifestURLString();
+    NSDictionary *manifest = IGUpdateURLStringIsTrusted(manifestURL)
+        ? IGUpdateReadRelease(manifestURL, @"cloudflare", &manifestError) : nil;
+    if (manifest && (!github || IGVersionStringIsNewer(manifest[@"version"], github[@"version"]))) return manifest;
+    if (github) return github;
+
+    if (error) *error = manifestError ?: githubError ?: IGUpdateError(13, @"Release information is unavailable.");
+    return nil;
+}
+
+static NSString *IGUpdateDigestString(CC_SHA256_CTX *hash) {
+    unsigned char bytes[CC_SHA256_DIGEST_LENGTH];
+    CC_SHA256_Final(bytes, hash);
+    NSMutableString *digest = [NSMutableString stringWithCapacity:sizeof(bytes) * 2];
+    for (NSUInteger i = 0; i < sizeof(bytes); i++) [digest appendFormat:@"%02x", bytes[i]];
+    return digest;
+}
+
+BOOL IGUpdateInstallerMatchesRelease(NSString *path, NSDictionary *info) {
+    int fd = open([path fileSystemRepresentation], O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
+    if (fd < 0) return NO;
+
+    struct stat status;
+    unsigned long long expectedSize = [info[@"size"] unsignedLongLongValue];
+    BOOL matches = expectedSize > 0 && expectedSize <= IGUpdateMaximumInstallerSize &&
+        fstat(fd, &status) == 0 && S_ISREG(status.st_mode) && (unsigned long long)status.st_size == expectedSize;
+    if (matches) {
+        CC_SHA256_CTX hash;
+        CC_SHA256_Init(&hash);
+        unsigned long long received = 0;
+        unsigned char bytes[65536];
+        while (YES) {
+            ssize_t count = read(fd, bytes, sizeof(bytes));
+            if (count < 0 && errno == EINTR) continue;
+            if (count <= 0 || (unsigned long long)count > expectedSize - received) {
+                matches = count == 0 && received == expectedSize &&
+                    [IGUpdateDigestString(&hash) isEqual:info[@"sha256"]];
+                break;
             }
-            *error = [NSError errorWithDomain:@"SyncrosaUpdate"
-                                         code:13
-                                     userInfo:[NSDictionary dictionaryWithObject:message forKey:NSLocalizedDescriptionKey]];
-        } else {
-            *error = [NSError errorWithDomain:@"SyncrosaUpdate"
-                                         code:30
-                                     userInfo:[NSDictionary dictionaryWithObject:@"No update information could be loaded." forKey:NSLocalizedDescriptionKey]];
+            CC_SHA256_Update(&hash, bytes, (CC_LONG)count);
+            received += count;
         }
     }
-    return nil;
+    close(fd);
+    return matches;
+}
+
+NSString *IGDownloadUpdateInstaller(NSDictionary *info, NSString *folder, NSProgress *progress,
+                                    void (^reportProgress)(double), NSError **error) {
+    NSString *version = info[@"version"];
+    unsigned long long size = [info[@"size"] unsignedLongLongValue];
+    if (!IGUpdateVersionIsValid(version) || ![info[@"download_url"] isEqual:IGUpdateInstallerURL(version)] ||
+        size == 0 || size > IGUpdateMaximumInstallerSize || folder.length == 0) {
+        if (error) *error = IGUpdateError(22, @"There is no verified disk image for this release.");
+        return nil;
+    }
+
+    NSFileManager *files = [NSFileManager defaultManager];
+    if (![files createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:error]) return nil;
+    NSString *pattern = [folder stringByAppendingPathComponent:@".syncrosa-update.XXXXXX"];
+    char *directory = strdup([pattern fileSystemRepresentation]);
+    if (!directory || !mkdtemp(directory)) {
+        free(directory);
+        if (error) *error = IGUpdateError(23, @"A temporary download folder could not be created.");
+        return nil;
+    }
+    NSString *staging = [files stringWithFileSystemRepresentation:directory length:strlen(directory)];
+    free(directory);
+    NSString *partial = [staging stringByAppendingPathComponent:@"installer.part"];
+    int fd = open([partial fileSystemRepresentation], O_WRONLY | O_CREAT | O_EXCL, 0600);
+    if (fd < 0) {
+        [files removeItemAtPath:staging error:NULL];
+        if (error) *error = IGUpdateError(24, @"The disk image could not be saved.");
+        return nil;
+    }
+
+    NSUInteger expectedSize = (NSUInteger)size;
+    __block NSUInteger received = 0;
+    __block NSInteger lastPercent = -1;
+    __block CC_SHA256_CTX hash;
+    CC_SHA256_Init(&hash);
+    BOOL fetched = IGUpdateTransfer(info[@"download_url"], expectedSize, 300, progress,
+        ^BOOL(const void *bytes, NSUInteger length) {
+            const unsigned char *cursor = bytes;
+            NSUInteger left = length;
+            while (left > 0) {
+                ssize_t written = write(fd, cursor, left);
+                if (written < 0 && errno == EINTR) continue;
+                if (written <= 0) return NO;
+                cursor += written;
+                left -= written;
+            }
+            CC_SHA256_Update(&hash, bytes, (CC_LONG)length);
+            received += length;
+            NSInteger percent = (NSInteger)(100 * received / expectedSize);
+            if (reportProgress && percent > lastPercent) {
+                reportProgress(percent / 100.0);
+                lastPercent = percent;
+            }
+            return YES;
+        }, error);
+
+    BOOL closed = close(fd) == 0;
+    NSString *result = nil;
+    if (fetched && closed && ![progress isCancelled]) {
+        if (received == expectedSize && [IGUpdateDigestString(&hash) isEqual:info[@"sha256"]]) {
+            NSString *name = IGUpdateInstallerName(version);
+            for (NSUInteger index = 1; index < 1000 && ![progress isCancelled]; index++) {
+                NSString *candidateName = index == 1 ? name :
+                    [NSString stringWithFormat:@"%@-%lu.dmg", [name stringByDeletingPathExtension], (unsigned long)index];
+                NSString *candidate = [folder stringByAppendingPathComponent:candidateName];
+                // An atomic hard link publishes the verified file without overwriting a previous download.
+                if (link([partial fileSystemRepresentation], [candidate fileSystemRepresentation]) == 0) {
+                    result = candidate;
+                    break;
+                }
+                if (errno != EEXIST) break;
+            }
+            if (!result && error) *error = IGUpdateError(24, @"The disk image could not be saved.");
+        } else if (error) {
+            *error = IGUpdateError(25, @"The downloaded image did not match the release checksum and size.");
+        }
+    } else if (!closed && error) {
+        *error = IGUpdateError(24, @"The disk image could not be saved.");
+    }
+    [files removeItemAtPath:staging error:NULL];
+    return result;
 }
 
 NSString *IGUpdateDownloadURLStringFromInfo(NSDictionary *info) {
@@ -317,12 +462,6 @@ NSString *IGUpdateDetailedErrorMessage(NSError *error) {
 }
 
 NSString *IGUpdateBundledReleaseNotes(void) {
-    return @"Syncrosa Legacy Update Notes\n\n"
-           "This build includes the latest bundled release notes available inside the app.\n\n"
-           "What's improved:\n"
-           "- Cleaner update checking and safer update buttons for the legacy Cocoa interface.\n"
-           "- Settings now keeps API key validation next to the API key field.\n"
-           "- Full-library JSON export/import flow for external AI playlist planning.\n\n"
-           "If this Mac cannot reach the update server because of old system certificates, open the Syncrosa releases page manually from a newer browser:\n"
+    return @"Choose Check for Updates to read the latest release notes. You can also find them on GitHub.\n\n"
            "https://github.com/MiChiRose/Syncrosa/releases";
 }

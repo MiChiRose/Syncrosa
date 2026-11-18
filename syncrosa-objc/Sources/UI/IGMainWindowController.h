@@ -28,6 +28,8 @@ FOUNDATION_EXPORT NSString * const IGFooterVisibilityDidChangeNotification;
 @interface IGMainWindowController : NSWindowController
 
 - (void)updateButtonStates;
+- (void)checkForUpdatesOnLaunch;
+- (void)checkForUpdatesFromMenu;
 - (NSString *)overviewLibraryStatusText;
 - (BOOL)overviewLibraryToolsAvailable;
 - (void)switchViewToIndex:(NSInteger)index;
