@@ -11,6 +11,10 @@ NSString *IGUpdateCheckUserAgentString(void);
 BOOL IGVersionStringIsNewer(NSString *remoteVersion, NSString *currentVersion);
 BOOL IGUpdateURLStringIsTrusted(NSString *urlString);
 
+NSDictionary *IGUpdateInfoFromReleaseDictionary(NSDictionary *release, NSString *source);
+BOOL IGUpdateInstallerMatchesRelease(NSString *path, NSDictionary *info);
+NSString *IGDownloadUpdateInstaller(NSDictionary *info, NSString *folder, NSProgress *progress,
+                                    void (^reportProgress)(double), NSError **error);
 NSDictionary *IGLatestUpdateInfoWithError(NSError **error);
 NSString *IGUpdateDownloadURLStringFromInfo(NSDictionary *info);
 NSString *IGUpdateReleaseURLStringFromInfo(NSDictionary *info);

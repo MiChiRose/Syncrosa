@@ -466,6 +466,42 @@ static NSArray *IGUSBTestMusicNames(NSURL *root) {
     XCTAssertFalse(IGUpdateURLStringIsTrusted(@"https://example.com/Syncrosa.zip"));
 }
 
+- (void)testUpdateInstallerRequiresMatchingCocoaAssetAndVerifiedMetadata {
+    NSString *url = @"https://github.com/MiChiRose/Syncrosa/releases/download/v3.8.0/Syncrosa_Cocoa_v3.8.0.dmg";
+    NSString *digest = @"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    NSMutableDictionary *asset = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"name": @"Syncrosa_Cocoa_v3.8.0.dmg", @"browser_download_url": url,
+        @"digest": digest, @"size": @4194304
+    }];
+    NSMutableDictionary *release = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"tag_name": @"v3.8.0", @"assets": @[
+            @{@"name": @"Syncrosa_Cocoa_v3.8.0.zip"},
+            @{@"name": @"Syncrosa_SwiftUI_v3.8.0.dmg"},
+            asset
+        ]
+    }];
+    NSDictionary *info = IGUpdateInfoFromReleaseDictionary(release, @"github");
+    XCTAssertEqualObjects(IGUpdateDownloadURLStringFromInfo(info), url);
+    XCTAssertEqualObjects(info[@"sha256"], [digest substringFromIndex:7]);
+    XCTAssertEqualObjects(info[@"size"], @4194304);
+
+    for (id invalid in @[@YES, @0, @1.5, @(1024ULL * 1024 * 1024), @"4194304"]) {
+        asset[@"size"] = invalid;
+        XCTAssertNil(IGUpdateDownloadURLStringFromInfo(IGUpdateInfoFromReleaseDictionary(release, @"github")));
+    }
+    asset[@"size"] = @4194304;
+    [asset removeObjectForKey:@"digest"];
+    XCTAssertNil(IGUpdateDownloadURLStringFromInfo(IGUpdateInfoFromReleaseDictionary(release, @"github")));
+    asset[@"digest"] = digest;
+    asset[@"browser_download_url"] = @"https://github.com/Other/Project/releases/download/v3.8.0/Syncrosa_Cocoa_v3.8.0.dmg";
+    XCTAssertNil(IGUpdateDownloadURLStringFromInfo(IGUpdateInfoFromReleaseDictionary(release, @"github")));
+    release[@"tag_name"] = @"v3.8.0-rc1";
+    XCTAssertNil(IGUpdateInfoFromReleaseDictionary(release, @"github"));
+    release[@"tag_name"] = @"v3.8.0";
+    release[@"assets"] = @[@{@"name": @"Syncrosa_SwiftUI_v3.8.0.zip"}];
+    XCTAssertNil(IGUpdateInfoFromReleaseDictionary(release, @"github"));
+}
+
 - (void)testUpdateManifestIgnoresRetiredWorkerOverride {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     NSString *key = @"SyncrosaUpdateManifestURL";
