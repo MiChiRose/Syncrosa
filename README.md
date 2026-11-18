@@ -74,30 +74,26 @@ You can find the compiled release versions in the [Releases](https://github.com/
 
 ### Release Assets
 
-| Archive | Best for | Minimum macOS | Notes |
+| Download | Best for | Minimum macOS | Notes |
 | --- | --- | --- | --- |
-| `Syncrosa_Cocoa_v3.7.0.zip` | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Includes local track title editing with a preview and original file backups. |
+| [`Syncrosa_Cocoa_v3.7.1.dmg`](https://github.com/MiChiRose/Syncrosa/releases/download/v3.7.1/Syncrosa_Cocoa_v3.7.1.dmg) | Vintage Intel Macs, HDD systems, iTunes libraries | OS X 10.9 | Open the disk image and drag Syncrosa to Applications. |
+| [`Syncrosa_Cocoa_v3.7.1.zip`](https://github.com/MiChiRose/Syncrosa/releases/download/v3.7.1/Syncrosa_Cocoa_v3.7.1.zip) | Cocoa ZIP download and updates from previous Cocoa versions | OS X 10.9 | Contains the same Cocoa app as the disk image. |
 | `Syncrosa_Python_v3.4.8.zip` | Original legacy Python track | OS X 10.9 | Uses the system Python runtime where available; rebuilt as an aligned 3.4.8 maintenance package with the Syncrosa update service. |
-| `Syncrosa_SwiftUI_v3.7.0.zip` | Modern Apple Silicon Macs | macOS 14 | Includes local track title editing with a preview and original file backups. |
+| [`Syncrosa_SwiftUI_v3.7.0.zip`](https://github.com/MiChiRose/Syncrosa/releases/download/v3.7.0/Syncrosa_SwiftUI_v3.7.0.zip) | Modern Apple Silicon Macs | macOS 14 | Includes local track title editing with a preview and original file backups. |
 
-Release checksum files are generated as `SHA256SUMS.txt` next to the ZIP archives.
+Each release includes a `SHA256SUMS.txt` file alongside its packages.
 
-### Latest Release: 3.7.0
+### Latest Cocoa release 3.7.1
 
-Syncrosa 3.7.0 adds local track title editing to Folder Fixer in Cocoa and SwiftUI.
-
-- Open **Correct Track Titles** from **Overview** to find the editor.
-- Review the file path, current title, and proposed title before applying changes to common MP3, M4A, and FLAC tags.
-- Type a title or take it from an `Artist - Title` file name. Syncrosa keeps the original files and their paths in the backup folder.
-- Use **File Names and Other Tools** to find the separate filename operations.
-
-The Python maintenance package remains available as version 3.4.8 in its previous release.
+- Check for updates from the Syncrosa menu or at the top of Settings. Syncrosa shows download progress and checks the disk image before opening it.
+- Choose **Open and Quit**, then drag Syncrosa to Applications in Finder.
+- Buttons have more consistent spacing and alignment in Overview, Settings, and Folder Fixer.
 
 ### Running the Application (Important)
 Because the application is distributed directly without an Apple Developer certificate (it uses ad-hoc signing), macOS Gatekeeper will block the first launch.
 
 **To open the app for the first time:**
-1. Download and extract the release archive.
+1. Open the Cocoa DMG and drag Syncrosa to Applications, or extract the ZIP archive.
 2. **Right-click** (or Control-click) the application icon and select **"Open"**.
 3. macOS will warn you about an unidentified developer. Click **"Open"** again in the warning dialog.
 4. From then on, you can launch the app normally with a double-click!
