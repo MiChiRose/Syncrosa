@@ -79,7 +79,8 @@ let package = Package(
                 "MetadataRepairTests.swift",
                 "MusicLibraryExchangeTests.swift",
                 "USBExportTests.swift",
-                "OperationRecoveryTests.swift"
+                "OperationRecoveryTests.swift",
+                "OpenRouterCatalogTests.swift"
             ]
         )
     ]

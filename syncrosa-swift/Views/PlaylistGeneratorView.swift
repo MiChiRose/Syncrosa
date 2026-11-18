@@ -12,8 +12,11 @@ struct PlaylistGeneratorView: View {
     @AppStorage("selected_provider") private var selectedProvider: String = "Gemini"
     @AppStorage("selected_model_gemini") private var geminiModel: String = "gemini-1.5-flash"
     @AppStorage("selected_model_groq") private var groqModel: String = "llama3-8b-8192"
-    @AppStorage("selected_model_openrouter") private var openrouterModel: String = "google/gemini-2.0-flash-exp:free"
+    @AppStorage("selected_model_openrouter") private var openrouterModel: String = AIService.defaultOpenRouterModel
     
+    @AppStorage("only_local_mode") private var onlyLocalMode = false
+    @State private var openRouterModels = AIService.shared.cachedOpenRouterModels
+
     let nameLimit = 30
     let promptLimit = 150
     let maximumTrackCount = 200
@@ -21,7 +24,7 @@ struct PlaylistGeneratorView: View {
     var currentModel: String {
         if selectedProvider == "Gemini" { return geminiModel }
         if selectedProvider == "Groq" { return groqModel }
-        return openrouterModel
+        return AIService.preferredOpenRouterModel(openrouterModel, in: openRouterModels)
     }
 
     var canGeneratePlaylist: Bool {
@@ -162,6 +165,12 @@ struct PlaylistGeneratorView: View {
                 
                 Spacer()
         }
+        .onAppear {
+            guard selectedProvider == "OpenRouter", !onlyLocalMode else { return }
+            AIService.shared.fetchOpenRouterModels { models in
+                if let models { openRouterModels = models }
+            }
+        }
         .notification(message: $activeNotification)
         .sheet(isPresented: $showHelp) {
             helpSheetView
@@ -211,9 +220,9 @@ struct PlaylistGeneratorView: View {
 
     
     func generatePlaylist() {
-        let account = selectedProvider.lowercased()
+        let provider = selectedProvider
+        let account = provider.lowercased()
         let key = KeychainHelper.shared.readString(service: KeychainHelper.serviceName, account: account) ?? ""
-        let model = selectedProvider == "Gemini" ? geminiModel : (selectedProvider == "Groq" ? groqModel : openrouterModel)
         let requestedName = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
         let requestedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let requestedCount = min(max(Int(trackCount) ?? 25, 1), maximumTrackCount)
@@ -224,6 +233,23 @@ struct PlaylistGeneratorView: View {
         }
         
         isGenerating = true
+        if provider == "OpenRouter", !onlyLocalMode {
+            activeNotification = NotificationMessage(text: lang.t("checking"), isError: false)
+            AIService.shared.fetchOpenRouterModels { models in
+                openRouterModels = models ?? AIService.shared.cachedOpenRouterModels
+                let model = AIService.preferredOpenRouterModel(openrouterModel, in: openRouterModels)
+                if models != nil { openrouterModel = model }
+                createPlaylist(provider: provider, key: key, model: model,
+                               name: requestedName, prompt: requestedPrompt, count: requestedCount)
+            }
+        } else {
+            createPlaylist(provider: provider, key: key, model: currentModel,
+                           name: requestedName, prompt: requestedPrompt, count: requestedCount)
+        }
+    }
+
+    private func createPlaylist(provider: String, key: String, model: String,
+                                name requestedName: String, prompt requestedPrompt: String, count requestedCount: Int) {
         activeNotification = NotificationMessage(text: lang.t("scanning"), isError: false)
         
         DispatchQueue.global().async {
@@ -280,7 +306,7 @@ struct PlaylistGeneratorView: View {
             }
             
             AIService.shared.generatePlaylistSuggestions(
-                provider: selectedProvider,
+                provider: provider,
                 apiKey: key,
                 model: model,
                 prompt: requestedPrompt,
